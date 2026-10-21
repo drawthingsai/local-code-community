@@ -1,8 +1,7 @@
 name: cross-repo-synchronization
 on:
-  push:
-    branches:
-      - main
+  # Syncing back to draw-things is off for now; restore the push trigger on main to turn it on.
+  workflow_dispatch:
 
 jobs:
   build:
