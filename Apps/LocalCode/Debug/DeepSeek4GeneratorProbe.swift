@@ -100,9 +100,8 @@ private struct ProbeOptions {
           options.weightsStreaming = ._64GiB
         case "72":
           options.weightsStreaming = ._72GiB
-        case "none":
-          options.weightsStreaming =
-            DeviceCapability.WeightsStreaming.none
+        case "disabled":
+          options.weightsStreaming = .disabled
         default:
           throw ProbeError.invalidArgument(argument)
         }
@@ -168,14 +167,13 @@ private struct DeepSeek4GeneratorProbe {
     let streamContext = StreamContext(.GPU(0))
     let input = graph.variable(
       Tensor<Int32>(tokenIDs, .CPU, .C(tokenIDs.count)).toGPU(0))
-    let weightsStreaming =
-      options.weightsStreaming ?? DeviceCapability.weightsStreaming
-    print("weights_streaming=\(weightsStreaming.rawValue)")
+    print(
+      "weights_streaming=\(options.weightsStreaming.map { String($0.rawValue) } ?? "automatic")")
     var generator = DeepSeek4TextGenerator(
       filePath: options.modelPath,
       chunkedPrefillMaxLength: options.chunkedPrefillMaxLength,
       compilePrefillHeadroom: options.compilePrefillHeadroom,
-      weightsStreaming: weightsStreaming)
+      weightsStreaming: options.weightsStreaming)
     var kvCache = DeepSeek4TextGenerator.KVCache()
     let contextCache = DeepSeek4ContextCache(
       projectPath: nil, checkpointStride: generator.checkpointStride)

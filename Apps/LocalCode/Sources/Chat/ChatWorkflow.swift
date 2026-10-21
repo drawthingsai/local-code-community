@@ -157,9 +157,9 @@ final class ChatWorkflow: Workflow {
     return viewController
   }
 
-  var weightsStreaming: DeviceCapability.WeightsStreaming {
+  var weightsStreaming: DeviceCapability.WeightsStreaming? {
     workspace.dictionary["weights_streaming", Int.self].flatMap(
-      DeviceCapability.WeightsStreaming.init(rawValue:)) ?? DeviceCapability.weightsStreaming
+      DeviceCapability.WeightsStreaming.init(rawValue:))
   }
 
   init(
@@ -186,7 +186,7 @@ final class ChatWorkflow: Workflow {
     }
     let weightsStreaming =
       workspace.dictionary["weights_streaming", Int.self].flatMap(
-        DeviceCapability.WeightsStreaming.init(rawValue:)) ?? DeviceCapability.weightsStreaming
+        DeviceCapability.WeightsStreaming.init(rawValue:))
     let settingsWorkflow = SettingsWorkflow(
       workspace: workspace, userInterfaceIdiom: userInterfaceIdiom, queue: queue,
       accountManager: accountManager, accountClient: accountClient,

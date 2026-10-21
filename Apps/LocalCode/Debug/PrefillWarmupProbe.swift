@@ -36,7 +36,7 @@ private struct PrefillWarmupProbe {
     var chunkLength = 4_096
     var disableMFAAppleNeuralEngine = false
     var queueWatermark = 128
-    var weightsStreaming = DeviceCapability.weightsStreaming
+    var weightsStreaming: DeviceCapability.WeightsStreaming?
     var arguments = Array(CommandLine.arguments.dropFirst())
     while !arguments.isEmpty {
       let argument = arguments.removeFirst()
@@ -91,7 +91,7 @@ private struct PrefillWarmupProbe {
         case "16": weightsStreaming = ._16GiB
         case "32": weightsStreaming = ._32GiB
         case "48": weightsStreaming = ._48GiB
-        case "none": weightsStreaming = .none
+        case "disabled": weightsStreaming = .disabled
         default: throw ProbeError.invalidArgument(argument)
         }
       default: throw ProbeError.invalidArgument(argument)

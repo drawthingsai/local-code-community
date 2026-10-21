@@ -8,6 +8,8 @@ exports_files([
     "Sources/Agent/DeepSeekTextGenerator.swift",
     "Sources/Agent/TextGenerator.swift",
     "Sources/Models/ContextCache.swift",
+    "Sources/Models/DeepSeek4ContextCache.swift",
+    "Sources/Models/DeepSeek4TextGenerator.swift",
     "Sources/Models/DeepSeek4_1ContextCache.swift",
     "Sources/Models/DeepSeek4_1TextGenerator.swift",
     "Sources/Models/DeepSeek4_1EngramCache.swift",

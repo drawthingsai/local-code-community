@@ -40,15 +40,43 @@ extension DeviceCapability.WeightsStreaming {
         98, 137, 116, 121, 116, 101, 89, 101, 87, 111, 111, 99, 94, 123, 106, 107, 97, 136,
         97, 97, 90, 117, 89, 108, 107,
       ]
-    case ._48GiB:
+    case ._48GiB, ._56GiB, ._64GiB:
       return [
         256, 256, 256, 144, 131, 124, 119, 124, 125, 135, 149, 139, 120, 136, 139, 144, 143,
         144, 137, 137, 134, 145, 143, 136, 134, 143, 123, 152, 138, 139, 143, 151, 138, 132,
         140, 150, 132, 129, 132, 151, 116, 128, 128,
       ]
-    case ._56GiB, ._64GiB, ._72GiB, .none:
+    case ._72GiB, .disabled:
       return Array(repeating: 256, count: 43)
     }
+  }
+
+  // Treat this tier as a ceiling: pick the largest tier at or below it whose resident weights
+  // fit in 80% of available memory, falling back to the smallest tier when none fits.
+  func residentTierForDeepSeek4(availableMemory: UInt64) -> Self {
+    let budget = availableMemory / 5 * 4
+    // allCases ascends by resident size, ending with .disabled.
+    let ceiling = Self.allCases.firstIndex(of: self)!
+    return Self.allCases[...ceiling].last { tier in
+      let size: UInt64
+      switch tier {
+      case ._8GiB, ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB:
+        size = UInt64(tier.rawValue) * 1_024 * 1_024 * 1_024
+      case ._56GiB, ._64GiB:
+        size = 48 * 1_024 * 1_024 * 1_024
+      case ._72GiB, .disabled:
+        size = 89_414_598_656  // The whole deepseek_4_flash_0731_i2x.ckpt, about 83.27 GiB.
+      }
+      return size <= budget
+    } ?? ._8GiB
+  }
+
+  // An explicit .disabled always loads every weight. Otherwise the requested tier, or the automatic
+  // one when nil, is a ceiling for what fits in the memory available now.
+  static func residentTierForDeepSeek4(requested: Self?) -> Self {
+    guard requested != .disabled else { return .disabled }
+    return (requested ?? DeviceCapability.weightsStreaming).residentTierForDeepSeek4(
+      availableMemory: DeviceCapability.availableMemory)
   }
 }
 
@@ -210,7 +238,10 @@ public struct DeepSeek4TextGenerator: DeepSeekTextGenerator {
   private final class Storage {
     // Serialize reset with decoding across every value copy of the generator.
     var lock = os_unfair_lock()
-    private let configuration: DeepSeek4ModelConfiguration
+    // Expert residency is resolved whenever the decoder is built, so each weights load sees
+    // the memory available at that moment.
+    private let requestedWeightsStreaming: DeviceCapability.WeightsStreaming?
+    private(set) var configuration: DeepSeek4ModelConfiguration
     var decoderIsLoaded = false
     private var cachedDecoder:
       ModelBuilder<
@@ -228,6 +259,13 @@ public struct DeepSeek4TextGenerator: DeepSeekTextGenerator {
       >
     {
       if let cachedDecoder { return cachedDecoder }
+      let weightsStreaming = DeviceCapability.WeightsStreaming.residentTierForDeepSeek4(
+        requested: requestedWeightsStreaming)
+      // Disabled keeps every layer fully resident, including prefill warmup's subset of layers.
+      configuration.expertResidentSlots =
+        weightsStreaming == .disabled
+        ? Array(repeating: configuration.expertCount, count: configuration.layers)
+        : weightsStreaming.expertResidentSlotsForDeepSeek4
       let configuration = self.configuration
       let decoder:
         ModelBuilder<
@@ -255,19 +293,25 @@ public struct DeepSeek4TextGenerator: DeepSeekTextGenerator {
       decoderIsLoaded = false
     }
 
-    init(configuration: DeepSeek4ModelConfiguration) {
+    init(
+      configuration: DeepSeek4ModelConfiguration,
+      weightsStreaming: DeviceCapability.WeightsStreaming?
+    ) {
       self.configuration = configuration
+      requestedWeightsStreaming = weightsStreaming
     }
   }
 
   // Copies share model storage. Graphs and conversation caches stay on the generation queue.
   private let storage: Storage
-  public let weightsStreaming: DeviceCapability.WeightsStreaming
+  /// The requested tier, or nil for automatic. An explicit `.disabled` disables streaming; otherwise
+  /// each weights load resolves the tier it uses from this ceiling and available memory.
+  public let weightsStreaming: DeviceCapability.WeightsStreaming?
   public let chunkedPrefillMaxLength: Int
   public let compilePrefillHeadroom: Int
 
-  // Start with a fresh decoder and statistics, retaining each source layer's residency.
-  // The public initializer replaces residency with the full model's streaming policy.
+  // Start with a fresh decoder and statistics. Warmup only runs where the model fits, so it
+  // keeps every expert resident.
   private init(prefillWarmup generator: Self, layers: [Int]) {
     var configuration = generator.configuration
     configuration.layers = layers.count
@@ -275,13 +319,12 @@ public struct DeepSeek4TextGenerator: DeepSeekTextGenerator {
       generator.configuration.layerAttentionKinds[$0]
     }
     configuration.layerRouterKinds = layers.map { generator.configuration.layerRouterKinds[$0] }
-    configuration.expertResidentSlots = layers.map {
-      generator.configuration.expertResidentSlots[$0]
-    }
+    configuration.expertResidentSlots = Array(
+      repeating: configuration.expertCount, count: layers.count)
     self.configuration = configuration
-    storage = Storage(configuration: configuration)
+    storage = Storage(configuration: configuration, weightsStreaming: .disabled)
     filePath = generator.filePath
-    weightsStreaming = generator.weightsStreaming
+    weightsStreaming = .disabled
     chunkedPrefillMaxLength = generator.chunkedPrefillMaxLength
     compilePrefillHeadroom = generator.compilePrefillHeadroom
   }
@@ -289,21 +332,19 @@ public struct DeepSeek4TextGenerator: DeepSeekTextGenerator {
   public init(
     filePath: String, configuration: DeepSeek4ModelConfiguration = .deepSeekV4Flash,
     chunkedPrefillMaxLength: Int, compilePrefillHeadroom: Int = 64 * 1_024,
-    weightsStreaming: DeviceCapability.WeightsStreaming =
-      DeviceCapability.weightsStreaming
+    weightsStreaming: DeviceCapability.WeightsStreaming? = nil
   ) {
     precondition(chunkedPrefillMaxLength > (configuration.compressionRatios.max() ?? 1))
     precondition(compilePrefillHeadroom >= Self.cachePageSize)
     precondition(compilePrefillHeadroom.isMultiple(of: Self.cachePageSize))
     precondition(compilePrefillHeadroom <= Self.maximumContextLength)
-    let expertResidentSlots = weightsStreaming.expertResidentSlotsForDeepSeek4
-    precondition(configuration.layers == expertResidentSlots.count)
+    precondition(
+      configuration.layers
+        == DeviceCapability.weightsStreaming.expertResidentSlotsForDeepSeek4.count)
     precondition(configuration.expertCount == 256)
-    var configuration = configuration
-    configuration.expertResidentSlots = expertResidentSlots
     self.filePath = filePath
     self.configuration = configuration
-    storage = Storage(configuration: configuration)
+    storage = Storage(configuration: configuration, weightsStreaming: weightsStreaming)
     self.weightsStreaming = weightsStreaming
     self.chunkedPrefillMaxLength = chunkedPrefillMaxLength
     self.compilePrefillHeadroom = compilePrefillHeadroom
@@ -822,14 +863,15 @@ extension DeepSeek4TextGenerator {
         inputs: [firstTokens] + firstInputs)
     }
     if !storage.decoderIsLoaded {
+      let expertResidentSlots = storage.configuration.expertResidentSlots
       let fullyResidentExpertLayers = Set(
-        configuration.expertResidentSlots.indices.filter {
-          configuration.expertResidentSlots[$0] == configuration.expertCount
+        expertResidentSlots.indices.filter {
+          expertResidentSlots[$0] == configuration.expertCount
         })
       let allExpertsFullyResident = fullyResidentExpertLayers.count == configuration.layers
-      // Ordinary and shared tensors end within the first 8 GiB. The 40/48 GiB policies also keep
+      // Ordinary and shared tensors end within the first 8 GiB. The 40-64 GiB policies also keep
       // routed layers 0, 1, and 2 fully resident; their relocated tensors end within 14 GiB.
-      let leadingFullyResidentLayerCount = configuration.expertResidentSlots.prefix {
+      let leadingFullyResidentLayerCount = expertResidentSlots.prefix {
         $0 == configuration.expertCount
       }.count
       let wholeFileMappingSizeLimit =
@@ -1409,13 +1451,13 @@ extension DeepSeek4TextGenerator {
     kvCache.compressorInputLengths = retainedCompressorInputLengths
   }
 
-  /// Reuse production prefill, including real quantized/streamed weights and compressor state.
+  /// Reuse production prefill, including real quantized resident weights and compressor state.
   /// The caller owns the graph, stream, no-grad scope, synchronization, and collection.
   /// No prompt-cache files or generation state are shared with the user's session.
   @discardableResult
   public func warmupPrefill(graph: DynamicGraph) -> Bool {
     // Inspect metadata only: gate/up and down use different bank shapes, so codec coverage
-    // must be tracked separately for each projection and resident/streamed execution path.
+    // must be tracked separately for each projection.
     var layerCodecs = [[DynamicGraph.Store.Codec]]()
     graph.openStore(filePath, flags: .readOnly) { store in
       for layer in 0..<self.configuration.layers {
@@ -1430,12 +1472,7 @@ extension DeepSeek4TextGenerator {
     var layers = Array(0..<min(4, self.configuration.layers))
     func coversExperts(_ layer: Int, with representatives: [Int]) -> Bool {
       (0..<3).allSatisfy { projection in
-        representatives.contains {
-          layerCodecs[$0][projection] == layerCodecs[layer][projection]
-            && (self.configuration.expertResidentSlots[$0] == self.configuration.expertCount)
-              == (self.configuration.expertResidentSlots[layer]
-                == self.configuration.expertCount)
-        }
+        representatives.contains { layerCodecs[$0][projection] == layerCodecs[layer][projection] }
       }
     }
     for layer in layers.count..<self.configuration.layers {
@@ -1516,49 +1553,25 @@ extension DeepSeek4TextGenerator {
           uniqueKeysWithValues: configuration.compressionRatios.map { ($0, 0) }),
         tokenLength: count
       ), inputs: inputs)
-    let fullyResidentLayers = Set(
-      configuration.expertResidentSlots.indices.filter {
-        configuration.expertResidentSlots[$0] == configuration.expertCount
-      })
-    let allResident = fullyResidentLayers.count == configuration.layers
-    let leadingResidentCount = configuration.expertResidentSlots.prefix {
-      $0 == configuration.expertCount
-    }.count
-    DynamicGraph.setWholeFileMappingSizeLimit(
-      allResident ? 0 : (8 + 2 * min(leadingResidentCount, 3)) * 1_024 * 1_024 * 1_024)
+    // Every expert is resident, so map the whole checkpoint like a fully resident load.
+    DynamicGraph.setWholeFileMappingSizeLimit(0)
     let loadResult = try? graph.openStore(filePath, flags: .readOnly) { store in
       let codec: DynamicGraph.Store.Codec = [
         .jit, .i8x(.iq2xs), .i8x(.iq2xxs), .ezm7, .externalData(.wholeFile),
       ]
       try store.read("text_model", model: generator.storage.decoder, strict: true, codec: codec) {
-        name, _, _, shape in
+        name, _, _, _ in
         var checkpointName = name
-        var layerIndex: Int?
         if let prefix = name.range(of: "layers.") {
           let end = name[prefix.upperBound...].firstIndex(of: ".") ?? name.endIndex
-          layerIndex = Int(name[prefix.upperBound..<end])
-          if let layerIndex {
+          if let layerIndex = Int(name[prefix.upperBound..<end]) {
             checkpointName.replaceSubrange(
               prefix.upperBound..<end, with: String(layers[layerIndex]))
           }
         }
-        guard shape.count == 3, checkpointName.contains(".ffn.experts"), !allResident else {
-          return .continue(checkpointName, codec: codec)
-        }
-        checkpointName =
-          checkpointName
-          .replacingOccurrences(
-            of: ".ffn.experts.streaming_gate-0-0]", with: ".ffn.experts-0-0]"
-          )
-          .replacingOccurrences(of: ".ffn.experts.streaming_up-0-0]", with: ".ffn.experts-0-1]")
-        var expertCodec = codec.subtracting(.externalData(.wholeFile))
-        expertCodec.insert(
-          layerIndex.map(fullyResidentLayers.contains) == true
-            ? .externalData(.wholeFile) : .externalOnDemand)
-        return .continue(checkpointName, codec: expertCodec)
+        return .continue(checkpointName, codec: codec)
       }
     }
-    DynamicGraph.setWholeFileMappingSizeLimit(0)
     guard case .success? = loadResult else { return false }
     generator.storage.decoderIsLoaded = true
 

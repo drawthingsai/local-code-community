@@ -41,7 +41,7 @@ struct SpeedometerCLI: ParsableCommand {
 
   @Option(
     help:
-      "DeepSeek weight tier in GiB: 8, 16, 24, 32, 40, 48, 56, 64, 72, or 0 for no streaming."
+      "Maximum DeepSeek weight tier in GiB: 8, 16, 24, 32, 40, 48, 56, 64, 72, or 0 for no streaming. Loads the largest tier at or below it that fits in 80% of available memory; 0 always loads every weight. V4 uses 48 for 56 and 64, and is fully resident at 72."
   )
   var weightsStreaming: Int?
 
@@ -153,7 +153,7 @@ struct SpeedometerCLI: ParsableCommand {
         textGenerator: DeepSeek4TextGenerator(
           filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
           weightsStreaming: weightsStreaming.flatMap(
-            DeviceCapability.WeightsStreaming.init(rawValue:)) ?? DeviceCapability.weightsStreaming),
+            DeviceCapability.WeightsStreaming.init(rawValue:))),
         contextLengths: contextLengths, graph: graph, streamContext: stream,
         storePath: storePath, libraryURL: libraryURL, thinkingBudget: thinkingBudget,
         deterministic: deterministic)
@@ -172,7 +172,7 @@ struct SpeedometerCLI: ParsableCommand {
         textGenerator: DeepSeek4_1TextGenerator(
           filePath: checkpoint, engramFilePath: engramPath, chunkedPrefillMaxLength: chunkLength,
           weightsStreaming: weightsStreaming.flatMap(
-            DeviceCapability.WeightsStreaming.init(rawValue:)) ?? DeviceCapability.weightsStreaming),
+            DeviceCapability.WeightsStreaming.init(rawValue:))),
         contextLengths: contextLengths, graph: graph, streamContext: stream,
         storePath: storePath, libraryURL: libraryURL, thinkingBudget: thinkingBudget,
         deterministic: deterministic)

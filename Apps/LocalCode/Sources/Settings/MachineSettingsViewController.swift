@@ -159,7 +159,7 @@ private func makeUseAppleNeuralEngineMenu(
 extension DeviceCapability.WeightsStreaming {
   fileprivate var title: String {
     switch self {
-    case .none:
+    case .disabled:
       return LocalizedString.forKey("disabled")
     case ._8GiB, ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB, ._56GiB, ._64GiB, ._72GiB:
       return "\(rawValue) GiB"

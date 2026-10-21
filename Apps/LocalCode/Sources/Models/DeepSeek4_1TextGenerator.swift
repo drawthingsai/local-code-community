@@ -71,9 +71,33 @@ extension DeviceCapability.WeightsStreaming {
         108, 122, 127, 185, 102, 94, 97, 146, 105, 148,
         130, 122, 136, 149, 151, 145, 153, 204, 211, 215,
       ]
-    case .none:
+    case .disabled:
       return Array(repeating: 384, count: 40)
     }
+  }
+
+  // Treat this tier as a ceiling: pick the largest tier at or below it whose resident weights
+  // fit in 80% of available memory, falling back to the smallest tier when none fits.
+  func residentTierForDeepSeek4_1(availableMemory: UInt64) -> Self {
+    let budget = availableMemory / 5 * 4
+    // allCases ascends by resident size, ending with .disabled, which maps the whole checkpoint.
+    let ceiling = Self.allCases.firstIndex(of: self)!
+    return Self.allCases[...ceiling].last { tier in
+      // The 8 GiB tier shares the 16 GiB allocation.
+      let size =
+        tier == .disabled
+        ? 161_433_198_592  // deepseek_4.1_flash_1017_i2x.ckpt, about 150.35 GiB.
+        : UInt64(max(16, tier.rawValue)) * 1_024 * 1_024 * 1_024
+      return size <= budget
+    } ?? ._8GiB
+  }
+
+  // An explicit .disabled always loads every weight. Otherwise the requested tier, or the automatic
+  // one when nil, is a ceiling for what fits in the memory available now.
+  static func residentTierForDeepSeek4_1(requested: Self?) -> Self {
+    guard requested != .disabled else { return .disabled }
+    return (requested ?? DeviceCapability.weightsStreaming).residentTierForDeepSeek4_1(
+      availableMemory: DeviceCapability.availableMemory)
   }
 }
 
@@ -149,12 +173,12 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     return map
   }()
   private var residentMappingSize: Int {
-    switch weightsStreaming {
+    switch storage.weightsStreaming {
     case ._8GiB, ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB, ._56GiB, ._64GiB:
       return 9_813_229_568  // Fixed weights only.
     case ._72GiB:
       return 28_644_343_808  // Fixed weights and expert banks for layers 0–4.
-    case .none:
+    case .disabled:
       return 0  // Map the whole checkpoint.
     }
   }
@@ -165,7 +189,11 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
 
   private final class Storage {
     var lock = os_unfair_lock()
-    let configuration: DeepSeek4_1ModelConfiguration
+    let requestedWeightsStreaming: DeviceCapability.WeightsStreaming?
+    // Expert residency is resolved whenever the decoder is built, so each weights load sees
+    // the memory available at that moment.
+    private(set) var configuration: DeepSeek4_1ModelConfiguration
+    private(set) var weightsStreaming: DeviceCapability.WeightsStreaming
     var decoderIsLoaded = false
     var engramReader: DeepSeek4_1EngramReader<Float16>?
     var vitIsLoaded = false
@@ -192,6 +220,9 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
       >
     {
       if let cachedDecoder { return cachedDecoder }
+      weightsStreaming = DeviceCapability.WeightsStreaming.residentTierForDeepSeek4_1(
+        requested: requestedWeightsStreaming)
+      configuration.expertResidentSlots = weightsStreaming.expertResidentSlotsForDeepSeek4_1
       let config = configuration
       let decoder = ModelBuilder<
         (
@@ -224,8 +255,13 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
       return vit
     }
 
-    init(configuration: DeepSeek4_1ModelConfiguration) {
+    init(
+      configuration: DeepSeek4_1ModelConfiguration,
+      weightsStreaming: DeviceCapability.WeightsStreaming?
+    ) {
       self.configuration = configuration
+      requestedWeightsStreaming = weightsStreaming
+      self.weightsStreaming = weightsStreaming ?? DeviceCapability.weightsStreaming
     }
 
     func reset() {
@@ -248,7 +284,9 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
   public let engramFilePath: String
   public let chunkedPrefillMaxLength: Int
   public let compilePrefillHeadroom: Int
-  public let weightsStreaming: DeviceCapability.WeightsStreaming
+  /// The requested tier, or nil for automatic. An explicit `.disabled` disables streaming; otherwise
+  /// each weights load resolves the tier it uses from this ceiling and available memory.
+  public let weightsStreaming: DeviceCapability.WeightsStreaming?
   // "SWA Bounded Replay" in the paper. The final 128 positions may cross modality boundaries.
   public let boundedReplay: Bool
   public var statistics: DeepSeekGenerationStatistics {
@@ -280,18 +318,18 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
   public init(
     filePath: String, engramFilePath: String, chunkedPrefillMaxLength: Int = 4096,
     compilePrefillHeadroom: Int = 64 * 1_024,
-    weightsStreaming: DeviceCapability.WeightsStreaming = DeviceCapability.weightsStreaming,
+    weightsStreaming: DeviceCapability.WeightsStreaming? = nil,
     boundedReplay: Bool = true
   ) {
     precondition(chunkedPrefillMaxLength >= 2)
     precondition(compilePrefillHeadroom >= Self.cachePageSize)
     precondition(compilePrefillHeadroom.isMultiple(of: Self.cachePageSize))
     precondition(compilePrefillHeadroom <= Self.maximumContextLength)
-    var configuration = DeepSeek4_1ModelConfiguration.deepSeekV4_1Flash
-    let expertResidentSlots = weightsStreaming.expertResidentSlotsForDeepSeek4_1
-    precondition(configuration.layers == expertResidentSlots.count)
+    let configuration = DeepSeek4_1ModelConfiguration.deepSeekV4_1Flash
+    precondition(
+      configuration.layers
+        == DeviceCapability.weightsStreaming.expertResidentSlotsForDeepSeek4_1.count)
     precondition(configuration.expertCount == 384)
-    configuration.expertResidentSlots = expertResidentSlots
     self.configuration = configuration
     self.filePath = filePath
     self.engramFilePath = engramFilePath
@@ -299,12 +337,19 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     self.compilePrefillHeadroom = compilePrefillHeadroom
     self.weightsStreaming = weightsStreaming
     self.boundedReplay = boundedReplay
-    self.storage = Storage(configuration: configuration)
+    self.storage = Storage(configuration: configuration, weightsStreaming: weightsStreaming)
   }
 }
 
 extension DeepSeek4_1TextGenerator {
   public func unload() { storage.reset() }
+
+  /// The tier the loaded weights use, or nil before they load.
+  public var residentWeightsStreaming: DeviceCapability.WeightsStreaming? {
+    os_unfair_lock_lock(&storage.lock)
+    defer { os_unfair_lock_unlock(&storage.lock) }
+    return storage.decoderIsLoaded ? storage.weightsStreaming : nil
+  }
 
   public static var isImageSupported: Bool { true }
 
@@ -606,6 +651,7 @@ extension DeepSeek4_1TextGenerator {
           // Use V4's shared mapping and pinning, bounded to this checkpoint's resident prefix.
           DynamicGraph.setWholeFileMappingSizeLimit(residentMappingSize)
           defer { DynamicGraph.setWholeFileMappingSizeLimit(0) }
+          let expertResidentSlots = storage.configuration.expertResidentSlots
           do {
             try graph.openStore(filePath, flags: .readOnly) { store in
               let ordinary: DynamicGraph.Store.Codec = [.jit, .externalData(.wholeFile), .i8x]
@@ -621,7 +667,7 @@ extension DeepSeek4_1TextGenerator {
                 if shape.count == 3 && name.contains(".ffn.experts"),
                   let layer = name.components(separatedBy: "layers.").last?
                     .components(separatedBy: ".").first.flatMap(Int.init),
-                  config.expertResidentSlots[layer] < config.expertCount
+                  expertResidentSlots[layer] < config.expertCount
                 {
                   return .continue(name, codec: [.jit, .externalOnDemand, .i8x])
                 }
