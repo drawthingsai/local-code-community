@@ -1,0 +1,56 @@
+name: cross-repo-synchronization
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Git LFS
+        run: |
+          if ! command -v git-lfs >/dev/null 2>&1; then
+            if command -v brew >/dev/null 2>&1; then
+              brew install git-lfs
+              echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
+              export PATH="$(brew --prefix)/bin:$PATH"
+            elif command -v apt-get >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y git-lfs
+            else
+              echo "git-lfs is required for actions/checkout lfs support." >&2
+              exit 1
+            fi
+          fi
+          git-lfs version
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: main
+
+      - name: Checkout Private
+        uses: actions/checkout@v4
+        with:
+          repository: drawthingsai/draw-things
+          token: ${{ secrets.GHA_BOT_ORG_ACCESS_TOKEN }}
+          path: app
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Generate patch file.
+        run: |
+          cd "${GITHUB_WORKSPACE}/main"
+          python3 Scripts/commit/commit.py --reverse
+          if [[ -f custom_patch_with_metadata.patch ]]; then
+            cat custom_patch_with_metadata.patch
+            mv custom_patch_with_metadata.patch ../app
+            cd "${GITHUB_WORKSPACE}/app"
+            python3 ../main/Scripts/commit/apply.py
+            python3 ../main/Scripts/commit/push_lfs_objects.py ../main
+            git push
+          fi
