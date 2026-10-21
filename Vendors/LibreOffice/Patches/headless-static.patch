@@ -1,0 +1,44 @@
+diff --git a/external/cairo/ExternalProject_cairo.mk b/external/cairo/ExternalProject_cairo.mk
+--- a/external/cairo/ExternalProject_cairo.mk
++++ b/external/cairo/ExternalProject_cairo.mk
+@@ -108,7 +108,7 @@
+ 			$(if $(filter-out $(BUILD_PLATFORM),$(HOST_PLATFORM))$(WSL),--cross-file cross-file.txt) && \
+ 		$(MESON) compile -C builddir \
+ 			$(if $(verbose),--verbose) \
+-			$(if $(filter MACOSX,$(OS)), \
++			$(if $(if $(filter TRUE,$(DISABLE_DYNLOADING)),,$(filter MACOSX,$(OS))), \
+ 				&& install_name_tool -id @__________________________________________________OOO/libcairo-lo.2.dylib \
+ 					$(gb_UnpackedTarball_workdir)/cairo/builddir/src/libcairo-lo.2.dylib \
+ 				&& $(PERL) $(SRCDIR)/solenv/bin/macosx-change-install-names.pl shl OOO \
+diff --git a/external/cairo/ExternalProject_pixman.mk b/external/cairo/ExternalProject_pixman.mk
+--- a/external/cairo/ExternalProject_pixman.mk
++++ b/external/cairo/ExternalProject_pixman.mk
+@@ -62,7 +62,7 @@
+ 			$(if $(filter-out $(BUILD_PLATFORM),$(HOST_PLATFORM))$(WSL),--cross-file cross-file.txt) && \
+ 		$(MESON) compile -C builddir \
+ 			$(if $(verbose),--verbose) \
+-			$(if $(filter MACOSX,$(OS)), \
++			$(if $(if $(filter TRUE,$(DISABLE_DYNLOADING)),,$(filter MACOSX,$(OS))), \
+ 				&& install_name_tool -id @__________________________________________________OOO/libpixman-1.0.dylib \
+ 					$(gb_UnpackedTarball_workdir)/pixman/builddir/pixman/libpixman-1.0.dylib \
+ 				&& $(PERL) $(SRCDIR)/solenv/bin/macosx-change-install-names.pl shl OOO \
+diff --git a/external/fontconfig/ExternalProject_fontconfig.mk b/external/fontconfig/ExternalProject_fontconfig.mk
+--- a/external/fontconfig/ExternalProject_fontconfig.mk
++++ b/external/fontconfig/ExternalProject_fontconfig.mk
+@@ -35,6 +35,7 @@
+ 			--includedir=$(gb_UnpackedTarball_workdir)/fontconfig \
+ 			--libdir=$(gb_UnpackedTarball_workdir)/fontconfig/src/.libs \
+ 			--disable-silent-rules \
++			$(if $(filter TRUE,$(DISABLE_DYNLOADING)),--disable-shared --enable-static) \
+ 			--with-pic \
+ 			$(if $(filter ANDROID,$(OS)),--with-arch=arm) \
+ 			--with-expat-includes=$(gb_UnpackedTarball_workdir)/expat/lib \
+@@ -62,7 +63,7 @@
+ 				) \
+ 			) \
+ 		&& $(MAKE) -C fc-const && $(MAKE) -C fc-genericfamily && $(MAKE) -C src && $(MAKE) fonts.conf \
+-		$(if $(filter MACOSX,$(OS)), \
++		$(if $(if $(filter TRUE,$(DISABLE_DYNLOADING)),,$(filter MACOSX,$(OS))), \
+ 			&& $(INSTALL_NAME_TOOL) -id @__________________________________________________OOO/libfontconfig.1.dylib \
+ 				$(gb_UnpackedTarball_workdir)/fontconfig/src/.libs/libfontconfig.1.dylib \
+ 			&& $(PERL) $(SRCDIR)/solenv/bin/macosx-change-install-names.pl shl OOO \

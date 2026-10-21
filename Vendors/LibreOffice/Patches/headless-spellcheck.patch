@@ -1,0 +1,22 @@
+--- a/lingucomponent/Module_lingucomponent.mk
++++ b/lingucomponent/Module_lingucomponent.mk
+@@ -34,7 +34,7 @@
+ endif
+ 
+ $(eval $(call gb_Module_add_targets,lingucomponent,\
+-	$(if $(filter iOS MACOSX,$(OS)),Library_MacOSXSpell) \
++	$(if $(filter iOS MACOSX,$(OS)),$(if $(filter TRUE,$(ENABLE_HEADLESS)),,Library_MacOSXSpell)) \
+ 	Library_numbertext \
+ ))
+ 
+--- a/solenv/gbuild/extensions/pre_MergedLibsList.mk
++++ b/solenv/gbuild/extensions/pre_MergedLibsList.mk
+@@ -59,7 +59,7 @@
+ 	lng \
+ 	lnth \
+ 	localebe1 \
+-	$(if $(filter iOS MACOSX,$(OS)),MacOSXSpell) \
++	$(if $(filter iOS MACOSX,$(OS)),$(if $(filter TRUE,$(ENABLE_HEADLESS)),,MacOSXSpell)) \
+ 	msfilter \
+ 	mtfrenderer \
+ 	numbertext \

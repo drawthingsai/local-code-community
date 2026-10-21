@@ -1,0 +1,15 @@
+
+table ConsumableBalance {
+  balance: double;
+  in_progress_balance: double;
+}
+
+table LocalConsumableMetadata {
+  id: long (primary);
+  boost_balance: ConsumableBalance;
+  cash_balance: ConsumableBalance;
+  has_consent: bool;
+}
+
+root_type LocalConsumableMetadata;
+

@@ -1,0 +1,89 @@
+package(default_visibility = ["//visibility:public"])
+
+LIBGIT2_COPTS = [
+    "-DLIBGIT2_NO_FEATURES_H",
+    "-DGIT_THREADS=1",
+    "-DGIT_ARCH_64=1",
+    "-DGIT_USE_NSEC=1",
+    "-DGIT_USE_STAT_MTIMESPEC=1",
+    "-DGIT_HTTPS=1",
+    "-DGIT_SECURE_TRANSPORT=1",
+    "-DGIT_REGEX_REGCOMP=1",
+    "-DGIT_HTTPPARSER_LLHTTP=1",
+    "-DGIT_SHA1_COLLISIONDETECT=1",
+    "-DGIT_SHA256_BUILTIN=1",
+    "-DGIT_COMPRESSION_ZLIB=1",
+    "-DGIT_IO_POLL=1",
+    "-DHAVE_SYS_TYPES_H",
+    "-DHAVE_STDINT_H",
+    "-DHAVE_STDDEF_H",
+    "-DSHA1DC_NO_STANDARD_INCLUDES=1",
+    "-DSHA1DC_CUSTOM_INCLUDE_SHA1_C=\\\"git2_util.h\\\"",
+    "-DSHA1DC_CUSTOM_INCLUDE_UBC_CHECK_C=\\\"git2_util.h\\\"",
+    "-Wno-deprecated-declarations",
+    "-Wno-shorten-64-to-32",
+    "-Wno-sign-compare",
+    "-Wno-unused-function",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+]
+
+cc_library(
+    name = "libgit2",
+    srcs = glob(
+        [
+            "deps/llhttp/*.c",
+            "deps/xdiff/*.c",
+            "src/libgit2/*.c",
+            "src/libgit2/streams/*.c",
+            "src/libgit2/transports/*.c",
+            "src/util/*.c",
+            "src/util/allocators/*.c",
+            "src/util/hash/builtin.c",
+            "src/util/hash/collisiondetect.c",
+            "src/util/hash/rfc6234/*.c",
+            "src/util/hash/sha1dc/*.c",
+            "src/util/unix/*.c",
+        ],
+        exclude = [
+            "src/libgit2/transports/auth_gssapi.c",
+            "src/libgit2/transports/auth_ntlmclient.c",
+            "src/libgit2/transports/auth_sspi.c",
+            "src/libgit2/transports/winhttp.c",
+            "src/util/allocators/win32_leakcheck.c",
+        ],
+    ),
+    hdrs = glob([
+        "deps/llhttp/*.h",
+        "deps/xdiff/*.h",
+        "include/**/*.h",
+        "src/libgit2/**/*.h",
+        "src/util/**/*.h",
+    ]),
+    copts = LIBGIT2_COPTS,
+    includes = [
+        "deps/llhttp",
+        "deps/xdiff",
+        "include",
+        "src/libgit2",
+        "src/libgit2/transports",
+        "src/util",
+    ],
+    linkopts = [
+        "-lz",
+        "-framework",
+        "CoreFoundation",
+        "-framework",
+        "Security",
+    ],
+)
+
+filegroup(
+    name = "lg2_example_srcs",
+    srcs = glob(["examples/*.c"]),
+)
+
+filegroup(
+    name = "lg2_example_hdrs",
+    srcs = glob(["examples/*.h"]),
+)

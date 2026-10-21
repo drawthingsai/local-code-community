@@ -1,0 +1,61 @@
+{
+  "kitRevision": "b19bb73c74ed893b8a5d1716d32df32a113ed31b",
+  "coreRevision": "bce0998afefdbc355585ca324285661a2170ba77",
+  "platform": "macos-arm64",
+  "minimumOSVersion": "13.5",
+  "backend": "svp",
+  "exports": [
+    "_OfficeCommandRun"
+  ],
+  "archiveBytes": 275659312,
+  "archiveSHA256": "cc3fb984f3d52d6b307a756cee8f889d1a700df34e5ed2a3c3aa1fcc48536d7c",
+  "sdkFrameworks": [
+    "AVFoundation",
+    "AppKit",
+    "ApplicationServices",
+    "Carbon",
+    "Cocoa",
+    "CoreFoundation",
+    "CoreGraphics",
+    "CoreMedia",
+    "CoreServices",
+    "CoreText",
+    "Foundation",
+    "IOKit",
+    "ImageIO",
+    "Metal",
+    "QuartzCore",
+    "SystemConfiguration"
+  ],
+  "sdkDylibs": [
+    "System",
+    "c++",
+    "exslt",
+    "iconv",
+    "m",
+    "objc",
+    "pthread",
+    "xml2",
+    "xslt",
+    "z"
+  ],
+  "patchSHA256": {
+    "ios-svp.patch": "184ea7408144d41219ae5da05ea6f2374b2db933e1ab48a4c035144b836dfb00",
+    "headless-fonts.patch": "13125d14dc2b2daca89cb8b4efba734e2b8a6b780e22951c6587640409278d41",
+    "headless-font-refresh.patch": "1b604e8a8ce7df6285a99c3abff29a05e3ff5c0b6dc2e3987699f1c059551b6c",
+    "headless-factory.patch": "75f096db0ab351bcdea43adacbef2f9cbbd81b0b2f61d17a3707b1e70cd444fc",
+    "headless-spellcheck.patch": "61a536632b358d218bd5afc45303944c611922f372e732dec6215549e8036ddc",
+    "headless-static.patch": "d55c69551f22e3cea8bd9231c33bbf53cdf9296a0ff429793e33e57cffc1187e"
+  },
+  "corePatchSHA256": "edf138c9eced1bc37f3e6958e11c02e0f134da2b07ffd3d6e7885f424e748cee",
+  "sourceSHA256": {
+    "OfficeCommand.cpp": "c949af14577341f5b3ee757c4a15c2a1f62ab9e25a5361cd621e000c99f498a8",
+    "OfficeCommand.h": "fff8e6c967b2b80cf797da28ce7cf8e17a3a5e1c08d4fefb80108985573b2f87",
+    "document-operations.hpp": "553670ea4bbadfd106e055c0c514643a7043ff6f62da42f7381338a35b81df0e",
+    "document-validation.hpp": "1bdea099c94f423927973e359ecaa8c73a018fead900b01f34b9b513a68b1a42",
+    "font-metadata.hpp": "653b9c6237989cd3bd0ea09e168ea41de54f12a5245681311e864df2cfbbb3e7",
+    "font-operations.hpp": "e0e7b7708127a2a5dabe1e1db38a5ddf4d166b7a701b7d0934e874de5229d776",
+    "render-operations.hpp": "91ef75591dbb061ab10ef9016924119bcc1db2b834def70eaa1c7fafb37cc13a"
+  },
+  "packagedResourceBytes": 10836396
+}

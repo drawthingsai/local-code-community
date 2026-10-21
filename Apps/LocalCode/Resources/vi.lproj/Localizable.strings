@@ -1,0 +1,3075 @@
+"needs_to_download" = " cần tải về khoảng ";
+
+"costly_download_confirmation" = " mô hình để khởi động. Bạn đang dùng mạng tính phí cao. Bạn có muốn tiếp tục tải về không?";
+
+"confirm_download_continuation" = " mô hình để khởi động. Bạn có muốn tiếp tục tải về không?";
+
+"configuration_profile" = "Cấu hình";
+
+"configuration_profile_message" = "Nhập tên cấu hình";
+
+"configuration_profile_placeholder" = "cấu hình của tôi";
+
+"paste_configuration" = "Dán cấu hình";
+
+"copy_configuration" = "Sao chép cấu hình";
+
+"start_download" = "Bắt đầu tải về";
+
+"restart_download" = "Tải về lại";
+
+"downloading_model" = "Đang tải về mô hình";
+
+"error" = "Lỗi";
+
+"enable" = "Bật";
+
+"connecting" = "Đang kết nối";
+
+"failed" = "Thất bại";
+
+"server_online" = "Máy chủ trực tuyến";
+
+"connected" = "Đã kết nối";
+
+"incompatible" = "Không tương thích";
+
+"basic_settings" = "Cài đặt cơ bản";
+
+"advanced_settings" = "Cài đặt nâng cao";
+
+"all_settings" = "Tất cả cài đặt";
+
+"project" = "Dự án";
+
+"projects" = "Dự án";
+
+"load_project" = "Mở dự án...";
+
+"rename" = "Đổi tên";
+
+"rename_thread_dot" = "Đổi tên cuộc trò chuyện...";
+
+"delete_thread_dot" = "Xóa cuộc trò chuyện...";
+
+"delete_thread" = "Xóa cuộc trò chuyện";
+
+"delete_thread_warning" = "Cuộc trò chuyện này và lịch sử hội thoại của nó sẽ bị xóa vĩnh viễn. Không thể hoàn tác thao tác này.";
+
+"close_browser_tabs_dot" = "Đóng các tab trình duyệt...";
+
+"close_browser_tabs" = "Đóng các tab trình duyệt";
+
+"close_browser_tabs_detail" = "Các trang web mà cuộc trò chuyện này đang mở sẽ bị đóng.";
+
+"export_model_context_dot" = "Xuất ngữ cảnh mô hình...";
+
+"clear_browser_data_dot" = "Xóa dữ liệu trình duyệt...";
+
+"clear_browser_data" = "Xóa dữ liệu trình duyệt";
+
+"clear_directory_browser_data_detail" = "Cookie và các dữ liệu trang web khác của thư mục này sẽ bị xóa. Những trang mà các cuộc trò chuyện của thư mục đã đăng nhập sẽ cần đăng nhập lại.";
+
+"clear_bot_browser_data_detail" = "Cookie và các dữ liệu trang web khác của bot này sẽ bị xóa. Những trang mà các cuộc trò chuyện của bot đã đăng nhập sẽ cần đăng nhập lại.";
+
+"clear" = "Xóa";
+
+"close" = "Đóng";
+
+"rename_directory_dot" = "Đổi tên thư mục...";
+
+"delete_directory_dot" = "Xóa thư mục...";
+
+"delete_directory" = "Xóa thư mục";
+
+"move_to_trash" = "Chuyển vào Thùng rác";
+
+"move_directory_to_trash_warning" = "Thư mục này và toàn bộ nội dung bên trong sẽ được chuyển vào Thùng rác.";
+
+"cannot_move_directory_to_trash" = "Không thể chuyển thư mục vào Thùng rác";
+
+"cannot_move_active_directory_to_trash_message" = "Hãy dừng phản hồi hiện tại trước khi chuyển thư mục này vào Thùng rác.";
+
+"export_project" = "Xuất dự án...";
+
+"start_project" = "Bắt đầu dự án mới";
+
+"start_a_new_thread" = "Bắt đầu cuộc trò chuyện mới.";
+
+"switch_thread_during_generation_title" = "Chuyển cuộc trò chuyện?";
+
+"switch_thread_during_generation_message" = "Cuộc trò chuyện này vẫn đang tạo phản hồi. Để chuyển, bạn cần dừng nó trước.";
+
+"keep_generating" = "Tiếp tục tạo";
+
+"stop_and_switch" = "Dừng và chuyển";
+
+"stop_generation_question" = "Dừng tạo?";
+
+"stop_generation_confirmation" = "Dừng lúc này sẽ hủy kết quả chưa hoàn tất.";
+
+"stop_generation" = "Dừng tạo";
+
+"save" = "Lưu";
+
+"downloading" = "Đang tải về";
+
+"presets" = "Cài đặt sẵn";
+
+"generate" = "Tạo";
+
+"image" = "Ảnh";
+
+"share" = "Chia sẻ";
+
+"select_layer_display" = "Chọn các lớp để hiển thị.";
+
+"scribble" = "Phác thảo";
+
+"pose" = "Tư thế";
+
+"color_palette" = "Bảng màu";
+
+"custom" = "Tùy chỉnh";
+
+"depth_map" = "Bản đồ độ sâu";
+
+"depth_map_dot" = "Bản đồ độ sâu...";
+
+"load_layers" = "Tải lớp...";
+
+"manage_dot" = "Quản lý...";
+
+"mask_dot" = "Mặt nạ...";
+
+"mask_from_photos" = "Mặt nạ từ Ảnh...";
+
+"mask_from_files" = "Mặt nạ từ Tệp...";
+
+"paste_as_mask" = "Dán làm mặt nạ";
+
+"depth_map_photos" = "Bản đồ độ sâu từ Ảnh...";
+
+"depth_map_files" = "Bản đồ độ sâu từ Tệp...";
+
+"paste_as_depth_map" = "Dán làm bản đồ độ sâu";
+
+"scribble_dot" = "Phác thảo...";
+
+"scribble_from_photos" = "Phác thảo từ Ảnh...";
+
+"scribble_from_files" = "Phác thảo từ Tệp...";
+
+"paste_as_scribble" = "Dán làm phác thảo";
+
+"pose_dot" = "Tư thế...";
+
+"pose_from_photos" = "Tư thế từ Ảnh...";
+
+"pose_from_files" = "Tư thế từ Tệp...";
+
+"paste_as_pose" = "Dán làm tư thế";
+
+"color_palette_dot" = "Bảng màu...";
+
+"color_palette_from_photos" = "Bảng màu từ Ảnh...";
+
+"color_palette_from_files" = "Bảng màu từ Tệp...";
+
+"paste_as_color_palette" = "Dán làm bảng màu";
+
+"custom_dot" = "Tùy chỉnh...";
+
+"moodboard" = "Moodboard";
+
+"moodboard_dot" = "Moodboard...";
+
+"moodboard_from_photos" = "Moodboard từ Ảnh...";
+
+"moodboard_from_files" = "Moodboard từ Tệp...";
+
+"custom_from_photos" = "Tùy chỉnh từ Ảnh...";
+
+"custom_from_files" = "Tùy chỉnh từ Tệp...";
+
+"paste_as_custom" = "Dán làm tùy chỉnh";
+
+"delete_custom" = "Xóa tùy chỉnh";
+
+"save_layers" = "Lưu lớp...";
+
+"save_to_photos" = "Lưu vào Ảnh...";
+
+"save_to_files" = "Lưu vào Tệp...";
+
+"save_to_elsewhere" = "Lưu vào nơi khác...";
+
+"save_to_dot" = "Lưu vào...";
+
+"copy" = "Sao chép";
+
+"copied_to_clipboard" = "Đã sao chép vào bảng nhớ tạm";
+"copied" = "Đã sao chép!";
+
+"move_image_canvas" = "Định vị lại ảnh trên khung vẽ.";
+
+"blank_canvas" = "Bắt đầu với khung vẽ trống.";
+
+"select_from_files" = "Chọn từ Tệp...";
+
+"select_from_photos" = "Chọn từ Ảnh...";
+
+"paste" = "Dán";
+
+"text_image_generation" = "Tạo ảnh từ văn bản";
+
+"inpainting" = "Tạo ảnh từ ảnh + Inpainting";
+
+"image_image_generation" = "Tạo ảnh từ ảnh";
+
+"model" = "Mô hình";
+
+"steps" = "Số bước";
+
+"sampler" = "Bộ lấy mẫu";
+
+"disabled" = "Đã tắt";
+"weights_streaming" = "Truyền phát trọng số";
+"weights_streaming_detail" = "Chọn dung lượng bộ nhớ dành cho trọng số chuyên gia định tuyến thường trú. Thay đổi sẽ có hiệu lực vào lần tải trọng số mô hình tiếp theo.";
+
+"strength" = "Cường độ";
+
+"text_guidance" = "Hướng dẫn văn bản";
+
+"seed_mode_legacy" = "Chế độ seed: Kiểu cũ";
+
+"seed_mode_torch_cpu_compatible" = "Chế độ seed: Tương thích Torch CPU";
+
+"seed_mode_nvidia_gpu_compatible" = "Chế độ seed: Tương thích NVIDIA GPU";
+
+"seed_mode_scale_alike" = "Chế độ seed: Tương đồng theo tỷ lệ";
+
+"image_guidance" = "Hướng dẫn hình ảnh";
+
+"batch_count" = "Số lô";
+
+"batch_count_detail" = "Số lô ảnh cần tạo";
+
+"batch_size" = "Kích thước lô";
+
+"control" = "Điều khiển";
+
+"controlnet" = "ControlNet";
+
+"controlnet_name_detail" = "Tên hiển thị trong danh sách ControlNet";
+
+"controlnet_modifier" = "Loại bộ tiền xử lý ControlNet";
+
+"controlnet_modifier_detail" = "Chọn loại bộ tiền xử lý mà mô hình ControlNet sử dụng. Mặc định là \"Không xác định\".";
+
+"import_control" = "Nhập ControlNet";
+
+"controlnet_exist" = "Mô hình ControlNet đã tồn tại";
+
+"controlnet_overwite_confirmation" = "ControlNet có tên %@ đã tồn tại. Bạn có muốn ghi đè không?";
+
+"depth" = "Độ sâu";
+
+"canny" = "Canny";
+
+"normalbae" = "Normal BAE";
+
+"lineart" = "LineArt";
+
+"softedge" = "Cạnh mềm";
+
+"seg" = "Phân vùng";
+
+"inpaint" = "Inpaint";
+
+"ip2p" = "Instruct Pix2Pix";
+
+"shuffle" = "Xáo trộn";
+
+"mlsd" = "M-LSD";
+
+"tile" = "Tile";
+
+"face_restoration" = "Phục hồi khuôn mặt";
+
+"upscaler" = "Upscaler";
+
+"show_past_edits" = "Hiện các chỉnh sửa trước đây.";
+
+"wait" = "Chờ";
+
+"seconds" = "giây";
+
+"converting_coreML_from" = "Đang chuyển đổi mô hình CoreML từ";
+
+"loading_model" = "Đang tải mô hình";
+
+"edits_to_image" = "Hiện các chỉnh sửa dẫn đến ảnh gần nhất.";
+
+"show_generated_image" = "Chỉ hiện ảnh đã tạo.";
+
+"show_edits_popover" = "Hiện các chỉnh sửa trước đây trong cửa sổ bật lên.";
+
+"show_all_edits" = "Hiện tất cả các chỉnh sửa trước đây.";
+
+"edits" = "%d chỉnh sửa";
+
+"generations" = "%d lần tạo";
+
+"delete_dot" = "Xóa...";
+
+"delete" = "Xóa";
+
+"restore" = "Khôi phục";
+
+"rewrite_history" = "Viết lại lịch sử";
+
+"delete_image_history" = "Xóa ảnh khỏi lịch sử là thao tác không thể hoàn tác. Bạn có muốn tiếp tục không?";
+
+"cancel" = "Hủy";
+
+"downloaded_file" = "Tệp đã tải về";
+
+"name" = "Tên";
+
+"trigger_word" = "Từ kích hoạt";
+
+"lora_model_name" = "Tên này sẽ hiển thị trong danh sách mô hình LoRA.";
+
+"lora_model_trigger" = "Một số mô hình LoRA có thể cần được kích hoạt bằng một từ / token hiếm. Khi bạn chọn mô hình, từ kích hoạt nhập ở đây sẽ tự động được thêm vào đầu prompt của bạn.";
+
+"import_lora" = "Nhập LoRA";
+
+"delete_lora" = "Bạn có muốn xóa LoRA này không?";
+
+"enter_url" = "Vui lòng nhập URL";
+
+"enter_url_dot" = "Nhập URL...";
+
+"download_to_local" = "Thao tác này sẽ tải tệp qua mạng về bộ nhớ cục bộ của bạn.";
+
+"continue" = "Tiếp tục";
+
+"lora_exists" = "LoRA đã tồn tại";
+
+"model_exists_confirmation" = "Mô hình cần tải về đã tồn tại. Tiếp tục tải về?";
+
+"lora_overwrite_confirmation" = "LoRA có tên %@ đã tồn tại. Bạn có muốn ghi đè không?";
+
+"overwrite" = "Ghi đè";
+
+"import_succeed" = "Nhập thành công";
+
+"model_import_succeed" = "Đã nhập mô hình thành công.";
+
+"ok" = "OK";
+
+"delete_downloaded_model" = "Đã nhập mô hình thành công, bạn có muốn xóa tệp đã tải về để giải phóng dung lượng không?";
+
+"yes" = "Có";
+
+"yes_prefer_quantized" = "Có, ưu tiên attention đã lượng tử hóa";
+
+"yes_prefer_non_quantized" = "Có, ưu tiên attention không lượng tử hóa";
+
+"yes_prefer_apple_neural_engine_only" = "Có, ưu tiên chỉ dùng Apple Neural Engine";
+
+"yes_prefer_apple_neural_engine_and_gpu" = "Có, ưu tiên Apple Neural Engine và GPU";
+
+"no" = "Không";
+
+"import_model" = "Nhập mô hình";
+
+"custom_text_encoder" = "Bộ mã hóa văn bản tùy chỉnh";
+
+"finetune_image_size" = "Kích thước ảnh tinh chỉnh";
+
+"finetune_image_detail" = "Kích thước ảnh mà mô hình đã dùng để tinh chỉnh. Hầu hết các mô hình v1 được tinh chỉnh ở 512x512, nhiều mô hình v2 được tinh chỉnh ở 768x768.";
+
+"dreambooth_finetune_encoder" = "Các mô hình Dreambooth (như những mô hình yêu cầu chuỗi tiền tố) cũng tinh chỉnh cả bộ mã hóa văn bản. Hãy bỏ chọn mục này nếu bạn cho rằng mô hình bạn dùng không tinh chỉnh bộ mã hóa văn bản (ví dụ như Anything v3, Waifu Diffusion và Hassanblend).";
+
+"custom_variational_autoencoder" = "Bộ tự mã hóa biến phân tùy chỉnh";
+
+"custom_models_vae" = "Một số mô hình tùy chỉnh (như Anything v3) tinh chỉnh bộ tự mã hóa biến phân (VAE) để có kết quả tốt hơn nữa. Những mô hình khác (như hầu hết các mô hình Dreambooth) chỉ dùng bộ tự mã hóa mặc định. Các mô hình tùy chỉnh này thường công bố checkpoint VAE riêng. Vì vậy, bạn có thể chọn một tệp khác cho VAE.";
+
+"v-prediction" = "V-Prediction";
+
+"stable_diffusion_v-prediction" = "Stable Diffusion v2 giới thiệu các mô hình chưng cất sử dụng v-prediction. Đây là kỹ thuật có thể tăng tốc quá trình tạo ảnh (thường 20 bước là đủ). Nếu mô hình tùy chỉnh dùng v-prediction, bạn nên bật tùy chọn này để kết xuất chính xác.";
+
+"high_precision_attention" = "Attention với độ chính xác cao hơn";
+
+"custom_models_precision" = "Một số mô hình được huấn luyện tùy chỉnh (như Stable Diffusion v2.1 768-v và Versatile Diffusion) phải chạy với độ chính xác cao hơn ở các lớp attention, nếu không có thể không kết xuất được. Bật tùy chọn này cho những mô hình không có yêu cầu này sẽ làm chúng chậm đi 30% đến 40%.";
+
+"model_version" = "Phiên bản mô hình";
+
+"v1_v2_xl" = "v1 hoặc v2 hoặc SDXL";
+
+"stable_diffusion_compatibility" = "Stable Diffusion v1 và v2 không tương thích với nhau. Mô hình tùy chỉnh bạn nhập dựa trên v1 hay v2 sẽ được tự động nhận biết.";
+
+"dreambooth_model_trigger" = "Các mô hình Dreambooth thường cần được kích hoạt bằng một từ / token hiếm. Khi bạn chọn mô hình, từ kích hoạt nhập ở đây sẽ tự động được thêm vào đầu prompt của bạn.";
+
+"model_name" = "Tên mô hình";
+
+"model_name_detail" = "Tên này sẽ hiển thị trong danh sách mô hình.";
+
+"import_custom_model" = "Nhập mô hình tùy chỉnh";
+
+"model_exist" = "Mô hình đã tồn tại";
+
+"model_exist_confirmation" = "Mô hình bạn định tải về đã tồn tại, bạn muốn chọn mô hình hiện có hay tiếp tục tải về?";
+
+"select" = "Chọn";
+
+"model_name_exist" = "Mô hình có tên %@ đã tồn tại. Bạn có muốn ghi đè không?";
+
+"data_usage" = "Sử dụng dữ liệu";
+
+"confirm_download_prompt" = "Cần tải tệp về qua mạng, tiếp tục?";
+
+"export_dot" = "Xuất...";
+
+"external_folder_move" = "Chuyển sang thư mục bên ngoài";
+
+"internal_folder_move" = "Chuyển sang thư mục nội bộ";
+
+"models" = "Mô hình";
+
+"select_a_folder_dot" = "Chọn thư mục...";
+
+"workspace" = "Không gian làm việc";
+
+"inside_app_documents" = "Trong tài liệu của ứng dụng";
+
+"reveal_in_files_dot" = "Hiển thị trong Tệp...";
+
+"reveal_in_finder_dot" = "Hiển thị trong Finder...";
+
+"external_model_folder" = "Thư mục mô hình bên ngoài";
+
+"model_list" = "Danh sách mô hình";
+
+"confirm_model_deletion" = "Bạn có muốn xóa mô hình này không?";
+
+"model_precision_selection" = "Chọn độ chính xác dùng để lưu mô hình. \"Float 16\" sẽ chiếm khoảng 2GiB dung lượng ổ đĩa, còn \"Float 32\" sẽ chiếm khoảng 4GiB. Độ chính xác cao hơn sẽ có ích nếu bạn định trộn tiếp với các mô hình khác. Điều này không tạo ra khác biệt nào khi tạo ảnh.";
+
+"weighted_sum" = "Tổng trọng số";
+
+"weight" = "Trọng số";
+
+"add_diff" = "Cộng chênh lệch";
+
+"freeform" = "Tự do";
+
+"freeform_dot" = "Tự do...";
+
+"same_mix" = "Trộn đồng nhất";
+
+"model_mixing" = "Trộn mô hình";
+
+"mixing" = "Trộn";
+
+"output_model_name" = "Tên mô hình đầu ra";
+
+"model_precision" = "Độ chính xác của mô hình";
+
+"vae_encoder" = "VAE - Bộ mã hóa";
+
+"vae_merging_risky" = "Một số mô hình tùy chỉnh (như Anything v3) tinh chỉnh bộ tự mã hóa biến phân (VAE) để có kết quả tốt hơn nữa. Trộn VAE của các mô hình khác nhau có thể rủi ro vì nó ảnh hưởng đến độ tương phản, độ sáng và các khía cạnh thị giác cấp thấp khác của ảnh. Bạn có thể chọn dùng VAE của một trong các mô hình thay vì trộn chúng.";
+
+"note" = "Ghi chú";
+
+"model_saved_note" = "Mọi ghi chú ở đây sẽ được lưu cùng mô hình.";
+
+"different_versions" = "Phiên bản khác nhau";
+
+"models_version_incompatible" = "Không thể trộn các mô hình khác phiên bản chính (ví dụ: v1.x và v2.x) với nhau.";
+
+"vprediction_mismatch" = "V-Prediction khác nhau";
+
+"vprediction_mixing_disallowed" = "Không thể trộn mô hình bật v-prediction với mô hình tắt v-prediction.";
+
+"no_model_selected" = "Chưa chọn mô hình";
+
+"two_models_required" = "Bạn cần ít nhất hai mô hình để trộn.";
+
+"single_model_selected" = "Chỉ chọn 1 mô hình";
+
+"single_model_confirmation" = "Bạn chỉ chọn một mô hình, và thao tác này chỉ áp dụng hệ số cho mô hình đó. Có thể đây là nhầm lẫn. Bạn vẫn muốn tiếp tục chứ?";
+
+"two_model_selected" = "Chỉ chọn 2 mô hình";
+
+"three_model_required" = "Bạn chỉ chọn 2 mô hình cho chế độ \"Cộng chênh lệch\". Chế độ này cần ít nhất 3 mô hình. Có thể đây là nhầm lẫn. Bạn vẫn muốn tiếp tục chứ?";
+
+"preset_image_strength" = "Ảnh sang ảnh với cường độ 70%";
+
+"upscale_with" = "Phóng to bằng ";
+
+"face_restoration_with" = "Phục hồi khuôn mặt bằng ";
+
+"support_no_prompt" = "Hỗ trợ \"Không dùng prompt\"";
+
+"width" = "Chiều rộng";
+
+"height" = "Chiều cao";
+
+"disable_attention_computation" = "Theo mặc định, quá trình giải mã / mã hóa ảnh dùng một mô-đun attention ở lớp giữa. Mô-đun này chỉ ảnh hưởng tinh tế đến ảnh cuối cùng nhưng có thể chiếm rất nhiều bộ nhớ. Tắt tính toán attention cho phép giải mã ảnh lớn hơn mà chỉ tốn ít bộ nhớ.";
+
+"first_pass_width" = "Chiều rộng lượt 1";
+
+"first_pass_height" = "Chiều cao lượt 1";
+
+"preload_coreml_only" = "Tải trước (chỉ CoreML)";
+
+"automatic" = "Tự động ";
+
+"all" = "Tất cả";
+
+"always" = "Luôn luôn";
+"always_partial" = "Luôn luôn (một phần)";
+"always_full" = "Luôn luôn (toàn bộ)";
+
+"sometimes" = "Đôi khi";
+
+"never" = "Không bao giờ";
+
+"preload" = "Tải trước";
+
+"machine_settings" = "Cài đặt máy";
+
+"key_model_memory_for_sd_sdxl" = "Giữ mô hình trong bộ nhớ cho SD 1.5 & SDXL";
+
+"automatic_yes" = "Tự động (Có)";
+
+"automatic_no" = "Tự động (Không)";
+
+"efficient_model_loading" = "Theo mặc định, chúng tôi gỡ mô hình khỏi bộ nhớ sau khi tạo ảnh và tải lại mô hình khi tạo lần tiếp theo. Mỗi lần tải mô hình có thể mất từ 2 đến 5 giây. Nếu bật, chúng tôi sẽ giữ mô hình trong bộ nhớ để tạo nhanh hơn và chỉ gỡ khi hệ điều hành báo sắp hết bộ nhớ. Bạn cũng có thể chọn chỉ tải trước mô hình CoreML, giúp giảm thời gian tải mô hình CoreML mà không dùng thêm bộ nhớ.";
+
+"coreml_if_possible" = "Dùng CoreML cho SD 1.5 nếu có thể";
+
+"coreml_memory_usage" = "CoreML tiêu tốn nhiều bộ nhớ hơn và có thể không phù hợp với nhiều thiết bị di động. Lần tải đầu tiên mất khoảng 70 giây. Bù lại, nó nhanh hơn khoảng 50%. Tốt nhất nên bật 'Giữ mô hình trong bộ nhớ - Tải trước' cùng lúc để tận dụng lần tải đầu tiên.";
+
+"coreml_for_lora" = "Dùng CoreML kèm LoRA cho SD 1.5";
+
+"coreml_lora_detail" = "Với các mô hình LoRA, có thể tận dụng CoreML. Tuy nhiên, mỗi thay đổi về trọng số, mô hình LoRA khác nhau hoặc tổ hợp của chúng sẽ tạo ra một mô hình CoreML mới, kéo theo việc biên dịch mô hình có thể mất vài phút.";
+
+"file_swap_weights" = "Hoán đổi trọng số qua tệp";
+
+"file_swap_detail" = "Phép toán cốt lõi của Stable Diffusion cần ít nhất 1,7GiB cho các tham số. Thiết bị di động có 3GiB RAM có thể gặp khó khăn khi tải các tham số này. Tùy chọn này cho phép chuyển các tham số này xuống ổ đĩa và chỉ tải khi cần. Với thiết bị chậm hơn, đây sẽ không phải là điểm nghẽn, nhưng với thiết bị nhanh hơn thì có thể. Tùy chọn này cần thêm dung lượng ổ đĩa, và chọn 'Không bao giờ' sẽ buộc chúng tôi xóa các tệp tham số này.";
+
+"automatic_sometimes" = "Tự động (Đôi khi)";
+
+"screen_saver" = "Trình bảo vệ màn hình";
+
+"screen_saver_detail" = "Trên thiết bị di động, ứng dụng phải ở nền trước để tiếp tục tạo ảnh. Dùng điện thoại quá nhiều ở độ sáng màn hình cao có thể gây ảnh hưởng lâu dài lên màn hình OLED (thường thấy trên các mẫu iPhone Pro). Trình bảo vệ màn hình sẽ giảm độ sáng màn hình trong khi tạo ảnh để tránh các tác động tiêu cực có thể xảy ra.";
+
+"temporary_directory" = "Thư mục tạm";
+
+"temporary_directory_detail" = "Do cách hệ điều hành hoạt động bên trong, 'Local Code' có thể tạo ra quá nhiều tệp tạm trong thư mục tạm. Các tệp này sẽ tự động bị xóa khi hệ điều hành sắp hết dung lượng ổ đĩa. Tuy nhiên, bạn cũng có thể dùng tùy chọn này để chủ động dọn dẹp nếu sắp hết dung lượng ổ đĩa.";
+
+"cleanup" = "Dọn dẹp";
+
+"reset_to_default" = "Đặt lại về mặc định";
+
+"seed_explain" = "Giá trị seed quyết định cách bắt đầu quá trình tạo ảnh. Cùng một seed sẽ tạo ra cùng một ảnh.";
+
+"seed_explain_cli" = "Giá trị seed quyết định cách bắt đầu quá trình tạo ảnh. Cùng một seed sẽ tạo ra cùng một ảnh. Lưu ý rằng truyền -1 làm seed sẽ tạo ra một giá trị ngẫu nhiên.";
+
+"seed_mode" = "Chế độ seed";
+
+"seed_mode_detail" = "Chế độ seed quyết định cách sử dụng seed. \"Kiểu cũ\" tương thích với ứng dụng Draw Things phiên bản cũ, \"Tương thích NVIDIA GPU\" tương thích với các công cụ máy tính để bàn khác như AUTOMATIC1111 hoặc Invoke.AI trên NVIDIA GPU / Linux / Windows, \"Tương thích Torch CPU\" tương thích với các công cụ máy tính để bàn khác trên macOS, và \"Tương đồng theo tỷ lệ\" cho phép seed giữ được phần nào sự tương đồng ngay cả ở các kích thước ảnh khác nhau.";
+
+"legacy" = "Kiểu cũ";
+
+"image_size" = "Kích thước ảnh";
+
+"image_size_detail" = "Kích thước của ảnh được tạo. Để có kết quả tốt nhất, hãy dùng 1:1 / Bình thường";
+
+"final_output_size" = "Kích thước đầu ra cuối cùng";
+
+"upscaler_detail" = "Upscaler có thể giúp tạo ảnh độ phân giải cao đẹp mắt (ví dụ: 2048x2048) từ một ảnh tương đối nhỏ hơn (ví dụ: 512x512). Tùy vào upscaler bạn dùng, nó có thể bổ sung các chi tiết khác nhau và tạo ra phong cách hơi khác.";
+
+"steps_detail" = "Số bước được áp dụng để tạo ảnh. Dùng nhiều bước hơn sẽ cho ảnh tốt hơn nhưng mất nhiều thời gian hơn.";
+
+"text_guidance_detail" = "Mức độ bám sát \"nghĩa đen\" của văn bản đầu vào. Giá trị cao hơn sẽ trung thành với văn bản hơn, còn giá trị thấp hơn cho phép tự do nghệ thuật hơn. (CFG Scale)";
+
+"text_guidance_detail_cli" = "Mức độ bám sát \"nghĩa đen\" của văn bản đầu vào. Cao hơn sẽ trung thành với văn bản hơn, thấp hơn sẽ tự do nghệ thuật hơn. (CFG Scale). Lưu ý rằng giá trị mặc định sẽ đổi thành 0.7 nếu ở chế độ ảnh sang ảnh.";
+
+"text_to_image" = "Văn bản sang ảnh";
+
+"image_to_image" = "Ảnh sang ảnh";
+
+"strength_detail" = "Khi tạo từ một ảnh, giá trị cao cho phép tự do nghệ thuật hơn so với ảnh gốc. 100% nghĩa là ảnh hiện có không có ảnh hưởng gì (còn gọi là văn bản sang ảnh).";
+
+"dpm_2m_karras" = "DPM++ 2M Karras";
+
+"sampler_detail" = "Các bộ lấy mẫu khác nhau có thể hội tụ ở số bước khác nhau và có thể cho ra phong cách hình ảnh khác nhau. Euler A nổi tiếng với việc tạo ảnh \"mơ màng\" hơn, trong khi DPM++ 2M Karras có thể tạo ảnh chất lượng cao trong không quá 30 bước.";
+
+"image_guidance_detail" = "Các mô hình chỉnh sửa dùng ảnh làm hướng dẫn giống như cách dùng văn bản. Giá trị này, kết hợp với hướng dẫn văn bản, quyết định mức độ mô hình có thể đi lệch khỏi mỗi bên. Hướng dẫn hình ảnh cao hơn sẽ trung thành hơn với ảnh gốc.";
+
+"clip_skip" = "Bỏ qua CLIP";
+
+"clip_skip_detail" = "\"Bỏ qua CLIP\" kiểm soát số lớp bị bỏ qua, tính từ lớp cuối cùng trong bộ mã hóa văn bản. Bộ mã hóa văn bản chuyển văn bản của bạn thành các vectơ mà máy tính hiểu được. Bỏ qua nhiều lớp hơn trong bộ mã hóa văn bản sẽ buộc máy tính tập trung nhiều hơn vào từng từ riêng lẻ thay vì ý nghĩa kết hợp của chúng. Điều này có thể hữu ích cho các mô hình được tinh chỉnh trên văn bản đầu vào dạng thẻ (tag).";
+
+"mask_blur" = "Làm mờ mặt nạ";
+
+"mask_blur_detail" = "\"Làm mờ mặt nạ\" cố gắng làm mềm cạnh của mặt nạ một chút, có thể giúp hòa trộn với phần còn lại của ảnh.";
+
+"face_restoration_detail" = "Phục hồi khuôn mặt có thể dùng thêm một mô hình để sửa các khuôn mặt nhỏ, bị méo trong quá trình tạo ảnh. Quá trình này hiệu quả nhất với ảnh chân thực. Với ảnh anime hoặc ảnh nghệ thuật, điều này có thể không như mong muốn.";
+
+"batch_size_detail" = "Số ảnh được tạo đồng thời trong một lô.";
+
+"high_resolution_fix" = "Sửa độ phân giải cao";
+
+"save_images_to" = "Lưu ảnh đã tạo vào";
+
+"save_images_detail" = "Ảnh đã tạo có thể được lưu vào thư mục bạn chọn. Điều này giúp bạn dễ dàng hơn nếu dùng ứng dụng bên ngoài để sắp xếp ảnh đã tạo.";
+
+"hires_first_pass_width_detail" = "Chiều rộng lượt 1 của Sửa độ phân giải cao (làm tròn đến bội số gần nhất của 64)";
+
+"hires_first_pass_height_detail" = "Chiều cao lượt 1 của Sửa độ phân giải cao (làm tròn đến bội số gần nhất của 64)";
+
+"hires_second_pass_strength_detail" = "Cường độ lượt 2 của Sửa độ phân giải cao";
+
+"first_pass_size" = "Kích thước lượt 1";
+
+"second_pass_strength" = "Cường độ lượt 2";
+
+"hires_fix_detail" = "Sửa độ phân giải cao dùng kích thước bạn chọn để tạo ảnh ở lượt đầu, sau đó áp dụng tạo ảnh từ ảnh ở cường độ đã chọn để tinh chỉnh cho đến kích thước mục tiêu. Cách này tránh các đối tượng bị lặp khi tạo trực tiếp và thường tạo ra nhiều chi tiết hơn so với khi dùng một upscaler thông thường.";
+
+"torch_cpu_compatible" = "Tương thích Torch CPU";
+
+"nvidia_gpu_compatible" = "Tương thích NVIDIA GPU";
+
+"scale_alike" = "Tương đồng theo tỷ lệ";
+
+"stable_diffusion_v1.4" = "Đa năng (Stable Diffusion v1.4)";
+
+"stable_diffusion_v1" = "Stable Diffusion v1";
+
+"stable_diffusion_v2" = "Stable Diffusion v2";
+
+"choose_model" = "Chọn mô hình dùng để tạo ảnh. Mô hình đa năng tốt hơn cho mọi thứ, trong khi một số mô hình nhất định (ví dụ: waifu-diffusion) phù hợp để tạo ảnh phong cách anime.";
+
+"lora_detail" = "LoRA (Low-order Rank Adaptation) là kỹ thuật áp dụng các mô hình bổ sung nhỏ được huấn luyện riêng lên một mô hình gốc Stable Diffusion. Huấn luyện các mô hình này thường nhanh hơn so với tinh chỉnh toàn bộ mô hình.";
+
+"additive_models_control" = "Các mô hình bổ sung có thể cung cấp thêm khả năng điều khiển để định hướng quá trình tạo ảnh. Chúng thường nhận đầu vào ở dạng phác thảo, tư thế, bản đồ độ sâu hoặc bản đồ cạnh. Các mô hình bổ sung này chỉ tương thích với phiên bản Stable Diffusion được chỉ định của chúng. \"Trọng số\" quyết định mức độ ảnh hưởng của điều khiển lên quá trình tạo ảnh. \"Không dùng prompt\" có thể tạo ảnh mà không cần prompt. \"Bắt đầu\" và \"Kết thúc\" quyết định thời điểm điều khiển bổ sung bắt đầu có hiệu lực trong quá trình khử nhiễu.";
+
+"textual_inversion_exist" = "Embedding T.I. đã tồn tại";
+
+"textual_exist_confirmation" = "Mô hình bạn định tải về đã tồn tại, bạn vẫn muốn tiếp tục tải về chứ?";
+
+"textual_inversion_detail" = "\"Textual inversion\" hay \"embedding\" thường được huấn luyện để biểu đạt những thứ khó diễn tả bằng văn bản. Chúng có thể là một phong cách, một nhân vật hoặc một số khái niệm chung.";
+
+"seed" = "Seed";
+
+"download" = "Tải về";
+
+// Spellcast
+
+"go_to_start" = "Đi đến đầu văn bản.";
+
+"go_to_end" = "Đi đến cuối văn bản (%ld token).";
+
+"insert_invert_keyword" = "Nhấp chuột phải để chèn từ khóa embedding T.I.";
+
+"change_invert_keyword" = "Nhấp chuột phải để thay đổi từ khóa embedding T.I.";
+
+"select_all" = "Chọn tất cả.";
+
+"tidy_prompt_text" = "Sắp xếp gọn văn bản prompt cho dễ nhìn hơn.";
+
+// Textual Inversion
+
+"textual_inversion" = "Embedding T.I.";
+
+"download_textual_inversions" = "Bạn có thể tải tệp về từ Safari rồi chuyển vào \"Downloads\" trong thư mục Draw Things ở ứng dụng Tệp, hoặc nhập URL trực tiếp để tải embedding T.I. từ internet về.";
+
+"textual_display_name" = "Tên này sẽ hiển thị trong danh sách embedding T.I.";
+
+"keyword" = "Từ khóa";
+
+"keyword_trigger_prompt" = "Từ khóa để kích hoạt embedding T.I. trong prompt.";
+
+"import_textual_inversion" = "Nhập embedding T.I.";
+
+"textual_delete_confirmation" = "Bạn có muốn xóa embedding T.I. này không?";
+
+"textual_inversion_exists" = "Embedding T.I. đã tồn tại";
+
+"textual_inversion_message" = "Embedding T.I. có tên %@ đã tồn tại. Bạn có muốn ghi đè không?";
+
+"stop" = "Dừng";
+
+"stopping" = "Đang dừng...";
+
+"clip_weight" = "Trọng số CLIP";
+
+"clip_weight_detail" = "Mô hình \"Kandinsky\" dùng cả XLM Roberta và CLIP để mã hóa văn bản. Bộ mã hóa CLIP giúp cải thiện chất lượng ảnh nhưng chỉ hỗ trợ tiếng Anh. \"Trọng số CLIP\" giúp điều chỉnh mức trọng số đặt vào bộ mã hóa CLIP. Giá trị nhỏ hơn giúp bám sát văn bản tốt hơn.";
+
+"new_project_warning" = "Dự án hiện tại sẽ không hiển thị sau thao tác này, tiếp tục?";
+
+"cannot_rename" = "Không thể đổi tên";
+
+"cannot_rename_message" = "Đã có một dự án với tên đó. Bạn có thể xóa tệp dự án trước đó hoặc đổi tên dự án mới.";
+
+"enter_new_name" = "Vui lòng nhập tên mới";
+
+"vacuum_project" = "Thu gọn dự án?";
+
+"vacuum_export_project" = "Thu gọn và xuất";
+
+"export_directly" = "Xuất trực tiếp";
+
+"vacuum_project_message" = "Dự án này có dung lượng khoảng ~ %@ MB, và việc thu gọn để tiết kiệm dung lượng sẽ mất một lúc. Bạn có muốn thu gọn trước khi xuất không?";
+
+"model_download_confirmation" = "Mô hình đã chọn cần được tải về qua mạng, tiếp tục?";
+
+"automatic_state" = "Tự động (%@)";
+
+"global_average_pooling" = "Gộp trung bình toàn cục";
+
+"negative_prompt_for_image_prior" = "Prompt phủ định cho image prior";
+
+"negative_prompt_for_image_prior_detail" = "Thông thường, prompt phủ định được dùng cho bộ mã hóa văn bản để cho quá trình tạo ảnh biết những gì không nên có trong ảnh. Tuy nhiên, với mô hình Kandinsky, nếu bạn chủ yếu dùng prompt phủ định cho các thuộc tính chất lượng thì tốt nhất nên dùng chúng cho bước tạo image prior.";
+
+"image_prior_steps" = "Số bước image prior";
+
+"image_prior_steps_detail" = "Các mô hình Kandinsky trước tiên tạo một \"prior\" của ảnh, là một biểu diễn cô đọng của ảnh, chú trọng vào phong cách và chất lượng. Số bước cao hơn có thể giúp image prior có độ trung thực tốt hơn.";
+
+"deep_clean_and_vacuum" = "Dọn sâu và thu gọn";
+
+"language_settings" = "Cài đặt ngôn ngữ";
+
+"language_settings_detail" = "Để áp dụng thay đổi ngôn ngữ, vui lòng thoát hẳn ứng dụng rồi mở lại.";
+
+"english" = "English";
+
+"spanish" = "Español";
+
+"simplified_chinese" = "简体中文";
+
+"traditional_chinese" = "繁體中文";
+
+"font_size_settings" = "Cỡ chữ";
+
+"font_size_settings_detail" = "Thay đổi cỡ chữ mặc định của giao diện người dùng.";
+
+"extra_small" = "Rất nhỏ";
+
+"small" = "Nhỏ";
+
+"normal" = "Bình thường";
+
+"large" = "Lớn";
+
+"extra_large" = "Rất lớn";
+
+"final_image_from_last" = "Ảnh cuối cùng từ lần tạo trước.";
+
+"low_res_approximation" = "Bản xấp xỉ độ phân giải thấp, KHÔNG phải ảnh cuối cùng.";
+
+"wrong_model_type" = "Đây có vẻ là tệp %@, bạn có muốn <intent>nhập dưới dạng %@</intent> không?";
+
+"model_missing_info" = "Mô hình sau trong dữ liệu tạo ảnh từ Civitai có thể chưa được tải về, vui lòng cấu hình thủ công.\n %@ \n %@ ";
+
+"paste_generation_data" = "Dán dữ liệu tạo ảnh Civitai";
+
+"manage_scripts" = "Quản lý script...";
+
+"scripts" = "Script";
+
+"add_script_title" = "Thêm script";
+
+"add_script" = "Thêm";
+
+"add_script_button" = "Thêm...";
+
+"save_script_title" = "Lưu thay đổi";
+
+"save_script_message" = "Bạn có muốn lưu các thay đổi không?";
+
+"dont_save" = "Không lưu";
+
+"file_name" = "Tên tệp...";
+
+"file_already_exists" = "Đã có một script với tên đó.";
+
+"confirm_script_deletion" = "Xóa script này?";
+
+"error_onboard_proceed" = "Không thể tiếp tục";
+
+"error_onboard_official" = "Không thể bắt đầu tải về mô hình chính thức";
+
+"error_onboard_import" = "Không thể nhập các mô hình cục bộ";
+
+"error_onboard_civitai" = "Không thể bắt đầu tải về mô hình từ Civitai";
+
+"small_model_warning" = "Mô hình gốc thông thường phải lớn hơn 1GiB ";
+
+"unsupport_url" = "URL không được hỗ trợ";
+
+"unsupport_url_message" = "chỉ hỗ trợ URL của Civitai";
+
+"extract_pose" = "Trích xuất tư thế";
+
+"extract_color_palette" = "Trích xuất bảng màu";
+
+"delete_depth_map" = "Xóa bản đồ độ sâu";
+
+"random_seed" = "Tạo seed ngẫu nhiên";
+
+"enter_seed" = "Nhập seed...";
+
+"down_sampling_rate" = "Tỷ lệ giảm mẫu";
+
+"save_visible_region_dot" = "Lưu vùng đang hiển thị...";
+
+"guided_rectangle" = "Vẽ hình chữ nhật cho tẩy hoặc cọ vẽ.";
+
+"new_seed_on_generation" = "Seed mới mỗi lần tạo";
+
+"image_too_large" = "Ảnh quá lớn";
+
+"image_too_large_info" = "Ảnh có mật độ điểm ảnh hỗn hợp có kích thước đầu ra là %@ và điều đó có thể gây khó khăn cho hệ điều hành của bạn. Bạn có thể chọn hệ số tỷ lệ khác để xuất ảnh.";
+
+"image_too_large_save_anyway" = "Vẫn dùng %@";
+
+"image_too_large_at_res" = "Xuất %@ (%@)";
+
+"create_8bit_dot" = "Tạo mô hình 8-bit...";
+
+"8bit_model_title" = "Đang tạo mô hình 8-bit";
+
+"8bit_model_detail" = "Các mô hình Stable Diffusion được nhập có thể chiếm khoảng 1,6GiB. Mô hình lượng tử hóa ~8-bit chiếm khoảng 800MiB với khác biệt hình ảnh rất nhỏ. Bạn có thể tạo mô hình lượng tử hóa 8-bit, so sánh kết quả với bản gốc, và nếu ưng ý với kết quả lượng tử hóa thì xóa mô hình gốc để tiết kiệm dung lượng ổ đĩa. Việc tạo mô hình lượng tử hóa 8-bit sẽ mất khoảng 20 đến 40 phút tùy thiết bị của bạn, bạn có muốn tiếp tục không?";
+
+"create_int8_scaled_dot" = "Tạo mô hình Int8 Scaled (8-bit S)...";
+
+"int8_scaled_model_title" = "Đang tạo mô hình Int8 Scaled (8-bit S)";
+
+"int8_scaled_model_detail" = "Int8 Scaled (8-bit S) là biến thể mô hình mới được tối ưu riêng cho Apple M5. Nó thường nhanh hơn khoảng 1,8 lần so với các biến thể khác của chúng tôi mà chất lượng giảm rất ít. Việc tạo mô hình Int8 Scaled (8-bit S) sẽ mất khoảng 10 đến 20 phút tùy thiết bị của bạn. Bạn có muốn tiếp tục không?";
+
+"add_image_dot" = "Thêm ảnh...";
+
+"refiner_model" = "Mô hình Refiner";
+
+"refiner_start" = "Bắt đầu Refiner";
+
+"refiner_model_detail" = "Mô hình \"refiner\" có thể được dùng ở giai đoạn sau của quá trình tạo ảnh (gần hoàn tất 100%) và thường có thể cải thiện đáng kể chi tiết của ảnh. Đây là cách tiết kiệm chi phí hơn so với việc tạo ảnh từ ảnh sau đó.";
+
+"original_image_size" = "Kích thước ảnh gốc";
+
+"original_width" = "Chiều rộng gốc";
+
+"original_height" = "Chiều cao gốc";
+
+"original_size_detail" = "Kích thước gốc của ảnh trước khi bị cắt trong quá trình huấn luyện. Thông số này giúp đặt cho ảnh tạo ra một tỷ lệ khung hình cụ thể khác với kích thước ảnh.";
+
+"crop" = "Cắt";
+
+"crop_top" = "Cắt trên";
+
+"crop_left" = "Cắt trái";
+
+"crop_detail" = "Tọa độ trên và trái khi cắt ảnh để huấn luyện. Dùng cài đặt này hợp lý có thể tạo ra ảnh tập trung vào những phần khác so với bình thường.";
+
+"target_image_size" = "Kích thước ảnh mục tiêu";
+
+"target_width" = "Chiều rộng mục tiêu";
+
+"target_height" = "Chiều cao mục tiêu";
+
+"target_size_detail" = "Kích thước mục tiêu của ảnh sau khi bị cắt trong quá trình huấn luyện. Thông số này giúp đặt mức chi tiết theo độ phân giải khác với kích thước ảnh. Ví dụ: ảnh 1024x1024 có thể có kích thước mục tiêu 512x512, khi đó sẽ tạo ra ít chi tiết hơn so với bình thường.";
+
+"aesthetic_score" = "Điểm thẩm mỹ";
+
+"negative_aesthetic_score" = "Điểm thẩm mỹ phủ định";
+
+"aesthetic_score_detail" = "Điểm thẩm mỹ mô tả mức độ đẹp về mặt nghệ thuật mà ảnh nên có. Dùng hai thông số này có thể giúp định hướng ảnh đến một mức chất lượng cụ thể như mong muốn.";
+
+"zero_negative_prompt" = "Prompt phủ định bằng 0";
+
+"zero_negative_prompt_detail" = "Bật tùy chọn này sẽ bỏ qua prompt phủ định do người dùng cung cấp và dùng giá trị 0 cho prompt phủ định trong quá trình suy luận.";
+
+"mfa_if_possible" = "Metal Flash Attention";
+
+"mfa_usage" = "Chúng tôi đã triển khai các hàm GPU tùy chỉnh chạy nhanh hơn với một số loại phép toán cụ thể mà mô hình tạo ảnh sử dụng. Bạn có thể tắt tùy chọn này nếu gặp vấn đề về tương thích, hoặc chỉ muốn tạo ra đúng ảnh giống hệt như trước đây.";
+
+"use_apple_neural_engine_for_8bit_s_models" = "Dùng Apple Neural Engine cho mô hình 8-bit S";
+
+"apple_neural_engine_for_8bit_s_models_detail" = "Trên M4, Apple Neural Engine có thể chạy mô hình 8-bit S nhanh gấp 2 lần trở lên, thậm chí có thể sánh ngang hiệu năng của M4 Max. Trên M5, nó thường chậm hơn nhưng tiết kiệm điện hơn. Tùy chọn này cho phép bạn ghi đè lựa chọn mặc định của chúng tôi.";
+
+"skip" = "Bỏ qua";
+
+"skipping" = "Đang bỏ qua...";
+
+"generated_in_seconds" = "Đã tạo trong %.2f giây.";
+
+"port" = "Cổng";
+
+"port_placeholder" = "Cổng...";
+
+"ip" = "IP";
+
+"localhost_ip_detail" = "127.0.0.1 (chỉ localhost)";
+
+"global_ip_detail" = "0.0.0.0 (cho phép mọi kết nối)";
+
+"server_error" = "Lỗi máy chủ";
+
+"server_error_message" = "Đã xảy ra lỗi khi cố kết nối. Hãy kiểm tra xem cổng có hợp lệ không, tức là nằm trong khoảng từ 1024 đến 65535 và chưa được sử dụng.";
+
+"run_server" = "Máy chủ API";
+
+"negative_original_image_size" = "Kích thước ảnh gốc phủ định";
+
+"negative_original_width" = "Chiều rộng gốc phủ định";
+
+"negative_original_height" = "Chiều cao gốc phủ định";
+
+"negative_original_size_detail" = "Kích thước ảnh gốc phủ định được cung cấp cho prompt phủ định để làm rõ hơn những gì không mong muốn khi tạo ảnh. Giá trị kích thước ảnh gốc phủ định nhỏ hơn giúp tránh vẻ thẩm mỹ giả như nhựa của mô hình gốc.";
+
+"select_multiple_dot" = "Chọn nhiều...";
+
+"paste_as_moodboard" = "Dán vào moodboard";
+
+"delete_moodboard" = "Xóa moodboard";
+
+"moodboard_detail" = "Bạn có thể tải hoặc kéo và thả nhiều ảnh vào \"Moodboard\". Các mô hình như ControlNet Shuffle có thể tham chiếu chung đến các ảnh này để tác động đến ảnh được tạo cuối cùng.";
+
+"not_for_8bit" = "Không dành cho mô hình đã lượng tử hóa";
+
+"merge_lora" = "Hợp nhất LoRA";
+
+"merge_lora_detail" = "Trọng số LoRA có thể được hợp nhất với trọng số mô hình ngay khi chạy để giảm độ trễ. Ngoài ra, trọng số LoRA cũng có thể chạy như một mạng nơ-ron riêng. Chạy LoRA như một mạng nơ-ron riêng cho phép tiếp tục dùng trọng số mô hình đã lượng tử hóa, nhờ đó tiêu thụ ít RAM hơn. Chạy LoRA như một mạng nơ-ron riêng sẽ chậm hơn từ 10% đến 30%.";
+
+"restart_training" = "Bắt đầu lại";
+
+"start_training" = "Bắt đầu huấn luyện";
+
+"resume_training" = "Tiếp tục huấn luyện";
+
+"lora_training" = "Huấn luyện LoRA";
+
+"dataset" = "Tập dữ liệu";
+
+"hyperparameters" = "Siêu tham số";
+
+"base_model" = "Mô hình cơ sở";
+
+"auto_fill_prompt" = "Tự động điền prompt";
+
+"add_dot" = "Thêm...";
+
+"unet_learning_rate" = "Tốc độ học UNet";
+
+"cotrain_text_model" = "Đồng huấn luyện mô hình văn bản";
+
+"text_model_learning_rate" = "Tốc độ học mô hình văn bản";
+
+"lora_model" = "Mô hình LoRA";
+
+"denoising_schedule" = "Lịch khử nhiễu";
+
+"import_from_preset" = "Nhập từ thư mục...";
+
+"output_lora_name" = "Tên LoRA đầu ra";
+
+"lora_network_dim" = "Số chiều mạng";
+
+"noise_offset" = "Độ lệch nhiễu";
+
+"cotrain_custom_embedding" = "Đồng huấn luyện embedding tùy chỉnh";
+
+"custom_embedding_length" = "Độ dài embedding tùy chỉnh";
+
+"custom_embedding_learning_rate" = "Tốc độ học embedding tùy chỉnh";
+
+"training_steps" = "Số bước huấn luyện";
+
+"save_every_n_steps" = "Lưu sau mỗi N bước";
+
+"gradient_accumulation_steps" = "Số bước tích lũy gradient";
+
+"save_as_dot" = "Lưu thành...";
+
+"lora_network_scale" = "Tỷ lệ mạng";
+
+"warmup_steps" = "Số bước khởi động";
+
+"create_fp16_dot" = "Tạo mô hình FP16...";
+
+"8bit_lora_detail" = "Mô hình LoRA có thể chiếm hàng trăm MiB. Mô hình lượng tử hóa ~8-bit chỉ chiếm khoảng một nửa dung lượng đó với khác biệt hình ảnh rất nhỏ. Bạn có thể tạo mô hình lượng tử hóa 8-bit, so sánh kết quả với bản gốc, và nếu hài lòng với kết quả lượng tử hóa, hãy xóa mô hình gốc để tiết kiệm dung lượng ổ đĩa. Việc tạo mô hình lượng tử hóa 8-bit sẽ mất khoảng 1 đến 5 phút tùy thiết bị của bạn, bạn có muốn tiếp tục không?";
+
+"base_model_detail" = "LoRA là một mô hình bổ sung. Nó cần một mô hình cơ sở và được tinh chỉnh từ đó. Một mô hình cơ sở tốt có thể giảm số bước cần thiết và mang lại tính thẩm mỹ cao hơn cho kết quả cuối cùng.";
+
+"output_lora_name_detail" = "Tên của LoRA sẽ hiển thị trong danh sách LoRA. Chúng tôi cũng lưu các thông tin liên quan đến quá trình huấn luyện, như siêu tham số và chú thích của tập dữ liệu huấn luyện, với tên này. Nếu bạn dùng cùng một tên, chúng tôi sẽ có thể khôi phục các thông tin này.";
+
+"trigger_word_detail" = "Từ kích hoạt giúp điền từ kích hoạt vào chú thích và mang lại cho LoRA một điểm khởi đầu tốt. Bạn nên chọn một từ kích hoạt không mang ý nghĩa đặc biệt mạnh đối với mô hình, nếu không nó có thể xóa khái niệm gốc khỏi mô hình.";
+
+"network_dim_detail" = "\"Số chiều mạng\" quyết định năng lực của mạng LoRA. Giá trị lớn hơn sẽ cần nhiều dữ liệu hơn để huấn luyện nhưng có thể nắm bắt được nhiều sắc thái hơn của dữ liệu huấn luyện.";
+
+"network_scale_detail" = "Đây là \"Network Alpha\" / \"Network Dim\" trong các trình huấn luyện khác. Giá trị này quyết định mức ảnh hưởng ban đầu của các trọng số ngẫu nhiên trong mạng LoRA. Tỷ lệ nhỏ hơn có thể giúp quá trình huấn luyện ổn định hơn.";
+
+"training_image_size_detail" = "Độ phân giải khi huấn luyện mạng. Chúng tôi cắt phần giữa và thay đổi kích thước ảnh được cung cấp về độ phân giải này. Hãy đảm bảo dữ liệu huấn luyện lớn hơn hoặc bằng độ phân giải này, nếu không mạng có thể học cả các lỗi hình ảnh do phóng to.";
+
+"training_steps_detail" = "Số bước huấn luyện cần thực hiện. Giá trị này cần được điều chỉnh cùng với tốc độ học để tạo ra mô hình tốt. Tốc độ học thấp hơn hoặc năng lực mạng lớn hơn sẽ cần nhiều bước huấn luyện hơn.";
+
+"save_every_n_steps_detail" = "Tùy chọn này cho phép lưu LoRA sau mỗi n bước để tránh huấn luyện mô hình quá mức.";
+
+"warmup_steps_detail" = "Tùy chọn này quyết định từ bước nào chúng tôi sẽ dùng toàn bộ tốc độ học để huấn luyện. Các bước khởi động giúp ổn định động lực huấn luyện sớm hơn bằng cách tránh đặt nặng các mẫu ban đầu.";
+
+"gradient_accumulation_steps_detail" = "Tùy chọn này quyết định khi nào thực hiện cập nhật mạng. Tích lũy nhiều gradient hơn trước khi cập nhật giúp mạng có thêm thông tin thống kê về hướng cần đi. Bạn nên điều chỉnh tốc độ học theo giá trị này (ví dụ: số bước tích lũy gấp 2 thì tốc độ học gấp 2).";
+
+"cotrain_text_model_detail" = "Có tinh chỉnh bộ mã hóa văn bản hay không. Với các mô hình SD v1 / v2, tinh chỉnh bộ mã hóa văn bản sẽ giúp đưa một khái niệm vào mô hình nhanh hơn. Điều này thường không cần thiết khi tinh chỉnh SDXL.";
+
+"text_model_learning_rate_detail" = "Tốc độ học để tinh chỉnh bộ mã hóa văn bản.";
+
+"noise_offset_detail" = "\"Offset noise\" thêm một độ lệch vào phân phối nhiễu. Điều này giúp tinh chỉnh mô hình để thể hiện tốt hơn các cảnh tối / sáng thay vì luôn rơi vào mức phơi sáng trung bình.";
+
+"denoising_schedule_detail" = "Tùy chọn này quyết định giai đoạn nào của quá trình khử nhiễu sẽ được tập trung tinh chỉnh. Ví dụ: bạn có thể huấn luyện một LoRA giúp \"hoàn thiện\" ảnh bằng cách chỉ tập trung vào lịch khử nhiễu từ 70% đến 100%. Hoặc một LoRA giúp có bố cục tốt ở lịch từ 0% đến 50%.";
+
+"copy_style_template" = "Dùng mẫu phong cách dưới dạng văn bản thuần...";
+
+"select_style_template" = "Chọn mẫu phong cách.";
+
+"delete_controlnet" = "Bạn có muốn xóa ControlNet này không?";
+
+"downloaded_model_file_detail" = "Bạn có thể tải tệp về từ Safari rồi di chuyển vào thư mục \"Downloads\" trong thư mục Draw Things của ứng dụng Tệp, hoặc nhập URL trực tiếp để tải mô hình về từ internet.";
+
+"downloaded_lora_file_detail" = "Bạn có thể tải tệp về từ Safari rồi di chuyển vào thư mục \"Downloads\" trong thư mục Draw Things của ứng dụng Tệp, hoặc nhập URL trực tiếp để tải mô hình LoRA về từ internet.";
+
+"downloaded_controlnet_file_detail" = "Bạn có thể tải tệp về từ Safari rồi di chuyển vào thư mục \"Downloads\" trong thư mục Draw Things của ứng dụng Tệp, hoặc nhập URL trực tiếp để tải mô hình ControlNet về từ internet.";
+
+"midjourney_syntax_migrating" = "Chuyển đổi prompt Midjourney";
+
+"midjourney_syntax_processing" = "Chuyển đổi prompt Midjourney";
+
+"accept" = "Chấp nhận";
+
+"reject" = "Từ chối";
+
+"sort_models_order_dot" = "Sắp xếp theo tên theo thứ tự bảng chữ cái...";
+
+"sort_models_details" = "Sắp xếp các mô hình đã tải về theo tên theo thứ tự bảng chữ cái; thứ tự các mô hình tích hợp sẵn sẽ không thay đổi.";
+
+"sort_models_order_title" = "Sắp xếp danh sách mô hình?";
+
+"interrogate" = "Phân tích ảnh";
+
+"interrogate_dot" = "Phân tích ảnh...";
+
+"fixed_captioning" = "Cố định";
+
+"auto_captioning" = "Tự động";
+
+"copy_to_prompt" = "Sao chép vào prompt";
+
+"apply_image_metadata" = "Tải cấu hình từ siêu dữ liệu ảnh?";
+
+"apply_image_metadata_detail" = "Ảnh này có thể được tạo bởi \"Draw Things\" hoặc các ứng dụng tương tự khác. Ảnh chứa siêu dữ liệu về prompt, mô hình và các thông tin khác cho phép bạn tái tạo lại ảnh đó. Bạn có muốn tải siêu dữ liệu này vào \"Draw Things\" không?";
+
+"custom_embedding_detail" = "Embedding T.I. tùy chỉnh nắm bắt bản chất tốt hơn so với việc dùng token của một từ hiếm làm từ kích hoạt. Mặt khác, bạn cần dùng embedding T.I. cùng với LoRA đã huấn luyện, nếu không LoRA đã huấn luyện sẽ không hoạt động đúng.";
+
+"custom_embedding_learning_rate_detail" = "Tốc độ học khi đồng huấn luyện embedding T.I.";
+
+"custom_embedding_length_detail" = "Độ dài embedding lớn hơn giúp nắm bắt nhiều sắc thái hơn của dữ liệu huấn luyện, nhưng cũng chiếm nhiều token hơn cho mỗi embedding.";
+
+"stop_embedding_training_at_step" = "Dừng huấn luyện embedding tại bước";
+
+"stop_embedding_training_at_step_detail" = "Ngừng cập nhật embedding sau số bước đã cho. Điều này giúp ổn định quá trình huấn luyện khi embedding đã được học xong.";
+
+"embedding_training" = "Huấn luyện embedding T.I.";
+
+"recaption_image" = "Tạo lại chú thích cho ảnh";
+
+"midjourney_automatic_detect_and_ask" = "Phát hiện khi nhấn \"Tạo\".";
+
+"search" = "Tìm kiếm";
+"show_details" = "Hiện chi tiết";
+
+"grid" = "Lưới";
+
+"list" = "Danh sách";
+
+"manage" = "Quản lý";
+
+"manage_detail" = "Quản lý mô hình của bạn";
+
+"disable_lora_detail" = "Tắt LoRA";
+
+"prompt_template_title" = "Mẫu prompt";
+
+"disable_refiner_detail" = "Tắt Refiner";
+
+"num_frames" = "Số khung hình";
+
+"num_frames_detail" = "Tổng số khung hình sẽ được tạo. Chia số này cho FPS sẽ cho ra độ dài video tính bằng giây.";
+
+"fps" = "FPS";
+
+"fps_detail" = "FPS quyết định tốc độ phát mong muốn của các khung hình được tạo. Giá trị khuyến nghị là từ 5 đến 30. Cao hơn / thấp hơn mức này sẽ cho kết quả không tối ưu.";
+
+"motion_scale" = "Mức chuyển động";
+
+"motion_scale_detail" = "Còn được gọi là \"Motion Bucket\". Giá trị thấp hơn sẽ có ít chuyển động tổng thể hơn (và có thể tăng chuyển động của chủ thể). Giá trị cao hơn sẽ có nhiều chuyển động tổng thể hơn.";
+
+"cond_aug" = "Nhiễu khung hình dẫn hướng";
+
+"cond_aug_detail" = "Còn được gọi là \"Conditioning Augmentation\". Giá trị cao hơn sẽ thêm nhiều nhiễu hơn vào khung hình dẫn hướng, có thể cho các khung hình sau nhiều tự do sáng tạo hơn.";
+
+"start_frame_guidance" = "Hướng dẫn khung hình đầu";
+
+"start_frame_guidance_detail" = "Từ khung hình đầu đến khung hình cuối, chúng tôi tăng dần giá trị hướng dẫn từ giá trị này lên \"Hướng dẫn văn bản\" để các khung hình sau bị buộc phải lệch khỏi mức trung bình nhiều hơn, do đó có nhiều biến dạng hoặc chuyển động hơn.";
+
+"erase" = "Tẩy";
+
+"freeform" = "Tự do";
+
+"rectangle" = "Hình chữ nhật";
+
+"color" = "Màu";
+
+"custom_tools" = "Công cụ tùy chỉnh";
+
+"version_history" = "Lịch sử phiên bản";
+
+"restore_default" = "Khôi phục mặc định";
+
+"peft" = "PEFT";
+
+"basic" = "Cơ bản";
+
+"advanced" = "Nâng cao";
+
+"local" = "Cục bộ";
+"cloud" = "Đám mây";
+"cloud_project_required" = "Hãy chọn hoặc tạo một dự án trước khi bắt đầu cuộc trò chuyện trên đám mây.";
+
+"local_scripts_detail" = "Các script lưu cục bộ là những quy trình lập trình sẵn do chúng tôi cung cấp để thực hiện các tác vụ phổ biến.";
+
+"local_projects_detail" = "Hiển thị các dự án được lưu cục bộ.";
+
+"presets_detail" = "Đây là các chức năng tích hợp sẵn có thể hữu ích cho một số tác vụ.";
+
+"placeholder_negative_prompt" = "Nhập prompt phủ định...";
+
+"placeholder_positive_prompt" = "Nhập prompt tích cực...";
+
+"delete_project_file" = "Xóa tệp dự án \"%@\" khỏi ổ đĩa là thao tác không thể hoàn tác. Bạn có muốn tiếp tục không?";
+
+"vae_decoder" = "VAE - Bộ giải mã";
+
+"mask_blur_outset" = "Mở rộng làm mờ mặt nạ";
+
+"mask_blur_outset_detail" = "\"Mở rộng làm mờ mặt nạ\" cố gắng mở rộng (hoặc thu hẹp) mặt nạ theo giá trị mở rộng, có thể giúp hòa trộn với phần còn lại của ảnh, đặc biệt khi outpainting.";
+
+"sharpness" = "Độ sắc nét";
+
+"sharpness_detail" = "Độ sắc nét áp dụng thêm bộ lọc lên nhiễu do mô hình khuếch tán dự đoán để ảnh tạo ra cuối cùng sắc nét hơn.";
+
+"export_selected_dot" = "Xuất mục đã chọn...";
+
+"extract_depth_map_photos" = "Trích xuất bản đồ độ sâu từ Ảnh...";
+
+"extract_depth_map_files" = "Trích xuất bản đồ độ sâu từ Tệp...";
+
+"paste_to_extract_depth_map" = "Dán để trích xuất bản đồ độ sâu";
+
+"extract_depth_map_from_canvas" = "Trích xuất bản đồ độ sâu từ khung vẽ";
+
+"balanced" = "Cân bằng";
+
+"prompt_more_important" = "Prompt";
+
+"control_more_important" = "Control";
+
+"control_mode" = "Mức ưu tiên Control";
+
+"8bit_controlnet_detail" = "Mô hình ControlNet có thể chiếm hàng trăm MiB. Mô hình lượng tử hóa ~8-bit chỉ chiếm khoảng một nửa dung lượng đó với khác biệt hình ảnh rất nhỏ. Bạn có thể tạo mô hình lượng tử hóa 8-bit, so sánh kết quả với bản gốc, và nếu hài lòng với kết quả lượng tử hóa, hãy xóa mô hình gốc để tiết kiệm dung lượng ổ đĩa. Việc tạo mô hình lượng tử hóa 8-bit sẽ mất khoảng 10 đến 20 phút tùy thiết bị của bạn, bạn có muốn tiếp tục không?";
+
+"type_to_select" = "Nhập để chọn một vùng (sắp ra mắt)";
+
+"done" = "Xong";
+
+"interrogate_this_image" = "Phân tích ảnh này ✍️";
+
+"reset" = "Đặt lại";
+
+"run" = "Chạy";
+
+"interrogation_model" = "Mô hình phân tích ảnh";
+
+"system_prompt_editable" = "Prompt hệ thống (có thể sửa)";
+
+"system_prompt_non_editable" = "Prompt hệ thống (không thể sửa)";
+
+"system_prompt_detail" = "\"Prompt hệ thống\" giúp định hướng mô hình chuyển ảnh thành văn bản tạo ra văn bản theo một cách cụ thể. Bạn có thể đặt lại về prompt hệ thống tích hợp sẵn bằng cách để trống.";
+
+"generated_caption" = "Chú thích đã tạo";
+
+"import" = "Nhập";
+
+"welcome_pick_a_model_to_start" = "Chào mừng! 👋 Hãy chọn một mô hình để bắt đầu 🚀";
+
+"next" = "Tiếp";
+
+"download_model_official" = "Tải mô hình về từ máy chủ Draw Things";
+
+"download_model_official_detail" = "Chúng tôi cung cấp các mô hình được tối ưu cho suy luận từ máy chủ của chúng tôi. Mỗi mô hình có điểm mạnh và điểm yếu riêng. Để tạo nhanh nhất, chúng tôi khuyên bạn bắt đầu với một trong các mô hình Turbo. Để có ảnh đẹp mắt nhất, chúng tôi khuyên bạn bắt đầu với một trong các mô hình SDXL.";
+
+"save_images_to_dot" = "Lưu ảnh đã tạo vào...";
+
+"choose_a_place_to_save_your_images" = "Chọn nơi lưu ảnh của bạn 🏠";
+
+"choose_a_folder_dot" = "Chọn thư mục...";
+
+"model_file" = "Tệp mô hình";
+
+"vae_optional" = "VAE (tùy chọn)";
+
+"configuration_file_optional" = "Tệp cấu hình (tùy chọn)";
+
+"choose_a_file_dot" = "Chọn tệp...";
+
+"import_a_model_from_local_storage" = "Nhập mô hình từ bộ nhớ cục bộ";
+
+"importing" = "Đang nhập";
+
+"download_again" = "Tải về lại";
+
+"model_objective" = "Mục tiêu mô hình";
+
+"model_objective_detail" = "Các mô hình được huấn luyện để dự đoán một mục tiêu nhất định. Các mô hình khác nhau có thể có mục tiêu khác nhau. Ví dụ: Stable Diffusion XL và Stable Diffusion v1.5 được huấn luyện để dự đoán mục tiêu \"Epsilon\", còn Stable Diffusion v2.0 768-v được huấn luyện để dự đoán mục tiêu \"V\".";
+
+"epsilon" = "Epsilon";
+
+"edm" = "EDM";
+
+"conditioning" = "Điều kiện hóa";
+
+"conditioning_detail" = "Quá trình khuếch tán yêu cầu mô hình đưa ra dự đoán ở các mức nhiễu khác nhau. Mô hình dự đoán tốt hơn khi biết mình đang ở mức nhiễu nào. Tham số \"Điều kiện hóa\" được truyền vào mô hình để cho mô hình biết điều đó. Có nhiều cách xây dựng khác nhau cho việc này. Ví dụ: Stable Diffusion XL / v1.5 / v2.0 truyền vào \"bước thời gian\", còn Stable Video Diffusion truyền vào \"nhiễu\".";
+
+"timestep" = "Bước thời gian";
+
+"noise" = "Nhiễu";
+
+"noise_discretization" = "Rời rạc hóa nhiễu";
+
+"noise_discretization_detail" = "Quá trình khuếch tán yêu cầu mô hình đưa ra dự đoán ở các mức nhiễu khác nhau. Có nhiều cách xây dựng khác nhau để phân tách các mức nhiễu này. Điều quan trọng là chúng có thể rời rạc hoặc liên tục. Stable Diffusion XL / v1.5 / v2.0 được huấn luyện với lịch rời rạc gọi là \"DDPM\". Stable Video Diffusion / Playground v2.5 được huấn luyện với lịch liên tục gọi là \"EDM\"";
+
+"ddpm" = "DDPM";
+
+"shift" = "Độ dịch";
+
+"shift_detail" = "Độ dịch điều khiển mức độ lịch của bộ lấy mẫu thiên về vùng nhiễu thấp. Giá trị độ dịch cao hơn nghĩa là chúng tôi sẽ dành nhiều thời gian hơn ở vùng nhiễu thấp, có thể giúp mô hình có thêm thời gian cho các chi tiết cục bộ.";
+
+"end_frame_guidance" = "Hướng dẫn khung hình cuối";
+
+"stage_1_steps" = "Số bước giai đoạn 1";
+
+"stage_2_steps" = "Số bước giai đoạn 2";
+
+"stage_2_steps_detail" = "Số bước cần cho giai đoạn thứ hai của mô hình Stable Cascade. Đây là số bước được gọi là \"Stage B\" ở những nơi khác.";
+
+"stage_1_cfg" = "Hướng dẫn văn bản giai đoạn 1";
+
+"stage_2_cfg" = "Hướng dẫn giai đoạn 2";
+
+"stage_2_cfg_detail" = "Mức classifier-free guidance áp dụng cho giai đoạn thứ hai của mô hình Stable Cascade. Đây là CFG được gọi là \"Stage B\" ở những nơi khác. Thường nằm trong khoảng 1 đến 2.";
+
+"stage_1_shift" = "Độ dịch giai đoạn 1";
+
+"stage_2_shift" = "Độ dịch giai đoạn 2";
+
+"stage_2_shift_detail" = "Giá trị độ dịch áp dụng cho giai đoạn thứ hai của mô hình Stable Cascade. Đây là giá trị shift được gọi là \"Stage B\" ở những nơi khác. Thường là 1.";
+
+"stage_1_latents_size" = "Kích thước latent giai đoạn 1";
+
+"alt_stage_1_image_size" = "Kích thước ảnh giai đoạn 1 thay thế";
+
+"alt_stage_1_image_size_detail" = "Giai đoạn 1 hoạt động trên một không gian latent nén. Bạn có thể kết hợp tùy ý không gian latent với bộ giải mã giai đoạn 2. Khi bật tùy chọn này, bạn có thể chỉ định một kích thước ảnh giai đoạn 1 khác. Kích thước ảnh giai đoạn 1 lớn hơn sẽ chậm hơn, nhưng có thể đưa thêm nhiều chi tiết vào ảnh tạo ra cuối cùng. Không gian latent = kích thước ảnh / 32.";
+
+"export_as_video" = "Xuất dưới dạng video";
+
+"export_as_image_sequence" = "Xuất dưới dạng chuỗi ảnh";
+
+"export_image_dot" = "Xuất ảnh...";
+
+"export_video_failed" = "Xuất video không thành công!";
+
+"export_video_inprogress" = "Đang xuất video, không thể bắt đầu một lượt xuất khác!";
+
+"tiled_decoding" = "Giải mã theo ô";
+
+"tiled_decoding_detail" = "Giải mã theo ô cho phép bộ tự mã hóa (autoencoder) giải mã ảnh từ giá trị latent theo từng ô. Điều này giúp giảm mức sử dụng bộ nhớ tối đa nhưng tốn thêm một chút thời gian. Tính năng này đặc biệt hữu ích trên iPhone khi tạo ảnh ở kích thước 1024x1024 hoặc lớn hơn.";
+
+"decoding_tile_size" = "Kích thước ô giải mã";
+
+"decoding_tile_width" = "Chiều rộng ô giải mã";
+
+"decoding_tile_height" = "Chiều cao ô giải mã";
+
+"decoding_tile_overlapping" = "Độ chồng lấn ô giải mã";
+
+"stage_1_image_size" = "Kích thước ảnh giai đoạn 1";
+
+"stage_1_image_width" = "Chiều rộng ảnh giai đoạn 1";
+
+"stage_1_image_height" = "Chiều cao ảnh giai đoạn 1";
+
+"local_projects_detail" = "Hiển thị các dự án được lưu cục bộ.";
+
+"local_network" = "Mạng cục bộ";
+
+"local_network_detail" = "Các thiết bị khác mà bạn muốn kết nối qua mạng cục bộ sẽ xuất hiện ở đây.";
+
+"shared_projects" = "Dự án được chia sẻ";
+
+"shared_projects_detail" = "Để tải các dự án được chia sẻ từ những thiết bị này về thiết bị của bạn, hãy nâng cấp lên Draw Things+. Để tìm hiểu thêm, hãy xem tài liệu của chúng tôi.";
+
+"verify_connection" = "Xác minh kết nối";
+
+"formatted_verification_code" = "Mã xác minh: %@";
+
+"attempting_to_connect" = "Đang thử kết nối qua mạng cục bộ";
+
+"decline" = "Từ chối";
+
+"connect" = "Kết nối";
+
+"external_on_demand" = "Tải trọng số JIT";
+
+"external_on_demand_detail" = "Khi bật, trọng số sẽ chỉ được tải đúng vào thời điểm cần tính toán. Trên các thiết bị cấu hình thấp, điều này giúp tiết kiệm RAM nhưng phải đánh đổi tốc độ. Chúng tôi cũng sẽ tự động tối ưu trọng số mô hình trước khi tính toán nên bạn có thể thấy một số thay đổi trong cấu trúc tệp.";
+
+"optimize_for_compact_store" = "Tối ưu để lưu trữ gọn nhẹ";
+
+"optimize_for_weights_loading" = "Tối ưu để tải nhanh hơn";
+
+"exporting" = "Đang xuất";
+
+"exporting_video" = "Đang xuất video";
+
+"strategic_stochastic_sampling" = "Lấy mẫu ngẫu nhiên chiến lược";
+
+"strategic_stochastic_sampling_detail" = "Tham số này kiểm soát mức hiệu chỉnh lỗi mà bộ lấy mẫu TCD cần áp dụng. Với 0%, ảnh tạo ra sẽ sắc nét hơn nhưng có thể có lỗi ở các chi tiết cục bộ. Với 100%, ảnh bị mờ hơn nhưng ít lỗi hơn ở các chi tiết cục bộ.";
+
+"downloading_some_item" = "Đang tải về %@";
+
+"cancel_download" = "Hủy tải về %@";
+
+"cancel_download_confirmation" = "Bạn có muốn hủy tải về %@ này không?";
+
+"minimal" = "Tối thiểu";
+
+"balanced" = "Cân bằng";
+
+"speed" = "Tốc độ";
+
+"turbo" = "Turbo";
+
+"memory_saver" = "Tiết kiệm bộ nhớ";
+
+"memory_saver_detail" = "Tùy chọn này cho phép bạn đánh đổi giữa hiệu năng và mức sử dụng RAM khi huấn luyện LoRA. Tối thiểu sẽ chậm nhất nhưng dùng ít bộ nhớ nhất. Cân bằng cho thông lượng vừa phải với mức dùng bộ nhớ vừa phải. Tốc độ sẽ nhanh hơn Cân bằng nhưng dùng nhiều bộ nhớ hơn. Turbo sẽ nhanh nhất và dùng nhiều tài nguyên bộ nhớ nhất.";
+
+"draw_things_plus" = "Draw Things+";
+
+"draw_things_plus_description" = "Tối ưu quy trình làm việc với dự án, mô hình và script. Tải các tệp được chia sẻ từ những thiết bị đã kết nối qua mạng cục bộ.";
+
+"supported_files" = "Tệp được hỗ trợ";
+
+"models_and_loras" = "Mô hình & LoRA";
+
+"get_dt_+" = "Nhận Draw Things+";
+
+"get_x_off_by_upgrading" = "Được giảm %@ khi nâng cấp lên Draw Things+ để tận hưởng các tính năng này.";
+
+"get_upgrade" = "Nâng cấp lên Draw Things+ để tận hưởng các tính năng này.";
+
+"get_x_off" = "Giảm %@";
+
+"get_it" = "Nhận";
+
+"restore_sub" = "Khôi phục gói đăng ký";
+
+"not_now" = "Để sau";
+
+"customize_your_app_icon" = "Tùy chỉnh biểu tượng ứng dụng";
+
+"customize_your_app_icon_description" = "Thể hiện phong cách cá nhân với Draw Things+. Thay biểu tượng ứng dụng mặc định bằng một ảnh đã tạo trong thư viện của riêng bạn.";
+
+"official_models" = "Mô hình chính thức";
+
+"community_models" = "Mô hình cộng đồng";
+
+"official_loras" = "LoRA chính thức";
+
+"community_loras" = "LoRA cộng đồng";
+
+"official_t_i_embeddings" = "Embedding T.I. chính thức";
+
+"community_t_i_embeddings" = "Embedding T.I. cộng đồng";
+
+"duplicate" = "Nhân bản";
+
+"general" = "Chung";
+
+"back" = "Quay lại";
+
+"preserve_original_after_inpaint" = "Giữ nguyên bản gốc sau khi inpaint";
+
+"preserve_original_after_inpaint_detail" = "Sau khi inpaint, ảnh tạo ra có thể có một số thay đổi ở những vùng lẽ ra cần giữ nguyên. Theo mặc định, chúng tôi sao chép phần cần giữ nguyên từ bản gốc trở lại ảnh trong không gian điểm ảnh để duy trì diện mạo ban đầu. Điều đó có thể gây ra sự không nhất quán với ảnh tạo ra bên dưới, và bạn có thể muốn tắt tùy chọn này nếu gặp trường hợp đó.";
+
+"lora_import_model_version_detail" = "Một số LoRA chỉ được tinh chỉnh một phần trên một số lớp. Điều này khiến chúng tôi khó phát hiện LoRA này tương ứng với phiên bản nào. Bạn có thể chọn một phiên bản mô hình được đề xuất để giúp chúng tôi xác định phiên bản của LoRA. Tuy nhiên, nếu phát hiện được phiên bản, chúng tôi sẽ dùng phiên bản đó thay vì phiên bản được đề xuất.";
+
+"shared_scripts" = "Script được chia sẻ";
+
+"shared_scripts_detail" = "Để tải các script được chia sẻ từ những thiết bị này về thiết bị của bạn, hãy nâng cấp lên Draw Things+. Để tìm hiểu thêm, hãy xem tài liệu của chúng tôi.";
+
+"tiled_diffusion" = "Khuếch tán theo ô";
+
+"tiled_diffusion_detail" = "Khuếch tán theo ô chia quá trình tạo thành các ô. Điều này cho phép tạo ảnh ở kích thước lớn hơn đáng kể.";
+
+"diffusion_tile_size" = "Kích thước ô khuếch tán";
+
+"diffusion_tile_width" = "Chiều rộng ô khuếch tán";
+
+"diffusion_tile_height" = "Chiều cao ô khuếch tán";
+
+"diffusion_tile_overlapping" = "Độ chồng lấn ô khuếch tán";
+
+"community_scripts" = "Script cộng đồng";
+
+"community_scripts_detail" = "Tải các script được chia sẻ từ kho cộng đồng của Draw Things về thiết bị của bạn.";
+
+"local_lora_detail" = "Các LoRA được lưu cục bộ trên thiết bị này sẽ xuất hiện ở đây.";
+
+"local_control_detail" = "Các ControlNet được lưu cục bộ trên thiết bị này sẽ xuất hiện ở đây.";
+
+"dt_model_detail" = "Đây là các mô hình tích hợp sẵn đi kèm ứng dụng Draw Things.";
+
+"dt_control_detail" = "Đây là các mô hình ControlNet tích hợp sẵn đi kèm ứng dụng Draw Things.";
+
+"community_lora_detail" = "Các LoRA do thành viên cộng đồng tạo và đăng tải sẽ xuất hiện ở đây.";
+
+"training" = "Huấn luyện";
+
+"lora_models" = "Mô hình LoRA";
+
+"community_models" = "Mô hình cộng đồng";
+
+"dt_models" = "Mô hình Draw Things (chính thức)";
+
+"local_model_detail" = "Các mô hình được lưu cục bộ trên thiết bị này sẽ xuất hiện ở đây.";
+
+"community_model_detail" = "Các mô hình do thành viên cộng đồng tạo và đăng tải sẽ xuất hiện ở đây.";
+
+"enter_model_name" = "Nhập tên mô hình...";
+
+"enter_trigger_word" = "Nhập từ kích hoạt...";
+
+"importing_custom_model" = "Đang nhập mô hình tùy chỉnh...";
+
+"importing_custom_lora" = "Đang nhập LoRA tùy chỉnh...";
+
+"importing_custom_contronet" = "Đang nhập ControlNet tùy chỉnh...";
+
+"import_control_title" = "Nhập Control";
+
+"past_edits" = "Các chỉnh sửa trước";
+
+"most_recent" = "Gần đây nhất";
+
+"generated_image" = "Ảnh đã tạo";
+
+"export_lead" = "Đang xuất: ";
+
+"create_8bit_lead" = "Đang tạo mô hình 8-bit: ";
+
+"create_fp16_lead" = "Đang tạo mô hình FP16: ";
+
+"optimize_weights_loading_lead" = "Đang tối ưu để tải nhanh hơn: ";
+
+"optimize_compact_store_lead" = "Đang tối ưu để lưu trữ gọn nhẹ: ";
+
+"confirm" = "Xác nhận";
+
+"disable_control_detail" = "Tắt Control";
+
+"official_controls" = "Control chính thức";
+
+"textual_inversion_models" = "Embedding T.I.";
+
+"local_t_i_embeddings_detail" = "Các embedding T.I. được lưu cục bộ trên thiết bị này sẽ xuất hiện ở đây.";
+
+"community_t_i_embeddings_detail" = "Các embedding T.I. do thành viên cộng đồng tạo và đăng tải sẽ xuất hiện ở đây.";
+
+"add_more_title" = "Bạn chưa thêm ảnh nào";
+
+"add_more_subtitle" = "Tải ảnh lên để tạo chú thích (bạn có thể tải lên nhiều ảnh)";
+
+"enter_name" = "Nhập tên...";
+
+"enter_keyword" = "Nhập từ khóa...";
+
+"importing_t_i_embedding" = "Đang nhập embedding T.I. ...";
+
+"vae" = "VAE";
+
+"enter_note_placeholder" = "Nhập ghi chú...";
+
+"mixing_custom_model" = "Đang trộn các mô hình tùy chỉnh...";
+
+"mix" = "Trộn";
+
+"enter_trigger_words" = "Nhập các từ kích hoạt...";
+
+"resume" = "Tiếp tục";
+
+"overwrite" = "Ghi đè";
+
+"overwrite_script" = "Bạn có muốn tải lại và ghi đè script hiện có không?";
+
+"home" = "Trang chủ";
+
+"javascript_console" = "Bảng điều khiển Javascript";
+
+"delete_repl_cell" = "Ô này không trống, bạn có muốn xóa không?";
+
+"add" = "Thêm";
+
+"enter_text" = "Nhập văn bản";
+
+"style_only" = "Chỉ phong cách";
+
+"style_and_layout" = "Phong cách & bố cục";
+
+"instastyle_blocks" = "Khối InstantStyle";
+
+"script" = "Script";
+
+"author" = "Tác giả";
+
+"description" = "Mô tả";
+
+"lora" = "LoRA";
+
+"text_encoder_file" = "Tệp bộ mã hóa văn bản";
+
+"text_encoder_file_detail" = "Bạn có thể chỉ định một tệp bộ mã hóa văn bản riêng để nhập nếu dùng bộ mã hóa văn bản tùy chỉnh.";
+
+"text_encoder_2_file" = "Tệp bộ mã hóa văn bản 2";
+
+"text_encoder_2_file_detail" = "Bạn có thể chỉ định một tệp bộ mã hóa văn bản riêng để nhập nếu dùng bộ mã hóa văn bản tùy chỉnh.";
+
+"t5_text_encoder" = "Bộ mã hóa văn bản T5";
+
+"t5_text_encoder_detail" = "SD3 có thể dùng bộ mã hóa văn bản T5 để giúp bám sát văn bản và hiển thị chữ tốt hơn. Bạn có thể tắt tùy chọn này để xem ảnh tạo ra có tốt hơn hay không.";
+
+"separate_clip_l_text" = "Văn bản CLIP L riêng";
+
+"separate_clip_l_text_detail" = "SD3 dùng 3 bộ mã hóa văn bản riêng biệt và FLUX.1 dùng 2 bộ mã hóa văn bản riêng biệt. Bạn có thể chỉ định một đầu vào riêng cho bộ mã hóa văn bản CLIP L, điều này có thể giúp xác định phong cách tổng thể và chất lượng ảnh.";
+
+"clip_l_text" = "Văn bản CLIP L";
+
+"separate_open_clip_g_text" = "Văn bản OpenCLIP G riêng";
+
+"separate_open_clip_g_text_detail" = "SD3 dùng 3 bộ mã hóa văn bản riêng biệt. Bạn có thể chỉ định một đầu vào riêng cho bộ mã hóa văn bản OpenCLIP G, điều này có thể giúp thiết lập ngữ cảnh tổng thể cho quá trình tạo ảnh.";
+
+"open_clip_g_text" = "Văn bản OpenCLIP G";
+
+"lora_network_scale_factor" = "Hệ số tỷ lệ mạng";
+
+"lora_network_scale_factor_detail" = "Một số LoRA có hệ số tỷ lệ không được tích hợp vào mạng mà nằm trong một tệp cấu hình riêng. Tùy chọn này cho phép bạn cung cấp rõ hệ số tỷ lệ để chúng tôi có thể tích hợp nó vào mô hình khi nhập.";
+
+"clip_score" = "Điểm CLIP";
+
+"clip_score_detail" = "Điểm CLIP dùng để đánh giá mức độ phù hợp giữa ảnh và mô tả văn bản, được tính trong khoảng từ 0 đến 100.";
+
+"community_controls" = "Control cộng đồng";
+
+"community_control_detail" = "Các mô hình ControlNet do thành viên cộng đồng tạo và đăng tải sẽ xuất hiện ở đây.";
+
+"speed_up_with_guidance_embed" = "Tăng tốc với embedding hướng dẫn";
+
+"speed_up_with_guidance_embed_detail" = "Các mô hình như FLUX.1 [dev] được chưng cất hướng dẫn (guidance distilled). Điều đó có nghĩa là bạn có thể chạy nhanh gấp đôi nếu chỉ dùng một embedding để biểu diễn giá trị hướng dẫn văn bản. Nhưng ở chế độ này, prompt phủ định sẽ bị bỏ qua. Bạn có thể tắt tùy chọn này và dùng một giá trị hướng dẫn riêng để đạt kết quả gần với mô hình FLUX.1 [pro].";
+
+"guidance_embed" = "Embedding hướng dẫn";
+
+"dresses" = "Quần áo";
+
+"upper_body" = "Thân trên (vừa khít)";
+
+"upper_body_extra" = "Thân trên (mở rộng)";
+
+"dresses_upper" = "Thân trên & quần áo (vừa khít)";
+
+"dresses_upper_extra" = "Thân trên & quần áo (mở rộng)";
+
+"resolution_dependent_shift" = "Độ dịch theo độ phân giải";
+
+"resolution_dependent_shift_detail" = "Các mô hình được huấn luyện bằng rectified flow như FLUX.1 hoặc SD3 thường dùng giá trị độ dịch phụ thuộc vào độ phân giải. Điều này giúp mô hình xem xét kỹ hơn về cấu trúc ở độ phân giải cao hơn. Bật tùy chọn này để tự động tính giá trị độ dịch.";
+
+"copy_canvas_settings_dot" = "Sao chép vị trí khung vẽ";
+
+"paste_canvas_settings_dot" = "Dán vị trí khung vẽ";
+
+"zoom_to_fit_width" = "Thu phóng vừa chiều rộng";
+
+"zoom_to_fill" = "Thu phóng lấp đầy";
+
+"zoom_to_fit" = "Thu phóng vừa khung";
+
+"choose_an_input_override_dot" = "Chọn đầu vào ghi đè...";
+
+"unspecified" = "Chưa chỉ định";
+
+"http_server" = "HTTP";
+
+"grpc_server" = "gRPC";
+
+"server_detail" = "\"HTTP\" chạy một máy chủ API HTTP tương thích, cho phép các tiện ích mở rộng dùng API txt2img hoặc img2img kết nối cục bộ để tạo ảnh. Ảnh được tạo sẽ hiển thị trong giao diện Draw Things. \"gRPC\" chạy một máy chủ API không trạng thái tương thích, hỗ trợ tạo ảnh với nhiều tính năng / linh hoạt hơn so với API HTTP.";
+
+"version" = "Phiên bản";
+
+"server_offload" = "Giảm tải sang máy chủ";
+
+"this_device" = "Thiết bị này";
+
+"other_devices" = "Thiết bị khác";
+
+"discovering_devices_dot" = "Đang tìm thiết bị...";
+
+"connecting_to_device_dot" = "Đang kết nối với thiết bị...";
+
+"device_failed_to_connect" = "Thiết bị không kết nối được";
+
+"server_offload_detail" = "\"Giảm tải sang máy chủ\" cho phép bạn dùng một máy tính mạnh hơn để hỗ trợ các tác vụ tạo ảnh. Bật \"Máy chủ API gRPC\" trên máy tính kia để chia sẻ tài nguyên tính toán với các thiết bị khác trong cùng mạng cục bộ.";
+
+"serving_remote_request_dot" = "Đang phục vụ một yêu cầu từ xa...";
+
+"generating_image_on_device" = "Đang tạo ảnh trên \"%@\"";
+
+"cancelling_dot" = "Đang hủy...";
+
+"uploading_model_to_server" = "Đang tải mô hình lên máy chủ đã kết nối";
+
+"uploading_model_to_server_detail" = "Các mô hình và LoRA đã tải về thiết bị của bạn có thể được tải lên bất kỳ máy chủ nào đã kết nối, giúp việc tạo ảnh từ xa dễ dàng hơn.";
+
+"active_server" = "Máy chủ đang hoạt động";
+
+"uploading_model" = "Đang tải mô hình lên";
+
+"upload_succeed" = "Tải mô hình lên thành công";
+
+"upload_failure" = "Tải mô hình lên không thành công";
+
+"uploading" = "Đang tải lên";
+
+"tls" = "Bảo mật tầng truyền tải";
+
+"response_compression" = "Nén phản hồi";
+
+"enter_new_device_ip" = "Vui lòng nhập IP / cổng của thiết bị";
+
+"trainable_layers" = "Các lớp có thể huấn luyện";
+
+"trainable_layers_detail" = "Chọn các lớp để áp dụng huấn luyện LoRA trong các mô hình transformer. Điều này có thể giúp ngăn chặn hiệu quả hiện tượng \"quên thảm khốc\", khi mô hình có thể mất khả năng làm theo prompt hoặc chất lượng thẩm mỹ trong quá trình huấn luyện.";
+
+"latents_embedder_layer" = "Lớp nhúng latent";
+
+"context_embedder_layer" = "Lớp nhúng ngữ cảnh";
+
+"project_out_layer" = "Lớp chiếu đầu ra";
+
+"qkv_layers" = "Các lớp Q, K, V";
+
+"qkv_context_layers" = "Các lớp ngữ cảnh Q, K, V";
+
+"out_layers" = "Các lớp đầu ra attention";
+
+"out_context_layers" = "Các lớp ngữ cảnh đầu ra attention";
+
+"ff_layers" = "Các lớp Feed Forward";
+
+"ff_context_layers" = "Các lớp ngữ cảnh Feed Forward";
+
+"layer_indices" = "Chỉ số lớp";
+
+"guidance_embed_detail" = "Các mô hình FLUX.1 [dev] được chưng cất hướng dẫn. Trong quá trình huấn luyện, việc ngẫu nhiên hóa giá trị embedding hướng dẫn có thể giúp mô hình tổng quát hóa tốt hơn với các giá trị embedding hướng dẫn khác nhau khi tạo ảnh.";
+
+"start_end" = "Bắt đầu / Kết thúc";
+
+"compiling_computation_graph_dot" = "đang biên dịch đồ thị tính toán...";
+
+"weights_memory_management" = "Quản lý bộ nhớ trọng số";
+
+"weights_memory_management_detail" = "Với các mô hình lớn hơn như FLUX.1 [dev], trọng số có thể chiếm một lượng RAM đáng kể. Just-in-Time cho phép chúng tôi tải / giải phóng trọng số ngay khi cần / không còn cần đến để tiết kiệm RAM.";
+
+"just_in_time" = "Just-in-Time";
+
+"cached" = "Lưu đệm";
+
+"upper_bound" = "Giới hạn trên";
+
+"lower_bound" = "Giới hạn dưới";
+
+"learning_rate" = "Tốc độ học";
+
+"learning_rate_detail" = "Tốc độ học cho mô hình khuếch tán chính. Chúng tôi dùng lịch cosine annealing với khởi động lại ấm (warm restarts), nội suy giữa tốc độ học giới hạn dưới và giới hạn trên giữa các lần khởi động lại.";
+
+"steps_between_restarts" = "Số bước giữa các lần khởi động lại";
+
+"caption_dropout_rate" = "Tỷ lệ bỏ chú thích";
+
+"caption_dropout_rate_detail" = "Quyết định tỷ lệ phần trăm mẫu sẽ dùng chú thích trống. Dùng chú thích trống giúp chưng cất khái niệm vào mô hình một cách tổng quát hơn nhưng cũng có thể gây rò rỉ khái niệm nhiều hơn.";
+
+"orthonormal_lora_down" = "LoRA Down trực chuẩn cố định";
+
+"orthonormal_lora_down_detail" = "Huấn luyện LoRA gồm hai ma trận con: ma trận down chiếu activation xuống một không gian con nhỏ, và ma trận up chiếu ngược về không gian latent đầu ra ban đầu. Với LoRA, về cơ bản chúng tôi thay y = (W + W')x bằng y = (W + BA)x, trong đó W' là phần thay đổi khi tinh chỉnh. Chúng tôi có thể cố định ma trận down thành một ma trận trực chuẩn để buộc toàn bộ quá trình tinh chỉnh diễn ra trên ma trận B. Điều này giúp tiến gần hơn đến động lực của tinh chỉnh toàn phần nhờ áp đặt ràng buộc chính quy hóa mạnh hơn.";
+
+"save_to_tensorboard" = "Lưu vào TensorBoard";
+
+"save_to_tensorboard_detail" = "Một số thống kê huấn luyện có thể được lưu ở định dạng mà TensorBoard có thể xem. Điều này giúp người dùng nâng cao theo dõi quá trình huấn luyện tốt hơn.";
+
+"settings" = "Cài đặt";
+
+"max_text_length" = "Độ dài văn bản tối đa";
+
+"max_text_length_detail" = "Các mô hình FLUX.1 thường được huấn luyện với độ dài văn bản tối đa là 512. Một số mô hình, ví dụ biến thể schnell, được tinh chỉnh với độ dài văn bản tối đa là 256. Độ dài văn bản nhỏ hơn có thể giúp LoRA hiểu văn bản ngắn gọn hơn.";
+
+"aspect_ratio_and_multi_scale" = "Tỷ lệ khung hình & đa tỷ lệ";
+
+"aspect_ratio_and_multi_scale_detail" = "Khi tắt \"Dùng tỷ lệ khung hình của ảnh\", chúng tôi thay đổi kích thước rồi cắt phần giữa của ảnh huấn luyện theo kích thước ảnh đã chỉ định ở trên. Khi bật tùy chọn đó, chúng tôi sẽ dùng kích thước ảnh đã chỉ định ở trên làm tổng số điểm ảnh cần xấp xỉ, và dùng tỷ lệ khung hình của ảnh huấn luyện. Điều này giúp mô hình thấy toàn bộ ảnh huấn luyện. \"Đa tỷ lệ\" cho phép bạn chọn thêm một vài tỷ lệ để huấn luyện cùng lúc, giúp LoRA thấy cùng một ảnh ở các độ phân giải khác nhau. Điều này thường giúp LoRA nắm bắt được cả cấu trúc lẫn chi tiết tốt hơn.";
+
+"use_image_aspect_ratio" = "Dùng tỷ lệ khung hình của ảnh";
+
+"additional_scales" = "Tỷ lệ bổ sung";
+
+"additional_scale_1" = "Tỷ lệ bổ sung 1";
+
+"additional_scale_2" = "Tỷ lệ bổ sung 2";
+
+"additional_scale_3" = "Tỷ lệ bổ sung 3";
+
+"size" = "Kích thước";
+
+"power_function_ema" = "EMA hàm lũy thừa";
+
+"power_function_ema_detail" = "EMA (trung bình động lũy thừa), một phương pháp lấy trung bình mô hình theo quỹ đạo huấn luyện, là cách hiệu quả để cải thiện hiệu năng mô hình. Về cơ bản, thay vì lấy mô hình cuối cùng, phương pháp này cho phép bạn lưu một mô hình được lấy trung bình trong một khoảng thời gian, có thể mượt hơn các mô hình cuối. Chúng tôi đã triển khai một cấu hình EMA hàm lũy thừa cụ thể được mô tả chi tiết trong bài báo \"Analyzing and Improving the Training Dynamics of Diffusion Models\" của Karras, cho phép chọn các siêu tham số lấy trung bình khác nhau sau khi huấn luyện. Siêu tham số \"Trung bình trên % bước cuối\" cho phép bạn chọn một khoảng để lấy trung bình mô hình trên % bước cuối cùng.";
+
+"ema_averaging_over_last" = "Trung bình trên % bước cuối";
+
+"enable_model_browsing" = "Bật duyệt mô hình";
+
+"server_mismatch_hash" = "Tệp không khớp trên máy chủ";
+
+"server_mismatch_hash_message" = "Một số tệp trên máy chủ tuy trùng tên với các tệp có sẵn trên thiết bị nhưng lại khác nhau. Bạn có thể ghi đè các tệp trên máy chủ từ xa bằng bản sao cục bộ, hoặc tiếp tục dùng bản sao trên máy chủ từ xa.";
+
+"keep_mismatched_files" = "Giữ bản sao từ xa";
+
+"overwrite_mismatched_files" = "Ghi đè bằng bản sao cục bộ";
+
+"remote_server" = "Máy chủ từ xa";
+
+"protocol" = "Giao thức";
+
+"verify_totp" = "Để xác minh mã hóa đầu cuối với %@, hãy so sánh các số ở trên với thiết bị đó. ";
+
+"learn_more" = "Tìm hiểu thêm";
+
+"discovering_dot" = "Đang tìm...";
+
+"transaction_pending" = "Giao dịch đang chờ xử lý, vui lòng thử lại sau.";
+
+"explore_editions" = "Khám phá các phiên bản";
+
+"local_edition_subtitle" = "Chọn phiên bản phù hợp với quy trình làm việc của bạn để tạo ảnh nhanh chóng, riêng tư và ngoại tuyến";
+
+"local_edition" = "Cục bộ";
+
+"local_edition_pill" = "CỤC BỘ & RIÊNG TƯ";
+
+"features_perks" = "Tính năng & đặc quyền";
+
+"continue_with_local" = "Tiếp tục chỉ với bản Cục bộ";
+
+"download_models_from_our_server" = "Tải mô hình từ máy chủ của chúng tôi";
+
+"use_local_compute_to_generate" = "Dùng tài nguyên tính toán cục bộ để tạo ảnh";
+
+"infinite_canvas" = "Khung vẽ vô hạn";
+
+"inpainting_and_outpainting" = "Inpainting và outpainting";
+
+"create_an_account" = "Tạo tài khoản";
+
+"community_edition_subtitle" = "Đăng nhập vào Phiên bản Miễn phí để tận hưởng quy trình làm việc được tối ưu và các đặc quyền thông qua tài khoản của riêng bạn.";
+
+"community" = "Miễn phí";
+
+"community_edition_pill" = "TÀI KHOẢN MIỄN PHÍ";
+
+"everything_in_local" = "Mọi tính năng của Chỉ cục bộ";
+
+"your_own_account" = "Tài khoản của riêng bạn";
+
+"cloud_compute" = "Điện toán đám mây";
+
+"plus_edition_subtitle" = "Nâng cấp lên Draw Things+ để tận hưởng thêm các đặc quyền và tính năng.";
+
+"plus_edition" = "Draw Things+";
+
+"everything_in_community" = "Mọi tính năng của Phiên bản Miễn phí";
+
+"premium_cloud_compute" = "Điện toán đám mây cao cấp";
+
+"multipeer_sharing" = "Chia sẻ đa thiết bị";
+
+"local_edition" = "Cục bộ";
+
+"have_an_account" = "Đã có tài khoản?";
+
+"community_edition" = "Phiên bản Miễn phí";
+
+"draw_things_plus_edition" = "Phiên bản Draw Things+ • ";
+
+"sign_out" = "Đăng xuất";
+
+"restore_subscription" = "Khôi phục gói đăng ký";
+
+"return_to_local" = "Quay lại Chỉ cục bộ";
+
+"downgrade_to_community" = "Hạ cấp xuống bản Miễn phí";
+
+"active_edition" = "Phiên bản đang dùng";
+
+"using_local_will_sign_out" = "Dùng chế độ Chỉ cục bộ sẽ đăng xuất bạn";
+
+"you_are_using_local" = "Bạn đang dùng chế độ Chỉ cục bộ";
+
+"you_are_using_community" = "Bạn đang dùng Phiên bản Miễn phí";
+
+"community_edition_requires_sign_in" = "Phiên bản Miễn phí yêu cầu bạn đăng nhập";
+
+"community_edition_set_to_activate" = "Phiên bản Miễn phí sẽ được kích hoạt vào %@";
+
+"your_subscription_is_set_to_expire" = "Gói đăng ký của bạn sẽ hết hạn vào %@";
+
+"your_subscription_is_set_to_renew" = "Gói đăng ký của bạn sẽ được gia hạn vào %@";
+
+"draw_things_plus_requires_subscription" = "Draw Things+ yêu cầu gói đăng ký";
+
+"active_edition" = "Phiên bản đang dùng";
+
+"set_to_activate" = "Sẽ kích hoạt";
+
+"sign_in" = "Đăng nhập";
+"sign_in_with_apple" = "Đăng nhập bằng Apple";
+"sign_in_with_apple_and_get_dt_plus" = "Đăng nhập bằng Apple và nhận Draw Things+";
+"sign_in_with_apple_and_get_dt_max" = "Đăng nhập bằng Apple và nhận Draw Things Max";
+"sign_in_with_google" = "Đăng nhập bằng Google";
+"sign_in_with_google_and_get_dt_plus" = "Đăng nhập bằng Google và nhận Draw Things+";
+"sign_in_with_google_and_get_dt_max" = "Đăng nhập bằng Google và nhận Draw Things Max";
+
+"sign_in" = "Đăng nhập";
+
+"return_to_local_question" = "Quay lại Chỉ cục bộ?";
+
+"return_to_local_from_plus" = "Quay lại chế độ Chỉ cục bộ sẽ đăng xuất bạn và đặt phiên bản Draw Things+ của bạn hết hạn vào cuối kỳ đăng ký hiện tại. Để tiếp tục dùng các tính năng của Draw Things+ cho đến lúc đó, hãy giữ trạng thái đăng nhập.";
+
+"return_to_local_from_community" = "Quay lại chế độ Chỉ cục bộ sẽ đăng xuất bạn khỏi Phiên bản Miễn phí. Để tiếp tục dùng các tính năng của Phiên bản Miễn phí, hãy giữ trạng thái đăng nhập.";
+
+"confirm_downgrade" = "Xác nhận hạ cấp";
+
+"sign_out_community" = "Đăng xuất khỏi bản Miễn phí";
+
+"downgrade_to_community_question" = "Hạ cấp xuống bản Miễn phí?";
+
+"downgrade" = "Hạ cấp";
+
+"delete_account" = "Xóa tài khoản";
+
+"explore_editions_menu" = "Khám phá các phiên bản";
+
+"confirm_delete_account" = "Xóa tài khoản của bạn?";
+
+"confirm_delete_account_description" = "Xóa tài khoản Draw Things+ sẽ đăng xuất bạn, chuyển sang Phiên bản Miễn phí và hủy gói đăng ký của bạn vào cuối kỳ hiện tại. Để chuyển đổi mà không xóa tài khoản, bạn chỉ cần đăng xuất. Hãy giữ trạng thái đăng nhập để tiếp tục tận hưởng các tính năng của Draw Things+.";
+"confirm_delete_local_code_account_description" = "Xóa tài khoản Local Code sẽ đăng xuất bạn. Số tín dụng Local Code còn lại và trạng thái tín dụng giới thiệu của bạn sẽ được giữ nguyên nếu bạn đăng nhập lại bằng cùng tài khoản Apple hoặc Google.";
+"deleting_local_code_account" = "Đang xóa tài khoản Local Code…";
+
+"enable_shared_secret" = "Khóa bí mật dùng chung";
+
+"enter_shared_secret" = "Nhập khóa bí mật dùng chung";
+
+"cloud_compute_units" = "Đơn vị tính toán";
+
+"cloud_compute_units_detail" = "Đơn vị tính toán đo lường tài nguyên máy chủ cần để tạo ảnh. Số đơn vị tăng theo độ phân giải, số lượng ảnh và các cài đặt khác. Giới hạn tạo khác nhau theo từng hạng: người dùng Miễn phí có thể dùng tối đa %@ đơn vị cho mỗi yêu cầu, còn người dùng Draw Things+ được %@ đơn vị. Hãy điều chỉnh cài đặt nếu bạn vượt quá giới hạn của hạng mình.";
+
+"cloud_compute_and_sharing" = "Hiển thị tính năng đám mây và chia sẻ";
+
+"cloud_and_sharing_features" = "Tính năng đám mây và chia sẻ";
+
+"cloud_compute_and_sharing_detail" = "Hiển thị các tùy chọn tài khoản, chia sẻ và đám mây trong ứng dụng. Điện toán đám mây chỉ được dùng khi bạn chọn chạy quá trình tạo trên các máy chủ do Draw Things quản lý. Tắt tùy chọn này sẽ ẩn các tính năng trên. Một số thay đổi có thể yêu cầu khởi động lại ứng dụng.";
+
+"exceed_limit_error" = "Đã vượt quá giới hạn yêu cầu";
+
+"exceed_error_message" = "Có thể bạn đã gửi quá nhiều yêu cầu trong thời gian ngắn. Vui lòng đợi một lát rồi thử lại.";
+
+"control_inputs" = "Đầu vào điều khiển";
+
+"cloud_compute_unavailable" = "Điện toán đám mây không khả dụng";
+
+"cloud_compute_missing_files_message" = "Điện toán đám mây chỉ có thể truy cập các mô hình từ kênh Chính thức hoặc Cộng đồng. Không thể dùng các mô hình cục bộ của bạn cho lần tạo này. Bạn có muốn chạy cục bộ thay thế không?";
+
+"browse_dot" = "Duyệt...";
+
+"official_upscalers" = "Upscaler chính thức";
+
+"disable_upscaler_detail" = "Tắt Upscaler";
+
+"browse_detail" = "Duyệt các tệp cục bộ.";
+
+"model_import_failed" = "Không thể nhập mô hình";
+
+"upscaler_import_failed_message" = "Không thể nhập upscaler đã chọn. Hiện tại, chúng tôi chỉ hỗ trợ các biến thể ESRGAN với tỷ lệ phóng to 2x và 4x.";
+
+"japanese" = "日本語";
+
+"korean" = "한국어";
+
+"control_inputs_detail" = "Đầu vào điều khiển quản lý nhiều nguồn đầu vào khác nhau cho các mô-đun điều khiển (như ControlNet, IP-Adapter và Redux). Bạn có thể tải riêng từng đầu vào cụ thể để dùng với các mô-đun này.";
+
+"load_dot" = "Tải...";
+
+"save_dot" = "Lưu...";
+
+"german" = "Deutsch";
+"vietnamese" = "Tiếng Việt";
+
+"french" = "Français";
+
+"community_configs" = "Cấu hình cộng đồng";
+
+"remove_configuration" = "Xóa cấu hình";
+
+"remove_configuration_message" = "Bạn có muốn xóa cấu hình \"%@\" không? Thao tác này không thể hoàn tác.";
+
+"tea_cache" = "TeaCache";
+
+"threshold" = "Ngưỡng";
+
+"starting_dot" = "Đang bắt đầu...";
+
+"processing_dot" = "Đang xử lý...";
+
+"sampling_dot" = "Đang lấy mẫu...";
+
+"finishing_dot" = "Đang hoàn tất...";
+
+"tea_cache_detail" = "Timestep Embedding Aware Cache (TeaCache) là phương pháp lưu đệm không cần huấn luyện, ước tính và tận dụng sự khác biệt dao động giữa các đầu ra của mô hình qua các bước thời gian (timestep), nhờ đó tăng tốc suy luận. Bắt đầu / Kết thúc xác định các bước khử nhiễu mà TeaCache được áp dụng. Ngưỡng đặt giới hạn dung sai lỗi — giá trị càng cao thì tạo càng nhanh nhưng chất lượng giảm.";
+
+"duration_est" = "%02d:%02d:%02d / %02d:%02d:%02d (ước tính)";
+
+"upscaling_dot" = "Đang phóng to...";
+
+"x_est" = "%@ / %@ (ước tính)";
+
+"separate_t5_text" = "Văn bản T5 riêng";
+
+"separate_t5_text_detail" = "HiDream dùng 4 bộ mã hóa văn bản riêng biệt. Bạn có thể chỉ định một đầu vào riêng cho bộ mã hóa văn bản T5, điều này có thể giúp thiết lập ngữ cảnh tổng thể cho quá trình tạo ảnh.";
+
+"t5_text" = "Văn bản T5";
+
+"return_to_local_description" = "Quay lại chế độ Chỉ cục bộ sẽ đăng xuất bạn khỏi phiên bản hiện tại. Để tiếp tục dùng các tính năng của phiên bản hiện tại, hãy giữ trạng thái đăng nhập.";
+
+"api_key" = "Khóa API";
+
+"api_secret_key" = "Khóa bí mật API";
+
+"api_key_section" = "Thông tin xác thực API";
+
+"api_key_section_detail" = "Mô hình đã chọn dùng dịch vụ từ xa của bên thứ ba (ví dụ: Kling). Để tạo ảnh, hãy nhập khóa API và khóa bí mật của nhà cung cấp này.";
+
+"welcome_wave" = "Chào mừng bạn! 👋";
+
+"browse_models_via_cloud_compute" = "Duyệt mô hình qua Điện toán đám mây";
+
+"browse_models_via_cloud_compute_detail" = "Điện toán đám mây cho phép bạn chạy các tác vụ như tạo ảnh trên máy chủ của Draw Things, yêu cầu đăng nhập bằng Apple sau khi chọn mô hình.";
+
+"download_a_model_via_draw_things" = "Tải về mô hình qua Draw Things";
+
+"download_a_model_via_draw_things_detail" = "Bạn có thể cân nhắc FLUX.1, một mô hình tạo ảnh mạnh mẽ và phổ biến với sự hỗ trợ rộng rãi từ cộng đồng cùng các công cụ đa năng.";
+
+"import_a_model_from_local_storage" = "Nhập mô hình từ bộ nhớ cục bộ";
+
+"import_a_model_from_local_storage_detail" = "Tải lên mô hình từ thiết bị của bạn để phù hợp hơn với nhu cầu quy trình tạo ảnh. Chúng tôi sẽ hỏi bạn một vài thông tin để bạn có thể bắt đầu.";
+
+"step_1_of_3" = "Bước 1/3";
+
+"step_2_of_3" = "Bước 2/3";
+
+"step_3_of_3" = "Bước 3/3 (tùy chọn)";
+
+"enable_cloud_compute" = "Hiển thị tính năng đám mây và chia sẻ";
+
+"show_features" = "Hiển thị tính năng";
+
+"turn_on_cloud_compute_to_access_account_features" = "Bật tính năng đám mây và chia sẻ để mở các tùy chọn tài khoản. Thao tác này sẽ hiển thị các tính năng đăng nhập, đồng bộ, chia sẻ và chọn Điện toán đám mây khi bạn muốn chạy quá trình tạo trên các máy chủ do Draw Things quản lý.";
+
+"enable_cloud_compute_detail" = "Khi tắt, các tính năng Điện toán đám mây, tài khoản và chia sẻ sẽ bị ẩn. Bạn có thể bật lại sau trong Cài đặt máy.";
+
+"select_a_model_via_cloud_compute_detail" = "Chọn mô hình qua Điện toán đám mây để tạo ảnh trên máy chủ của Draw Things. Ở bước tiếp theo, bạn sẽ được yêu cầu đăng nhập.";
+
+"select_a_model_via_draw_things_detail" = "Chọn mô hình từ máy chủ của Draw Things để tạo ảnh cục bộ. Tiếp theo, bạn sẽ có thể chọn nơi lưu ảnh đã tạo.";
+
+"pick_a_model_via_cloud_compute_title" = "Chọn mô hình qua Điện toán đám mây ✨";
+
+"download_a_model_via_draw_things_title" = "Tải về mô hình qua Draw Things 🪐";
+
+"import_a_model_from_local_storage_title" = "Nhập mô hình từ bộ nhớ cục bộ 📂";
+
+"max_skip_steps" = "Số bước bỏ qua tối đa";
+
+"sign_in_to_community" = "Đăng nhập bản Miễn phí";
+
+"sign_in_is_required_to_use_cloud_compute_detail" = "Cần đăng nhập để dùng Điện toán đám mây qua máy chủ của Draw Things.";
+
+"i_understand" = "Tôi hiểu";
+
+"local_import_may_not_be_suitable_for_all_users_detail" = "**Lưu ý:** Nhập cục bộ có thể không phù hợp với mọi người dùng. Với các mô hình tiên tiến gần đây — như mô hình ảnh FLUX.1 hoặc các mô hình video Hunyuan và Wan 2.1 — nhập cục bộ sẽ tải mô hình ở kích thước đầy đủ. Ngược lại, các mô hình tải về từ máy chủ chính thức đã được lượng tử hóa để duy trì chất lượng cao đồng thời tối ưu hiệu năng trên nhiều loại thiết bị.\n\nNếu bạn vẫn muốn nhập cục bộ, hãy chạm vào “**Tôi hiểu**” để tiếp tục.";
+
+"to_start_pick_a_model_source_detail" = "**Để bắt đầu, hãy chọn nguồn mô hình**. Sau này bạn luôn có thể lấy mô hình từ bất kỳ tùy chọn nào trong số này.";
+
+"text_to_video" = "Văn bản sang video";
+
+"image_to_video" = "Ảnh sang video";
+
+"video_to_video" = "Video sang video";
+
+"weights_cache_size" = "Kích thước bộ đệm trọng số";
+
+"weights_cache_size_detail" = "Với các mô hình lớn như FLUX.1, Wan v2.1, Hunyuan hoặc HiDream-I1, các thiết bị có hơn 48 GiB RAM có thể tận dụng cơ chế lưu đệm trọng số mới, có khả năng lưu nhiều bản sao trọng số mô hình trong bộ nhớ để tăng tốc việc tải lại và tạo. Các mô hình trước đây mất cố định 7–8 giây để tải nay có thể tải lại trong chưa đến nửa giây. Bạn có thể điều chỉnh kích thước bộ đệm trọng số để giảm mức sử dụng RAM trên thiết bị khi cần.";
+
+"save_media_to" = "Lưu nội dung đã tạo vào";
+
+"save_media_detail" = "Ảnh hoặc video đã tạo có thể được lưu vào thư mục bạn chọn. Điều này giúp bạn thuận tiện hơn nếu dùng ứng dụng bên ngoài để sắp xếp ảnh hoặc video đã tạo.";
+
+"save_video_as" = "Lưu video dưới dạng";
+
+"save_video_as_movie" = "Phim (.mov)";
+
+"save_video_as_images" = "Ảnh";
+
+"this_frame_dot" = "Khung hình này...";
+
+"video_export_format" = "Định dạng xuất video";
+
+"video_export_format_detail" = "Video lưu từ ứng dụng mặc định có chất lượng cao nhất hiện có. Bạn có thể chọn định dạng khác để phù hợp hơn với yêu cầu của mình.";
+
+"remote_api_providers" = "Nhà cung cấp API từ xa";
+"on_device" = "Trên thiết bị";
+"where_models_run" = "Nơi chạy mô hình";
+"where_models_run_detail" = "Mô hình trên thiết bị chạy trực tiếp trên thiết bị này. Mô hình đám mây chạy thông qua dịch vụ đã chọn.";
+
+"causal_inference" = "Suy luận nhân quả";
+
+"causal_inference_every_n_frames" = "Mỗi N khung hình";
+
+"causal_inference_detail" = "Suy luận nhân quả chỉ xét khung hình hiện tại và các khung hình trước đó (không xét các khung hình tương lai), một phương pháp được gọi là CausVid. Tùy chọn này chỉ khả dụng cho các mô hình video được tinh chỉnh riêng cho việc tạo nhân quả. Cài đặt “Mỗi N khung hình” kiểm soát độ chi tiết của suy luận: thay vì tạo từng khung hình một, mô hình tạo các khung hình theo từng nhóm N, dùng tất cả khung hình cho đến thời điểm đó làm ngữ cảnh. Ví dụ, với N = 2, khung hình a và b được tạo cùng nhau với a–b làm ngữ cảnh; sau đó khung hình c và d được tạo với a–d làm ngữ cảnh, và cứ thế tiếp tục.";
+
+"data_required_for_downloads" = "Dữ liệu cần để tải về";
+
+"estimated_time_to_generate" = "Thời gian tạo ước tính";
+
+"return_to_local_description" = "Quay lại chế độ Chỉ cục bộ sẽ đăng xuất bạn khỏi phiên bản hiện tại. Để tiếp tục dùng các tính năng của phiên bản hiện tại, hãy giữ trạng thái đăng nhập.";
+
+"exceed_lora_storage_limit_error" = "Đã vượt quá giới hạn lưu trữ";
+
+"exceed_lora_storage_limit_error_message" = "Tổng dung lượng LoRA tải lên trong yêu cầu tạo của bạn đã vượt quá giới hạn lưu trữ tối đa.";
+
+"space_occupied" = "Dung lượng đã dùng: %@";
+
+"byom_delete_view_title" = "Giải phóng dung lượng để tiếp tục tải lên LoRA";
+
+"byom_loras" = "Dùng LoRA của riêng bạn";
+
+"byom_loras_detail" = "Các LoRA này trước đó đã được tải lên máy chủ từ xa đang hoạt động (Draw Things+).";
+
+"generic_r2_upload_error" = "Lỗi tải lên";
+
+"generic_r2_upload_error_message" = "Đã xảy ra lỗi khi tải lên, vui lòng thử lại sau.";
+
+"lora_upload_subscription_verification_error_message" = "Máy chủ của chúng tôi không thể xác minh gói đăng ký đang hoạt động trên tài khoản này. Không thể tải lên LoRA. Hãy đăng nhập lại và kiểm tra trạng thái gói đăng ký.";
+
+"byom_upload_requires" = "Cần để tải lên: %@";
+
+"byom_free_space" = "Dung lượng trống: %@";
+
+"byom_required" = "Cần: %@";
+
+"byom_using" = "Đang dùng: %@";
+
+"byom_using_x_of_y" = "Dùng %@ trên %@ sau khi tải lên";
+
+"you_may_continue" = "Bạn có thể tiếp tục.";
+
+"remove_some_loras" = "Hãy xóa bớt một số LoRA.";
+
+"byom_out_of_space" = "Hết dung lượng!";
+
+"byom_explanation_text" = "Giải phóng dung lượng trên máy chủ đã kết nối (Draw Things+) để chạy tạo ảnh bằng cách xóa một số LoRA đã tải lên trước đó.";
+
+"first_time_upload_lora_sha256_as_file" = "Lần đầu tải lên LoRA?";
+
+"first_time_upload_lora_sha256_as_file_message" = " Điện toán đám mây của Draw Things có thể lưu tên tệp của mỗi LoRA bạn tải lên để giúp nhận diện sau này — ví dụ, khi bạn muốn xóa nó. Nếu không, chỉ mã băm nội dung được lưu trữ. Chạm vào \"Có\" để lưu tên tệp giúp quản lý dễ dàng hơn.";
+
+"save_uploaded_lora_name" = "Lưu tên LoRA đã tải lên";
+
+"uncurated_community_models" = "Chưa kiểm duyệt";
+
+"dwnloading_to_cloud_compute_dot" = "Đang tải về Điện toán đám mây...";
+
+"dwnloading_to_cloud_compute_quote_dot" = "Đang tải về Điện toán đám mây (%@)...";
+
+"reset_to_recommended" = "Đặt lại về mức đề xuất";
+
+"lab_hours" = "Giờ thử nghiệm";
+
+"lab_hours_detail" = "Đơn vị tính toán đo lường tài nguyên máy chủ cần để tạo ảnh. Số đơn vị tăng theo độ phân giải, số lượng ảnh và các cài đặt khác. Trong Giờ thử nghiệm — khi máy chủ còn dư công suất — chúng tôi nâng các giới hạn thông thường để bạn thoải mái thử nghiệm hơn. Người dùng Miễn phí giờ có thể dùng tối đa %@ đơn vị cho mỗi yêu cầu, còn người dùng Draw Things+ được %@ đơn vị. Hãy điều chỉnh cài đặt nếu bạn vượt quá giới hạn của hạng mình.";
+
+"enter_a_prompt_dot" = "Nhập prompt...";
+
+"what_should_we_build_question_mark" = "Chúng ta nên xây dựng gì?";
+
+"ask_a_follow_up_question_dot" = "Đặt câu hỏi tiếp theo.";
+
+"negative" = "Phủ định";
+
+"edit_history_slider" = "Thanh trượt lịch sử chỉnh sửa";
+
+"image_interpreter" = "Trình diễn giải ảnh";
+
+"image_interpreter_detail" = "Dùng một LLM để phân tích ảnh và tạo prompt mô tả. Bạn có thể tinh chỉnh prompt này để tạo ảnh mới có phong cách và cảm giác tương tự.";
+
+"project_dot" = "Dự án...";
+
+"load_dot" = "Tải...";
+
+"new_canvas" = "Khung vẽ mới";
+
+"share_dot" = "Chia sẻ...";
+
+"save_dot" = "Lưu...";
+
+"tools" = "Công cụ";
+
+"prompt_editor" = "Trình chỉnh sửa prompt";
+
+"canvas_tools" = "Công cụ khung vẽ";
+
+"enter_a_negative_prompt_dot" = "Nhập prompt phủ định...";
+
+"save_image_file" = "Lưu ảnh vào Tệp.";
+
+"save_image_photo" = "Lưu ảnh vào Ảnh.";
+
+"save_image_clipboard" = "Lưu ảnh vào bộ nhớ tạm (Sao chép vào bộ nhớ tạm).";
+
+"select_image_from_photos" = "Chọn ảnh từ Ảnh.";
+
+"select_image_from_files" = "Chọn ảnh từ Tệp.";
+
+"select_image_from_clipboard" = "Dán ảnh từ bộ nhớ tạm.";
+
+"token_count_detail" = "Hiển thị các token của văn bản.";
+
+"insert_invert_keyword" = "Nhấp chuột phải để chèn từ khóa embedding T.I.";
+
+"change_invert_keyword" = "Nhấp chuột phải để thay đổi từ khóa embedding T.I.";
+
+"select_eraser_paintbrush" = "Chỉ áp dụng tẩy hoặc cọ vẽ cho vùng đã chọn.";
+
+"erase_for_inpainting" = "Tẩy. Xóa hoặc phủ mặt nạ lên một vùng để inpainting.";
+
+"guided_paintbrush" = "Cọ vẽ. Tô một vùng bằng màu đã chọn.";
+
+"select_foreground" = "Chọn tiền cảnh.";
+
+"select_background" = "Chọn hậu cảnh.";
+
+"tap_to_select" = "Chạm để chọn.";
+
+"mask" = "Mặt nạ";
+
+"unmask" = "Bỏ mặt nạ";
+
+"add_negative_prompt" = "Thêm prompt phủ định.";
+
+"cfg_zero_star" = "CFG Zero*";
+"expand_prompt_to_json" = "Mở rộng thành JSON";
+"expand_prompt_to_json_detail" = "Dùng Magic Prompt để mở rộng prompt thành mô tả JSON có cấu trúc trước khi tạo.";
+
+"cfg_zero_init_steps" = "Số bước khởi tạo CFG Zero";
+
+"duration_minutes_est" = "%02d:%02d / %02d:%02d (ước tính)";
+
+"show_history_slider" = "Hiện thanh trượt lịch sử.";
+
+"hide_history_slider" = "Ẩn thanh trượt lịch sử.";
+
+"base" = "Cơ sở";
+
+"refiner" = "Refiner";
+
+"builtin_prompts_dot" = "Prompt tích hợp sẵn...";
+
+"privacy_pass" = "Privacy Pass";
+
+"privacy_pass_detail" = "Draw Things+ dùng tính năng Privacy Pass để tăng cường tính ẩn danh. Cơ chế này cho phép chính thiết bị của bạn, thay vì máy chủ của chúng tôi, tạo token ẩn danh dùng để sáng tác. Nhờ đó, tác phẩm cuối cùng không thể truy ngược về yêu cầu ban đầu. Phương pháp này là một cải tiến cho tính năng quyền riêng tư hiện có của chúng tôi.";
+
+"privacy_pass_is_enabled" = "Privacy Pass đã được bật.";
+
+"privacy_pass_is_temporarily_unavailable" = "Privacy Pass tạm thời không khả dụng.";
+
+"enabled" = "Đã bật";
+
+"copy_to_settings" = "Sao chép vào cài đặt";
+
+"try_recommended_settings" = "Thử cài đặt đề xuất";
+
+"seconds_format" = "%@s";
+
+"show_generation_time" = "Hiển thị thời gian tạo";
+
+"show_generation_time_detail" = "Hiển thị thời gian tạo mỗi ảnh hoặc video trong lịch sử.";
+
+"Boost" = "Boost";
+
+"Cash" = "Tiền mặt";
+
+"purchase_success_message" = "Đã thêm %@ vào ví của bạn.";
+
+"purchase_failure_message" = "Giao dịch mua thất bại. Bạn không bị tính phí.";
+
+"record_purchase_failure_message" = "Giao dịch mua thành công. Số dư của bạn sẽ sớm được cập nhật";
+
+"adding_x_to_balance" = "Đang cập nhật số dư %@…";
+
+"add_more_funds" = "Nạp thêm tiền";
+
+"buy_more_boosts" = "Mua thêm Boost";
+
+"boost_description_0" = "Hiện bạn chưa có Boost nào.";
+
+"boost_description" = "Đã nạp Boost.";
+
+"cash_description" = "Số dư của bạn được hiển thị bằng đô la Mỹ (USD).";
+
+"balance_title" = "Số dư %@: %@";
+
+"consumption_request_consent" = "Tôi đồng ý chia sẻ thông tin mua hàng của mình với App Store để hỗ trợ yêu cầu hoàn tiền nếu cần.";
+
+"wallet_title" = "Ví";
+
+"transfer_funds" = "Chuyển tiền";
+
+"view_wallet_menu" = "Xem ví";
+
+"wallet_subtitle" = "Quản lý Boost và số dư tiền mặt trong ví của bạn. Nạp tiền qua các nhà cung cấp bên thứ ba và mua Boost để tăng sức mạnh cho các sáng tác của bạn khi cần. Chỉ có trên Draw Things+.";
+
+"wallet" = "Ví";
+
+"view_wallet" = "Xem ví";
+
+"compute_units_boost_balance" = "Số dư: %@";
+
+"compute_units_boost_balance_needed" = "Cần %@";
+
+"compute_units_boost_balance_to_spend" = "Sẽ dùng %@";
+
+"bridge_mode" = "Chế độ cầu nối";
+
+"bridge_mode_is_a_plus_feature" = "Chế độ cầu nối cho phép thiết bị này làm cầu nối để kết nối với các máy chủ từ xa, chẳng hạn như hệ thống Điện toán đám mây của chúng tôi. Để ngăn chặn khả năng lạm dụng, tính năng này hiện chỉ dành cho người đăng ký Draw Things+.";
+
+"see_purchase_benefits" = "Xem quyền lợi khi mua";
+
+"boost_detail" = "Boost cho phép bạn vượt quá giới hạn tác vụ mặc định. Mỗi Boost cung cấp 60.000 đơn vị tính toán — ví dụ, 1 Boost = 60.000, 2 Boost = 120.000. Boost được bán riêng.";
+
+"compat" = "Tương thích";
+
+"free_feature_1" = "Tạo bằng điện toán cục bộ";
+
+"free_feature_2" = "Tải về mô hình từ máy chủ của chúng tôi";
+
+"free_feature_3" = "Khung vẽ vô hạn";
+
+"free_feature_4" = "Huấn luyện LoRA cục bộ";
+
+"community_feature_1" = "Dùng Điện toán đám mây miễn phí";
+
+"community_feature_2" = "Truy cập Giờ thử nghiệm";
+
+"community_feature_3" = "Mọi tính năng của Chỉ cục bộ";
+
+"plus_feature_1" = "Tăng giới hạn Điện toán đám mây";
+
+"plus_feature_2" = "Dùng LoRA của riêng bạn với Điện toán đám mây";
+
+"plus_feature_3" = "Tăng giới hạn tính toán khi cần";
+
+"plus_feature_4" = "Privacy Pass";
+
+"plus_feature_5" = "Mọi tính năng của Phiên bản Miễn phí";
+
+"plus_edition_description" = "Tận hưởng giới hạn tính toán cao hơn và truy cập các tính năng đám mây cao cấp, bao gồm tải lên LoRA tùy chỉnh, quyền riêng tư nâng cao và nhiều hơn nữa. [Điều khoản sử dụng](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) & [Chính sách quyền riêng tư](https://drawthings.ai/policy/) của chúng tôi.";
+
+"community_edition_description" = "Dùng tài khoản của riêng bạn để truy cập các tính năng độc quyền và chuyển các tác vụ như tạo ảnh sang máy chủ do Draw Things quản lý.";
+
+"local_edition_description" = "Tạo prompt và tải về mô hình từ máy chủ của chúng tôi để tạo ảnh cục bộ và riêng tư ngay trên thiết bị của bạn.";
+
+"create_quantized_dot" = "Tạo mô hình lượng tử hóa...";
+
+"buy_boost_error_message" = "Cần thêm Boost cho lần tạo này.";
+
+"generic_error_message" = "Máy chủ gặp sự cố.";
+
+"upgrade_error_message" = "Đơn vị tính toán vượt quá ngưỡng hiện tại.";
+
+"enable_boost_error_message" = "Cần bật Boost cho lần tạo này.";
+
+"buy_boosts" = "Mua Boost";
+
+"enable_boosts" = "Bật Boost";
+
+"upgrade_to_dt_plus" = "Nâng cấp lên Draw Things+";
+
+"show_high_resolution_preview" = "Dùng bản xem trước độ phân giải cao khi có thể";
+
+"show_high_resolution_preview_detail" = "TAESD là bộ giải mã ảnh gọn nhẹ. Khi có thể, chúng tôi sẽ dùng Apple Neural Engine để giải mã bản xem trước bằng TAESD (thường mất 20–150 ms). Vì việc này chạy trên một khối silicon tách biệt với GPU, nó thường không ảnh hưởng đến tốc độ tạo.";
+
+"change_model_type" = "Đổi loại mô hình";
+
+"try_recommended_settings_confirmation" = "Bạn đã chuyển sang một loại mô hình khác. Mỗi loại mô hình có thể hoạt động tốt nhất với các cài đặt khác nhau. Thử cài đặt đề xuất?";
+
+"not_this_time" = "Để sau";
+
+"ask_try_recommended_settings_when_changing_model_type" = "Hỏi \"Thử cài đặt đề xuất\" khi đổi loại mô hình";
+
+"ask_try_recommended_settings_when_changing_model_type_detail" = "Khi bạn chuyển loại mô hình, chúng tôi có thể hỏi bạn có muốn áp dụng cài đặt đề xuất cho loại mô hình đó không. Tắt tùy chọn này để ngừng hiển thị thông báo này.";
+
+"prefill_warmup" = "Làm nóng prefill";
+
+"prefill_warmup_detail" = "Chuẩn bị trước mô hình cục bộ đã chọn từ trước prompt đầu tiên để cải thiện tốc độ xử lý prompt. Việc làm nóng có thể tạm thời tăng mức sử dụng bộ nhớ hoặc làm chậm phản hồi đầu tiên ngay sau khi ứng dụng khởi động. Được bật theo mặc định trên máy Mac có ít nhất 128 GiB bộ nhớ; trên các thiết bị khác, bạn có thể tự bật. Thay đổi có hiệu lực khi ứng dụng khởi động hoặc khi chọn một mô hình.";
+
+"system_downloader" = "Trình tải về hệ thống của Apple";
+
+"system_downloader_detail" = "Dùng URLSessionDownloadTask thay vì tải về theo từng phân đoạn. Bật tùy chọn này nếu việc tải về theo phân đoạn bị treo trên mạng của bạn.";
+
+"transparency_as_mask_title" = "Dùng vùng trong suốt làm mặt nạ?";
+
+"transparency_as_mask_detail" = "Ảnh này có vùng trong suốt. Bạn có thể nhập vùng trong suốt đó làm mặt nạ để inpainting, hoặc nhập ảnh không kèm mặt nạ.";
+
+"use_transparency_as_mask" = "Dùng làm mặt nạ";
+
+"import_without_mask" = "Nhập không kèm mặt nạ";
+
+"compression_artifacts" = "Nhiễu nén";
+
+"compression_artifacts_detail" = "Với một số mô hình video, việc thêm một chút nhiễu nén video có thể giúp mô hình nhận ra đầu vào là khung hình đầu tiên của một video. Điều này thường giúp video được tạo có chuyển động tốt hơn. Chất lượng nhiễu nén kiểm soát mức chất lượng bị mất trong một lượt mã hóa/giải mã. Giá trị càng cao càng giữ lại nhiều chất lượng (ít suy giảm hơn).";
+
+"compression_artifacts_quality" = "Chất lượng nhiễu nén";
+
+// TO BE TRANSLATED
+
+"lightning_draft" = "Phác thảo tia chớp";
+
+"preview_configuration" = "Xem cấu hình của ảnh";
+
+"generation_type_digest" = "Cường độ: %@";
+
+"model_digest" = "Mô hình: %@";
+
+"lora_digest" = "LoRA: %@";
+
+"control_digest" = "ControlNet: %@";
+
+"seed_mode_digest" = "Chế độ seed: %@";
+
+"seed_digest" = "Seed: %@";
+
+"image_size_digest" = "Kích thước ảnh: %@";
+
+"steps_digest" = "Số bước: %@";
+
+"sampler_digest" = "Bộ lấy mẫu: %@";
+
+"batch_size_digest" = "Kích thước lô: %@";
+
+"upscaler_digest" = "Upscaler: %@";
+
+"upscaler_digest_disabled" = "Upscaler: Đã tắt";
+
+"face_restoration_digest" = "Phục hồi khuôn mặt: %@";
+
+"face_restoration_digest_disabled" = "Phục hồi khuôn mặt: Đã tắt";
+
+"hi_res_fix_digest_enabled" = "Sửa độ phân giải cao: kích thước lượt 1 %@, cường độ lượt 2 %@";
+
+"hi_res_fix_digest_disabled" = "Sửa độ phân giải cao: Đã tắt";
+
+"text_guidance_digest" = "Hướng dẫn văn bản: %@";
+
+"image_guidance_digest" = "Hướng dẫn hình ảnh: %@";
+
+"aesthetic_score_digest" = "Điểm thẩm mỹ: %@, phủ định: %@";
+
+"zero_negative_prompt_digest" = "Prompt phủ định bằng 0: %@";
+
+"stochastic_stochastic_sampling_gamma_digest" = "Gamma lấy mẫu ngẫu nhiên: %@";
+
+"resolution_dependency_shift_digest" = "Độ dịch theo độ phân giải: %@";
+
+"shift_digest" = "Độ dịch: %@";
+
+"image_prior_digest" = "Số bước image prior: %@";
+
+"negative_prompt_image_prior_digest" = "Prompt phủ định cho image prior: %@";
+
+"clip_digest" = "CLIP: %@";
+
+"clip_skip_digest" = "Bỏ qua CLIP: %@";
+
+"tea_cache_digest" = "TEA Cache: %@";
+
+"refiner_digest" = "Refiner: %@ tại %@";
+
+"refiner_digest_disabled" = "Refiner: Đã tắt";
+
+"number_of_frames_digest" = "Số khung hình: %@";
+
+"fps_digest" = "FPS: %@";
+
+"motion_scale_digest" = "Mức chuyển động: %@";
+
+"guiding_frame_noise_digest" = "Nhiễu khung hình dẫn hướng: %@";
+
+"start_frame_guidance_digest" = "Hướng dẫn khung hình đầu: %@";
+
+"causal_inference_digest_enabled" = "Suy luận nhân quả: bước %@-%@";
+
+"causal_inference_digest_disabled" = "Suy luận nhân quả: Đã tắt";
+
+"original_image_size_digest" = "Kích thước ảnh gốc: %@";
+
+"crop_top_left_digest" = "Cắt từ trên: %@, từ trái: %@";
+
+"target_image_size_digest" = "Kích thước ảnh đích: %@";
+
+"negative_original_image_size_digest" = "Kích thước ảnh gốc phủ định: %@";
+
+"stage_2_steps_digest" = "Số bước giai đoạn 2: %@";
+
+"stage_2_cfg_digest" = "CFG giai đoạn 2: %@";
+
+"stage_2_shift_digest" = "Độ dịch giai đoạn 2: %@";
+
+"t5_text_encoder_digest" = "Bộ mã hóa văn bản T5: %@";
+
+"clip_l_text_digest" = "Văn bản CLIP-L: %@ %@";
+
+"open_clip_g_text_digest" = "Văn bản OpenCLIP-G: %@ %@";
+
+"t5_text_digest" = "Văn bản T5: %@ %@";
+
+"guidance_embed_digest" = "Embedding hướng dẫn: %@";
+
+"mask_blur_digest" = "Làm mờ mặt nạ: %@";
+
+"mask_blur_outset_digest" = "Mở rộng làm mờ mặt nạ: %@";
+
+"sharpness_digest" = "Độ sắc nét: %@";
+
+"preserve_original_after_inpaint_digest" = "Giữ ảnh gốc sau khi inpaint: %@";
+
+"tiled_decoding_digest_enabled" = "Giải mã theo ô: %@, chồng lấn %@";
+
+"tiled_decoding_digest_disabled" = "Giải mã theo ô: Đã tắt";
+
+"tiled_diffusion_digest_enabled" = "Khuếch tán theo ô: %@, chồng lấn %@";
+
+"tiled_diffusion_digest_disabled" = "Khuếch tán theo ô: Đã tắt";
+
+// TO BE TRANSLATED (LEAVE AS IS)
+
+"choose_script" = "Chọn script";
+
+"add_reference_image" = "Thêm ảnh tham chiếu";
+
+"reference_image" = "Ảnh tham chiếu";
+
+"reference_image_detail" = "Ảnh chính để chạy script";
+
+"change" = "Thay đổi";
+
+"remove" = "Xóa";
+
+"before" = "TRƯỚC";
+
+"after" = "SAU";
+
+"go" = "Bắt đầu";
+
+"wiz_script_choose_title" = "Thử một script 💎✨";
+
+"generating..." = "Đang tạo...";
+
+"generating_4_more" = "Đang tạo thêm 4 ảnh...";
+
+"your_images_are_ready" = "Ảnh của bạn đã sẵn sàng!";
+
+"load_image" = "Tải ảnh";
+
+"remix" = "Phối lại";
+
+"make_4_more" = "Tạo thêm 4 ảnh!";
+
+"generation_estimates" = "Ước tính quá trình tạo";
+
+"generation_details" = "Chi tiết quá trình tạo";
+
+"prompt" = "Prompt";
+
+"saving" = "Đang lưu...";
+
+"sharing" = "Đang chia sẻ...";
+
+"remixing" = "Đang phối lại...";
+
+"saved" = "Đã lưu!";
+
+"shared" = "Đã chia sẻ!";
+
+"image_deleted" = "Đã xóa ảnh";
+
+"have_not_generated_images" = "Bạn chưa tạo ảnh nào, ";
+
+"start_here" = "hãy bắt đầu tại đây.";
+
+"no_images" = "Không có ảnh";
+
+"connecting..." = "Đang kết nối...";
+
+"apply" = "Áp dụng";
+
+"generation_queue" = "Hàng đợi tạo";
+
+"nothing_in_the_queue" = "Hàng đợi trống";
+
+"x_processing" = "#%@: Đang xử lý...";
+
+"draw_things_max" = "Draw Things Max";
+
+"max_edition_subtitle" = "";
+
+"max_edition" = "Draw Things Max";
+
+"max_feature_2" = "Chạy tối đa 8 quá trình tạo đồng thời";
+
+"max_feature_3" = "Mọi tính năng của Phiên bản Draw Things+";
+
+"get_dt_max" = "Nhận Draw Things Max";
+
+"draw_things_max_requires_subscription" = "Draw Things Max yêu cầu gói đăng ký";
+
+"max_edition_description" = "Tối đa hóa quy trình làm việc với các tính năng nâng cao, như chạy tối đa 8 quá trình tạo đồng thời, cùng giới hạn tính toán cao hơn.";
+
+"downgrade_to_plus" = "Hạ cấp xuống Draw Things+";
+
+"downgrade_to_plus_question" = "Hạ cấp xuống Draw Things+?";
+
+"downgrade_to_plus_description" = "Hạ cấp xuống Draw Things+ sẽ đặt phiên bản Draw Things Max của bạn hết hạn vào cuối kỳ đăng ký hiện tại. Bạn có thể tiếp tục dùng Draw Things Max cho đến lúc đó.";
+
+"unlock_plus_description" = "Chạy tối đa hai quá trình tạo cùng lúc trên máy chủ Draw Things+ với nhiều đơn vị tính toán hơn.";
+
+"unlock_max_description" = "Chạy tối đa tám quá trình tạo cùng lúc trên máy chủ Draw Things Max với nhiều đơn vị tính toán hơn.";
+
+"upgrade_now" = "Nâng cấp ngay";
+
+"this_cancels_your_subscription" = "Thao tác này sẽ hủy gói đăng ký Draw Things+ của bạn";
+
+"downgrade_to_community_description" = "Hạ cấp xuống bản Miễn phí sẽ đặt phiên bản Draw Things+ của bạn hết hạn vào cuối kỳ đăng ký hiện tại. Bạn có thể tiếp tục dùng Draw Things+ cho đến lúc đó.";
+
+"this_downgrades_your_subscription_tier" = "Thao tác này sẽ hạ cấp gói đăng ký của bạn";
+
+
+"waiting_dot" = "Đang chờ...";
+
+"waiting_in_queue_x" = "Đang chờ trong hàng đợi #%@";
+
+"plus_feature_6" = "Chạy tối đa 2 quá trình tạo đồng thời";
+
+"history_generated_image" = "Đã tạo ảnh";
+
+"history_generated" = "Đã tạo";
+
+"history_generated_video" = "Đã tạo video";
+
+"history_loaded_image" = "Đã tải ảnh";
+
+"history_updated_canvas" = "Đã cập nhật khung vẽ";
+
+"history_updated_mask_area" = "Đã cập nhật vùng mặt nạ";
+
+"history_updated_scribble" = "Đã cập nhật nét vẽ phác";
+
+"history_updated_moodboard" = "Đã cập nhật moodboard";
+
+"history_updated_depth_map" = "Đã cập nhật bản đồ độ sâu";
+
+"history_cleared_canvas" = "Đã xóa khung vẽ";
+
+"interactive_generation_available" = "Phác thảo tia chớp";
+"interactive_generation_available_detail" = "\"Phác thảo tia chớp\" cho phép bạn tạo ảnh theo cách tương tác: những gì bạn viết trong prompt sẽ được phản ánh lên kết quả chỉ trong vài giây, thay vì phải đợi quá trình tạo hoàn tất.";
+"lightning_draft_requires_local_generation_message" = "\"Phác thảo tia chớp\" yêu cầu tạo cục bộ. Bạn có muốn chuyển sang chế độ tạo cục bộ không?";
+"switch_to_local" = "Chuyển sang cục bộ";
+"auto" = "Tự động";
+"generation" = "Tạo";
+"gen_dot" = "Tạo";
+"edit" = "Sửa";
+"generation_area" = "Vùng tạo";
+
+"project_empty_state_no_projects" = "Bạn chưa có dự án nào";
+"project_empty_state_select_or_create_project" = "Chọn một dự án từ bảng Dự án\nhoặc tạo dự án mới";
+"project_empty_state_create_project_to_enter_prompt" = "Hãy tạo dự án để nhập prompt";
+"project_empty_state_select_or_create_project_to_enter_prompt" = "Hãy chọn hoặc tạo dự án để nhập prompt";
+"create_new_project" = "Tạo dự án mới";
+"generation_region" = "Vùng tạo";
+"canvas_empty_state_add_or_paste_file_image" = "Thêm hoặc dán ảnh";
+"canvas_empty_state_drag_or_paste_file_image" = "Kéo hoặc dán ảnh";
+"reading_dot" = "Đang đọc...";
+"writing_dot" = "Đang viết...";
+"cooling_down_dot" = "Đang hạ nhiệt...";
+"bringing_up_dot" = "Đang khởi động...";
+"thinking_dot" = "Đang suy nghĩ...";
+"working_dot" = "Đang làm việc...";
+"worked" = "Đã làm việc";
+"compacting_dot" = "Đang thu gọn...";
+"avg_speed" = "Tốc độ TB";
+"view_more" = "Xem thêm";
+"model_speed" = "Tốc độ mô hình";
+"x_on_y_with_z_gpu_cores" = "%@ trên %@ với %d lõi GPU.";
+"x_on_y" = "%@ trên %@.";
+"prompt_processing_detail" = "Số token mỗi giây khi đọc một prompt dài %@ token, theo lượng ngữ cảnh đã dùng.";
+"token_generation_detail" = "Số token mỗi giây khi viết 128 token, theo lượng ngữ cảnh đã dùng.";
+"start_again" = "Bắt đầu lại";
+"context_x_used" = "Đã dùng %@ ngữ cảnh";
+"prompt_processing" = "Xử lý prompt";
+"token_generation" = "Tạo token";
+"low" = "Thấp";
+"medium" = "Trung bình";
+"high" = "Cao";
+"max" = "Tối đa";
+"deterministic" = "Tất định";
+"creative" = "Sáng tạo";
+"reasoning_effort" = "Mức độ suy luận";
+"reasoning_effort_detail" = "Điều chỉnh mức độ kỹ lưỡng khi trợ lý suy luận trước lúc hành động. Mức cao hơn có thể cải thiện kết quả với các tác vụ khó, nhưng tốn thêm thời gian và token.";
+"work_attitude" = "Phong cách làm việc";
+"work_attitude_detail" = "Điều chỉnh cách trợ lý tiếp cận công việc. Tất định ưu tiên các câu trả lời tập trung, nhất quán; Sáng tạo khám phá nhiều khả năng đa dạng hơn.";
+"memory" = "Bộ nhớ";
+"memory_detail" = "Ghi nhớ sở thích của bạn và các chi tiết hữu ích về từng dự án, để bạn không phải nhắc lại trong các cuộc trò chuyện sau này.";
+"reviewing_memory_dot" = "Đang xem lại bộ nhớ...";
+"thinking_budget" = "Ngân sách suy nghĩ";
+"thinking_budget_tokens" = "Token";
+"thinking_budget_detail" = "Số token suy luận ẩn tối đa trước khi trợ lý bắt đầu trả lời. Đặt thành 0 để tắt suy nghĩ.";
+"search_provider" = "Nhà cung cấp tìm kiếm";
+"search_provider_detail" = "Chọn công cụ tìm kiếm mà trợ lý dùng khi cần kết quả từ web. Tắt để ngăn tìm kiếm web.";
+"search_provider_duckduckgo" = "DuckDuckGo";
+"search_provider_sogou" = "Sogou";
+"search_provider_kagi" = "Kagi";
+"search_provider_brave" = "Brave";
+"enter_your_api_key" = "Nhập khóa API của bạn.";
+"tool_bash_now" = "Bash";
+"tool_bash_past" = "Đã chạy";
+"tool_bash_status_now" = "Trạng thái Bash";
+"tool_bash_status_past" = "Trạng thái Bash";
+"tool_bash_wait_now" = "Chờ Bash";
+"tool_bash_wait_past" = "Chờ Bash";
+"tool_bash_stop_now" = "Dừng Bash";
+"tool_bash_stop_past" = "Đã dừng";
+"tool_read_now" = "Đọc";
+"tool_read_past" = "Đã đọc";
+"tool_memory" = "Bộ nhớ";
+"tool_memory_read_now" = "Đọc bộ nhớ";
+"tool_memory_read_past" = "Đã đọc bộ nhớ";
+"tool_memory_append_now" = "Thêm vào bộ nhớ";
+"tool_memory_append_past" = "Đã thêm vào bộ nhớ";
+"tool_memory_replace_now" = "Thay thế bộ nhớ";
+"tool_memory_replace_past" = "Đã thay thế bộ nhớ";
+"tool_memory_remove_now" = "Xóa khỏi bộ nhớ";
+"tool_memory_remove_past" = "Đã xóa khỏi bộ nhớ";
+"tool_saved_response" = "Phản hồi công cụ đã lưu";
+"tool_more_now" = "Xem thêm";
+"tool_more_past" = "Xem thêm";
+"tool_write_now" = "Ghi";
+"tool_write_past" = "Đã ghi";
+"tool_edit_now" = "Sửa";
+"tool_edit_past" = "Đã sửa";
+"tool_search_now" = "Tìm kiếm";
+"tool_search_past" = "Đã tìm kiếm";
+"tool_list_now" = "Liệt kê";
+"tool_list_past" = "Liệt kê";
+"tool_datetime_now" = "Ngày giờ";
+"tool_datetime_past" = "Ngày giờ";
+"tool_check_smt_now" = "Giải";
+"tool_check_smt_past" = "Đã giải";
+"tool_web_search_now" = "Tìm trên web";
+"tool_web_search_past" = "Đã tìm trên web";
+"tool_web_fetch_now" = "Tải trang web";
+"tool_web_fetch_past" = "Đã tải trang web";
+"new_directory" = "Thư mục mới";
+"create" = "Tạo";
+"untitled" = "Không có tiêu đề";
+"cannot_create_directory" = "Không thể tạo thư mục";
+"cannot_create_directory_message" = "Vui lòng chọn một tên hợp lệ và chưa tồn tại.";
+"remote_api" = "API tương thích OpenAI";
+"remote_api_configuration_detail" = "Kết nối với máy chủ tương thích OpenAI.";
+"cloud_compute_configuration_detail" = "Đăng nhập để quản lý tín dụng, thông tin xác thực và các mô hình được lưu trữ của Điện toán đám mây.";
+"remote_api_not_configured" = "Chưa cấu hình";
+"sign_in_to_local_code" = "Đăng nhập vào Local Code";
+"remote_api_configured_model" = "Đã cấu hình · %@";
+"base_api_url" = "URL API cơ sở";
+"remote_api_key_placeholder" = "Khóa API (không hiển thị)";
+"remove_api_key" = "Xóa khóa API";
+"remote_api_error" = "Lỗi API từ xa";
+"remote_api_invalid_configuration" = "Nhập URL API HTTPS hợp lệ hoặc URL HTTP cục bộ.";
+"remote_api_key_required" = "Nhập khóa API cho URL cơ sở này.";
+"remote_api_disclosure_title" = "Dùng API từ xa?";
+"remote_api_disclosure_message" = "Prompt, nội dung tệp và kết quả của công cụ có thể được gửi đến nhà cung cấp đã cấu hình. Mô hình từ xa có thể gọi các công cụ của Local Code trên thiết bị này. Chính sách xử lý và lưu giữ dữ liệu có thể khác nhau tùy nhà cung cấp.";
+"remote_api_tool_call" = "Lệnh gọi công cụ từ xa";
+"remote_context_used" = "Ngữ cảnh đã dùng (token)";
+"remote_context_free" = "Ngữ cảnh còn trống (token)";
+"remote_compaction_trigger" = "Ngưỡng thu gọn";
+"claude_api" = "Claude API";
+"claude_api_configuration_detail" = "Nhập mã định danh mô hình Claude và khóa API Anthropic. Để trống ô khóa để giữ khóa đã lưu hiện có.";
+"claude_api_invalid_configuration" = "Nhập mã định danh mô hình Claude.";
+"claude_api_key_required" = "Nhập khóa API Anthropic.";
+"openrouter_api" = "OpenRouter";
+"openrouter_api_configuration_detail" = "Nhập mã định danh mô hình OpenRouter (ví dụ: openai/gpt-4o) và khóa API. Để trống ô khóa để giữ khóa đã lưu hiện có.";
+"openrouter_api_invalid_configuration" = "Nhập mã định danh mô hình OpenRouter.";
+"openrouter_api_key_required" = "Nhập khóa API OpenRouter.";
+"remote_oauth_openai_action" = "Đăng nhập bằng ChatGPT";
+"remote_oauth_anthropic_action" = "Đăng nhập bằng Claude";
+"remote_oauth_openai_title" = "Đăng nhập bằng ChatGPT";
+"remote_oauth_anthropic_title" = "Đăng nhập bằng Claude";
+"remote_oauth_device_message" = "Đã sao chép mã %@. Hãy hoàn tất đăng nhập trong trình duyệt, sau đó quay lại Local Code.";
+"remote_oauth_anthropic_message" = "Hãy hoàn tất đăng nhập trong trình duyệt, sau đó dán mã ủy quyền hoặc URL chuyển hướng vào bên dưới.";
+"remote_oauth_code_placeholder" = "Mã ủy quyền hoặc URL chuyển hướng";
+"remote_oauth_openai_official_endpoint" = "Đăng nhập bằng ChatGPT yêu cầu điểm cuối chính thức https://api.openai.com.";
+"cloud_compute_by_draw_things" = "Điện toán đám mây (của Draw Things)";
+"account_balance" = "Số dư tài khoản";
+"add_funds" = "Nạp tiền";
+"account_id" = "ID tài khoản";
+"add_more_credit" = "Nạp thêm tín dụng";
+"credit_unavailable" = "Không có thông tin tín dụng";
+"show_api_key" = "Hiện khóa API";
+"hide_api_key" = "Ẩn khóa API";
+"coming_soon" = "Sắp ra mắt";
+"new_project" = "Dự án mới";
+"new_project_dot" = "Dự án mới...";
+"new_from_template_dot" = "Tạo mới từ mẫu...";
+"new_bot_dot" = "Bot mới...";
+"new_bot_from_template_dot" = "Bot mới từ mẫu...";
+"community_templates" = "Mẫu cộng đồng";
+"loading_templates" = "Đang tải mẫu…";
+"no_templates_found" = "Không tìm thấy mẫu nào.";
+"cannot_load_templates" = "Không thể tải các mẫu cộng đồng. Hãy kiểm tra kết nối rồi thử lại.";
+"cannot_download_template" = "Không thể tải về mẫu";
+"cannot_download_template_message" = "Dự án đã được tạo, nhưng không thể tải về mẫu của dự án.";
+"new_chat" = "Cuộc trò chuyện mới";
+"focus_chat" = "Chuyển tới ô trò chuyện";
+"stop_conversation" = "Dừng cuộc trò chuyện";
+
+"thread_completed_title" = "Đã hoàn tất công việc";
+
+"thread_completed_body" = "Hoàn tất sau %@. Mở để xem.";
+
+"web_search_verification_title" = "Xác minh tìm kiếm";
+"web_search_verification_prompt" = "Hoàn thành thử thách để tiếp tục tìm kiếm.";
+
+"bot_mode" = "Chế độ Bot";
+"bot_mode_detail" = "Dùng ‘Bot’ thay cho ‘Dự án’ trong toàn bộ ứng dụng để các tính năng trở nên quen thuộc hơn.";
+"bots" = "Bot";
+"new_bot" = "Bot mới";
+"rename_bot_dot" = "Đổi tên bot...";
+"delete_bot_dot" = "Xóa bot...";
+"delete_bot" = "Xóa bot";
+"cannot_create_bot" = "Không thể tạo bot";
+"move_bot_to_trash_warning" = "Bot này và toàn bộ nội dung của nó sẽ được chuyển vào Thùng rác.";
+"cannot_move_bot_to_trash" = "Không thể chuyển bot vào Thùng rác";
+"cannot_move_active_bot_to_trash_message" = "Hãy dừng phản hồi hiện tại trước khi chuyển bot này vào Thùng rác.";
+"cloud_bot_required" = "Hãy chọn hoặc tạo một bot trước khi bắt đầu cuộc trò chuyện trên đám mây.";
+"bot_memory_detail" = "Ghi nhớ sở thích của bạn và các chi tiết hữu ích về từng bot, để bạn không phải nhắc lại trong các cuộc trò chuyện sau này.";
+
+"kit" = "Kit";
+"draw_things_detail" = "Tạo ảnh và video trong Local Code nhờ tích hợp Draw Things. Chọn nơi lưu các mô hình Draw Things, kể cả một thư mục mô hình Draw Things có sẵn.";
+"model_folder" = "Thư mục mô hình";
+"in_local_code_app" = "Trong ứng dụng Local Code";
+
+"choose_a_models_folder" = "Chọn thư mục mô hình";
+"choose_a_models_folder_detail" = "draw-things-cli cần quyền truy cập vào một thư mục mô hình. Nếu đã cài Draw Things, bạn có thể dùng lại thư mục mô hình của ứng dụng này để tiết kiệm dung lượng ổ đĩa.\n\nBạn muốn lưu các mô hình ở đâu?";
+"use_local_code_storage" = "Dùng kho lưu trữ của Local Code";
+"choose_a_folder_on_disk_dot" = "Chọn thư mục trên ổ đĩa…";
+
+"permit_folder_access" = "Cho phép truy cập thư mục";
+"permitted_folders" = "Thư mục được cho phép";
+"permitted_folders_detail" = "Các thư mục được phê duyệt qua permit sẽ được lưu ở đây. Chọn “Đã tắt” để tạm dừng quyền truy cập của một thư mục, hoặc dùng nút dấu trừ để gỡ bỏ thư mục đó. Tắt “Bật” sẽ tạm dừng mọi quyền đã lưu và từ chối các yêu cầu mới mà không làm mất danh sách thư mục của bạn.";
+
+// Idle model unloading
+"unload_models_when_idle" = "Giải phóng mô hình khi nhàn rỗi";
+"unload_models_when_idle_detail" = "Giải phóng bộ nhớ bằng cách gỡ các mô hình cục bộ và bộ đệm hội thoại của chúng sau một khoảng thời gian không hoạt động. Mô hình vẫn được giữ trong suốt các lượt đang diễn ra, kể cả khi chờ công cụ và chờ cấp quyền. Mô hình sẽ tự động tải lại khi cần. Phản hồi tiếp theo có thể mất nhiều thời gian hơn để bắt đầu.";
+"after_10_seconds" = "Sau 10 giây";
+"after_1_minute" = "Sau 1 phút";
+"after_5_minutes" = "Sau 5 phút";
+"after_10_minutes" = "Sau 10 phút";
+
+"unlock_pdf" = "Mở khóa PDF";
+"pdf_password_detail" = "Cần có mật khẩu để mở tệp PDF được bảo vệ này:\n\n%@";
+"pdf_password_incorrect" = "Mật khẩu không đúng. Vui lòng thử lại.";
+"password" = "Mật khẩu";
+"unlock" = "Mở khóa";
+"all_projects" = "Tất cả dự án";
+"all_bots" = "Tất cả bot";
+"recent_threads" = "Cuộc trò chuyện gần đây";
+"no_recent_threads" = "Không có cuộc trò chuyện gần đây";
+"no_recent_threads_detail" = "Các cuộc trò chuyện bạn bắt đầu trong bất kỳ dự án nào sẽ hiện ở đây, mới nhất ở trên cùng.";
+"no_recent_threads_bot_detail" = "Các cuộc trò chuyện bạn bắt đầu với bất kỳ bot nào sẽ hiện ở đây, mới nhất ở trên cùng.";
+
+"insufficient_balance" = "Số dư không đủ";
+"insufficient_balance_description" = "Không thể hoàn tất yêu cầu của bạn do số dư không đủ. Hãy nạp thêm tiền vào số dư để hoàn tất yêu cầu và tiếp tục xây dựng.";
+"account_balance_topped_up" = "Đã nạp tiền vào tài khoản";
+"ready_to_continue" = "Sẵn sàng tiếp tục.";
+"free_request_rate_limit_reached" = "Đã đạt giới hạn tần suất yêu cầu miễn phí";
+"free_request_rate_limit_description" = "Các yêu cầu miễn phí có giới hạn tần suất thấp hơn. Hãy nạp từ $10 trở lên vào số dư để mở khóa giới hạn cao hơn và tiếp tục xây dựng.";
+"remote_performance" = "Hiệu năng từ xa";
+"avg_time_to_first_token" = "Thời gian TB đến token đầu tiên";
+"observed_output" = "Đầu ra quan sát được";
+"shared_balance" = "Số dư dùng chung: %@";
+"top_up" = "Nạp tiền";
+"top_up_description" = "Nạp tín dụng cho các mô hình từ xa của Local Code và tính năng tạo ảnh trên đám mây của Draw Things.";
+"purchase_pending_approval" = "Giao dịch mua đang chờ phê duyệt. Tín dụng sẽ được cộng tự động.";
+"credit" = "tín dụng";
+"finishing_sign_in" = "Đang hoàn tất đăng nhập %@…";
+"refreshing_cloud_compute" = "Đang làm mới Điện toán đám mây…";
+"local_code_router_url_not_configured" = "Chưa cấu hình URL của Local Code Router.";
+"sign_in_callback_mismatch" = "Callback đăng nhập không khớp với yêu cầu Local Code đang chờ xử lý.";
+"sign_in_no_token" = "Đăng nhập %@ không trả về token.";
+"no_cloud_compute_models_enabled" = "Chưa bật mô hình Điện toán đám mây nào.";
+"could_not_securely_start_sign_in" = "Không thể bắt đầu đăng nhập %@ một cách an toàn.";
+"could_not_open_sign_in" = "Không thể mở trang đăng nhập %@.";
+"sign_in_invalid_callback" = "Đăng nhập %@ trả về callback Local Code không hợp lệ.";
+"could_not_complete_sign_in" = "Không thể hoàn tất đăng nhập %@.";
+"apple_sign_in_no_credential" = "Đăng nhập bằng Apple không trả về thông tin xác thực.";
+"cloud_compute_invalid_response" = "Dịch vụ Điện toán đám mây trả về phản hồi không hợp lệ.";
+"cloud_compute_http_error" = "Dịch vụ Điện toán đám mây trả về HTTP %d. %@";
+"cloud_compute_decoding_failed" = "Không thể giải mã phản hồi của Điện toán đám mây.";
+"cloud_compute_missing_default_api_key" = "Điện toán đám mây không trả về khóa API mặc định.";
+"request_failed" = "Yêu cầu thất bại.";
+"tool_view_now" = "Đang xem";
+"tool_view_past" = "Đã xem";
+"openai_compatible" = "Tương thích OpenAI";
+"could_not_run_tool" = "Không thể chạy %@";
+"could_not_open_browser" = "Không thể mở trình duyệt.";
+"keychain_operation_failed" = "Thao tác với Chuỗi khóa thất bại (%d).";
+"remote_credential_unreadable" = "Không thể đọc thông tin xác thực từ xa đã lưu.";
+"remote_credential_unavailable" = "Thông tin xác thực từ xa đã lưu không khả dụng.";
+"remote_credential_changed" = "Thông tin xác thực từ xa đã thay đổi. Hãy mở lại cuộc trò chuyện và thử lại.";
+"remote_credential_unsupported" = "Nhà cung cấp này không hỗ trợ phương thức xác thực đã lưu.";
+"remote_status_title" = "Trạng thái đám mây";
+"remote_status_provider_not_configured" = "Nhà cung cấp: Chưa cấu hình.";
+"remote_status_provider" = "Nhà cung cấp: %@";
+"remote_status_context" = "Ngữ cảnh: `%@ / %@` token (%d%%)";
+"remote_status_context_free" = "Ngữ cảnh còn trống: `%@` token";
+"remote_status_configured_context" = "Ngữ cảnh đã cấu hình: `%@` token";
+"remote_status_compaction_threshold" = "Ngưỡng thu gọn: `%@` token";
+"remote_status_compaction_reserve" = "Dự trữ cho thu gọn: `%@` token";
+"remote_status_output_reserve" = "Dự trữ cho đầu ra: `%@` token";
+"remote_status_active_history" = "Lịch sử đang dùng: %@ tin nhắn";
+"remote_status_current_turn" = "Lượt hiện tại: vòng %d trong %d";
+"remote_status_turn_limit" = "Giới hạn lượt: %d vòng mô hình/công cụ";
+"remote_status_select_project" = "Ngữ cảnh: Chọn một dự án để bắt đầu phiên.";
+"remote_status_account_quota_not_exposed" = "Hạn mức tài khoản: API trò chuyện của nhà cung cấp này không cung cấp thông tin.";
+"remote_status_openrouter_account" = "Tài khoản OpenRouter";
+"remote_status_checking_key_usage" = "Đang kiểm tra mức sử dụng khóa…";
+"remote_status_tier" = "Cấp: %@";
+"remote_status_tier_free" = "Miễn phí";
+"remote_status_tier_funded" = "Đã nạp tiền";
+"remote_status_usage" = "Mức sử dụng: tổng %@";
+"remote_status_usage_with_today" = "Mức sử dụng: tổng %@, hôm nay %@";
+"remote_status_key_limit" = "Giới hạn khóa: %@";
+"remote_status_key_limit_remaining" = "Giới hạn khóa: %@, còn lại %@";
+"remote_status_key_spending_limit_none" = "Giới hạn chi tiêu của khóa: Không có";
+"remote_status_free_model_requests_not_exposed" = "Số yêu cầu mô hình miễn phí còn lại: API khóa của OpenRouter không cung cấp thông tin.";
+"remote_status_unavailable" = "Không khả dụng: %@";
+
+"openai_sign_in_provider" = "OpenAI";
+"openai_sign_in_configuration_detail" = "Đăng nhập bằng tài khoản OpenAI của bạn. Không cần khóa API hay URL tùy chỉnh.";
+"model_optional" = "Mô hình (không bắt buộc)";
+"welcome_dot" = "Chào mừng...";
+"welcome_to_local_code" = "Chào mừng bạn đến với Local Code!";
+
+"manage_account" = "Quản lý tài khoản";
+"get_started" = "Bắt đầu";
+"connect_provider" = "Kết nối nhà cung cấp";
+"choose_a_model" = "Chọn mô hình";
+"choose_a_model_detail" = "Bạn có thể đổi hoặc thêm mô hình bất cứ lúc nào trong Cài đặt. Một mô hình mặc định phù hợp đã được chọn sẵn.";
+"other_providers" = "Nhà cung cấp khác";
+"other_models" = "Mô hình khác";
+"getting_things_ready" = "Đang chuẩn bị mọi thứ…";
+"python_batteries_included" = "Python, đầy đủ mọi thứ";
+"node_js_packed_in" = "Node.js, có sẵn";
+"shell_tools_ready" = "Công cụ shell, sẵn sàng";
+"office_chores_under_control" = "office, việc văn phòng trong tầm kiểm soát";
+"version_control_packed_in" = "Quản lý phiên bản, có sẵn";
+"video_creation_from_idea_to_final_cut" = "Làm video, từ ý tưởng đến bản dựng cuối";
+"formal_reasoning_on_tap" = "Suy luận hình thức, luôn sẵn sàng";
+"draw_things_cli_hooked_up" = "draw-things-cli, đã kết nối";
+"making_it_fast" = "Đang tăng tốc…";
+"apple_silicon_up_to_2x_faster" = "Apple Silicon, nhanh hơn tới 2×";
+"app_sandbox_locked_down" = "App Sandbox, bảo vệ chặt chẽ";
+"private_execution_built_in" = "Thực thi riêng tư, tích hợp sẵn";
+"awesomeness_110_percent" = "Độ tuyệt vời, 110%";
+"ready_to_work" = "Sẵn sàng làm việc.";
+"initializing" = "Đang khởi tạo…";
+"your_account_your_workspace" = "Tài khoản của bạn, không gian làm việc của bạn";
+"your_account_your_workspace_detail" = "Cài đặt và không gian làm việc của bạn luôn được đồng bộ trên các thiết bị.";
+"you_are_all_set" = "Bạn đã sẵn sàng!";
+"you_are_all_set_detail" = "Dưới đây là tổng quan nhanh về cách tổ chức của Local Code.";
+"threads" = "Cuộc trò chuyện";
+"onboarding_workspace_detail" = "Không gian làm việc là thư mục mà Local Code có thể đọc và ghi. “Trong tài liệu ứng dụng” giữ mọi thứ tách biệt; “Cục bộ” cho phép truy cập trên toàn bộ máy Mac của bạn. Thiết lập riêng cho từng dự án.";
+"onboarding_workspace_bot_detail" = "Không gian làm việc là thư mục mà Local Code có thể đọc và ghi. “Trong tài liệu ứng dụng” giữ mọi thứ tách biệt; “Cục bộ” cho phép truy cập trên toàn bộ máy Mac của bạn. Thiết lập riêng cho từng bot.";
+"onboarding_projects_detail" = "Mỗi dự án tương ứng với một thư mục trên máy tính của bạn. Nhóm các cuộc trò chuyện liên quan theo mã nguồn, khách hàng hoặc chủ đề. Dự án ghi nhớ không gian làm việc và cài đặt môi trường của bạn.";
+"onboarding_bots_detail" = "Mỗi bot tương ứng với một thư mục trên máy tính của bạn. Nhóm các cuộc trò chuyện liên quan theo mã nguồn, khách hàng hoặc chủ đề. Bot ghi nhớ không gian làm việc và cài đặt môi trường của bạn.";
+"onboarding_threads_detail" = "Mỗi cuộc trò chuyện nằm trong một dự án. Bắt đầu một cuộc trò chuyện để đặt câu hỏi, chạy mã hoặc xử lý một tác vụ nhiều bước. Cuộc trò chuyện giữ nguyên ngữ cảnh qua các tin nhắn.";
+"onboarding_threads_bot_detail" = "Mỗi cuộc trò chuyện diễn ra với một bot. Bắt đầu một cuộc trò chuyện để đặt câu hỏi, chạy mã hoặc xử lý một tác vụ nhiều bước. Cuộc trò chuyện giữ nguyên ngữ cảnh qua các tin nhắn.";
+"here_are_some_project_ideas" = "Đây là một vài ý tưởng dự án!";
+"here_are_some_bot_ideas" = "Đây là một vài ý tưởng bot!";
+"here_are_some_project_ideas_detail" = "Chọn một dự án để bắt đầu, hoặc tự tạo dự án của riêng bạn sau.";
+"here_are_some_bot_ideas_detail" = "Chọn một bot để bắt đầu, hoặc tự tạo bot của riêng bạn sau.";
+"file_organizer" = "Sắp xếp tệp";
+"file_organizer_detail" = "Dọn dẹp Màn hình nền và thư mục Tải về.";
+"house_chores" = "Việc nhà";
+"house_chores_detail" = "Điều khiển nhà thông minh và các thiết bị gia dụng.";
+"daily_brief" = "Bản tin hằng ngày";
+"daily_brief_detail" = "Cập nhật những tin tức quan trọng với bạn.";
+"tax_proofread" = "Rà soát thuế";
+"tax_proofread_detail" = "Kiểm tra lỗi trong giấy tờ thuế của bạn.";
+"graphic_novelist" = "Tác giả truyện tranh";
+"graphic_novelist_detail" = "Viết và minh họa truyện tranh.";
+"explainer_videos" = "Video giải thích";
+"explainer_videos_detail" = "Làm video ngắn để giải thích mọi thứ.";
+"office_work" = "Công việc văn phòng";
+"office_work_detail" = "Chỉnh sửa tài liệu, bảng tính và trang trình bày của bạn.";
+"enable_bot_mode" = "Bật chế độ Bot";
+"x_of_y" = "%d trên %d";
+"start" = "Bắt đầu";
+"start_new_thread" = "Bắt đầu cuộc trò chuyện mới";
+"expanded" = "Đã mở rộng";
+"collapsed" = "Đã thu gọn";
+"setting_up_cloud_compute" = "Đang thiết lập Điện toán đám mây…";
+"manage_connection" = "Quản lý kết nối";
+"sign_in_to_use_cloud_compute_detail" = "Đăng nhập vào tài khoản Local Code của bạn để dùng Điện toán đám mây.";
+"local_code_account_optional_detail" = "Thiết lập tài khoản Local Code để đồng bộ cài đặt và không gian làm việc của bạn (không bắt buộc).";
+"signed_in_setting_up_cloud_compute" = "Đã đăng nhập. Đang thiết lập Điện toán đám mây…";
+"you_are_signed_in_to_local_code" = "Bạn đã đăng nhập vào Local Code.";
+"loading_models" = "Đang tải mô hình…";
+"local_model" = "Mô hình cục bộ";
+"onboarding_local_model_detail" = "Chạy hoàn toàn trên thiết bị của bạn bằng Apple Silicon. Hoàn toàn riêng tư, nhanh và hoạt động ngoại tuyến. Mô hình mặc định (%@) hoặc mô hình bạn chọn sẽ bắt đầu tải về khi bạn tiếp tục.";
+"recommended" = "Đề xuất";
+"requires_sign_in" = "Cần đăng nhập";
+"setting_up" = "Đang thiết lập";
+"signed_in" = "Đã đăng nhập";
+"not_connected" = "Chưa kết nối";
+"api_key_connected" = "Đã kết nối khóa API";
+"cloud_compute_by_draw_things_detail" = "Kết nối với các mô hình trên đám mây bằng tài khoản Local Code của bạn. Cần có kết nối internet. Dữ liệu sẽ rời khỏi thiết bị của bạn.";
+"openai_compatible_api_detail" = "Dùng điểm cuối và khóa API của riêng bạn để kết nối với nhà cung cấp tương thích OpenAI.";
+"anthropic_detail" = "Kết nối với Claude bằng khóa API hoặc đăng nhập bằng tài khoản Anthropic của bạn.";
+"connected_choose_a_model_detail" = "Đã kết nối. Chọn mô hình bạn muốn dùng.";
+"connect_your_provider_to_continue" = "Kết nối nhà cung cấp của bạn để tiếp tục.";
+"no_models_returned_detail" = "Không có mô hình nào được trả về. Dùng Quản lý kết nối để nhập mô hình.";
+"could_not_load_models_detail" = "Không thể tải mô hình: %@ Dùng Quản lý kết nối để nhập mô hình hoặc thử lại.";
+"attachments" = "Tệp đính kèm";
+"preview_some_item" = "Xem trước %@";
+"remove_some_item" = "Gỡ bỏ %@";
+"attachment_copy_failed_detail" = "Không thể sao chép tệp đính kèm vào thư mục dự án. %@";
+
+"remote_api_fallback_context" = "Giới hạn ngữ cảnh dự phòng (token)";
+
+"remote_api_fallback_output" = "Giới hạn đầu ra dự phòng (token)";
+
+"remote_api_invalid_limits" = "Ngữ cảnh phải từ 4096–10000000 token và đầu ra từ 512–10000000 token. Để trống một trong hai ô để dùng giá trị mặc định.";
+
+"remote_api_disconnect" = "Ngắt kết nối";
+
+"remote_api_connected_without_key" = "Đã kết nối không cần khóa API";
+
+"remote_api_without_key_title" = "Kết nối không cần khóa API?";
+
+"remote_api_changed_url_without_key" = "URL đã thay đổi và chưa có khóa nào được lưu cho URL này. Khóa của URL trước đó sẽ không được dùng lại. Để dùng khóa, hãy hủy và nhập khóa; nếu không, hãy xác nhận kết nối không cần xác thực.";
+
+"remote_api_connect_without_key" = "Kết nối không cần khóa";
+
+"remote_api_url_tip" = "Bao gồm đường dẫn API, chẳng hạn như /v1. Dùng HTTPS, hoặc HTTP không mã hóa trên mạng cục bộ đáng tin cậy.";
+
+"remote_api_model_tip" = "Không bắt buộc. Nhập ID mô hình, hoặc chọn sau khi kết nối.";
+
+"remote_api_key_tip" = "Để trống để dùng khóa đã lưu cho chính URL này, hoặc kết nối không cần khóa nếu chưa lưu khóa nào.";
+
+"remote_api_context_tip" = "Được dùng khi máy chủ không cung cấp giới hạn ngữ cảnh. Để trống để dùng giá trị mặc định.";
+
+"remote_api_output_tip" = "Được dùng khi máy chủ không cung cấp giới hạn đầu ra. Để trống để dùng giá trị mặc định.";
+
+"messages_permission" = "Quyền truy cập Tin nhắn";
+"mail_permission" = "Quyền truy cập Mail";
+"notes_permission" = "Quyền truy cập Ghi chú";
+"calendar_permission" = "Quyền truy cập Lịch";
+"photos_permission" = "Quyền truy cập Ảnh";
+"authorized" = "Đã cấp quyền";
+"authorize" = "Cấp quyền";
+"denied" = "Đã từ chối";
+"not_determined" = "Chưa xác định";
+"messages_permission_detail" = "Kiểm soát việc lệnh imessage có thể đọc lịch sử Tin nhắn của bạn hay không. Đã cấp quyền sẽ yêu cầu bạn chọn thư mục Tin nhắn, còn Đã từ chối sẽ gỡ bỏ quyền truy cập đó và chặn lệnh.";
+"mail_permission_detail" = "Kiểm soát việc lệnh mail có thể đọc thư mà ứng dụng Mail lưu trên máy Mac này hay không. Đã cấp quyền sẽ yêu cầu bạn chọn thư mục Mail, còn Đã từ chối sẽ gỡ bỏ quyền truy cập đó và chặn lệnh.";
+"notes_permission_detail" = "Kiểm soát việc lệnh notes có thể đọc các ghi chú mà ứng dụng Ghi chú lưu trên máy Mac này hay không. Đã cấp quyền sẽ yêu cầu bạn chọn thư mục dữ liệu Ghi chú, còn Đã từ chối sẽ gỡ bỏ quyền truy cập đó và chặn lệnh.";
+"calendar_permission_detail" = "Kiểm soát việc lệnh calendar có thể đọc và sửa các sự kiện của bạn hay không. Đã từ chối sẽ chặn lệnh; chỉ Cài đặt hệ thống mới có thể thu hồi quyền truy cập Lịch.";
+"photos_permission_detail" = "Kiểm soát việc lệnh photos và công cụ view có thể đọc và thay đổi ảnh và video của bạn hay không. Đã từ chối sẽ chặn chúng; chỉ Cài đặt hệ thống mới có thể thu hồi quyền truy cập Ảnh.";
+"attach" = "Đính kèm";
+"take_photo_dot" = "Chụp ảnh...";
+"add_from_photos_dot" = "Thêm từ Ảnh...";
+"add_files_dot" = "Thêm tệp...";
+"dictate" = "Đọc chính tả";
+"stop_dictation" = "Dừng đọc chính tả";
+"dictation_not_authorized" = "Hãy cho phép Local Code dùng Micrô và Nhận dạng giọng nói trong Cài đặt để đọc chính tả.";
+"dictation_unavailable" = "Nhận dạng giọng nói hiện không khả dụng. Hãy thử lại sau giây lát.";
+"preview" = "Xem trước";
+"play" = "Phát";
+"pause" = "Tạm dừng";
+"full_screen" = "Toàn màn hình";
+"forward" = "Tiến tới";
+"reload" = "Tải lại";
+"no_open_tabs" = "Không có tab nào đang mở.";
+"activities" = "Hoạt động";
+"browser_tabs" = "Tab trình duyệt";
+"browser_tabs_detail" = "Các tab mà tác tử mở bằng web-browse-cli, tab của cuộc trò chuyện này được xếp trước. Mở một tab để xem và sử dụng. Nút dấu trừ sẽ đóng tab và dừng mọi lệnh vẫn đang dùng tab đó.";
+"processes" = "Tiến trình";
+"processes_detail" = "Các lệnh shell mà tác tử đã khởi chạy và vẫn đang chạy, lệnh của cuộc trò chuyện này được xếp trước. Nút dấu trừ sẽ dừng một lệnh, và tác tử sẽ thấy lệnh đó đã bị dừng.";
+"no_running_process" = "Không có tiến trình nào đang chạy.";
+"stop_process" = "Dừng tiến trình";
+"stop_process_detail" = "Tác tử đã khởi chạy lệnh này sẽ thấy lệnh đã bị dừng.";
+"lockdown_mode" = "Chế độ phong tỏa";
+"lockdown_mode_detail" = "Giữ các tệp của Local Code, bao gồm các dự án trong tài liệu của ứng dụng, ở trạng thái không thể đọc khi thiết bị này bị khóa. Tác tử không thể mở chúng cho đến khi bạn mở khóa, vì vậy các tác vụ chạy trong lúc thiết bị bị khóa có thể thất bại. Khi tắt, các tệp vẫn khả dụng sau lần mở khóa đầu tiên kể từ khi khởi động lại. Các thư mục bên ngoài ứng dụng vẫn giữ chế độ bảo vệ riêng.";
+"steer" = "Điều hướng";

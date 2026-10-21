@@ -1,0 +1,135 @@
+{
+  "retrieved_on": "2026-09-15",
+  "sources": [
+    {
+      "repository": "MiniMax-AI/MiniMax-H3",
+      "revision": "d21241f0a4b3acbb34c97dae47fa417b7065e438",
+      "source_url": "https://github.com/MiniMax-AI/MiniMax-H3/tree/d21241f0a4b3acbb34c97dae47fa417b7065e438",
+      "source_paths": [
+        "skills/3d-animation-short-generator/SKILL.md",
+        "skills/3d-animation-short-generator/references/fallback-policy.md",
+        "skills/3d-animation-short-generator/references/model-selection.md",
+        "skills/3d-animation-short-generator/references/qc-checklist.md",
+        "skills/3d-animation-short-generator/references/shot-table-spec.md",
+        "skills/3d-animation-short-generator/references/storyboard-guidelines.md",
+        "skills/brand-promo-video-generator/SKILL.md",
+        "skills/co-op-game-intro-generator/SKILL.md",
+        "skills/co-op-game-intro-generator/references/h3-confirmation-image-template.md",
+        "skills/co-op-game-intro-generator/references/h3-video-prompt-template.md",
+        "skills/h3-prompt-writing/SKILL.md",
+        "skills/h3-prompt-writing/references/base-en.txt",
+        "skills/h3-prompt-writing/references/ref-en.txt",
+        "skills/handdrawn-live-video-generator/SKILL.md",
+        "skills/minimalist-product-ad-generator/SKILL.md",
+        "skills/music-video-subtitle-generator/SKILL.md",
+        "skills/paper-collage-explainer-generator/SKILL.md",
+        "skills/papercraft-stop-motion-explainer/SKILL.md"
+      ],
+      "adapted_files": [
+        "references/minimax-h3/production.md",
+        "references/minimax-h3/prompting.md",
+        "references/minimax-h3/workflows/3d-animation-short-generator.md",
+        "references/minimax-h3/workflows/brand-promo-video-generator.md",
+        "references/minimax-h3/workflows/co-op-game-intro-generator.md",
+        "references/minimax-h3/workflows/handdrawn-live-video-generator.md",
+        "references/minimax-h3/workflows/minimalist-product-ad-generator.md",
+        "references/minimax-h3/workflows/music-video-subtitle-generator.md",
+        "references/minimax-h3/workflows/paper-collage-explainer-generator.md",
+        "references/minimax-h3/workflows/papercraft-stop-motion-explainer.md"
+      ],
+      "license_file": "references/licenses/minimax-h3.txt",
+      "license_source_url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/resolve/main/LICENSE",
+      "license_sha256": "59b99642b95ea21630e311198ddbfffbfe05aadba0c2f5d884cbdf4efcc90f44"
+    },
+    {
+      "repository": "black-forest-labs/skills",
+      "revision": "8907d515b0ac270a988ec7a239add81ee13d6cba",
+      "source_url": "https://github.com/black-forest-labs/skills/tree/8907d515b0ac270a988ec7a239add81ee13d6cba",
+      "source_paths": [
+        "skills/flux-image-best-practices/rules/core-principles.md",
+        "skills/flux-image-best-practices/rules/flux2-models.md",
+        "skills/flux-image-best-practices/rules/hex-color-prompting.md",
+        "skills/flux-image-best-practices/rules/i2i-prompting.md",
+        "skills/flux-image-best-practices/rules/multi-reference-editing.md",
+        "skills/flux-image-best-practices/rules/negative-prompt-alternatives.md",
+        "skills/flux-image-best-practices/rules/t2i-prompting.md",
+        "skills/flux-image-best-practices/rules/typography-text.md"
+      ],
+      "adapted_files": [
+        "references/models/flux2-klein-9b.md"
+      ],
+      "license_file": "references/licenses/flux-image-best-practices.txt",
+      "license_source_url": "https://github.com/black-forest-labs/skills/blob/8907d515b0ac270a988ec7a239add81ee13d6cba/LICENSE",
+      "license_sha256": "bd01190967ecf4b5967dbd7e49f2be7f14f6948157ffb5086c3b79b52f7f8766"
+    },
+    {
+      "repository": "baidu/ERNIE-Image",
+      "revision": "1f30f5bb499726c606da0a24cc2a4a6c4d6ad775",
+      "source_url": "https://github.com/baidu/ERNIE-Image/tree/1f30f5bb499726c606da0a24cc2a4a6c4d6ad775",
+      "source_paths": [
+        "src/pe_prompt.txt"
+      ],
+      "adapted_files": [
+        "references/models/ernie-image.md"
+      ],
+      "license_file": "references/licenses/ernie-image.txt",
+      "license_source_url": "https://github.com/baidu/ERNIE-Image/blob/1f30f5bb499726c606da0a24cc2a4a6c4d6ad775/LICENSE",
+      "license_sha256": "5d7deeaff0d6f92ef5c74658a46e4750ccbcd0602efcdfd24cd7ec6ae7c822f9"
+    },
+    {
+      "repository": "ideogram-oss/ideogram4",
+      "revision": "990fe1c4e950bb9e9dc90e01c0ad98ba434f83c2",
+      "source_url": "https://github.com/ideogram-oss/ideogram4/tree/990fe1c4e950bb9e9dc90e01c0ad98ba434f83c2",
+      "source_paths": [
+        "docs/prompting.md",
+        "src/ideogram4/caption_verifier.py",
+        "src/ideogram4/magic_prompt_system_prompts/v1.txt"
+      ],
+      "adapted_files": [
+        "references/models/ideogram4.md"
+      ],
+      "license_file": "references/licenses/ideogram4.txt",
+      "license_source_url": "https://github.com/ideogram-oss/ideogram4/blob/990fe1c4e950bb9e9dc90e01c0ad98ba434f83c2/LICENSE.md",
+      "license_sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+      "retained_code": {
+        "source_path": "src/ideogram4/caption_verifier.py",
+        "bundled_path": "scripts/ideogram_caption_verifier.py",
+        "sha256": "e6808c1068cb16937b26a95c1915900c051f35deea9292cb476bffcd3e7ce2b8"
+      }
+    },
+    {
+      "repository": "krea-ai/krea-2",
+      "revision": "db3984fbc6e13b34c0064990fc2d95ac64d00058",
+      "source_url": "https://github.com/krea-ai/krea-2/tree/db3984fbc6e13b34c0064990fc2d95ac64d00058",
+      "source_paths": [
+        "docs/expansion.txt",
+        "docs/prompting.md"
+      ],
+      "adapted_files": [
+        "references/models/krea2.md"
+      ],
+      "license_file": "references/licenses/krea2.txt",
+      "license_source_url": "https://github.com/krea-ai/krea-2/blob/db3984fbc6e13b34c0064990fc2d95ac64d00058/LICENSE.md",
+      "license_sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a"
+    },
+    {
+      "repository": "QwenLM/Qwen-Image-2.1",
+      "revision": "fb7ae1d1f9611cd91524d03c53c5246b36ac8577",
+      "retrieved_on": "2026-09-28",
+      "source_url": "https://github.com/QwenLM/Qwen-Image-2.1/tree/fb7ae1d1f9611cd91524d03c53c5246b36ac8577",
+      "source_paths": [
+        "README.md",
+        "prompt_rewrite/README.md",
+        "prompt_rewrite/prompts/system_prompt_t2i.txt",
+        "prompt_rewrite/prompts/system_prompt_edit.txt"
+      ],
+      "adapted_files": [
+        "references/models/qwen-image-2.1.md"
+      ],
+      "license_file": "references/licenses/qwen-image-2.1/LICENSE.txt",
+      "license_source_url": "https://github.com/QwenLM/Qwen-Image-2.1/blob/fb7ae1d1f9611cd91524d03c53c5246b36ac8577/LICENSE",
+      "license_sha256": "8dc973f024ff95966bea25866efa443fd16776dcb1001e681e3d467ea572b28d",
+      "notice_file": "references/licenses/qwen-image-2.1/Notice.txt"
+    }
+  ]
+}

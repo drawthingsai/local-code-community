@@ -1,0 +1,83 @@
+{
+  "runtime": {
+    "python": "3.14.7 (tags/v3.14.7-dirty:823f0323ee6, Aug 28 2026, 13:14:07) [Clang 21.0.0 (clang-2100.1.1.101)]",
+    "matplotlib": "3.11.1",
+    "pillow": "12.3.0",
+    "backend": "Agg"
+  },
+  "script_sha256": "660bb0c07e74d5944e55bd59061104f6eee81bd98b9b574842725a4802a9110c",
+  "figures": [
+    {
+      "png": {
+        "name": "revenue-ranking.png",
+        "size": [
+          2000,
+          1190
+        ],
+        "sha256": "c0a6de07957690e209a7b6cf5264f314193a85e5b1f7a8175e593dfc6b0dba67"
+      },
+      "axes": [
+        {
+          "titles": [
+            "",
+            "Revenue ranking",
+            ""
+          ],
+          "xlabel": "Revenue (USD)",
+          "ylabel": "",
+          "xscale": "linear",
+          "yscale": "linear",
+          "xticks": [
+            "$0",
+            "$200,000",
+            "$400,000",
+            "$600,000",
+            "$800,000",
+            "$1,000,000",
+            "$1,200,000"
+          ],
+          "yticks": [
+            "Enterprise platform subscriptions",
+            "Professional implementation services",
+            "Managed data operations",
+            "Security and compliance packages",
+            "Analytics and reporting add-ons",
+            "Developer productivity extensions",
+            "Training and enablement programs",
+            "Premium customer support"
+          ],
+          "texts": [
+            "Exact revenue by category",
+            "$985,000",
+            "$870,000",
+            "$760,000",
+            "$650,000",
+            "$540,000",
+            "$430,000",
+            "$320,000",
+            "$210,000"
+          ],
+          "legend": [],
+          "bars": [
+            {
+              "orientation": "horizontal",
+              "values": [
+                985000.0,
+                870000.0,
+                760000.0,
+                650000.0,
+                540000.0,
+                430000.0,
+                320000.0,
+                210000.0
+              ]
+            }
+          ],
+          "lines": [],
+          "scatter": [],
+          "pie_percentages": []
+        }
+      ]
+    }
+  ]
+}

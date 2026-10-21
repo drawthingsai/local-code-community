@@ -1,0 +1,4 @@
+CURL_CFFI_VERSION=0.16.0
+CURL_IMPERSONATE_VERSION=2.0.0
+CURL_CFFI_FEATURE_POLICY=static-api-cffi patched-boringssl=private http2=enabled http3=enabled zlib=sdk icu=sdk cffi=shared-python-runtime
+CURL_CFFI_MINIMUM_OS=ios-16.0 macos-13.0

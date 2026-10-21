@@ -1,0 +1,808 @@
+{
+  "repository": "https://github.com/jqlang/jq",
+  "tag": "jq-1.8.2",
+  "archive": "https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-1.8.2.tar.gz",
+  "archive_sha256": "71b8d6e8f5fe81f6c6d0d110e3892251f6ce76ed095abd315e26e6e1193af3af",
+  "generated_files": [
+    "src/builtin.inc",
+    "src/config_opts.inc",
+    "vendor/oniguruma/src/config.h"
+  ],
+  "files": [
+    {
+      "path": "AUTHORS",
+      "upstream_sha256": "0f1eab8760d70368581eb93b12fb8311faef2208b4fbfea68eea08625220f034",
+      "modified": false
+    },
+    {
+      "path": "COPYING",
+      "upstream_sha256": "ad2b4a266b2268939c1446979759706077421cf906a203aa188c6f396e8cfd74",
+      "modified": false
+    },
+    {
+      "path": "src/builtin.c",
+      "upstream_sha256": "0a29617dbf74a6fdabf644f5da82269113fef69bb46efaa3b232515d90305342",
+      "modified": true
+    },
+    {
+      "path": "src/builtin.h",
+      "upstream_sha256": "8209acae8137d401e646a509c5c21481547de06b39b8d0597285fe56b2701354",
+      "modified": false
+    },
+    {
+      "path": "src/builtin.jq",
+      "upstream_sha256": "b8a5fd9579be9b51c9a04e6620f8c1655539aa57eea33a84e202a8dea401f2a4",
+      "modified": false
+    },
+    {
+      "path": "src/bytecode.c",
+      "upstream_sha256": "240d60fd0a62588066e13eb7e2961ce341338a33aea14c2e4b91c5be90d2e8bb",
+      "modified": true
+    },
+    {
+      "path": "src/bytecode.h",
+      "upstream_sha256": "503a25b451dd8f5881e3aaf4d60af65f0aae2b2cba69a48ea61be386f5aea2dc",
+      "modified": false
+    },
+    {
+      "path": "src/compile.c",
+      "upstream_sha256": "4ac446f5e38ad723e83cf763a9b7841a38ffdbf995dcf176e69d31ea6eaaa8c8",
+      "modified": true
+    },
+    {
+      "path": "src/compile.h",
+      "upstream_sha256": "77080169fa80ca9bdd6ab26f781a6b643258870534cbddf59d52ab792085c335",
+      "modified": false
+    },
+    {
+      "path": "src/exec_stack.h",
+      "upstream_sha256": "08092864ce27c09ceb3788813a3d9c056aa9130eb513558e30865356a8d7c9a8",
+      "modified": false
+    },
+    {
+      "path": "src/execute.c",
+      "upstream_sha256": "8069c06b05f5220a705977f612ae79557e272fba22bd4fc92e69e35a04ad5a16",
+      "modified": true
+    },
+    {
+      "path": "src/jq.h",
+      "upstream_sha256": "976689e8c3dc0b4b7d7bba50dc560277c638694681a356be61ae93787b335f8d",
+      "modified": false
+    },
+    {
+      "path": "src/jq_parser.h",
+      "upstream_sha256": "c1913f6d74642ae91113653acb3defbd46482f708a80c309f98a7cb1e44f0483",
+      "modified": false
+    },
+    {
+      "path": "src/jq_test.c",
+      "upstream_sha256": "97977a8e8672e2d8c04b02b73aec0f39e390ec09ffc6e16ad32651c8c8b90598",
+      "modified": true
+    },
+    {
+      "path": "src/jv.c",
+      "upstream_sha256": "a40433614bcf7e344a4256c4aaab7acd4ff3fd09b04e3caefd4e3eb102cbacc2",
+      "modified": true
+    },
+    {
+      "path": "src/jv.h",
+      "upstream_sha256": "5b3cfa6962768d38a2f205fb51ff3a01aac2a4e5b4136f80fbe795b1e70bc46f",
+      "modified": false
+    },
+    {
+      "path": "src/jv_alloc.c",
+      "upstream_sha256": "5d12924a46e282ea034971432e4598ed249ebf94079750355f97b8daa3db5e59",
+      "modified": true
+    },
+    {
+      "path": "src/jv_alloc.h",
+      "upstream_sha256": "f81b21241419331ecbf5ea4298a8947fed87931395641071cbd9694f714d058b",
+      "modified": false
+    },
+    {
+      "path": "src/jv_aux.c",
+      "upstream_sha256": "fb7a4fff8f89ba06e8b9bab4c8047e5f118d971d790060388e028811f6d42cb2",
+      "modified": true
+    },
+    {
+      "path": "src/jv_dtoa.c",
+      "upstream_sha256": "93512a115bb86140a378c118d832d6b35f03d93e50d350500edb213502440f0f",
+      "modified": true
+    },
+    {
+      "path": "src/jv_dtoa.h",
+      "upstream_sha256": "e78b44bc56f0e9b3c65acd8703b5e0a20dad2b497a15fa2daee08c9472b4d72b",
+      "modified": false
+    },
+    {
+      "path": "src/jv_dtoa_tsd.c",
+      "upstream_sha256": "8da8837721354c03555b7a13f3f4cf62849a6d0995eb5c2dd83b831f5f5e3afb",
+      "modified": true
+    },
+    {
+      "path": "src/jv_dtoa_tsd.h",
+      "upstream_sha256": "48b40d50f36e6aa75ac4cd1b76639b0fb1f0b284ebd21098d91deb62a4bbd76d",
+      "modified": false
+    },
+    {
+      "path": "src/jv_file.c",
+      "upstream_sha256": "8477300403e71ca87b65b8fcd340d63f2a35e8a0498157bde70edc5c26ac2d4c",
+      "modified": true
+    },
+    {
+      "path": "src/jv_parse.c",
+      "upstream_sha256": "3ba36daee76f99543761f1fe6a6f1d261e6ecfecb8578136cd32c76d093ff40b",
+      "modified": true
+    },
+    {
+      "path": "src/jv_print.c",
+      "upstream_sha256": "fc5e327477da85691f79c186507da754b520c77883f8da31a2d8ed63a0a51b45",
+      "modified": true
+    },
+    {
+      "path": "src/jv_private.h",
+      "upstream_sha256": "b83327d46a5707bda1b301af4a45fde67963046977bc9843dd4a73bdca8a6563",
+      "modified": false
+    },
+    {
+      "path": "src/jv_thread.h",
+      "upstream_sha256": "a9f8457779813b8766fe72a34d6e2a3e8f11052eaf08bdfe8f3efafff36eb525",
+      "modified": false
+    },
+    {
+      "path": "src/jv_unicode.c",
+      "upstream_sha256": "680110a66a1a119c0a15cbd4a5fb91e9a060c9a33ff23745f33fd188c3a46462",
+      "modified": true
+    },
+    {
+      "path": "src/jv_unicode.h",
+      "upstream_sha256": "67f29a42aaa62604633007058e5e3d1169b36166cbba32e9bc200e6e9fd16a0a",
+      "modified": false
+    },
+    {
+      "path": "src/jv_utf8_tables.h",
+      "upstream_sha256": "c46c76aada9e0bd7e48f9daa427ae51ee6688e32872aa61ae624e8d2524108d6",
+      "modified": false
+    },
+    {
+      "path": "src/lexer.c",
+      "upstream_sha256": "570d924dc17f65721fb3e3eaeb880bdf753abc1de07470186b8a2907fed9d2ea",
+      "modified": true
+    },
+    {
+      "path": "src/lexer.h",
+      "upstream_sha256": "2fb94bb1459a1f0de66023a7ffd3543849845acca9fa571cee4cb5487d742426",
+      "modified": false
+    },
+    {
+      "path": "src/lexer.l",
+      "upstream_sha256": "cfb3af17a786df30d7e30dae5861b84747d4904f8ce7ae9ab9b48bde342ee7f3",
+      "modified": true
+    },
+    {
+      "path": "src/libm.h",
+      "upstream_sha256": "13aaee9c9537fdd2acf1105f3bc7de86b953ae4a77bd7a04b07d2ad84ea7e95d",
+      "modified": false
+    },
+    {
+      "path": "src/linker.c",
+      "upstream_sha256": "07592a2aca011fa0ec6c0be9ea2cb280e74cc9db325c15a3688674828bc25c63",
+      "modified": true
+    },
+    {
+      "path": "src/linker.h",
+      "upstream_sha256": "08f1df5fcf23171036d0f9636697ed03eb2d5b8feebe743a765732f676effa68",
+      "modified": false
+    },
+    {
+      "path": "src/locfile.c",
+      "upstream_sha256": "0ef8cad81d328b679be805696af0fefcce43e95e231e95b34b6dd8ff5b64f91d",
+      "modified": true
+    },
+    {
+      "path": "src/locfile.h",
+      "upstream_sha256": "0cbf98475507e3bb0524c045bb4fe48bb6b2ef5ef9b88840f58ce935c04c0bc2",
+      "modified": false
+    },
+    {
+      "path": "src/main.c",
+      "upstream_sha256": "95606b9e1ae2d29258d153c97c188d59a0ea0b026fedd707022ca13bfa4f5e86",
+      "modified": true
+    },
+    {
+      "path": "src/opcode_list.h",
+      "upstream_sha256": "07fe179fcf4d177a94f08f5fb4e56b077eb98833d0c98aff15970c4ab69542bc",
+      "modified": false
+    },
+    {
+      "path": "src/parser.c",
+      "upstream_sha256": "1a619d4a8e7c46d286165b44f7d380d234eebe61d45bedc0d4f06a00714fd4a9",
+      "modified": true
+    },
+    {
+      "path": "src/parser.h",
+      "upstream_sha256": "a8a32cd4da1ce205cc8ba03001db1709791634015c51736c6e49d1aa80078b9e",
+      "modified": false
+    },
+    {
+      "path": "src/parser.y",
+      "upstream_sha256": "803aa7c0b1acba2228e52d1de392fb51e60a7bbe23e42870aea1d62c43360c60",
+      "modified": true
+    },
+    {
+      "path": "src/util.c",
+      "upstream_sha256": "1f413a1ffeb9194f246f7d9079169d41126686ca212d7b262a1d7b8cf783be06",
+      "modified": true
+    },
+    {
+      "path": "src/util.h",
+      "upstream_sha256": "fd8adf652fb1c09a3b14354124909384dea01637182cfcfdb3f471a960b9414b",
+      "modified": false
+    },
+    {
+      "path": "src/version.h",
+      "upstream_sha256": "a660ed37d7da6c591a13b472eef3d79814f23ef941afc83f3ddd5e5abbc02835",
+      "modified": false
+    },
+    {
+      "path": "tests/base64.test",
+      "upstream_sha256": "aec7a4812b4bdf937e77ba1261c5d51ece66308258d60ca2227b209a4398a64d",
+      "modified": false
+    },
+    {
+      "path": "tests/base64test",
+      "upstream_sha256": "1beddd88bef60e127619fe7529faab24d8901502455921903b44406ae1e6e7d4",
+      "modified": false
+    },
+    {
+      "path": "tests/jq-f-test.sh",
+      "upstream_sha256": "6da01606f606abb43cdbde4a70034d98aaae3d481ba44ab911bcd12da7f8d121",
+      "modified": false
+    },
+    {
+      "path": "tests/jq.test",
+      "upstream_sha256": "329689763b651096989bd8260b643731083fc5fd17f6bd7834d158713f738cbd",
+      "modified": false
+    },
+    {
+      "path": "tests/jqtest",
+      "upstream_sha256": "69d39819afabf813321b8f74b46806d49a80d3893ea2194767daaa51af114028",
+      "modified": false
+    },
+    {
+      "path": "tests/local.supp",
+      "upstream_sha256": "802bdbd6fb077dbee075fbb03227f52f5be3d610e4dc53ca2b74811586c73498",
+      "modified": false
+    },
+    {
+      "path": "tests/man.test",
+      "upstream_sha256": "3c25698e94d5199c75b784cc361cda9c6775389eb61f8f4fb05fde1a757ae3f9",
+      "modified": false
+    },
+    {
+      "path": "tests/manonig.test",
+      "upstream_sha256": "62738dd27ce0dbc4f21296e48270f20024274631cae4b9ffe85a0eecaa53af7f",
+      "modified": false
+    },
+    {
+      "path": "tests/manonigtest",
+      "upstream_sha256": "51aa04effca68fda52fb5ba4343204cd8ad3c191ade841143431a83754a02dc7",
+      "modified": false
+    },
+    {
+      "path": "tests/mantest",
+      "upstream_sha256": "4b74f99e88105e606fb52c54c0906c646c1d41537205be9a49df935bfe17551b",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/a.jq",
+      "upstream_sha256": "7b7313916208fa1da942666fed434b86764e793e2f0bdc958af434bb25c2d9c7",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/b/b.jq",
+      "upstream_sha256": "ab098816baea1d1c80a461f0e1531badefde8ec3c61b9df9186a4860efee2fcd",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/c/c.jq",
+      "upstream_sha256": "cd046303810732db16a92a41f34d00ff1db7df62a2015fdd4651731e7cb5ba8e",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/c/d.jq",
+      "upstream_sha256": "f1f1e4e99cb7e90e3ede5c213fdc10240ca382c02fc146fc0298b4b4cb91e54c",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/cycle_a.jq",
+      "upstream_sha256": "163235bbfa8db8e6189207d338976e9c938f0ca463350e03685183a85386d28b",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/cycle_b.jq",
+      "upstream_sha256": "d250d077621822e8816230b8a8a4e4b0c574cbb8c8619ce22fd4bcde38df3e3b",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/cycle_self.jq",
+      "upstream_sha256": "b1f15cc427e16e90538ed34705e4389ca66cb57fb7f34203a17eff8f7b025577",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/data.json",
+      "upstream_sha256": "2792ffbd2efa54ed2c0d1fc2d49a15c2c78d66fc327de2c62e5d67517600b512",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/home1/.jq",
+      "upstream_sha256": "9af4419dd48334fece4fffd6e609fa959050dbcb4d0579e6df9d4b433d2dd435",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/home2/.jq/g.jq",
+      "upstream_sha256": "290ac9ccd65fbc3207f858afcb698b4c03214b6fa53584613f731257aeaed3cd",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/lib/jq/e/e.jq",
+      "upstream_sha256": "5a8139806897104ba640598676d1ceca16751c20cb2b470806f6ab58a588724a",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/lib/jq/f.jq",
+      "upstream_sha256": "5b17ccce65d6949daca26d51b078106954549830ee346a7d4473ea369218f0e6",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/shadow1.jq",
+      "upstream_sha256": "f81cd9dadecb4261b551897b5fe1928fb8801bd2e9edac87253bc3f96a8cfc1f",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/shadow2.jq",
+      "upstream_sha256": "9ca1a1064b6f2905b8e19982ce5c7d9b8faf550421bc404567fb1ea97021e06e",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/syntaxerror/syntaxerror.jq",
+      "upstream_sha256": "97a34c7388efcdc06458d4170e68f0d5466c5427be5f193f3dbf78ee8a30fc88",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/test_bind_order.jq",
+      "upstream_sha256": "27e7416b8f1f50b56b40e062c3dadd143dda941ee3c5da87b2225a9c5bf6f0d1",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/test_bind_order0.jq",
+      "upstream_sha256": "48bbb068b4be846c573367ff0e6eb877d14bff744888942dd0466ce193b9c495",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/test_bind_order1.jq",
+      "upstream_sha256": "9080d347b1e59e17080169d424468c4e86311b3218c9fbad9a16b848797f8aa5",
+      "modified": false
+    },
+    {
+      "path": "tests/modules/test_bind_order2.jq",
+      "upstream_sha256": "6ba3c7b667796643474ac6f4ec2cb2cd4af6221c3152ea03df9497319cc4153f",
+      "modified": false
+    },
+    {
+      "path": "tests/no-main-program.jq",
+      "upstream_sha256": "cca36527b63a975b1436651bd226648522e80495daa2def13bd897657e70404f",
+      "modified": false
+    },
+    {
+      "path": "tests/onig.supp",
+      "upstream_sha256": "52c963e624d9414b334765d990d3894de1731e8c8ce92fe5a801662117ecdf23",
+      "modified": false
+    },
+    {
+      "path": "tests/onig.test",
+      "upstream_sha256": "e82dab356709d4a5e4dfd8c71aced12ed1f42eb23208bac0eaf5e3f05bedef05",
+      "modified": false
+    },
+    {
+      "path": "tests/onigtest",
+      "upstream_sha256": "f7ec99be459cc148d08f8bb1fdd52fefc1d8d80b4c3b95e404e9902a72556a7d",
+      "modified": false
+    },
+    {
+      "path": "tests/optional.test",
+      "upstream_sha256": "06d7249e3d9e09d572995e66276cd65f2da6f907a15e2f9cb012e672598ac5b9",
+      "modified": false
+    },
+    {
+      "path": "tests/optionaltest",
+      "upstream_sha256": "53d32337a91fd589aa3adb16e1ddf4a6a46338396f4e36dec40517ce15efa7a7",
+      "modified": false
+    },
+    {
+      "path": "tests/setup",
+      "upstream_sha256": "95144061ec6e1e57e8876604933d8854df43f0fe8ebd608ef2ae3d9d287701c0",
+      "modified": false
+    },
+    {
+      "path": "tests/shtest",
+      "upstream_sha256": "a991a539e32640df0a59c4f7273cffcd0be14f44d4d85ac683a37aafb9f0cbae",
+      "modified": false
+    },
+    {
+      "path": "tests/torture/input0.json",
+      "upstream_sha256": "6cde61ff437ed25e744ee6dbe9074c3fc083ae695362f88f6588db51888190aa",
+      "modified": false
+    },
+    {
+      "path": "tests/uri.test",
+      "upstream_sha256": "530958297b8eac04093e742756ab0ecd57de4364a38ac69fa7fed693c381ec39",
+      "modified": false
+    },
+    {
+      "path": "tests/uritest",
+      "upstream_sha256": "46bccaf65b88c31e2935b6ecd05d382943fa885c5632add13af14646eba168be",
+      "modified": false
+    },
+    {
+      "path": "tests/utf8test",
+      "upstream_sha256": "c2ac29c59e6f3e4461b8c2b2ceac8c9438f1c32a34afba27a2d0808624fc6991",
+      "modified": false
+    },
+    {
+      "path": "tests/yes-main-program.jq",
+      "upstream_sha256": "d285778fa35736a0b39236d942af6eade3a0124d32e467554993a48c2114b9d5",
+      "modified": false
+    },
+    {
+      "path": "vendor/decNumber/decContext.c",
+      "upstream_sha256": "fd3cb9f0fd775949f7c2d018ba6c6a2cc483198c2b9340c8608d2bb2817d3521",
+      "modified": false
+    },
+    {
+      "path": "vendor/decNumber/decContext.h",
+      "upstream_sha256": "24e56975f89adbe1558042a735387c7ecf8493fb72ca2b24de51afd2e421053a",
+      "modified": false
+    },
+    {
+      "path": "vendor/decNumber/decNumber.c",
+      "upstream_sha256": "906dbffecf2c7007127557421cf4e1625c6060d6d3b362cef5afcea1f954c493",
+      "modified": false
+    },
+    {
+      "path": "vendor/decNumber/decNumber.h",
+      "upstream_sha256": "0f7a9b64736350bb7ae581803b2b580ed0bdb42a4daefc2f8e0b82b94cad4d3c",
+      "modified": false
+    },
+    {
+      "path": "vendor/decNumber/decNumberLocal.h",
+      "upstream_sha256": "fb17acfdd8b07a4023e6eb3a31c053864e3f45a1d0d3a689df75dcec55fd5398",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/COPYING",
+      "upstream_sha256": "70ba5469ea0bab6e18a32d7009068f996503168d27be57747e08da34337ff26f",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/ascii.c",
+      "upstream_sha256": "f734cc6e17a9c423d15db4509beba03c13d67dc6baf93f43184068a65082ace8",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/big5.c",
+      "upstream_sha256": "a1c9632424195311fa77ac84256d6a6520f5467a00df1deeb3346f0d2644149f",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/cp1251.c",
+      "upstream_sha256": "93fed3c57fddfcdb8fa9bac6f17369b5b83eea2116d1ac4fcd378168602f6d47",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/euc_jp.c",
+      "upstream_sha256": "239b94398eda31e64a7085c96f184340be3f85c764ab08cffdc5e82d4f20f097",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/euc_jp_prop.c",
+      "upstream_sha256": "264e7be695f6abff9fa9e01864fdaf4de3d2524249d4dfad3688b312b28362fb",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/euc_kr.c",
+      "upstream_sha256": "e00e279fd2eb8ca712aa497ebd597d59a58263eafc758ac9d2fd7b864b46cb22",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/euc_tw.c",
+      "upstream_sha256": "ea95ea5bc4b399164d8700830371efde8b458e1fee0bb67d86bf0dff20f939de",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/gb18030.c",
+      "upstream_sha256": "4cc1b23f96320b3b2400e5d16832d952dbdb24bd761b52c75bd2ff0d7c260175",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_1.c",
+      "upstream_sha256": "5502a794476910c0c1aed97829baa7481e3d5f6fcb9bbe68952c16788187b84c",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_10.c",
+      "upstream_sha256": "f0a1cb8e2ec648d7d33fb47b8834c6f9d4c958f89a8c0f2a4a686873d1c6d3f9",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_11.c",
+      "upstream_sha256": "51193c21da366f7f88ed8e500accf2a938c6e15d9c3b9d912970066967f29ad8",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_13.c",
+      "upstream_sha256": "4e6ae959854e31ef609e2eccd99bd2f20583d70552790032138532fefadfcccf",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_14.c",
+      "upstream_sha256": "2fe72a025c89b3d5ed5fece798a3c00c5e7c008e7265b541fad6e15ec81cbfac",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_15.c",
+      "upstream_sha256": "9b3e2d2516bdf266ed40461c040db495762a04810687528bbbdb85e4435665a5",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_16.c",
+      "upstream_sha256": "a2aa13344c1e2da01dd4295d9bb9aaff642857ab5d6fc9724ce501540a96fe2f",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_2.c",
+      "upstream_sha256": "394d0b706b1be6de42918f9461828035c1a3ab9233dc436272ed8fb5034a38cc",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_3.c",
+      "upstream_sha256": "28bcf8b89d67e826ca45410d9e160645af277aad059118fd66ec9385ea254482",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_4.c",
+      "upstream_sha256": "98cf5fc6f68a3af2d077a9eb5e61f68d622833e1312a71dd5be3d573d588155e",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_5.c",
+      "upstream_sha256": "41df6d443d1516dca6c18e42af8bfef1689f307315fa46b85110f234e1decca6",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_6.c",
+      "upstream_sha256": "b904d04267b21a4775cf97bb5746c09f2bf8987df562f95be5785351db7427d9",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_7.c",
+      "upstream_sha256": "6d952dcd5fdc3fb69f5b58e44fbcf6d66589af7607dba65bb1c5b9b7cf6450d3",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_8.c",
+      "upstream_sha256": "a127aff89565bdfdc75094ad8dbe436bc071ea6fc29282b1a20a188b0a8a730d",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/iso8859_9.c",
+      "upstream_sha256": "92072e3802041eb1ba138e79b458084391705f1cba27272d365c74656a6f1b1a",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/koi8.c",
+      "upstream_sha256": "5b4b5daedb41f26102923e22f8869fb8552a9930f19ccaece9c8a4a8239c3070",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/koi8_r.c",
+      "upstream_sha256": "dfaf7d0bd8b680e8fe4e85ab71deaf27a63b781dd4abcb484931a8a362926a19",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/mktable.c",
+      "upstream_sha256": "b7bbbdfd212f3efeec26b70d8fae535a3ebc77c64a9964047729022716297820",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/onig_init.c",
+      "upstream_sha256": "89f37f5b5f5961493bec99aacf1d828f1dd7d70830eed2aaff86247f4d4a4ce3",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/oniggnu.h",
+      "upstream_sha256": "fdb9bfc28287f7573a5ccad2ba45c7759aa2cbc11c57b05b86908809e1ac5f9a",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/onigposix.h",
+      "upstream_sha256": "a4002b01d62f5c91d851190b9225737ad059a85cfa2a04ca6d1d4ff67f4a08de",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/oniguruma.h",
+      "upstream_sha256": "bceb20b139315fbe2fb02e58f3b499107d5d4c2dc9953c677c332ccb1cb305ef",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regcomp.c",
+      "upstream_sha256": "0f22d86a07412093ce12df15d0b88db02fa21bf409d623738102c805b2580a49",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regenc.c",
+      "upstream_sha256": "cc33829f2a4279c96ca96d97c6d29d9f6ac65dc7ea0c5494f3b34bc43566585e",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regenc.h",
+      "upstream_sha256": "da808283c9d13aa641a3507d86098273afeb723da9ab2eadae176a388dec4564",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regerror.c",
+      "upstream_sha256": "eced9d8be1c24c88dbb490668eadac75903e4bdce5f89fda6815f5c4f1ddccc0",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regexec.c",
+      "upstream_sha256": "51d9456a6b8fc4330b4f5030642265fd7e12524f05223b446b3444bd3fecf03c",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regext.c",
+      "upstream_sha256": "53683bb1c4d1b787856cce013cc01fa54b917997e96d4471b1c74915bf0b7c00",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/reggnu.c",
+      "upstream_sha256": "18bad41679c188eaa4a0f436fab2bec726076f1e8a6225536fc08fe69d91dd5d",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regint.h",
+      "upstream_sha256": "676be021dafaf99eaab375b283fb42dc59a31a33d68a6d42dbb15d08defbfd3b",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regparse.c",
+      "upstream_sha256": "f4b5ef44a888c7150a304d27aef2ffe85d4f8fb2cee220240644be4c62a905d3",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regparse.h",
+      "upstream_sha256": "a34f5de2e0d8f65923ac4aa93bfabdc93d952d01b8c9f1c489d3cc25e9c040a3",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regposerr.c",
+      "upstream_sha256": "acd75268d3b4b38a606893c9be01a351e58b0e73cdbec9a151c3318b33ee7a8f",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regposix.c",
+      "upstream_sha256": "dcd79452de0aa87363d3f0aac5096934418dc811c44c9de7275e16988ae73479",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regsyntax.c",
+      "upstream_sha256": "11e750804c89ff3a4524c70c4bec8caa77da04c12c161385a6d701460456277c",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regtrav.c",
+      "upstream_sha256": "bb70c4886681a3c17d312f3e23a17f75a613bb8dfc90bfcbb562a71809159a0d",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/regversion.c",
+      "upstream_sha256": "f2a0cc84446e64d202bd9627f4c9924c4d338f0c2ed9fc642a9caefe2757301d",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/sjis.c",
+      "upstream_sha256": "bfe3420942bcdcd31142763310acc9d0acb2ab8020bd6f1395e57e86900b578e",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/sjis_prop.c",
+      "upstream_sha256": "a4435b5693578749d15c237f5a66c5aff5dbe1bb295b0670f233007a8ec3c768",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/st.c",
+      "upstream_sha256": "c3e73faab1ef6dc0a8524dde9b71c9a7eedc78edd70232c794ca936b0d83ca27",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/st.h",
+      "upstream_sha256": "5a44a44d08dfa64a571cff168878378c3b4bc630e303c12ba99ac99d353595ef",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode.c",
+      "upstream_sha256": "381aacfe8feaf7d307c0a729bbb2a903e706866cb3c99a5422f003ff7fa97dff",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_egcb_data.c",
+      "upstream_sha256": "21663445ace4f64775506f3fc53332a96e1b2b9f509b63eeb5462913daeb6d73",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_fold1_key.c",
+      "upstream_sha256": "1a965892c78598ed0d7c7adad0021dc774d6278c727692b8b2300804de70f043",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_fold2_key.c",
+      "upstream_sha256": "70b6f9185984408b308bb9d441333c5be95d36853fa60294ec0d08c274d5088c",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_fold3_key.c",
+      "upstream_sha256": "1e026d61dbd1e1300feecfeb5788f62cd2e388cf9a0c3b666e389bc3cf449369",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_fold_data.c",
+      "upstream_sha256": "690b14e8f84ff1345ec38657ab41a0c630dea37b99fb39519d9789ddf2558a55",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_property_data.c",
+      "upstream_sha256": "6f69e9852bf746acfc3847c9789225d4ba1f085f1852ca00fcab7fa912982f52",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_property_data_posix.c",
+      "upstream_sha256": "27bf4f37819b67b43d2a223a0a251978335d1c44a0ec02b4f907fba32b002058",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_unfold_key.c",
+      "upstream_sha256": "521fc37c8626e811c3c8042b848c4289f775dbae58b8422dfc5ad1447e2e98a9",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/unicode_wb_data.c",
+      "upstream_sha256": "9530ddf3208658a05bf33d36249bc6b9d8e500f54cfa2c8552762d42314244ba",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/utf16_be.c",
+      "upstream_sha256": "2f5690e7ebdd6cddebe53e9a5479fd5c4b4b1bd1f40321e20a83f6114e2632ac",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/utf16_le.c",
+      "upstream_sha256": "7420d3f24620f50489e6b335885f2ca59f004a8862e8e87db506d269d773155c",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/utf32_be.c",
+      "upstream_sha256": "3e07ba968d71b5695b429f6d9dbee179db26a24c2e1f44fc938f6147b09af94d",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/utf32_le.c",
+      "upstream_sha256": "e0aa493bd75bc8580cb9f9daf1c6eda7f248fbc29d64ffcc414350f0e8f76f0b",
+      "modified": false
+    },
+    {
+      "path": "vendor/oniguruma/src/utf8.c",
+      "upstream_sha256": "8927e4b2e64fd188592a95ecf56f2d6c7bb0bcb5721b6d2fd446c20c10a7ddf4",
+      "modified": false
+    }
+  ]
+}

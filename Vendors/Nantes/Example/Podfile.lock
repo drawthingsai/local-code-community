@@ -1,0 +1,16 @@
+PODS:
+  - Nantes (0.1.2)
+
+DEPENDENCIES:
+  - Nantes (from `../`)
+
+EXTERNAL SOURCES:
+  Nantes:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  Nantes: 0396442578e32242223fed46050dea1850236184
+
+PODFILE CHECKSUM: 1c8633395754df792140631cc4cd6cb86ec7966b
+
+COCOAPODS: 1.9.3

@@ -1,0 +1,77 @@
+<!doctype html>
+<style>
+html,body { margin:0; background:transparent }
+video,canvas { position:absolute; width:256px; height:64px; left:0 }
+#source { top:0 } #canvas { top:64px } #gl1 { top:128px } #gl2 { top:192px }
+</style>
+<video id="source" src="source.mov" muted playsinline data-duration="1"></video>
+<canvas id="canvas" width="256" height="64"></canvas>
+<canvas id="gl1" width="256" height="64"></canvas>
+<canvas id="gl2" width="256" height="64"></canvas>
+<script>
+const video = document.querySelector('video');
+const ctx = document.querySelector('#canvas').getContext('2d');
+// Retain native methods before prepare to verify document-start interception.
+const drawImage = ctx.drawImage.bind(ctx);
+let deliveredTime = -1;
+const callback = (now, metadata) => {
+  deliveredTime = metadata.mediaTime;
+  video.requestVideoFrameCallback(callback);
+};
+const cancelled = video.requestVideoFrameCallback(() => { throw new Error('cancelled callback ran'); });
+video.cancelVideoFrameCallback(cancelled);
+video.requestVideoFrameCallback(callback);
+const draws = ['webgl', 'webgl2'].map((kind, index) => {
+  const gl = document.querySelector('#gl' + (index + 1)).getContext(kind, {preserveDrawingBuffer:true});
+  if (!gl) throw new Error(kind + ' unavailable');
+  const shader = (type, source) => {
+    const shader = gl.createShader(type); gl.shaderSource(shader, source); gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+    return shader;
+  };
+  const prefix = index ? '#version 300 es\n' : '';
+  const program = gl.createProgram();
+  gl.attachShader(program, shader(gl.VERTEX_SHADER, prefix + `${index ? 'in' : 'attribute'} vec2 p;
+    ${index ? 'out' : 'varying'} vec2 uv; void main(){uv=(p+1.)*.5;gl_Position=vec4(p,0.,1.);}`));
+  gl.attachShader(program, shader(gl.FRAGMENT_SHADER, prefix + `precision mediump float;
+    ${index ? 'in' : 'varying'} vec2 uv; uniform sampler2D tex; ${index ? 'out vec4 color;' : ''}
+    void main(){${index ? 'color=texture' : 'gl_FragColor=texture2D'}(tex,uv);}`));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+  gl.useProgram(program);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const location = gl.getAttribLocation(program, 'p');
+  gl.enableVertexAttribArray(location); gl.vertexAttribPointer(location,2,gl.FLOAT,false,0,0);
+  gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+  // The numeric/typed-array overload must remain intact.
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,256,64,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array(256*64*4));
+  const upload = (index ? gl.texSubImage2D : gl.texImage2D).bind(gl);
+  return () => {
+    if (index) upload(gl.TEXTURE_2D,0,0,0,gl.RGBA,gl.UNSIGNED_BYTE,video);
+    else upload(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    if (gl.getError() !== gl.NO_ERROR) throw new Error('Video texture upload failed');
+  };
+});
+window.html2video = {width:256,height:256,duration:1,seek(t){
+  if (video.readyState < video.HAVE_CURRENT_DATA || video.videoWidth !== 256 || video.videoHeight !== 64)
+    throw new Error('Missing decoded video metadata');
+  if (Math.abs(deliveredTime-t)>1e-6 || Math.abs(video.currentTime-t)>1e-6)
+    throw new Error('Frame callback/source time is stale: '+deliveredTime+' vs '+t);
+  ctx.clearRect(0,0,256,64);
+  // All three drawImage overloads, plus createPattern, must accept the video.
+  drawImage(video,0,0);
+  drawImage(video,0,0,256,64);
+  ctx.clearRect(0,0,256,64);
+  drawImage(video,0,0,128,64,0,0,128,64);
+  ctx.fillStyle=ctx.createPattern(video,'no-repeat');ctx.fillRect(128,0,128,64);
+  draws.forEach(draw=>draw());
+}};
+</script>

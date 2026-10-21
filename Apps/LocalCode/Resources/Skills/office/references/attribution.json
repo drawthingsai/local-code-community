@@ -1,0 +1,40 @@
+{
+  "repository": "deepseek-ai/deepseek-harness",
+  "revision": "c1b47e41fcd54d20a0f061df28683bfc29ee24e5",
+  "files": [
+    {
+      "path": "packages/skill/skill-office/assets/office-docx/SKILL.md",
+      "sha256": "f8b0d9192c7768d847e157305605fb2e34cfd8cb2a80fa16c4c684ffbe3a98e4",
+      "bundled_path": "references/office-docx.md"
+    },
+    {
+      "path": "packages/skill/skill-office/assets/office-pptx/SKILL.md",
+      "sha256": "2950fde44158704d27302631ed153e7ce211a37f459c4a752390de334798af75",
+      "bundled_path": "references/office-pptx.md"
+    },
+    {
+      "path": "packages/skill/skill-office/assets/office-xlsx/SKILL.md",
+      "sha256": "a1497cb17f7b1ac2b234aa94256015e64bf82299a662183ec272cd90cf87c160",
+      "bundled_path": "references/office-xlsx.md"
+    },
+    {
+      "path": "packages/skill/skill-office/assets/scripts/check_office.py",
+      "sha256": "d94afa67593a284751e0f2dc000877e836f885d39954a882033cf22a13278f66",
+      "bundled_path": "scripts/check_office.py"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "bundled_path": "references/deepseek-harness-LICENSE.txt"
+    }
+  ],
+  "source_url": "https://github.com/deepseek-ai/deepseek-harness/tree/c1b47e41fcd54d20a0f061df28683bfc29ee24e5/packages/skill/skill-office",
+  "license_file": "references/deepseek-harness-LICENSE.txt",
+  "adaptations": [
+    "Add office/SKILL.md as the catalog router; keep the three upstream skill names as references/office-docx.md, references/office-pptx.md, and references/office-xlsx.md.",
+    "Use bundled python3 and native office through Bash instead of runtime discovery and Node CLI paths.",
+    "Copy the shared checker into the project with file tools before executing it; keep its source unchanged.",
+    "Use view for images and project-relative Markdown links for delivery; omit unavailable render_document fallback.",
+    "Fold the former bundled spreadsheets skill into office-xlsx: add read-only inspection, workbook preservation, auditable inputs, CSV/TSV handling, and optional openpyxl recipes and verify_workbook.py; retain both moved resource files unchanged."
+  ]
+}

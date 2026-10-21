@@ -1,0 +1,25 @@
+diff --git a/Metal/MTLPrivate.hpp b/Metal/MTLPrivate.hpp
+--- a/Metal/MTLPrivate.hpp
++++ b/Metal/MTLPrivate.hpp
+@@ -71,8 +71,20 @@ namespace MTL::Private
+     }
+ } // MTL::Private
+
+-#if defined(__MAC_26_0) || defined(__IPHONE_26_0) || defined(__TVOS_26_0)
++#if defined(MLX_METALCPP_DYNAMIC_CONSTANTS)
+
++#define _MTL_PRIVATE_DEF_STR(type, symbol) \
++    _MTL_EXTERN type const MTL##symbol;    \
++    type const             MTL::symbol = MTL::Private::LoadSymbol<type>("MTL" #symbol)
++
++#define _MTL_PRIVATE_DEF_CONST(type, symbol) \
++    _MTL_EXTERN type const MTL##symbol;      \
++    type const             MTL::symbol = MTL::Private::LoadSymbol<type>("MTL" #symbol)
++
++#define _MTL_PRIVATE_DEF_WEAK_CONST(type, symbol) _MTL_PRIVATE_DEF_CONST(type, symbol)
++
++#elif defined(__MAC_26_0) || defined(__IPHONE_26_0) || defined(__TVOS_26_0)
++
+ #define _MTL_PRIVATE_DEF_STR(type, symbol)                  \
+     _MTL_EXTERN type const MTL##symbol _MTL_PRIVATE_IMPORT; \
+     type const                         MTL::symbol = (nullptr != &MTL##symbol) ? MTL##symbol : nullptr

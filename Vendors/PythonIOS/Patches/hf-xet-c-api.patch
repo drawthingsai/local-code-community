@@ -1,0 +1,550 @@
+diff --git a/hf_xet/Cargo.lock b/hf_xet/Cargo.lock
+index 8e4a17b..95e0569 100644
+--- a/hf_xet/Cargo.lock
++++ b/hf_xet/Cargo.lock
+@@ -986,5 +986,6 @@ dependencies = [
+  "pyo3",
+  "rand 0.10.1",
++ "sha2",
+  "signal-hook",
+  "tempfile",
+  "tracing",
+diff --git a/hf_xet/Cargo.toml b/hf_xet/Cargo.toml
+index 5ddfcf7..fad1de0 100644
+--- a/hf_xet/Cargo.toml
++++ b/hf_xet/Cargo.toml
+@@ -12,6 +12,6 @@ crate-type = ["cdylib", "lib"]
+ 
+ [dependencies]
+-xet-pkg = { package = "hf-xet", path = "../xet_pkg", features = ["python"] }
++xet-pkg = { package = "hf-xet", path = "../xet_pkg" }
+ xet-runtime = { path = "../xet_runtime" }
+ xet-client = { path = "../xet_client" }
+ 
+@@ -24,10 +24,11 @@ pyo3 = { version = "0.29", features = [
+     "abi3-py38",
+     "auto-initialize",
+-] }
++], optional = true }
+ async-trait = "0.1"
+ http = "1"
+ itertools = "0.14"
+ lazy_static = "1.5"
+ rand = "0.10"
++sha2 = "0.10"
+ tracing = "0.1"
+ 
+@@ -39,7 +40,9 @@ winapi = { version = "0.3", features = ["consoleapi", "wincon", "errhandlingapi
+ 
+ [features]
+-default = ["no-default-cache", "elevated_information_level"] # By default, hf_xet disables the disk cache and uses aggressive logging level
+-extension-module = ["pyo3/extension-module"] # Only enabled when building with maturin
++default = ["python", "no-default-cache", "elevated_information_level"] # By default, hf_xet disables the disk cache and uses aggressive logging level
++python = ["dep:pyo3", "xet-pkg/python"]
++c-api = []
++extension-module = ["python", "pyo3/extension-module"] # Only enabled when building with maturin
+ native-tls = ["xet-pkg/native-tls"]
+ native-tls-vendored = ["xet-pkg/native-tls-vendored"]
+ no-default-cache = ["xet-pkg/no-default-cache"]
+diff --git a/hf_xet/src/c_api.rs b/hf_xet/src/c_api.rs
+new file mode 100644
+index 0000000..dfb56b2
+--- /dev/null
++++ b/hf_xet/src/c_api.rs
+@@ -0,0 +1,297 @@
++use std::ffi::{CStr, CString, c_char, c_void};
++use std::fs::File;
++use std::io::Read;
++use std::panic::{AssertUnwindSafe, catch_unwind};
++use std::path::PathBuf;
++use std::sync::atomic::{AtomicBool, Ordering};
++use std::sync::{Arc, Mutex};
++use std::thread;
++use std::time::Duration;
++
++use http::HeaderMap;
++use sha2::{Digest, Sha256};
++use xet_pkg::xet_session::{XetConfig, XetFileDownloadGroup, XetFileInfo, XetSessionBuilder};
++
++const STATUS_SUCCESS: i32 = 0;
++const STATUS_FAILURE: i32 = 1;
++const STATUS_CANCELLED: i32 = 2;
++
++type ProgressCallback = extern "C" fn(*mut c_void, u64, u64, u64);
++type CompletionCallback = extern "C" fn(*mut c_void, *mut c_void, i32, *const c_char);
++
++struct DownloadState {
++    cancelled: AtomicBool,
++    group: Mutex<Option<XetFileDownloadGroup>>,
++}
++
++struct DownloadHandle {
++    state: Arc<DownloadState>,
++}
++
++fn required_string(value: *const c_char, name: &str) -> Result<String, String> {
++    if value.is_null() {
++        return Err(format!("{name} must not be null"));
++    }
++    // SAFETY: The caller promises that non-null string arguments point to
++    // NUL-terminated storage that remains valid for the duration of this call.
++    unsafe { CStr::from_ptr(value) }
++        .to_str()
++        .map(str::to_owned)
++        .map_err(|_| format!("{name} must be valid UTF-8"))
++}
++
++fn sha256_hex(path: &PathBuf) -> Result<String, String> {
++    let mut file = File::open(path).map_err(|error| error.to_string())?;
++    let mut hasher = Sha256::new();
++    let mut buffer = vec![0u8; 1024 * 1024];
++    loop {
++        let count = file.read(&mut buffer).map_err(|error| error.to_string())?;
++        if count == 0 {
++            break;
++        }
++        hasher.update(&buffer[..count]);
++    }
++    Ok(format!("{:x}", hasher.finalize()))
++}
++
++fn perform_download(
++    state: &Arc<DownloadState>,
++    refresh_url: String,
++    file_hash: String,
++    file_size: u64,
++    expected_sha256: String,
++    destination: PathBuf,
++    context: usize,
++    progress_callback: Option<ProgressCallback>,
++) -> Result<(), String> {
++    if state.cancelled.load(Ordering::Acquire) {
++        return Err("download cancelled".to_string());
++    }
++
++    // Downloads write the file in order, so whatever an earlier attempt left at
++    // the destination is a prefix of it. Continue after that prefix; anything
++    // longer than the file cannot be one, so start over.
++    let existing_size = std::fs::metadata(&destination)
++        .map(|metadata| metadata.len())
++        .unwrap_or(0);
++    let start_offset = if existing_size <= file_size {
++        existing_size
++    } else {
++        0
++    };
++    if start_offset < file_size {
++        download_from_offset(
++            state,
++            refresh_url,
++            file_hash,
++            file_size,
++            &destination,
++            start_offset,
++            context,
++            progress_callback,
++        )?;
++    }
++
++    if state.cancelled.load(Ordering::Acquire) {
++        return Err("download cancelled".to_string());
++    }
++    if !expected_sha256.is_empty() {
++        let actual_sha256 = sha256_hex(&destination)?;
++        if actual_sha256 != expected_sha256 {
++            // Never resume from a file that failed verification.
++            let _ = std::fs::remove_file(&destination);
++            return Err(format!(
++                "downloaded file SHA-256 mismatch: expected {expected_sha256}, got {actual_sha256}"
++            ));
++        }
++    }
++    Ok(())
++}
++
++fn download_from_offset(
++    state: &Arc<DownloadState>,
++    refresh_url: String,
++    file_hash: String,
++    file_size: u64,
++    destination: &PathBuf,
++    start_offset: u64,
++    context: usize,
++    progress_callback: Option<ProgressCallback>,
++) -> Result<(), String> {
++    let config = XetConfig::default()
++        .with_config("client.ac_max_download_concurrency", 32)
++        .and_then(|config| config.with_config("reconstruction.download_buffer_size", "1GiB"))
++        .and_then(|config| {
++            config.with_config("reconstruction.download_buffer_perfile_size", "512MiB")
++        })
++        .and_then(|config| config.with_config("reconstruction.download_buffer_limit", "2GiB"))
++        .map_err(|error| error.to_string())?;
++    let session = XetSessionBuilder::new_with_config(config)
++        .build()
++        .map_err(|error| error.to_string())?;
++    let group = session
++        .new_file_download_group()
++        .map_err(|error| error.to_string())?
++        .with_token_refresh_url(refresh_url, HeaderMap::new())
++        .build_blocking()
++        .map_err(|error| error.to_string())?;
++
++    {
++        let mut active_group = state.group.lock().map_err(|error| error.to_string())?;
++        *active_group = Some(group.clone());
++    }
++    if state.cancelled.load(Ordering::Acquire) {
++        let _ = group.abort();
++        return Err("download cancelled".to_string());
++    }
++
++    group
++        .download_file_to_path_from_offset_blocking(
++            XetFileInfo::new(file_hash, file_size),
++            destination.clone(),
++            start_offset,
++        )
++        .map_err(|error| error.to_string())?;
++
++    let progress_group = group.clone();
++    let progress_finished = Arc::new(AtomicBool::new(false));
++    let progress_finished_for_thread = progress_finished.clone();
++    let progress_thread = progress_callback.map(|callback| {
++        thread::spawn(move || {
++            while !progress_finished_for_thread.load(Ordering::Acquire) {
++                // Group progress covers only this attempt; count the bytes
++                // already on disk so callers see progress for the whole file.
++                let progress = progress_group.progress();
++                callback(
++                    context as *mut c_void,
++                    start_offset + progress.total_bytes_completed,
++                    start_offset + progress.total_transfer_bytes_completed,
++                    start_offset + progress.total_bytes,
++                );
++                thread::sleep(Duration::from_millis(100));
++            }
++        })
++    });
++
++    let result = group
++        .finish_blocking()
++        .map(|_| ())
++        .map_err(|error| error.to_string());
++    progress_finished.store(true, Ordering::Release);
++    if let Some(progress_thread) = progress_thread {
++        let _ = progress_thread.join();
++    }
++    {
++        let mut active_group = state.group.lock().map_err(|error| error.to_string())?;
++        *active_group = None;
++    }
++    result
++}
++
++/// Starts one asynchronous Xet file download.
++///
++/// The returned handle must remain valid until `completion_callback` fires. The
++/// callback receives that handle as its first argument; it may then be released
++/// with `hf_xet_download_release`. Callback strings are valid only for the
++/// duration of the callback.
++///
++/// If `destination_path` already holds the start of the file from an earlier
++/// attempt, the download continues after it. Progress counts those bytes too.
++/// A file that fails SHA-256 verification is removed.
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn hf_xet_download_start(
++    refresh_url: *const c_char,
++    file_hash: *const c_char,
++    file_size: u64,
++    expected_sha256: *const c_char,
++    destination_path: *const c_char,
++    context: *mut c_void,
++    progress_callback: Option<ProgressCallback>,
++    completion_callback: Option<CompletionCallback>,
++) -> *mut c_void {
++    let refresh_url = required_string(refresh_url, "refresh_url");
++    let file_hash = required_string(file_hash, "file_hash");
++    let expected_sha256 = required_string(expected_sha256, "expected_sha256");
++    let destination_path = required_string(destination_path, "destination_path");
++
++    let state = Arc::new(DownloadState {
++        cancelled: AtomicBool::new(false),
++        group: Mutex::new(None),
++    });
++    let handle = Box::new(DownloadHandle {
++        state: state.clone(),
++    });
++    let handle_pointer = Box::into_raw(handle) as *mut c_void;
++    let handle_address = handle_pointer as usize;
++    let context = context as usize;
++
++    thread::spawn(move || {
++        let result = catch_unwind(AssertUnwindSafe(|| {
++            perform_download(
++                &state,
++                refresh_url?,
++                file_hash?,
++                file_size,
++                expected_sha256?,
++                PathBuf::from(destination_path?),
++                context,
++                progress_callback,
++            )
++        }))
++        .unwrap_or_else(|panic| {
++            let message = panic
++                .downcast_ref::<&str>()
++                .map(|message| (*message).to_string())
++                .or_else(|| panic.downcast_ref::<String>().cloned())
++                .unwrap_or_else(|| "hf-xet panicked".to_string());
++            Err(message)
++        });
++
++        let cancelled = state.cancelled.load(Ordering::Acquire);
++        let (status, message) = match result {
++            Ok(()) => (STATUS_SUCCESS, String::new()),
++            Err(_) if cancelled => (STATUS_CANCELLED, String::new()),
++            Err(message) => (STATUS_FAILURE, message),
++        };
++        if let Some(callback) = completion_callback {
++            let message =
++                CString::new(message).unwrap_or_else(|_| CString::new("hf-xet failed").unwrap());
++            callback(
++                handle_address as *mut c_void,
++                context as *mut c_void,
++                status,
++                message.as_ptr(),
++            );
++        }
++    });
++
++    handle_pointer
++}
++
++/// Cancels the active download. Completion is still reported exactly once.
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn hf_xet_download_cancel(handle: *mut c_void) {
++    if handle.is_null() {
++        return;
++    }
++    // SAFETY: `handle` was returned by `hf_xet_download_start` and has not yet
++    // been released. The C API requires callers to serialize cancel/release.
++    let handle = unsafe { &*(handle as *mut DownloadHandle) };
++    handle.state.cancelled.store(true, Ordering::Release);
++    if let Ok(group) = handle.state.group.lock()
++        && let Some(group) = group.as_ref()
++    {
++        let _ = group.abort();
++    }
++}
++
++/// Releases a completed download handle.
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn hf_xet_download_release(handle: *mut c_void) {
++    if handle.is_null() {
++        return;
++    }
++    // SAFETY: The pointer came from `Box::into_raw` in
++    // `hf_xet_download_start` and this function is called exactly once.
++    drop(unsafe { Box::from_raw(handle as *mut DownloadHandle) });
++}
+diff --git a/hf_xet/src/lib.rs b/hf_xet/src/lib.rs
+index 9c8bea0..b88f4c1 100644
+--- a/hf_xet/src/lib.rs
++++ b/hf_xet/src/lib.rs
+@@ -1,26 +1,46 @@
++#[cfg(feature = "python")]
+ mod background_progress;
++#[cfg(feature = "c-api")]
++mod c_api;
++#[cfg(feature = "python")]
+ pub mod config;
++#[cfg(feature = "python")]
+ mod headers;
++#[cfg(feature = "python")]
+ mod legacy;
++#[cfg(feature = "python")]
+ mod logging;
++#[cfg(feature = "python")]
+ mod py_download_stream_group;
++#[cfg(feature = "python")]
+ mod py_download_stream_handle;
++#[cfg(feature = "python")]
+ mod py_file_download_group;
++#[cfg(feature = "python")]
+ mod py_file_download_handle;
++#[cfg(feature = "python")]
+ mod py_file_upload_handle;
++#[cfg(feature = "python")]
+ mod py_stream_upload_handle;
++#[cfg(feature = "python")]
+ mod py_upload_commit;
++#[cfg(feature = "python")]
+ mod py_xet_session;
++#[cfg(feature = "python")]
+ pub(crate) mod utils;
+ 
++#[cfg(feature = "python")]
+ use pyo3::prelude::*;
++#[cfg(feature = "python")]
+ pub(crate) use utils::{blocking_call_with_signal_check, convert_xet_error};
++#[cfg(feature = "python")]
+ use xet_runtime::core::file_handle_limits;
+ 
++#[cfg(feature = "python")]
+ use crate::logging::init_logging;
+ 
+ // For profiling
+-#[cfg(feature = "profiling")]
++#[cfg(all(feature = "python", feature = "profiling"))]
+ pub(crate) mod profiling;
+ 
+ // ── XetTaskState Python enum ──────────────────────────────────────────────────
+@@ -38,6 +58,7 @@ pub(crate) mod profiling;
+ /// annotated with `#[pyclass]` as-is.  Rather than restructuring the internal
+ /// enum, we expose this four-variant unit-only wrapper.  The `Error` case is
+ /// surfaced as a raised Python exception by `task_state_to_pystate` instead.
++#[cfg(feature = "python")]
+ #[pyclass(eq, name = "XetTaskState", from_py_object)]
+ #[derive(Clone, Debug, PartialEq)]
+ pub enum PyXetTaskState {
+@@ -50,5 +71,6 @@ pub enum PyXetTaskState {
+ // ── Module registration ───────────────────────────────────────────────────────
+ 
++#[cfg(feature = "python")]
+ #[pymodule(gil_used = false)]
+ #[allow(unused_variables)]
+ pub fn hf_xet(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+diff --git a/xet_data/src/processing/file_download_session.rs b/xet_data/src/processing/file_download_session.rs
+index ba3e0dc..38df56b 100644
+--- a/xet_data/src/processing/file_download_session.rs
++++ b/xet_data/src/processing/file_download_session.rs
+@@ -267,6 +267,20 @@ impl FileDownloadSession {
+         self: &Arc<Self>,
+         file_info: XetFileInfo,
+         write_path: PathBuf,
++    ) -> Result<(UniqueId, JoinHandle<Result<u64>>)> {
++        self.download_file_background_from_offset(file_info, write_path, 0).await
++    }
++
++    /// Spawns a download task that keeps the first `start_offset` bytes already
++    /// at `write_path` and writes the rest of `file_info` after them.
++    ///
++    /// Item progress covers only the bytes from `start_offset` on. The join
++    /// handle resolves to the size of the whole file.
++    pub async fn download_file_background_from_offset(
++        self: &Arc<Self>,
++        file_info: XetFileInfo,
++        write_path: PathBuf,
++        start_offset: u64,
+     ) -> Result<(UniqueId, JoinHandle<Result<u64>>)> {
+         self.check_not_finalized()?;
+         let id = UniqueId::new();
+@@ -275,7 +289,7 @@ impl FileDownloadSession {
+         let semaphore = self.ctx.common.file_download_semaphore.clone();
+         let handle = runtime.spawn(async move {
+             let _permit = semaphore.acquire().await?;
+-            session.download_file_with_id(&file_info, &write_path, id).await
++            session.download_file_with_id(&file_info, &write_path, start_offset, id).await
+         });
+         Ok((id, handle))
+     }
+@@ -285,15 +299,25 @@ impl FileDownloadSession {
+     pub async fn download_file(&self, file_info: &XetFileInfo, write_path: &Path) -> Result<(UniqueId, u64)> {
+         self.check_not_finalized()?;
+         let id = UniqueId::new();
+-        let n_bytes = self.download_file_with_id(file_info, write_path, id).await?;
++        let n_bytes = self.download_file_with_id(file_info, write_path, 0, id).await?;
+         Ok((id, n_bytes))
+     }
+ 
+-    async fn download_file_with_id(&self, file_info: &XetFileInfo, write_path: &Path, id: UniqueId) -> Result<u64> {
++    async fn download_file_with_id(
++        &self,
++        file_info: &XetFileInfo,
++        write_path: &Path,
++        start_offset: u64,
++        id: UniqueId,
++    ) -> Result<u64> {
+         let name = Arc::from(write_path.to_string_lossy().as_ref());
+         let progress_updater = self.progress.new_item(id, name);
+-        let reconstructor = self.setup_reconstructor(file_info, None, Some(progress_updater))?;
+-        let n_bytes = reconstructor.reconstruct_to_file(write_path, None, true).await?;
++        // A non-zero start offset reconstructs only the rest of the file and
++        // writes it from that position, keeping the bytes before it.
++        let range = (start_offset > 0)
++            .then(|| FileRange::new(start_offset, file_info.file_size().unwrap_or(u64::MAX)));
++        let reconstructor = self.setup_reconstructor(file_info, range, Some(progress_updater))?;
++        let n_bytes = start_offset + reconstructor.reconstruct_to_file(write_path, None, start_offset == 0).await?;
+         // Caller is responsible for cleaning up the file on error (consistent
+         // with other error paths); see download_group.rs error handling.
+         if let Some(expected_size) = file_info.file_size()
+diff --git a/xet_pkg/src/xet_session/file_download_group.rs b/xet_pkg/src/xet_session/file_download_group.rs
+index dc6d25a..fa07fca 100644
+--- a/xet_pkg/src/xet_session/file_download_group.rs
++++ b/xet_pkg/src/xet_session/file_download_group.rs
+@@ -216,7 +216,7 @@ impl XetFileDownloadGroup {
+         let task_runtime = self.task_runtime.clone();
+         self.task_runtime
+             .bridge_async("download_file_to_path", async move {
+-                inner.start_download_file_to_path(file_info, dest_path, &task_runtime).await
++                inner.start_download_file_to_path(file_info, dest_path, 0, &task_runtime).await
+             })
+             .await
+     }
+@@ -293,10 +293,38 @@ impl XetFileDownloadGroup {
+         let inner = self.inner.clone();
+         let task_runtime = self.task_runtime.clone();
+         self.task_runtime.bridge_sync("download_file_to_path_blocking", async move {
+-            inner.start_download_file_to_path(file_info, dest_path, &task_runtime).await
++            inner.start_download_file_to_path(file_info, dest_path, 0, &task_runtime).await
+         })
+     }
+ 
++    /// Like [`download_file_to_path_blocking`](Self::download_file_to_path_blocking), but
++    /// keeps the first `start_offset` bytes already at `dest_path` and downloads only the
++    /// rest of the file after them. Use it to resume an interrupted download.
++    ///
++    /// Group and per-file progress cover only the bytes from `start_offset` on.
++    pub fn download_file_to_path_from_offset_blocking(
++        &self,
++        file_info: XetFileInfo,
++        dest_path: PathBuf,
++        start_offset: u64,
++    ) -> Result<XetFileDownload, XetError> {
++        info!(
++            group_id = %self.id(),
++            dest_path = ?dest_path,
++            hash = %file_info.hash,
++            start_offset,
++            "Download file to path from offset"
++        );
++        let inner = self.inner.clone();
++        let task_runtime = self.task_runtime.clone();
++        self.task_runtime
++            .bridge_sync("download_file_to_path_from_offset_blocking", async move {
++                inner
++                    .start_download_file_to_path(file_info, dest_path, start_offset, &task_runtime)
++                    .await
++            })
++    }
++
+     /// Blocking version of [`finish`](Self::finish).
+     ///
+     /// # Panics
+@@ -325,12 +353,13 @@ impl XetFileDownloadGroupInner {
+         self: &Arc<Self>,
+         file_info: XetFileInfo,
+         dest_path: PathBuf,
++        start_offset: u64,
+         parent_task_runtime: &Arc<TaskRuntime>,
+     ) -> Result<XetFileDownload, XetError> {
+         let absolute_path = std::path::absolute(dest_path)?;
+         let (task_id, join_handle) = self
+             .download_session
+-            .download_file_background(file_info.clone(), absolute_path.clone())
++            .download_file_background_from_offset(file_info.clone(), absolute_path.clone(), start_offset)
+             .await?;
+ 
+         let task_runtime = parent_task_runtime.child()?;

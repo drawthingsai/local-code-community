@@ -1,0 +1,465 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -1132,7 +1132,11 @@
+ ;;
+ 
+ ios*) # iOS
+-    using_freetype_fontconfig=no
++    if test "$enable_headless" = "yes"; then
++        using_freetype_fontconfig=yes
++    else
++        using_freetype_fontconfig=no
++    fi
+     using_x11=no
+     build_crypto=no
+     test_libcmis=no
+@@ -3520,7 +3524,7 @@
+     BUILD_TYPE="$BUILD_TYPE DBCONNECTIVITY"
+     AC_DEFINE(HAVE_FEATURE_DBCONNECTIVITY)
+ else
+-    if test "$_os" = iOS; then
++    if test "$_os" = iOS -a "$enable_headless" != yes; then
+         AC_MSG_ERROR([Presumably can't disable DB connectivity on iOS.])
+     fi
+     disable_database_connectivity_dependencies
+@@ -4073,10 +4077,10 @@
+ 
+     if test "$enable_ios_simulator" = "yes"; then
+         platformlc=iphonesimulator
+-        versionmin=-mios-simulator-version-min=14.5
++        versionmin=-mios-simulator-version-min=15.4
+     else
+         platformlc=iphoneos
+-        versionmin=-miphoneos-version-min=14.5
++        versionmin=-miphoneos-version-min=15.4
+     fi
+ 
+     sysroot=`xcrun --sdk $platformlc --show-sdk-path`
+--- a/desktop/source/lib/init.cxx
++++ b/desktop/source/lib/init.cxx
+@@ -4258,7 +4258,7 @@
+     // pixels.
+     comphelper::ScopeGuard dpiScaleGuard([]() { comphelper::LibreOfficeKit::setDPIScale(1.0); });
+ 
+-#if defined(IOS)
++#if defined(IOS) && !ENABLE_HEADLESS
+     double fDPIScale = 1.0;
+ 
+     // Online uses the LOK_TILEMODE_RGBA by default so flip the normal flags
+@@ -4573,7 +4573,7 @@
+ static int doc_getTileMode(SAL_UNUSED_PARAMETER LibreOfficeKitDocument* /*pThis*/)
+ {
+     SetLastExceptionMsg();
+-#if ENABLE_CAIRO_RGBA || defined IOS
++#if ENABLE_CAIRO_RGBA || (defined(IOS) && !ENABLE_HEADLESS)
+     return LOK_TILEMODE_RGBA;
+ #else
+     return LOK_TILEMODE_BGRA;
+@@ -5245,7 +5245,7 @@
+         pDevice->AddTempDevFont(sMagicFileName, u""_ustr);
+         OutputDevice::ImplRefreshAllFontData(true);
+     }
+-#elif defined(MACOSX) && ENABLE_HEADLESS
++#elif (defined(MACOSX) || defined(IOS)) && ENABLE_HEADLESS
+     else if (strcmp(pOption, "addfont") == 0)
+     {
+         OUString aUrl;
+@@ -7243,7 +7243,7 @@
+     comphelper::ScopeGuard dpiScaleGuard([]() { comphelper::LibreOfficeKit::setDPIScale(1.0); });
+     comphelper::LibreOfficeKit::setDPIScale(fDPIScale);
+ 
+-#if defined(IOS)
++#if defined(IOS) && !ENABLE_HEADLESS
+     // Online uses the LOK_TILEMODE_RGBA by default so flip the normal flags
+     // to kCGImageAlphaNoneSkipLast | kCGImageByteOrder32Big
+     CGContextRef cgc = CGBitmapContextCreate(pBuffer, nWidth, nHeight, 8, nWidth*4, CGColorSpaceCreateDeviceRGB(), kCGImageAlphaNoneSkipLast | kCGImageByteOrder32Big);
+@@ -8268,7 +8268,7 @@
+         }
+     }
+ 
+-#ifdef IOS
++#if defined(IOS) && !ENABLE_HEADLESS
+     // A LibreOffice-using iOS app should have the ICU data file in the app bundle. Initialize ICU
+     // to use that.
+     NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
+--- a/external/cairo/ExternalProject_cairo.mk
++++ b/external/cairo/ExternalProject_cairo.mk
+@@ -42,7 +42,7 @@
+ strip = '$(STRIP)'
+ # TODO: this is pretty ugly...
+ [host_machine]
+-system = '$(if $(filter WNT,$(OS)),windows,$(if $(filter MACOSX,$(OS)),darwin,$(if $(filter ANDROID,$(OS)),android,linux)))'
++system = '$(if $(filter WNT,$(OS)),windows,$(if $(filter MACOSX iOS,$(OS)),darwin,$(if $(filter ANDROID,$(OS)),android,linux)))'
+ cpu_family = '$(subst X86_64,x86_64,$(RTL_ARCH))'
+ cpu = '$(if $(filter x86,$(RTL_ARCH)),i686,$(if $(filter X86_64,$(RTL_ARCH)),x86_64,$(if $(filter AARCH64,$(RTL_ARCH)),aarch64,armv7)))'
+ endian = '$(ENDIANNESS)'
+@@ -100,8 +100,8 @@
+ 			$(if $(filter -fsanitize=%,$(CC)),-Db_lundef=false) \
+ 			$(if $(filter TRUE,$(DISABLE_DYNLOADING)),-Ddefault_library=static,-Ddefault_library=shared) \
+ 			$(if $(filter EMSCRIPTEN ANDROID iOS MACOSX,$(OS)),-Dxlib=disabled -Dxcb=disabled,$(if $(filter TRUE,$(DISABLE_GUI)),-Dxlib=disabled -Dxcb=disabled,-Dxlib=enabled -Dxcb=enabled)) \
+-			$(if $(filter iOS,$(OS)),-Dquartz=enabled) \
+-			$(if $(filter iOS,$(OS)),-Dfreetype=disabled,-Dfreetype=enabled -Dfontconfig=enabled) \
++			$(if $(filter iOS,$(OS)),-Dquartz=$(if $(ENABLE_HEADLESS),disabled,enabled)) \
++			$(if $(and $(filter iOS,$(OS)),$(if $(ENABLE_HEADLESS),,TRUE)),-Dfreetype=disabled,-Dfreetype=enabled -Dfontconfig=enabled) \
+ 			-Dgtk_doc=false -Dtests=disabled \
+ 			$(if $(CROSS_COMPILING),--cross-file cross-file.txt) \
+ 			$(if $(filter MACOSX,$(OS)),--prefix=/@.__________________________________________________OOO) \
+--- a/external/cairo/ExternalProject_pixman.mk
++++ b/external/cairo/ExternalProject_pixman.mk
+@@ -35,7 +35,7 @@
+ strip = '$(STRIP)'
+ # TODO: this is pretty ugly...
+ [host_machine]
+-system = '$(if $(filter WNT,$(OS)),windows,$(if $(filter MACOSX,$(OS)),darwin,$(if $(filter ANDROID,$(OS)),android,linux)))'
++system = '$(if $(filter WNT,$(OS)),windows,$(if $(filter MACOSX iOS,$(OS)),darwin,$(if $(filter ANDROID,$(OS)),android,linux)))'
+ cpu_family = '$(subst X86_64,x86_64,$(RTL_ARCH))'
+ cpu = '$(if $(filter x86,$(RTL_ARCH)),i686,$(if $(filter X86_64,$(RTL_ARCH)),x86_64,$(if $(filter AARCH64,$(RTL_ARCH)),aarch64,armv7)))'
+ endian = '$(ENDIANNESS)'
+--- a/external/expat/ExternalProject_expat.mk
++++ b/external/expat/ExternalProject_expat.mk
+@@ -20,6 +20,7 @@
+ 			--without-arc4random --without-arc4random-buf \
+ 			--without-dev-urandom --without-getentropy \
+ 			--without-sys-getrandom --without-getrandom\
++			$(if $(filter iOS,$(OS)),--with-arc4random-buf) \
+ 			$(if $(filter LINUX ANDROID,$(OS)),--with-sys-getrandom) \
+ 			$(if $(filter EMSCRIPTEN MACOSX,$(OS)),--with-getentropy) \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+--- a/external/expat/StaticLibrary_expat.mk
++++ b/external/expat/StaticLibrary_expat.mk
+@@ -50,6 +50,10 @@
+ $(eval $(call gb_StaticLibrary_add_generated_cobjects,expat,\
+ 	UnpackedTarball/expat/lib/random_getentropy \
+ ))
++else ifeq ($(OS),iOS)
++$(eval $(call gb_StaticLibrary_add_generated_cobjects,expat,\
++	UnpackedTarball/expat/lib/random_arc4random_buf \
++))
+ else
+ $(eval $(call gb_StaticLibrary_add_generated_cobjects,expat,\
+ 	UnpackedTarball/expat/lib/random_getrandom \
+--- a/external/fontconfig/ExternalProject_fontconfig.mk
++++ b/external/fontconfig/ExternalProject_fontconfig.mk
+@@ -41,6 +41,7 @@
+ 			--with-expat-includes=$(gb_UnpackedTarball_workdir)/expat/lib \
+ 			--with-expat-lib=$(gb_StaticLibrary_WORKDIR) \
+ 			$(gb_CONFIGURE_PLATFORMS) \
++			$(if $(filter iOS,$(OS)),ac_cv_va_copy=yes) \
+ 			$(if $(filter ANDROID,$(OS)), \
+ 				--disable-shared \
+ 				ac_cv_va_copy=no \
+--- a/external/openssl/ExternalProject_openssl.mk
++++ b/external/openssl/ExternalProject_openssl.mk
+@@ -41,7 +41,7 @@
+       )\
+     ,\
+       $(if $(filter iOS,$(OS)),\
+-        ios-aarch64\
++        ios64-xcrun\
+       ,\
+         $(if $(filter WNT,$(OS)),\
+           $(if $(filter INTEL,$(CPUNAME)),VC-WIN32)\
+--- a/vcl/Library_vcl.mk
++++ b/vcl/Library_vcl.mk
+@@ -648,7 +648,7 @@
+ 
+ vcl_headless_code= \
+     vcl/headless/svpframe \
+-    $(if $(filter-out iOS,$(OS)), \
++    $(if $(or $(filter-out iOS,$(OS)),$(ENABLE_HEADLESS)), \
+         vcl/headless/svpbmp \
+         vcl/headless/svpgdi \
+         vcl/headless/SvpGraphicsBackend \
+@@ -806,6 +806,7 @@
+ $(eval $(call gb_Library_add_cxxflags,vcl,\
+     $(gb_OBJCXXFLAGS) \
+ ))
++ifneq ($(ENABLE_HEADLESS),TRUE)
+ $(eval $(call gb_Library_add_objcxxobjects,vcl,\
+     vcl/quartz/cgutils \
+ ))
+@@ -828,6 +829,7 @@
+     $(vcl_headless_code) \
+     vcl/unx/generic/app/gendata \
+ ))
++endif
+ $(eval $(call gb_Library_use_system_darwin_frameworks,vcl,\
+     UIKit \
+     CoreFoundation \
+--- a/vcl/headless/svpframe.cxx
++++ b/vcl/headless/svpframe.cxx
+@@ -1,4 +1,6 @@
+ /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++#include <config_vclplug.h>
++
+ /*
+  * This file is part of the LibreOffice project.
+  *
+@@ -22,7 +24,7 @@
+ 
+ #include <headless/svpframe.hxx>
+ #include <headless/svpinst.hxx>
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+ #include <headless/svpgdi.hxx>
+ #endif
+ #include <salsys.hxx>
+@@ -30,13 +32,13 @@
+ #include <basegfx/vector/b2ivector.hxx>
+ #include <vcl/keycodes.hxx>
+ 
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+ #include <cairo.h>
+ #endif
+ 
+ SvpSalFrame* SvpSalFrame::s_pFocusFrame = nullptr;
+ 
+-#ifdef IOS
++#if defined(IOS) && !ENABLE_HEADLESS
+ #define SvpSalGraphics AquaSalGraphics
+ #endif
+ 
+@@ -47,7 +49,7 @@
+     m_pParent( static_cast<SvpSalFrame*>(pParent) ),
+     m_nStyle( nSalFrameStyle ),
+     m_bVisible( false ),
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+     m_pSurface( nullptr ),
+ #endif
+     m_nMinWidth( 0 ),
+@@ -102,7 +104,7 @@
+             }
+         }
+     }
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+     if (m_pSurface)
+         cairo_surface_destroy(m_pSurface);
+ #endif
+@@ -151,7 +153,7 @@
+ SalGraphics* SvpSalFrame::AcquireGraphics()
+ {
+     SvpSalGraphics* pGraphics = new SvpSalGraphics();
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+     pGraphics->setSurface(m_pSurface, GetSurfaceFrameSize());
+ #endif
+     m_aGraphics.push_back( pGraphics );
+@@ -257,7 +259,7 @@
+         if (m_nMinHeight > 0 && maGeometry.height() < m_nMinHeight)
+             maGeometry.setHeight(m_nMinHeight);
+     }
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+     basegfx::B2IVector aFrameSize = GetSurfaceFrameSize();
+     if (!m_pSurface || cairo_image_surface_get_width(m_pSurface) != aFrameSize.getX() ||
+                        cairo_image_surface_get_height(m_pSurface) != aFrameSize.getY() )
+@@ -496,7 +498,7 @@
+             bFreeGraphics = true;
+         }
+         rSettings.SetStyleSettings(aStyleSettings);
+-#ifndef IOS // For now...
++#if !defined(IOS) || ENABLE_HEADLESS // For now...
+         pGraphics->UpdateSettings(rSettings);
+ #endif
+         if (bFreeGraphics)
+--- a/vcl/headless/svpinst.cxx
++++ b/vcl/headless/svpinst.cxx
+@@ -1,4 +1,6 @@
+ /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++#include <config_vclplug.h>
++
+ /*
+  * This file is part of the LibreOffice project.
+  *
+@@ -35,7 +37,7 @@
+ #include <headless/svpframe.hxx>
+ #include <headless/svpdummies.hxx>
+ #include <headless/svpvd.hxx>
+-#ifdef IOS
++#if defined(IOS) && !ENABLE_HEADLESS
+ #  include <quartz/salbmp.h>
+ #  include <quartz/salgdi.h>
+ #  include <quartz/salvd.h>
+@@ -200,7 +202,7 @@
+     delete pObject;
+ }
+ 
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+ 
+ std::unique_ptr<SalVirtualDevice> SvpSalInstance::CreateVirtualDevice(SalGraphics& rGraphics,
+                                                        tools::Long nDX, tools::Long nDY,
+@@ -275,7 +277,7 @@
+ 
+ std::shared_ptr<SalBitmap> SvpSalInstance::CreateSalBitmap()
+ {
+-#ifdef IOS
++#if defined(IOS) && !ENABLE_HEADLESS
+     return std::make_shared<QuartzSalBitmap>();
+ #else
+     return std::make_shared<SvpSalBitmap>();
+--- a/vcl/headless/svpvd.cxx
++++ b/vcl/headless/svpvd.cxx
+@@ -1,4 +1,6 @@
+ /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++#include <config_vclplug.h>
++
+ /*
+  * This file is part of the LibreOffice project.
+  *
+@@ -17,7 +19,7 @@
+  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
+  */
+ 
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+ 
+ #include <headless/svpvd.hxx>
+ #include <headless/svpgdi.hxx>
+--- a/vcl/inc/headless/svpframe.hxx
++++ b/vcl/inc/headless/svpframe.hxx
+@@ -1,4 +1,6 @@
+ /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++#include <config_vclplug.h>
++
+ /*
+  * This file is part of the LibreOffice project.
+  *
+@@ -25,7 +27,7 @@
+ 
+ #include <vector>
+ 
+-#ifdef IOS
++#if defined(IOS) && !ENABLE_HEADLESS
+ #include <quartz/salgdi.h>
+ #define SvpSalInstance AquaSalInstance
+ #define SvpSalGraphics AquaSalGraphics
+@@ -41,7 +43,7 @@
+     std::vector< SvpSalFrame* >         m_aChildren;     // Vector of child frames
+     SalFrameStyleFlags                  m_nStyle;
+     bool                                m_bVisible;
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+     cairo_surface_t*                    m_pSurface;
+ #endif
+     tools::Long                                m_nMinWidth;
+--- a/vcl/inc/headless/svpgdi.hxx
++++ b/vcl/inc/headless/svpgdi.hxx
+@@ -1,4 +1,6 @@
+ /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++#include <config_vclplug.h>
++
+ /*
+  * This file is part of the LibreOffice project.
+  *
+@@ -19,7 +21,7 @@
+ 
+ #pragma once
+ 
+-#ifdef IOS
++#if defined(IOS) && !ENABLE_HEADLESS
+ #error This file is not for iOS
+ #endif
+ 
+--- a/vcl/inc/headless/svpinst.hxx
++++ b/vcl/inc/headless/svpinst.hxx
+@@ -1,4 +1,6 @@
+ /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++#include <config_vclplug.h>
++
+ /*
+  * This file is part of the LibreOffice project.
+  *
+@@ -32,7 +34,7 @@
+ #include <mutex>
+ #include <queue>
+ 
+-#ifdef IOS
++#if defined(IOS) && !ENABLE_HEADLESS
+ #define SvpSalInstance AquaSalInstance
+ #endif
+ 
+--- a/vcl/inc/unx/gendata.hxx
++++ b/vcl/inc/unx/gendata.hxx
+@@ -1,4 +1,6 @@
+ /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++#include <config_vclplug.h>
++
+ /*
+  * This file is part of the LibreOffice project.
+  *
+@@ -13,7 +15,7 @@
+ 
+ #include <memory>
+ 
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+ class FreetypeManager;
+ 
+ namespace psp
+@@ -43,7 +45,7 @@
+ // except that the osx and ios backends are *nix but don't use this.
+ class VCL_PLUGIN_PUBLIC GenericUnixSalData : public SalData
+ {
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+     friend class ::psp::PrinterInfoManager;
+ 
+     std::unique_ptr<FreetypeManager> m_pFreetypeManager;
+@@ -55,7 +57,7 @@
+     GenericUnixSalData();
+     virtual ~GenericUnixSalData() override;
+ 
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+     FreetypeManager* GetFreetypeManager();
+     psp::PrintFontManager* GetPrintFontManager();
+ #endif
+--- a/vcl/unx/generic/app/gendata.cxx
++++ b/vcl/unx/generic/app/gendata.cxx
+@@ -1,4 +1,6 @@
+ /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++#include <config_vclplug.h>
++
+ /*
+  * This file is part of the LibreOffice project.
+  *
+@@ -17,7 +19,7 @@
+  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
+  */
+ 
+-#ifdef IOS
++#if defined(IOS) && !ENABLE_HEADLESS
+ #include <ios/iosinst.hxx>
+ #endif
+ 
+@@ -25,7 +27,7 @@
+ 
+ #include <unx/fontmanager.hxx>
+ 
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+ 
+ #include <unx/glyphcache.hxx>
+ #include <printerinfomanager.hxx>
+@@ -40,7 +42,7 @@
+ 
+ GenericUnixSalData::~GenericUnixSalData()
+ {
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+     // at least for GetPrintFontManager the sequence is important
+     m_pPrintFontManager.reset();
+     m_pFreetypeManager.reset();
+@@ -48,7 +50,7 @@
+ #endif
+ }
+ 
+-#ifndef IOS
++#if !defined(IOS) || ENABLE_HEADLESS
+ FreetypeManager* GenericUnixSalData::GetFreetypeManager()
+ {
+     if (!m_pFreetypeManager)

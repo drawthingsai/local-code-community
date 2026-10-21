@@ -1,0 +1,89 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library", "swift_test")
+
+config_setting(
+    name = "ios_build",
+    constraint_values = [
+        "@platforms//os:ios",
+    ],
+)
+
+_COMMON_SRCS = glob([
+    "Sources/MarkdownEngine/Configuration/**/*.swift",
+    "Sources/MarkdownEngine/Diagnostics/**/*.swift",
+    "Sources/MarkdownEngine/Extensions/**/*.swift",
+    "Sources/MarkdownEngine/Parser/**/*.swift",
+    "Sources/MarkdownEngine/Platform/**/*.swift",
+    "Sources/MarkdownEngine/Services/**/*.swift",
+    "Sources/MarkdownEngine/UIKit/**/*.swift",
+    "Sources/MarkdownEngine/TextView/CodeBlockButton.swift",
+    "Sources/MarkdownEngine/TextView/NativeTextViewSelectionTypes.swift",
+])
+
+_APPKIT_SRCS = glob(
+    [
+        "Sources/MarkdownEngine/Input/**/*.swift",
+        "Sources/MarkdownEngine/Renderer/**/*.swift",
+        "Sources/MarkdownEngine/Styling/**/*.swift",
+        "Sources/MarkdownEngine/TextView/**/*.swift",
+    ],
+    exclude = [
+        "Sources/MarkdownEngine/TextView/CodeBlockButton.swift",
+        "Sources/MarkdownEngine/TextView/NativeTextViewSelectionTypes.swift",
+    ],
+)
+
+swift_library(
+    name = "MarkdownEngine",
+    srcs = _COMMON_SRCS + select({
+        ":ios_build": [],
+        "//conditions:default": _APPKIT_SRCS,
+    }),
+    module_name = "MarkdownEngine",
+    visibility = ["//visibility:public"],
+)
+
+swift_library(
+    name = "MarkdownEngineCodeBlocks",
+    srcs = glob([
+        "Sources/MarkdownEngineCodeBlocks/**/*.swift",
+    ]),
+    module_name = "MarkdownEngineCodeBlocks",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":MarkdownEngine",
+        "//Vendors/HighlighterSwift:Highlighter",
+    ],
+)
+
+swift_library(
+    name = "MarkdownEngineLatex",
+    srcs = glob([
+        "Sources/MarkdownEngineLatex/**/*.swift",
+    ]),
+    module_name = "MarkdownEngineLatex",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":MarkdownEngine",
+        "//Vendors/SwiftMath",
+    ],
+)
+
+swift_test(
+    name = "MarkdownEngineCodeBlocksTests",
+    srcs = glob([
+        "Tests/MarkdownEngineCodeBlocksTests/**/*.swift",
+    ]),
+    deps = [
+        ":MarkdownEngineCodeBlocks",
+    ],
+)
+
+swift_test(
+    name = "MarkdownEngineTests",
+    srcs = glob([
+        "Tests/MarkdownEngineTests/**/*.swift",
+    ]),
+    deps = [
+        ":MarkdownEngine",
+    ],
+)

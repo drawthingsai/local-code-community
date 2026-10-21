@@ -1,0 +1,23 @@
+diff --git a/desktop/source/lib/init.cxx b/desktop/source/lib/init.cxx
+--- a/desktop/source/lib/init.cxx
++++ b/desktop/source/lib/init.cxx
+@@ -5245,6 +5245,19 @@
+         pDevice->AddTempDevFont(sMagicFileName, u""_ustr);
+         OutputDevice::ImplRefreshAllFontData(true);
+     }
++#elif defined(MACOSX) && ENABLE_HEADLESS
++    else if (strcmp(pOption, "addfont") == 0)
++    {
++        OUString aUrl;
++        if (osl::FileBase::getFileURLFromSystemPath(OUString::fromUtf8(pValue), aUrl)
++            != osl::FileBase::E_None)
++            return;
++        SolarMutexGuard aGuard;
++        OutputDevice* pDevice = Application::GetDefaultDevice();
++        OutputDevice::ImplClearAllFontData(true);
++        pDevice->AddTempDevFont(aUrl, u""_ustr);
++        OutputDevice::ImplRefreshAllFontData(true);
++    }
+ #endif
+ }
+ 

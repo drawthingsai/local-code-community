@@ -1,0 +1,10 @@
+[Version]
+AllLanguages=en-US
+buildid=bce0998afefdbc355585ca324285661a2170ba77
+ExtensionUpdateURL=https://updateexte.libreoffice.org/ExtensionUpdateService/check.Update
+UpdateChannel=
+ReferenceOOoMajorMinor=4.1
+UpdateID=LibreOfficeDev_26_en-US
+UpdateURL=
+UpdateUserAgent=<PRODUCT> (${buildid}; ${_OS}; ${_ARCH}; <OPTIONAL_OS_HW_DATA>)
+Vendor=DeepSeek

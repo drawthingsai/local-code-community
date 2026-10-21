@@ -1,0 +1,17 @@
+include "project_history.fbs";
+
+table ProjectThread {
+  id: long (primary);
+  title: string;
+  created_at: long;
+  updated_at: long;
+  model: string;
+  has_unread_response: bool;
+  has_incomplete_response: bool;
+  turn_count_since_last_review: long;
+  // The latest visible message; for assistant turns, the final response without tool calls.
+  last_message: string;
+  last_message_role: ProjectHistoryRole;
+}
+
+root_type ProjectThread;

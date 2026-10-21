@@ -1,0 +1,9 @@
+table ProjectQueuedItem {
+  thread_id: long (primary);
+  datetime: long (primary);
+  text: string;
+  // Images attached to the queued message, as paths relative to the project folder.
+  image_paths: [string];
+}
+
+root_type ProjectQueuedItem;

@@ -1,0 +1,67 @@
+{
+  "runtime": {
+    "python": "3.14.7 (tags/v3.14.7-dirty:823f0323ee6, Aug 28 2026, 13:14:07) [Clang 21.0.0 (clang-2100.1.1.101)]",
+    "matplotlib": "3.11.1",
+    "pillow": "12.3.0",
+    "backend": "Agg"
+  },
+  "script_sha256": "437cefcecd3e26f4874757da42b71fc919481629c06e52e7112e60c98d54b74e",
+  "figures": [
+    {
+      "png": {
+        "name": "acquisition-mix.png",
+        "size": [
+          1463,
+          1136
+        ],
+        "sha256": "3d6388344e772722106d393e39474038785757ad8626a5b63813a26e7d5ec83f"
+      },
+      "axes": [
+        {
+          "titles": [
+            "Acquisition mix",
+            "",
+            ""
+          ],
+          "xlabel": "",
+          "ylabel": "",
+          "xscale": "linear",
+          "yscale": "linear",
+          "xticks": [],
+          "yticks": [],
+          "texts": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "35%",
+            "25%",
+            "20%",
+            "15%",
+            "5%",
+            "100%",
+            "total share"
+          ],
+          "legend": [
+            "Organic search \u2014 35%",
+            "Paid social \u2014 25%",
+            "Partner referrals \u2014 20%",
+            "Email \u2014 15%",
+            "Events \u2014 5%"
+          ],
+          "bars": [],
+          "lines": [],
+          "scatter": [],
+          "pie_percentages": [
+            35.0,
+            25.0,
+            20.00000000000001,
+            15.0,
+            5.000000000000008
+          ]
+        }
+      ]
+    }
+  ]
+}

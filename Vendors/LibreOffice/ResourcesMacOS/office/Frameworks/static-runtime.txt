@@ -1,0 +1,1 @@
+LibreOfficeKit installation anchor. Native code is statically linked into the host.

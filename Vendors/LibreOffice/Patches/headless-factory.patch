@@ -1,0 +1,16 @@
+--- a/vcl/source/app/salplug.cxx
++++ b/vcl/source/app/salplug.cxx
+@@ -246,7 +246,13 @@
+     }
+ 
+ #if STATIC_SAL_INSTANCE
++#if ENABLE_HEADLESS
++    // An embedded headless build must never fall back to the platform GUI
++    // plugin, even when a host environment requests a different VCL backend.
++    return svp_create_SalInstance();
++#else
+     return create_SalInstance();
++#endif
+ 
+ #else // !STATIC_SAL_INSTANCE
+ 

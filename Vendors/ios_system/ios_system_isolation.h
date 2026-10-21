@@ -1,0 +1,28 @@
+#ifndef ios_system_isolation_h
+#define ios_system_isolation_h
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+  IOS_COMMAND_ISOLATION_THREAD_SAFE = 0,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_BASH,
+  IOS_COMMAND_ISOLATION_OSH,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_PYTHON,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_NODE,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_CURL,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_IMG2TXT,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_OPENSSH,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_FFMPEG,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_DRAW_THINGS,
+  IOS_COMMAND_ISOLATION_EXCLUSIVE_LIBREOFFICE,
+} ios_command_isolation_policy;
+
+ios_command_isolation_policy ios_commandIsExclusiveOrThreadSafe(const char *command);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

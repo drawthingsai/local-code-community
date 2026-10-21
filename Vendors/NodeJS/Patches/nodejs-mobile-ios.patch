@@ -1,0 +1,1906 @@
+diff --git a/android-patches/trap-handler.h.patch b/android-patches/trap-handler.h.patch
+deleted file mode 100644
+index 6974259ffb8d7ed7762ea7c926cfcebb605458b0..0000000000000000000000000000000000000000
+--- a/android-patches/trap-handler.h.patch
++++ /dev/null
+@@ -1,47 +0,0 @@
+---- trap-handler.h
+-+++ fixed-trap-handler.h
+-@@ -18,43 +18,1 @@
+--// X64 on Linux, Windows, MacOS, FreeBSD.
+--#if V8_HOST_ARCH_X64 && V8_TARGET_ARCH_X64 &&                        \
+--    ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN || \
+--     V8_OS_FREEBSD)
+--#define V8_TRAP_HANDLER_SUPPORTED true
+--// Arm64 native on Linux, Windows, MacOS.
+--#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && \
+--    ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN)
+--#define V8_TRAP_HANDLER_SUPPORTED true
+--// For Linux and Mac, enable the simulator when it's been requested.
+--#if USE_SIMULATOR && ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_DARWIN)
+--#define V8_TRAP_HANDLER_VIA_SIMULATOR
+--#endif
+--// Arm64 simulator on x64 on Linux, Mac, or Windows.
+--//
+--// The simulator case uses some inline assembly code, which cannot be
+--// compiled with MSVC, so don't enable the trap handler in that case.
+--// (MSVC #defines _MSC_VER, but so does Clang when targeting Windows, hence
+--// the check for __clang__.)
+--#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_X64 && \
+--    (V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN) && \
+--    (!defined(_MSC_VER) || defined(__clang__))
+--#define V8_TRAP_HANDLER_VIA_SIMULATOR
+--#define V8_TRAP_HANDLER_SUPPORTED true
+--// Loong64 (non-simulator) on Linux.
+--#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_LOONG64 && V8_OS_LINUX
+--#define V8_TRAP_HANDLER_SUPPORTED true
+--// Loong64 simulator on x64 on Linux
+--#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+--#define V8_TRAP_HANDLER_VIA_SIMULATOR
+--#define V8_TRAP_HANDLER_SUPPORTED true
+--// RISCV64 (non-simulator) on Linux.
+--#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_RISCV64 && V8_OS_LINUX && \
+--    !V8_OS_ANDROID
+--#define V8_TRAP_HANDLER_SUPPORTED true
+--// RISCV64 simulator on x64 on Linux
+--#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+--#define V8_TRAP_HANDLER_VIA_SIMULATOR
+--#define V8_TRAP_HANDLER_SUPPORTED true
+--// Everything else is unsupported.
+--#else
+--#define V8_TRAP_HANDLER_SUPPORTED false
+--#endif
+-+#define V8_TRAP_HANDLER_SUPPORTED false
+diff --git a/android_configure.py b/android_configure.py
+index 5cea0393f48a7620c7ca6bbce4ea4f66d1a1cbed..ec76c900ca7b538ef8de18cce30d05193a35479c 100644
+--- a/android_configure.py
++++ b/android_configure.py
+@@ -1,25 +1,14 @@
+ import platform
+ import sys
+ import os
+-
+-# TODO: In next version, it will be a JSON file listing all the patches, and then it will iterate through to apply them.
+-def patch_android():
+-    print("- Patches List -")
+-    print("[1] [deps/v8/src/trap-handler/trap-handler.h] related to https://github.com/nodejs/node/issues/36287")
+-    if platform.system() == "Linux":
+-        os.system('patch -f ./deps/v8/src/trap-handler/trap-handler.h < ./android-patches/trap-handler.h.patch')
+-    print("\033[92mInfo: \033[0m" + "Tried to patch.")
++import shutil
+ 
+ if platform.system() != "Linux" and platform.system() != "Darwin":
+     print("android-configure is currently only supported on Linux and Darwin.")
+     sys.exit(1)
+ 
+-if len(sys.argv) == 2 and sys.argv[1] == "patch":
+-    patch_android()
+-    sys.exit(0)
+-
+ if len(sys.argv) != 4:
+-    print("Usage: ./android-configure [patch] <path to the Android NDK> <Android SDK version> <target architecture>")
++    print("Usage: ./android-configure <path to the Android NDK> <Android SDK version> <target architecture>")
+     sys.exit(1)
+ 
+ if not os.path.exists(sys.argv[1]) or not os.listdir(sys.argv[1]):
+@@ -55,7 +44,7 @@ else:
+ print("\033[92mInfo: \033[0m" + "Configuring for " + DEST_CPU + "...")
+ 
+ if platform.system() == "Darwin":
+-    host_os = "darwin"
++    host_os = "mac"
+     toolchain_path = android_ndk_path + "/toolchains/llvm/prebuilt/darwin-x86_64"
+ 
+ elif platform.system() == "Linux":
+@@ -65,13 +54,52 @@ elif platform.system() == "Linux":
+ os.environ['PATH'] += os.pathsep + toolchain_path + "/bin"
+ os.environ['CC'] = toolchain_path + "/bin/" + TOOLCHAIN_PREFIX + android_sdk_version + "-" +  "clang"
+ os.environ['CXX'] = toolchain_path + "/bin/" + TOOLCHAIN_PREFIX + android_sdk_version + "-" + "clang++"
++# nodejs-mobile patch: add host CC and CXX
++os.environ['CC_host'] = os.popen('command -v clang').read().strip()
++os.environ['CXX_host'] = os.popen('command -v clang++').read().strip()
++
++# nodejs-mobile patch: route every compile through sccache, but only when the
++# caller opts in (CI sets NODEJS_MOBILE_SCCACHE=1 next to the
++# mozilla-actions/sccache-action setup). Opt-in rather than "wrap when
++# installed": a local build must not silently change behaviour because a
++# developer happens to have sccache on PATH. This lives here and not in CI env
++# because this script overwrites CC/CXX with the NDK toolchain paths above —
++# an externally exported CC would not survive to the make invocation.
++if os.environ.get("NODEJS_MOBILE_SCCACHE"):
++    sccache = shutil.which("sccache")
++    if not sccache:
++        print("\033[91mError: \033[0m" + "NODEJS_MOBILE_SCCACHE is set but sccache is not on PATH")
++        sys.exit(1)
++    for _var in ("CC", "CXX", "CC_host", "CXX_host"):
++        os.environ[_var] = sccache + " " + os.environ[_var]
+ 
+ GYP_DEFINES = "target_arch=" + arch
+ GYP_DEFINES += " v8_target_arch=" + arch
+ GYP_DEFINES += " android_target_arch=" + arch
+ GYP_DEFINES += " host_os=" + host_os + " OS=android"
+ GYP_DEFINES += " android_ndk_path=" + android_ndk_path
++GYP_DEFINES += " android_ndk_sysroot=" + toolchain_path + "/sysroot"
++# Flavor switch (mobile-only, wrapper-level so configure.py stays upstream-clean):
++#   full (default) — the shared build all consumers get; flags unchanged.
++#   lite           — size-reduced subtractions (see "The lite variant" in
++#                    docs/BUILDING.md on the recipe branch).
++# Set via env NODEJS_MOBILE_FLAVOR=lite. Android lite keeps the JIT and V8's
++# native WASM engine (undici uses them); it only drops features that
++# size-constrained consumers don't need. Dead-code stripping applies to both
++# flavors (common.gypi).
++flavor = os.environ.get("NODEJS_MOBILE_FLAVOR", "full").strip().lower()
++if flavor not in ("full", "lite"):
++    print("\033[91mError: \033[0m" + "NODEJS_MOBILE_FLAVOR must be 'full' or 'lite'")
++    sys.exit(1)
++print("\033[92mInfo: \033[0m" + "Build flavor: " + flavor)
++
++intl = "small-icu"
++extra_flags = ""
++if flavor == "lite":
++    intl = "none"
++    extra_flags = " --without-amaro --without-inspector --without-sqlite"
++
+ os.environ['GYP_DEFINES'] = GYP_DEFINES
+ 
+ if os.path.exists("./configure"):
+-    os.system("./configure --dest-cpu=" + DEST_CPU + " --dest-os=android --openssl-no-asm --cross-compiling")
++    os.system("./configure --dest-cpu=" + DEST_CPU + " --dest-os=android --openssl-no-asm --with-intl=" + intl + extra_flags + " --cross-compiling --shared")
+diff --git a/common.gypi b/common.gypi
+index 83e0691d4a2d86bed83a3caf24d795f14af464bd..dc33231a0dc4ff70fb15b0e2ad0c6eeb23a092a1 100644
+--- a/common.gypi
++++ b/common.gypi
+@@ -112,7 +112,7 @@
+         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+         'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
+       }],
+-      ['OS=="mac"', {
++      ['OS=="mac" or OS == "ios"', {
+         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+         'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
+       }],
+@@ -223,6 +223,23 @@
+               }],
+             ],
+           }],
++          ['OS=="android"', {
++            # nodejs-mobile: emit a GNU build-id on libnode.so so Sentry can
++            # match the AGP-stripped runtime binary to uploaded debug files for
++            # native crash symbolication. Android-only on purpose: Mach-O has
++            # no --build-id — Apple's ld emits an LC_UUID load command
++            # unconditionally, and that UUID is what symbolicators match dSYMs
++            # by, so iOS needs no equivalent flag. Behaviour-neutral; applies to both
++            # flavors (see docs/BUILDING.md on the recipe branch). These also
++            # reach the host build-tools, which is harmless on the Linux build
++            # host (GNU ld); Android is built on Linux (a macOS host can't link
++            # the cross-build — see that same BUILDING.md). _toolset isn't
++            # available in load-time conditions, so it can't be scoped out here.
++            # --gc-sections (both flavors): split sections and drop
++            # unreferenced ones; per-function codegen is unchanged.
++            'cflags': [ '-ffunction-sections', '-fdata-sections' ],
++            'ldflags': [ '-Wl,--build-id=sha1', '-Wl,--gc-sections' ],
++          }],
+           ['OS=="solaris"', {
+             # pull in V8's postmortem metadata
+             'ldflags': [ '-Wl,-z,allextract' ]
+@@ -231,7 +248,7 @@
+             # increase performance, number from experimentation
+             'cflags': [ '-qINLINE=::150:100000' ]
+           }],
+-          ['OS!="mac" and OS!="win" and OS!="zos"', {
++          ['OS!="mac" and OS!="ios" and OS!="win" and OS!="zos"', {
+             # -fno-omit-frame-pointer is necessary for the --perf_basic_prof
+             # flag to work correctly. perf(1) gets confused about JS stack
+             # frames otherwise, even with --call-graph dwarf.
+@@ -450,7 +467,7 @@
+       [ 'target_arch=="arm64"', {
+         'msvs_configuration_platform': 'arm64',
+       }],
+-      ['asan == 1 and OS != "mac" and OS != "zos"', {
++      ['asan == 1 and OS != "mac" and OS != "ios" and OS != "zos"', {
+         'cflags+': [
+           '-fno-omit-frame-pointer',
+           '-fsanitize=address',
+@@ -478,7 +495,7 @@
+           }],
+         ],
+       }],
+-      ['ubsan == 1 and OS != "mac" and OS != "zos"', {
++      ['ubsan == 1 and OS != "mac" and OS != "ios" and OS != "zos"', {
+         'cflags+': [
+           '-fno-omit-frame-pointer',
+           '-fsanitize=undefined',
+@@ -487,7 +504,7 @@
+         'cflags!': [ '-fno-omit-frame-pointer' ],
+         'ldflags': [ '-fsanitize=undefined' ],
+       }],
+-      ['ubsan == 1 and OS == "mac"', {
++      ['ubsan == 1 and (OS == "mac" or OS == "ios")', {
+         'xcode_settings': {
+           'OTHER_CFLAGS+': [
+             '-fno-omit-frame-pointer',
+@@ -595,11 +612,13 @@
+           }],
+           ['_toolset=="host"', {
+             'conditions': [
+-              [ 'host_arch=="ia32"', {
++              # nodejs-mobile patch: https://github.com/nodejs/node/pull/57748
++              [ 'host_arch=="ia32" or (host_arch=="x64" and (target_arch=="ia32" or target_arch=="arm"))', {
+                 'cflags': [ '-m32' ],
+                 'ldflags': [ '-m32' ],
+               }],
+-              [ 'host_arch=="x64"', {
++              # nodejs-mobile patch: https://github.com/nodejs/node/pull/57748
++              [ 'host_arch=="x64" and (target_arch=="x64" or target_arch=="arm64")', {
+                 'cflags': [ '-m64' ],
+                 'ldflags': [ '-m64' ],
+               }],
+@@ -759,6 +778,98 @@
+           }],
+         ],
+       }],
++      ['OS=="ios"', {
++        'defines': ['_DARWIN_USE_64_BIT_INODE=1'],
++        'xcode_settings': {
++          'ALWAYS_SEARCH_USER_PATHS': 'NO',
++          'GCC_CW_ASM_SYNTAX': 'NO',                # No -fasm-blocks
++          'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
++                                                    # (Equivalent to -fPIC)
++          'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
++          'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
++          'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
++          'GCC_STRICT_ALIASING': 'NO',              # -fno-strict-aliasing
++          'PREBINDING': 'NO',                       # No -Wl,-prebind
++          'USE_HEADERMAP': 'NO',
++        },
++        'target_conditions': [
++          ['_toolset=="host"', {
++            'xcode_settings': {
++              'SDKROOT': 'macosx',
++              'MACOSX_DEPLOYMENT_TARGET': '13.5',   # Use macOS deployment target for host tools
++              'WARNING_CFLAGS': [
++                '-Wall',
++                '-Wendif-labels',
++                '-W',
++                '-Wno-unused-parameter',
++              ],
++            },
++            'conditions': [
++              ['host_arch=="arm64"', {
++                'xcode_settings': {'ARCHS': ['arm64']},
++              }],
++              ['host_arch=="x64"', {
++                'xcode_settings': {'ARCHS': ['x86_64']},
++              }],
++            ],
++          }, {
++            'xcode_settings': {
++              'IPHONEOS_DEPLOYMENT_TARGET': '14.0', # -miphoneos-version-min=14.0
++              'WARNING_CFLAGS': [
++                '-Wall',
++                '-Wendif-labels',
++                '-W',
++                '-Wno-unused-parameter',
++                '-Wno-enum-constexpr-conversion',
++              ],
++            },
++            'conditions': [
++              ['iossim!="true" and target_arch in "arm64 arm armv7s"', {
++                'xcode_settings': {
++                  # Bitcode was removed in Xcode 14; ENABLE_BITCODE/-fembed-bitcode
++                  # now error on modern Xcode (incl. CI's Xcode 16.4).
++                  'SDKROOT': 'iphoneos',
++                }
++              }, {
++                'xcode_settings': {
++                  'SDKROOT': 'iphonesimulator',
++                }
++              }],
++            ],
++          }],
++          ['_type!="static_library"', {
++            'xcode_settings': {
++              'OTHER_LDFLAGS': [
++                '-Wl,-search_paths_first',
++              ],
++            },
++          }],
++        ],
++        'conditions': [
++          ['target_arch=="ia32"', {
++            'xcode_settings': {'ARCHS': ['i386']},
++          }],
++          ['target_arch=="x64"', {
++            'xcode_settings': {'ARCHS': ['x86_64']},
++          }],
++          [ 'target_arch=="arm64"', {
++            'xcode_settings': {'ARCHS': ['arm64']},
++          }],
++          [ 'target_arch=="arm"', {
++            'xcode_settings': {'ARCHS': ['armv7']},
++          }],
++          [ 'target_arch=="armv7s"', {
++            'xcode_settings': {'ARCHS': ['armv7s']},
++          }],
++          ['clang==1', {
++            'xcode_settings': {
++              'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
++              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++20',  # -std=gnu++20
++              'CLANG_CXX_LIBRARY': 'libc++',
++            },
++          }],
++        ],
++      }],
+       ['OS=="freebsd"', {
+         'ldflags': [
+           '-Wl,--export-dynamic',
+diff --git a/configure.py b/configure.py
+index 7fd64a9620e3365c9bb8cb2aae19b7b376bf0d52..40642c1af4aad205e01dd638da7641ba68773ec2 100755
+--- a/configure.py
++++ b/configure.py
+@@ -1146,6 +1146,11 @@ parser.add_argument('-C',
+     default=None,
+     help=argparse.SUPPRESS)
+ 
++parser.add_argument('--ios-simulator',
++    action='store_true',
++    dest='ios_simulator',
++    help=argparse.SUPPRESS)
++
+ parser.add_argument('--clang-cl',
+     action='store',
+     dest='clang_cl',
+@@ -1655,6 +1660,9 @@ def configure_node_cctest_sources(o):
+     SearchFiles('test/cctest', 'h')
+ 
+ def configure_node(o):
++  if options.dest_os == 'ios':
++    o['variables']['OS'] = 'ios'
++    o['variables']['iossim'] = b(options.ios_simulator)
+   if options.dest_os == 'android':
+     o['variables']['OS'] = 'android'
+   o['variables']['node_enable_experimentals'] = b(options.enable_all_experimentals)
+diff --git a/deps/cares/config/darwin/ares_config.h b/deps/cares/config/darwin/ares_config.h
+index 6187024a3a17efa03ff9b476e0162a91f8d34987..19777617caf13a7aa6d8bd5127c6b0072ab556b0 100644
+--- a/deps/cares/config/darwin/ares_config.h
++++ b/deps/cares/config/darwin/ares_config.h
+@@ -329,7 +329,14 @@
+ #define HAVE_SYS_PARAM_H 1
+ 
+ /* Define to 1 if you have the <sys/random.h> header file. */
++/* nodejs-mobile: the iOS SDK has no <sys/random.h>; c-ares falls back to
++ * arc4random_buf on Apple, so guard this define to macOS only. */
++#if defined(__APPLE__)
++#  include <TargetConditionals.h>
++#endif
++#if !defined(TARGET_OS_IPHONE) || !TARGET_OS_IPHONE
+ #define HAVE_SYS_RANDOM_H 1
++#endif
+ 
+ /* Define to 1 if you have the <sys/select.h> header file. */
+ #define HAVE_SYS_SELECT_H 1
+diff --git a/deps/openssl/openssl_no_asm.gypi b/deps/openssl/openssl_no_asm.gypi
+index 8169f605d7d7f10d850b7df86c5b60672eeffb5b..e021093636bad46d05d0b5165e9adcf14fa46b69 100644
+--- a/deps/openssl/openssl_no_asm.gypi
++++ b/deps/openssl/openssl_no_asm.gypi
+@@ -13,7 +13,7 @@
+       'includes': ['config/archs/linux-aarch64/no-asm/openssl.gypi'],
+     }, 'target_arch=="ia32" and OS=="freebsd"', {
+       'includes': ['config/archs/BSD-x86/no-asm/openssl.gypi'],
+-    }, 'target_arch=="ia32" and OS=="linux"', {
++    }, 'target_arch=="ia32" and OS in ("linux", "android")', {
+       'includes': ['config/archs/linux-elf/no-asm/openssl.gypi'],
+     }, 'target_arch=="ia32" and OS=="mac"', {
+       'includes': ['config/archs/darwin-i386-cc/no-asm/openssl.gypi'],
+@@ -36,7 +36,7 @@
+       'includes': ['config/archs/VC-WIN64A/no-asm/openssl.gypi'],
+     }, 'target_arch=="arm64" and OS=="win"', {
+       'includes': ['config/archs/VC-WIN64-ARM/no-asm/openssl.gypi'],
+-    }, 'target_arch=="x64" and OS=="linux"', {
++    }, 'target_arch=="x64" and OS in ("linux", "android")', {
+       'includes': ['config/archs/linux-x86_64/no-asm/openssl.gypi'],
+     }, 'target_arch=="mips64el" and OS=="linux"', {
+       'includes': ['config/archs/linux64-mips64/no-asm/openssl.gypi'],
+diff --git a/deps/uv/src/unix/darwin.c b/deps/uv/src/unix/darwin.c
+index c26a1faccbcc4b9c4f87f8635792a46e1e738fe6..e7ff1989ad82a9c8a43ae3689dd3a2d7b0832e0e 100644
+--- a/deps/uv/src/unix/darwin.c
++++ b/deps/uv/src/unix/darwin.c
+@@ -205,6 +205,10 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+     return UV__ERR(errno);
+   }
+ 
++#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
++  /* You can't get cpu frequency on iOS devices. Defaults to 0. */
++  cpuspeed = 0;
++#else
+   cpuspeed = 0;
+   size = sizeof(cpuspeed);
+   sysctlbyname("hw.cpufrequency", &cpuspeed, &size, NULL, 0);
+@@ -212,6 +216,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+     /* If sysctl hw.cputype == CPU_TYPE_ARM64, the correct value is unavailable
+      * from Apple, but we can hard-code it here to a plausible value. */
+     cpuspeed = 2400000000U;
++#endif
+ 
+   if (host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &numcpus,
+                           (processor_info_array_t*)&info,
+diff --git a/deps/uv/src/unix/fs.c b/deps/uv/src/unix/fs.c
+index 90cb40d98d47ab31de509db32eb9a9222d7aced6..2a242facab09222a47b01e2be62347b4a0d0ab75 100644
+--- a/deps/uv/src/unix/fs.c
++++ b/deps/uv/src/unix/fs.c
+@@ -1046,8 +1046,11 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
+     try_sendfile = 1;
+ 
+ #ifdef __linux__
++#if !defined(__ANDROID__) || (!defined(__i386__) && !defined(__arm__)) || (defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS-0 == 64)
++// copy_file_range needs large offsets.
+     r = uv__fs_try_copy_file_range(in_fd, &off, out_fd, len);
+     try_sendfile = (r == -1 && errno == ENOSYS);
++#endif
+ #endif
+ 
+     if (try_sendfile)
+diff --git a/deps/uv/uv.gyp b/deps/uv/uv.gyp
+index 760a3cdb0019d1c1c030d77fd7e9233714dba78a..c46515422734b100f2f4a2b113a44568be8816f7 100644
+--- a/deps/uv/uv.gyp
++++ b/deps/uv/uv.gyp
+@@ -3,6 +3,12 @@
+     'conditions': [
+       ['OS=="win"', {
+         'shared_unix_defines': [ ],
++      }, 'OS=="android" and target_arch in ("arm","ia32")', {
++        # Android on API < 24 will miss function definitions for
++        #_FILE_OFFSET_BITS=64
++        'shared_unix_defines': [
++          '_LARGEFILE_SOURCE',
++        ],
+       }, {
+         'shared_unix_defines': [
+           '_LARGEFILE_SOURCE',
+@@ -291,8 +297,22 @@
+           'defines': [
+             '_GNU_SOURCE',
+           ],
+-          'sources': [
+-            '<@(uv_sources_android)',
++          'target_conditions': [
++            ['_toolset=="target"', {
++              'sources': [
++                '<@(uv_sources_android)',
++              ],
++            }],
++            ['_toolset=="host" and host_os=="mac"', {
++              'sources': [
++                '<@(uv_sources_apple)',
++              ],
++            }],
++            ['_toolset=="host" and host_os=="linux"', {
++              'sources': [
++                '<@(uv_sources_linux)',
++              ],
++            }],
+           ],
+           'link_settings': {
+             'libraries': [ '-ldl' ],
+diff --git a/deps/v8/src/base/platform/platform-posix.cc b/deps/v8/src/base/platform/platform-posix.cc
+index 5c93b3aaafe34a7a2cf055e4ac68e504c7014795..2858a8c7ddfd867472a0eb22e7e6633804282c41 100644
+--- a/deps/v8/src/base/platform/platform-posix.cc
++++ b/deps/v8/src/base/platform/platform-posix.cc
+@@ -334,6 +334,12 @@ void* OS::GetRandomMmapAddr() {
+     MutexGuard guard(rng_mutex.Pointer());
+     GetPlatformRandomNumberGenerator()->NextBytes(&raw_addr, sizeof(raw_addr));
+   }
++#if defined(__APPLE__)
++#if V8_TARGET_ARCH_ARM64 && V8_OS_IOS
++  DCHECK_EQ(1 << 14, AllocatePageSize());
++  raw_addr = RoundDown(raw_addr, 1 << 14);
++#endif
++#endif
+ #if V8_HOST_ARCH_ARM64
+ #if defined(V8_TARGET_OS_MACOS)
+   DCHECK_EQ(1 << 14, AllocatePageSize());
+diff --git a/deps/v8/src/heap/base/asm/x64/push_registers_asm.cc b/deps/v8/src/heap/base/asm/x64/push_registers_asm.cc
+index 554caddfa77ff91c907c377aa95cc6b1eb907e5c..71e6949e3c740eb983ab3aaf2fae126837736db8 100644
+--- a/deps/v8/src/heap/base/asm/x64/push_registers_asm.cc
++++ b/deps/v8/src/heap/base/asm/x64/push_registers_asm.cc
+@@ -14,16 +14,67 @@
+ 
+ // Do not depend on V8_TARGET_OS_* defines as some embedders may override the
+ // GN toolchain (e.g. ChromeOS) and not provide them.
++// _WIN64 Defined as 1 when the compilation target is 64-bit ARM or x64.
++// Otherwise, undefined.
++#ifdef _WIN64
+ 
+ // We maintain 16-byte alignment at calls. There is an 8-byte return address
+-// on the stack and we push 56 bytes which maintains 16-byte stack alignment
++// on the stack and we push 232 bytes which maintains 16-byte stack alignment
+ // at the call.
+-// Source: https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-1.0.pdf
++// Source: https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
++asm(".globl PushAllRegistersAndIterateStack             \n"
++// nodejs-mobile patch: actually, we SHOULD depend on V8_TARGET_* defines:
++// These situations happen because we compile both "host" and "target" code but
++// with flags that reflect only the "target" platform, so we end up incorrectly
++// mixing "host" files (such as this one) with "target" flags (such as
++// V8_TARGET_ARCH_*)
++#ifndef V8_TARGET_ARCH_ARM
++    "PushAllRegistersAndIterateStack:                   \n"
++    // rbp is callee-saved. Maintain proper frame pointer for debugging.
++    "  push %rbp                                        \n"
++    "  mov %rsp, %rbp                                   \n"
++    // Dummy for alignment.
++    "  push $0xCDCDCD                                   \n"
++    "  push %rsi                                        \n"
++    "  push %rdi                                        \n"
++    "  push %rbx                                        \n"
++    "  push %r12                                        \n"
++    "  push %r13                                        \n"
++    "  push %r14                                        \n"
++    "  push %r15                                        \n"
++    "  sub $160, %rsp                                   \n"
++    // Use aligned instrs as we are certain that the stack is properly aligned.
++    "  movdqa %xmm6, 144(%rsp)                          \n"
++    "  movdqa %xmm7, 128(%rsp)                          \n"
++    "  movdqa %xmm8, 112(%rsp)                          \n"
++    "  movdqa %xmm9, 96(%rsp)                           \n"
++    "  movdqa %xmm10, 80(%rsp)                          \n"
++    "  movdqa %xmm11, 64(%rsp)                          \n"
++    "  movdqa %xmm12, 48(%rsp)                          \n"
++    "  movdqa %xmm13, 32(%rsp)                          \n"
++    "  movdqa %xmm14, 16(%rsp)                          \n"
++    "  movdqa %xmm15, (%rsp)                            \n"
++    // Pass 1st parameter (rcx) unchanged (Stack*).
++    // Pass 2nd parameter (rdx) unchanged (StackVisitor*).
++    // Save 3rd parameter (r8; IterateStackCallback)
++    "  mov %r8, %r9                                     \n"
++    // Pass 3rd parameter as rsp (stack pointer).
++    "  mov %rsp, %r8                                    \n"
++    // Call the callback.
++    "  call *%r9                                        \n"
++    // Pop the callee-saved registers.
++    "  add $224, %rsp                                   \n"
++    // Restore rbp as it was used as frame pointer.
++    "  pop %rbp                                         \n"
++#endif  // !V8_TARGET_ARCH_ARM
++    "  ret                                              \n");
+ 
+-#ifdef _WIN64
+-#error "The masm based version must be used for Windows"
+-#endif
++#else  // !_WIN64
+ 
++// We maintain 16-byte alignment at calls. There is an 8-byte return address
++// on the stack and we push 56 bytes which maintains 16-byte stack alignment
++// at the call.
++// Source: https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-1.0.pdf
+ asm(
+ #ifdef __APPLE__
+     ".globl _PushAllRegistersAndIterateStack            \n"
+@@ -35,6 +86,8 @@ asm(
+     ".hidden PushAllRegistersAndIterateStack            \n"
+     "PushAllRegistersAndIterateStack:                   \n"
+ #endif  // !__APPLE__
++// nodejs-mobile patch: actually, we SHOULD depend on V8_TARGET_* defines.
++#ifndef V8_TARGET_ARCH_ARM
+     // rbp is callee-saved. Maintain proper frame pointer for debugging.
+     "  push %rbp                                        \n"
+     "  mov %rsp, %rbp                                   \n"
+@@ -57,10 +110,7 @@ asm(
+     "  add $48, %rsp                                    \n"
+     // Restore rbp as it was used as frame pointer.
+     "  pop %rbp                                         \n"
+-    "  ret                                              \n"
+-#if !defined(__APPLE__)
+-    ".Lfunc_end0:                                       \n"
+-    ".size PushAllRegistersAndIterateStack, "
+-    ".Lfunc_end0-PushAllRegistersAndIterateStack        \n"
+-#endif  // !defined(__APPLE__)
+-    );
++#endif  // !V8_TARGET_ARCH_ARM
++    "  ret                                              \n");
++
++#endif  // !_WIN64
+diff --git a/deps/v8/src/trap-handler/handler-outside.cc b/deps/v8/src/trap-handler/handler-outside.cc
+index 6e2b40d9f5ec1e23f06e25f0bd7daad30ea49f08..ede435b302cf1504c151eab10a36c1438fdb826b 100644
+--- a/deps/v8/src/trap-handler/handler-outside.cc
++++ b/deps/v8/src/trap-handler/handler-outside.cc
+@@ -307,11 +307,13 @@ bool EnableTrapHandler(bool use_v8_handler) {
+   if (!V8_TRAP_HANDLER_SUPPORTED) {
+     return false;
+   }
++#if V8_TRAP_HANDLER_SUPPORTED
+   if (use_v8_handler) {
+     g_is_trap_handler_enabled = RegisterDefaultTrapHandler();
+     return g_is_trap_handler_enabled;
+   }
+   g_is_trap_handler_enabled = true;
++#endif
+   return true;
+ }
+ 
+diff --git a/deps/v8/src/trap-handler/trap-handler.h b/deps/v8/src/trap-handler/trap-handler.h
+index bd6f19593d3dca3f1431468decc9e7263b5afb14..a2133e1cbc9c96595bdccc117accc8a8e6cecd74 100644
+--- a/deps/v8/src/trap-handler/trap-handler.h
++++ b/deps/v8/src/trap-handler/trap-handler.h
+@@ -15,45 +15,20 @@
+ 
+ namespace v8::internal::trap_handler {
+ 
+-// X64 on Linux, Windows, MacOS, FreeBSD.
+-#if V8_HOST_ARCH_X64 && V8_TARGET_ARCH_X64 &&                        \
+-    ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN || \
+-     V8_OS_FREEBSD)
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// Arm64 (non-simulator) on Linux, Windows, MacOS.
+-#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && \
+-    ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN)
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// Arm64 simulator on x64 on Linux, Mac, or Windows.
++// nodejs-mobile patch.
+ //
+-// The simulator case uses some inline assembly code, which cannot be
+-// compiled with MSVC, so don't enable the trap handler in that case.
+-// (MSVC #defines _MSC_VER, but so does Clang when targeting Windows, hence
+-// the check for __clang__.)
+-#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_X64 && \
+-    (V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN) && \
+-    (!defined(_MSC_VER) || defined(__clang__))
+-#define V8_TRAP_HANDLER_VIA_SIMULATOR
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// Loong64 (non-simulator) on Linux.
+-#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_LOONG64 && V8_OS_LINUX
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// Loong64 simulator on x64 on Linux
+-#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+-#define V8_TRAP_HANDLER_VIA_SIMULATOR
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// RISCV64 (non-simulator) on Linux.
+-#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_RISCV64 && V8_OS_LINUX && \
+-    !V8_OS_ANDROID
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// RISCV64 simulator on x64 on Linux
+-#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+-#define V8_TRAP_HANDLER_VIA_SIMULATOR
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// Everything else is unsupported.
+-#else
++// It would require some careful security review before the trap handler
++// can be enabled on Android.  Android may do unexpected things with signal
++// handling and crash reporting that could open up security holes in V8's
++// trap handling.  So we disable the trap handler everywhere.
++//
++// Upstream ships the same disable as android-patches/trap-handler.h.patch,
++// applied ad hoc by android_configure.py at configure time ("patch -f", Linux
++// hosts only, failure non-fatal). That mechanism mutates the source tree
++// during a build — incompatible with this project's byte-verified materialized
++// tree — and never ran for iOS or macOS-hosted builds, so the series bakes
++// the edit in here instead and removes the orphaned upstream patch file.
+ #define V8_TRAP_HANDLER_SUPPORTED false
+-#endif
+ 
+ #if V8_OS_ANDROID && V8_TRAP_HANDLER_SUPPORTED
+ // It would require some careful security review before the trap handler
+diff --git a/deps/zlib/zlib.gyp b/deps/zlib/zlib.gyp
+index 12449e7b0294c922fd0f813acd93029fe65078a0..035185002028023650af9c5c392a14bbadb4c7a9 100644
+--- a/deps/zlib/zlib.gyp
++++ b/deps/zlib/zlib.gyp
+@@ -181,11 +181,18 @@
+           'sources': [
+             '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib\\".*?sources = ")',
+           ],
+-          'include_dirs': [ '<(ZLIB_ROOT)' ],
++          # nodejs-mobile patch: silenced this 'include_dirs', in favor of the next patch below.
++          # 'include_dirs': [ '<(ZLIB_ROOT)' ],
+           'direct_dependent_settings': {
+             'include_dirs': [ '<(ZLIB_ROOT)' ],
+           },
+           'conditions': [
++            # nodejs-mobile patch: for Android, make available <cpu_features.h> from the NDK:
++            ['OS=="android"', {
++              'include_dirs': [ '<(ZLIB_ROOT)', '<(android_ndk_path)/sources/android/cpufeatures' ],
++            }, {
++              'include_dirs': [ '<(ZLIB_ROOT)' ],
++            }],
+             ['OS!="win"', {
+               'cflags!': [ '-ansi' ],
+               'cflags': [ '-Wno-implicit-fallthrough' ],
+diff --git a/node.gyp b/node.gyp
+index c58f4812e2e1c0f9ba5c3b285e9d73c1501d2361..20abc6c8bd99e18cd0699e57dec814604570a849 100644
+--- a/node.gyp
++++ b/node.gyp
+@@ -923,7 +923,8 @@
+             '<@(node_quic_sources)',
+           ],
+         }],
+-        [ 'OS in "linux freebsd mac solaris openharmony" and '
++        # nodejs-mobile patch to mention iOS
++        [ 'OS in "linux freebsd mac ios solaris openharmony" and '
+           'target_arch=="x64" and '
+           'node_target_type=="executable"', {
+           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
+@@ -1405,8 +1406,9 @@
+         ['OS=="solaris"', {
+           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
+         }],
+-        # Skip cctest while building shared lib node for Windows
+-        [ 'OS=="win" and node_shared=="true"', {
++        # Skip cctest while building shared lib node for Windows and Android
++        # (the only mobile target built --shared; iOS links libnode statically)
++        [ 'OS in ("win", "android") and node_shared=="true"', {
+           'type': 'none',
+         }],
+         [ 'node_shared=="true"', {
+@@ -1627,7 +1629,8 @@
+         [ 'node_shared_libuv=="false"', {
+           'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
+         }],
+-        [ 'OS in "linux mac openharmony"', {
++        # nodejs-mobile patch: add ios
++        [ 'OS in "linux mac ios openharmony"', {
+           'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
+         }],
+         [ 'debug_node=="true"', {
+diff --git a/node.gypi b/node.gypi
+index 6587270c9e52f3705d67961768004bd72193a1f2..ffce5184cd6c24e6c88096ff424547e83734e39f 100644
+--- a/node.gypi
++++ b/node.gypi
+@@ -264,6 +264,11 @@
+         'NODE_PLATFORM="darwin"',
+       ],
+     }],
++    # nodejs-mobile patch: link CoreFoundation and Security frameworks when compiling for iOS
++    [ 'OS=="ios"', {
++      # linking Corefoundation and Security is needed for crypto functionality
++      'libraries': [ '-framework CoreFoundation -framework Security' ],
++    }],
+     [ 'OS=="freebsd"', {
+       'libraries': [
+         '-lutil',
+@@ -342,7 +347,7 @@
+         ],
+       },
+     }],
+-    [ 'coverage=="true" and node_shared=="false" and OS in "mac freebsd linux openharmony"', {
++    [ 'coverage=="true" and node_shared=="false" and OS in "mac ios freebsd linux openharmony"', {
+       'cflags!': [ '-O3' ],
+       'ldflags': [ '--coverage',
+                    '-g',
+@@ -390,11 +395,15 @@
+           'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
+           'dependencies': [
+             './deps/openssl/openssl.gyp:openssl',
+-
+-            # For tests
+-            './deps/openssl/openssl.gyp:openssl-cli',
+           ],
+           'conditions': [
++            [ 'OS not in "ios android"', {
++              'dependencies': [
++                # Not needed for iOS and Android, doesn't build
++                # For tests
++                './deps/openssl/openssl.gyp:openssl-cli',
++              ],
++            }],
+             # -force_load or --whole-archive are not applicable for
+             # the static library
+             [ 'force_load=="true"', {
+@@ -461,5 +470,10 @@
+     }, {
+       'defines': [ 'HAVE_QUIC=0' ]
+     }],
++    [ 'OS=="android" or OS=="ios"', {
++      'defines': [
++        'NODE_MOBILE',
++      ],
++    }],
+   ],
+ }
+diff --git a/src/crypto/crypto_context.cc b/src/crypto/crypto_context.cc
+index 05fc2a00b362e45b16f4364401edca8f1ea699e6..b61f7d9eca893e58fb56a564f62f30e92293dcbc 100644
+--- a/src/crypto/crypto_context.cc
++++ b/src/crypto/crypto_context.cc
+@@ -335,6 +335,9 @@ bool isSelfIssued(X509* cert) {
+ #ifdef __APPLE__
+ TrustStatus IsTrustDictionaryTrustedForPolicy(CFDictionaryRef trust_dict,
+                                               bool is_self_issued) {
++
++  // nodejs-mobile patch: the APIs used here are macOS-only
++#if TARGET_OS_OSX
+   // Trust settings may be scoped to a single application
+   // skip as this is not supported
+   if (CFDictionaryContainsKey(trust_dict, kSecTrustSettingsApplication)) {
+@@ -426,6 +429,10 @@ TrustStatus IsTrustDictionaryTrustedForPolicy(CFDictionaryRef trust_dict,
+   return (trust_settings_result == kSecTrustSettingsResultTrustAsRoot)
+              ? TrustStatus::TRUSTED
+              : TrustStatus::UNSPECIFIED;
++#else
++  // nodejs-mobile patch: no user/admin trust settings on iOS.
++  return TrustStatus::UNSPECIFIED;
++#endif  // TARGET_OS_OSX
+ }
+ 
+ TrustStatus IsTrustSettingsTrustedForPolicy(CFArrayRef trust_settings,
+@@ -497,6 +504,8 @@ bool IsCertificateTrustedForPolicy(X509* cert, SecCertificateRef ref) {
+   bool trust_evaluated = false;
+   bool is_self_issued = isSelfIssued(cert);
+ 
++  // nodejs-mobile patch: the APIs used here are macOS-only
++#if TARGET_OS_OSX
+   // Evaluate user trust domain, then admin. User settings can override
+   // admin (and both override the system domain, but we don't check that).
+   for (const auto& trust_domain :
+@@ -535,6 +544,14 @@ bool IsCertificateTrustedForPolicy(X509* cert, SecCertificateRef ref) {
+       CFRelease(trust_settings);
+     }
+   }
++#else
++  if (!trust_evaluated) {
++    bool result = IsCertificateTrustValid(ref);
++    if (result) {
++      return true;
++    }
++  }
++#endif
+   return false;
+ }
+ 
+diff --git a/src/node.cc b/src/node.cc
+index f03a4447e57dd98b16fb1bcca7c38371fb3e15eb..9bc60cf2db2912aa892c4b720a63779b741ae56e 100644
+--- a/src/node.cc
++++ b/src/node.cc
+@@ -698,6 +698,8 @@ void ResetStdio() {
+       CHECK_NE(err, -1);
+     }
+ 
++#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
++    // tcsetattr is not working on iOS devices.
+     if (s.isatty) {
+       sigset_t sa;
+       int err;
+@@ -719,6 +721,7 @@ void ResetStdio() {
+       // - if the process group is orphaned, e.g. because the user logged out,
+       //   tcsetattr fails with EIO
+     }
++#endif  // !(defined(__APPLE__) && TARGET_OS_IPHONE)
+   }
+ #endif  // __POSIX__
+ }
+diff --git a/src/node_credentials.cc b/src/node_credentials.cc
+index d1f7c6e2a801fee3bbcbc5ac2a31cf6781c9f105..9c538b30159243bcd03b2b117b51852e5909ddad 100644
+--- a/src/node_credentials.cc
++++ b/src/node_credentials.cc
+@@ -45,7 +45,7 @@ bool linux_at_secure() {
+ 
+ namespace credentials {
+ 
+-#if defined(__linux__)
++#if defined(__linux__) && !defined(NODE_MOBILE)
+ // Returns true if the current process only has the passed-in capability.
+ static bool HasOnly(int capability) {
+   DCHECK(cap_valid(capability));
+@@ -73,7 +73,29 @@ static bool HasOnly(int capability) {
+ // setuid root then lookup will not be allowed.
+ bool SafeGetenv(const char* key, std::string* text, Environment* env) {
+ #if !defined(__CloudABI__) && !defined(_WIN32)
+-#if defined(__linux__)
++#if defined(NODE_MOBILE)
++  // nodejs-mobile: node is a library inside somebody else's app, so the
++  // "does this process look privileged" question keys off the host process
++  // rather than off node, and the embedder is the one setting the environment.
++  //
++  // On Android the answer is not merely irrelevant, it is stale: an app process
++  // is fork()ed from the zygote without exec(), so it inherits the zygote's
++  // auxiliary vector -- AT_SECURE=1 and AT_{,E}{U,G}ID=0, describing init's exec
++  // of the zygote -- while the process itself runs unprivileged with
++  // uid == euid. linux_at_secure() therefore reports 1 for every app, forever,
++  // and SafeGetenv() declines every variable the embedder sets that is read
++  // through it: TMPDIR (so os.tmpdir() falls back to a non-existent /tmp),
++  // NODE_EXTRA_CA_CERTS, NODE_USE_SYSTEM_CA, NODE_ICU_DATA, NODE_OPTIONS,
++  // OPENSSL_CONF, NODE_PATH, NODE_COMPILE_CACHE and the rest. (Not TZ: its only
++  // SafeGetenv() read is under #ifndef __POSIX__, so on mobile it reaches libc
++  // and ICU through plain getenv and was never affected.)
++  //
++  // Gated on NODE_MOBILE -- the embedded-library build -- rather than on the OS:
++  // a standalone node exec()ed on Android would have a truthful auxv and should
++  // keep upstream's behaviour. The uid/gid comparisons below are still live, so
++  // they stay.
++  if (getuid() != geteuid() || getgid() != getegid())
++#elif defined(__linux__)
+   if ((!HasOnly(CAP_NET_BIND_SERVICE) && linux_at_secure()) ||
+       getuid() != geteuid() || getgid() != getegid())
+ #else
+@@ -181,6 +203,19 @@ static char* name_by_uid(uid_t uid) {
+   return nullptr;
+ }
+ 
++#ifdef __ANDROID__
++// Android has getgrnam instead of getgrnam_r.
++static gid_t gid_by_name(const char* name) {
++  struct group* pp = getgrnam(name);  // NOLINT(runtime/threadsafe_fn)
++
++  errno = 0;
++
++  if (pp != nullptr)
++    return pp->gr_gid;
++
++  return gid_not_found;
++}
++#else  // __ANDROID__
+ static gid_t gid_by_name(const char* name) {
+   struct group pwd;
+   struct group* pp;
+@@ -194,6 +229,7 @@ static gid_t gid_by_name(const char* name) {
+ 
+   return gid_not_found;
+ }
++#endif  // __ANDROID__
+ 
+ #if 0  // For future use.
+ static const char* name_by_gid(gid_t gid) {
+@@ -286,6 +322,8 @@ static void GetEGid(const FunctionCallbackInfo<Value>& args) {
+   args.GetReturnValue().Set(static_cast<uint32_t>(getegid()));
+ }
+ 
++#ifndef __ANDROID__
++// Android blocks setting Uid and Gid.
+ static void SetGid(const FunctionCallbackInfo<Value>& args) {
+   Environment* env = Environment::GetCurrent(args);
+   CHECK(env->owns_process_state());
+@@ -369,6 +407,7 @@ static void SetEUid(const FunctionCallbackInfo<Value>& args) {
+     args.GetReturnValue().Set(0);
+   }
+ }
++#endif  // ifndef __ANDROID__
+ 
+ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
+   Environment* env = Environment::GetCurrent(args);
+@@ -392,6 +431,8 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
+   }
+ }
+ 
++#ifndef __ANDROID__
++// Android blocks setting groups
+ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
+   Environment* env = Environment::GetCurrent(args);
+ 
+@@ -427,6 +468,7 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
+ 
+   args.GetReturnValue().Set(0);
+ }
++#endif  // ifndef __ANDROID__
+ 
+ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
+   Environment* env = Environment::GetCurrent(args);
+@@ -486,11 +528,13 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+   registry->Register(GetGroups);
+ 
+   registry->Register(InitGroups);
++  #ifndef __ANDROID__
+   registry->Register(SetEGid);
+   registry->Register(SetEUid);
+   registry->Register(SetGid);
+   registry->Register(SetUid);
+   registry->Register(SetGroups);
++  #endif
+ #endif  // NODE_IMPLEMENTS_POSIX_CREDENTIALS
+ }
+ 
+@@ -514,11 +558,13 @@ static void Initialize(Local<Object> target,
+ 
+   if (env->owns_process_state()) {
+     SetMethod(context, target, "initgroups", InitGroups);
++    #ifndef __ANDROID__ // nodejs-mobile patch
+     SetMethod(context, target, "setegid", SetEGid);
+     SetMethod(context, target, "seteuid", SetEUid);
+     SetMethod(context, target, "setgid", SetGid);
+     SetMethod(context, target, "setuid", SetUid);
+     SetMethod(context, target, "setgroups", SetGroups);
++    #endif
+   }
+ #endif  // NODE_IMPLEMENTS_POSIX_CREDENTIALS
+ }
+diff --git a/src/node_env_var.cc b/src/node_env_var.cc
+index 5550a4bee3ce9ec8759d216335a9b2b96e20c96e..761fc10b23ab74c1ec353499f793ef1c67acc607 100644
+--- a/src/node_env_var.cc
++++ b/src/node_env_var.cc
+@@ -235,7 +235,9 @@ std::shared_ptr<KVStore> KVStore::Clone(Isolate* isolate) const {
+     }
+     CHECK(key->IsString());
+     if (!Get(isolate, key.As<String>()).ToLocal(&value)) {
+-      return nullptr;
++      // On Android, it's possible that some environment variables get removed,
++      // such as LD_PRELOAD. Skip them rather than aborting the whole clone.
++      continue;
+     }
+     copy->Set(isolate, key.As<String>(), value.As<String>());
+   }
+diff --git a/src/node_internals.h b/src/node_internals.h
+index 8e930a6fecd6589b858293d91b2454ea14ae7c73..b279bf99996b822f8c7c5d60c5b262c15195815a 100644
+--- a/src/node_internals.h
++++ b/src/node_internals.h
+@@ -326,7 +326,7 @@ class ThreadPoolWork {
+ 
+ // Functions defined in node.cc that are exposed via the bootstrapper object
+ 
+-#if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
++#if defined(__POSIX__) && !(defined(__ANDROID__) && __ANDROID_API__ < 21) && !defined(__CloudABI__)  // NOLINT(whitespace/line_length)
+ #define NODE_IMPLEMENTS_POSIX_CREDENTIALS 1
+ #endif  // defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
+ 
+diff --git a/src/node_metadata.cc b/src/node_metadata.cc
+index 1458bf48d6b7a3d10399c978aa239c10adedfba4..8da97400ae6178c2b952557d4deddec1185370c8 100644
+--- a/src/node_metadata.cc
++++ b/src/node_metadata.cc
+@@ -48,6 +48,10 @@
+ #include <unicode/uversion.h>
+ #endif  // NODE_HAVE_I18N_SUPPORT
+ 
++#ifdef NODE_MOBILE
++#include "node_mobile_version.h"
++#endif  // NODE_MOBILE
++
+ namespace node {
+ 
+ namespace per_process {
+@@ -116,6 +120,9 @@ Metadata::Versions::Versions() {
+       NODE_STRINGIFY(LLHTTP_VERSION_MINOR)
+       "."
+       NODE_STRINGIFY(LLHTTP_VERSION_PATCH);
++#ifdef NODE_MOBILE
++  mobile = NODE_MOBILE_VERSION_STRING;
++#endif  // NODE_MOBILE
+ 
+   brotli =
+     std::to_string(BrotliEncoderVersion() >> 24) +
+diff --git a/src/node_metadata.h b/src/node_metadata.h
+index 8703e4315a999df505ff322aea05a268e017831e..6f85755b8f891a4b144697e150f7bc19a16ddc04 100644
+--- a/src/node_metadata.h
++++ b/src/node_metadata.h
+@@ -82,6 +82,12 @@ namespace node {
+ #define NODE_VERSIONS_KEY_INTL(V)
+ #endif  // NODE_HAVE_I18N_SUPPORT
+ 
++#ifdef NODE_MOBILE
++#define NODE_VERSIONS_KEY_MOBILE(V)                                            \
++  V(mobile)
++#else
++#define NODE_VERSIONS_KEY_MOBILE(V)
++#endif  // NODE_MOBILE
+ #if HAVE_SQLITE
+ #define NODE_VERSIONS_KEY_SQLITE(V) V(sqlite)
+ #else
+@@ -92,6 +98,7 @@ namespace node {
+   NODE_VERSIONS_KEYS_BASE(V)                                                   \
+   NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
+   NODE_VERSIONS_KEY_INTL(V)                                                    \
++  NODE_VERSIONS_KEY_MOBILE(V)                                                  \
+   NODE_VERSIONS_KEY_SQLITE(V)
+ 
+ #define V(key) +1
+diff --git a/src/node_mobile_version.h b/src/node_mobile_version.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..a06c6aacb9b4589523c4f0f33d634809a88316c5
+--- /dev/null
++++ b/src/node_mobile_version.h
+@@ -0,0 +1,26 @@
++#ifndef SRC_NODE_MOBILE_VERSION_H_
++#define SRC_NODE_MOBILE_VERSION_H_
++
++#include "node_version.h"
++
++#define NODE_MOBILE_MAJOR_VERSION 24
++#define NODE_MOBILE_MINOR_VERSION 20
++#define NODE_MOBILE_PATCH_VERSION 0
++
++#define NODE_MOBILE_REVISION 0
++
++#define NODE_MOBILE_VERSION_IS_RELEASE NODE_VERSION_IS_RELEASE
++
++#if NODE_MOBILE_VERSION_IS_RELEASE
++#define NODE_MOBILE_TAG ""
++#else
++#define NODE_MOBILE_TAG "-pre"
++#endif
++
++#define NODE_MOBILE_VERSION_STRING                                      \
++  NODE_STRINGIFY(NODE_MOBILE_MAJOR_VERSION)                             \
++  "." NODE_STRINGIFY(NODE_MOBILE_MINOR_VERSION) "."                    \
++      NODE_STRINGIFY(NODE_MOBILE_PATCH_VERSION) "-"                    \
++          NODE_STRINGIFY(NODE_MOBILE_REVISION) NODE_MOBILE_TAG
++
++#endif  // SRC_NODE_MOBILE_VERSION_H_
+diff --git a/tools/gyp/pylib/gyp/common.py b/tools/gyp/pylib/gyp/common.py
+index 223ce47b0032f359c4c1dabe4e4bedbe516ea7ac..52e35b74d85f90a7692e195560b077ac4c75facf 100644
+--- a/tools/gyp/pylib/gyp/common.py
++++ b/tools/gyp/pylib/gyp/common.py
+@@ -549,7 +549,7 @@ def CopyTool(flavor, out_path, generator_flags={}):
+     # Set custom header flags.
+     header = "# Generated by gyp. Do not edit.\n"
+     mac_toolchain_dir = generator_flags.get("mac_toolchain_dir", None)
+-    if flavor == "mac" and mac_toolchain_dir:
++    if flavor in ("mac", "ios") and mac_toolchain_dir:
+         header += "import os;\nos.environ['DEVELOPER_DIR']='%s'\n" % mac_toolchain_dir
+ 
+     # Add header and write it out.
+diff --git a/tools/gyp/pylib/gyp/generator/make.py b/tools/gyp/pylib/gyp/generator/make.py
+index 16b6f4e80b119a0eca37db086c2245980a7c357a..41c34c3c28ba8b22ffc893b15f57aef4227f4f9b 100644
+--- a/tools/gyp/pylib/gyp/generator/make.py
++++ b/tools/gyp/pylib/gyp/generator/make.py
+@@ -66,8 +66,8 @@ generator_filelist_paths = None
+ def CalculateVariables(default_variables, params):
+     """Calculate additional variables for use in the build (called by gyp)."""
+     flavor = gyp.common.GetFlavor(params)
+-    if flavor == "mac":
+-        default_variables.setdefault("OS", "mac")
++    if flavor in ("mac", "ios"):
++        default_variables.setdefault("OS", flavor)
+         default_variables.setdefault("SHARED_LIB_SUFFIX", ".dylib")
+         default_variables.setdefault(
+             "SHARED_LIB_DIR", generator_default_variables["PRODUCT_DIR"]
+@@ -860,7 +860,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+         self.toolset = spec["toolset"]
+ 
+         self.is_mac_bundle = gyp.xcode_emulation.IsMacBundle(self.flavor, spec)
+-        if self.flavor == "mac":
++        if self.flavor in ("mac", "ios"):
+             self.xcode_settings = gyp.xcode_emulation.XcodeSettings(spec)
+         else:
+             self.xcode_settings = None
+@@ -1055,7 +1055,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+ 
+             # Write the actual command.
+             action_commands = action["action"]
+-            if self.flavor == "mac":
++            if self.flavor in ("mac", "ios"):
+                 action_commands = [
+                     gyp.xcode_emulation.ExpandEnvVars(command, env)
+                     for command in action_commands
+@@ -1239,7 +1239,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+                 # action, cd_action, and mkdirs get written to a toplevel variable
+                 # called cmd_foo. Toplevel variables can't handle things that change
+                 # per makefile like $(TARGET), so hardcode the target.
+-                if self.flavor == "mac":
++                if self.flavor in ("mac", "ios"):
+                     action = [
+                         gyp.xcode_emulation.ExpandEnvVars(command, env)
+                         for command in action
+@@ -1412,7 +1412,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+                 quoter=EscapeCppDefine,
+             )
+ 
+-            if self.flavor == "mac":
++            if self.flavor in ("mac", "ios"):
+                 cflags = self.xcode_settings.GetCflags(
+                     configname, arch=config.get("xcode_configuration_platform")
+                 )
+@@ -1431,7 +1431,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+             self.WriteList(cflags_c, "CFLAGS_C_%s" % configname)
+             self.WriteLn("# Flags passed to only C++ files.")
+             self.WriteList(cflags_cc, "CFLAGS_CC_%s" % configname)
+-            if self.flavor == "mac":
++            if self.flavor in ("mac", "ios"):
+                 self.WriteLn("# Flags passed to only ObjC files.")
+                 self.WriteList(cflags_objc, "CFLAGS_OBJC_%s" % configname)
+                 self.WriteLn("# Flags passed to only ObjC++ files.")
+@@ -1499,7 +1499,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+                 "%s " % precompiled_header.GetInclude("cc") + "$(CFLAGS_$(BUILDTYPE)) "
+                 "$(CFLAGS_CC_$(BUILDTYPE))"
+             )
+-            if self.flavor == "mac":
++            if self.flavor in ("mac", "ios"):
+                 self.WriteLn(
+                     "$(OBJS): GYP_OBJCFLAGS := "
+                     "$(DEFS_$(BUILDTYPE)) "
+@@ -1568,7 +1568,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+         """
+         assert not self.is_mac_bundle
+ 
+-        if self.flavor == "mac" and self.type in (
++        if self.flavor in ("mac", "ios") and self.type in (
+             "static_library",
+             "executable",
+             "shared_library",
+@@ -1615,7 +1615,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+     def _InstallImmediately(self):
+         return (
+             self.toolset == "target"
+-            and self.flavor == "mac"
++            and self.flavor in ("mac", "ios")
+             and self.type
+             in ("static_library", "executable", "shared_library", "loadable_module")
+         )
+@@ -1713,7 +1713,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+         if self.type != "none":
+             for configname in sorted(configs.keys()):
+                 config = configs[configname]
+-                if self.flavor == "mac":
++                if self.flavor in ("mac", "ios"):
+                     ldflags = self.xcode_settings.GetLdflags(
+                         configname,
+                         generator_default_variables["PRODUCT_DIR"],
+@@ -1748,7 +1748,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+                     library_dirs = [Sourceify(self.Absolutify(i)) for i in library_dirs]
+                 ldflags += [("-L%s" % library_dir) for library_dir in library_dirs]
+                 self.WriteList(ldflags, "LDFLAGS_%s" % configname)
+-                if self.flavor == "mac":
++                if self.flavor in ("mac", "ios"):
+                     self.WriteList(
+                         self.xcode_settings.GetLibtoolflags(configname),
+                         "LIBTOOLFLAGS_%s" % configname,
+@@ -1757,7 +1757,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+             if libraries:
+                 # Remove duplicate entries
+                 libraries = gyp.common.uniquer(libraries)
+-                if self.flavor == "mac":
++                if self.flavor in ("mac", "ios"):
+                     libraries = self.xcode_settings.AdjustLibraries(libraries)
+             self.WriteList(libraries, "LIBS")
+             self.WriteLn(
+@@ -1766,7 +1766,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+             )
+             self.WriteLn("%s: LIBS := $(LIBS)" % QuoteSpaces(self.output_binary))
+ 
+-            if self.flavor == "mac":
++            if self.flavor in ("mac", "ios"):
+                 self.WriteLn(
+                     "%s: GYP_LIBTOOLFLAGS := $(LIBTOOLFLAGS_$(BUILDTYPE))"
+                     % QuoteSpaces(self.output_binary)
+@@ -1775,7 +1775,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+         # Postbuild actions. Like actions, but implicitly depend on the target's
+         # output.
+         postbuilds = []
+-        if self.flavor == "mac":
++        if self.flavor in ("mac", "ios"):
+             if target_postbuilds:
+                 postbuilds.append("$(TARGET_POSTBUILDS_$(BUILDTYPE))")
+             postbuilds.extend(gyp.xcode_emulation.GetSpecPostbuildCommands(spec))
+@@ -1885,7 +1885,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+                     "Spaces in alink input filenames not supported (%s)" % link_dep
+                 )
+             if (
+-                self.flavor not in ("mac", "openbsd", "netbsd", "win")
++                self.flavor not in ("mac", "ios", "openbsd", "netbsd", "win")
+                 and not self.is_standalone_static_library
+             ):
+                 if self.flavor in ("linux", "android", "openharmony"):
+@@ -2003,7 +2003,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+             if self.flavor != "zos":
+                 installable_deps.append(self.output)
+             if (
+-                self.flavor == "mac"
++                self.flavor in ("mac", "ios")
+                 and "product_dir" not in spec
+                 and self.toolset == "target"
+             ):
+@@ -2507,7 +2507,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
+         "LINK.host": LINK_host,
+         "PLI.host": PLI_host,
+     }
+-    if flavor == "mac":
++    if flavor in ("mac", "ios"):
+         flock_command = "%s gyp-mac-tool flock" % sys.executable
+         header_params.update(
+             {
+@@ -2685,7 +2685,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
+         spec = target_dicts[qualified_target]
+         configs = spec["configurations"]
+ 
+-        if flavor == "mac":
++        if flavor in ("mac", "ios"):
+             gyp.xcode_emulation.MergeGlobalXcodeSettingsToSpec(data[build_file], spec)
+ 
+         writer = MakefileWriter(generator_flags, flavor)
+diff --git a/tools/gyp/pylib/gyp/generator/ninja.py b/tools/gyp/pylib/gyp/generator/ninja.py
+index 3ceaf470cec2036e0f3180376bf4b8b003108508..f47d00e59915aff958343355d58c7494b9900d3d 100644
+--- a/tools/gyp/pylib/gyp/generator/ninja.py
++++ b/tools/gyp/pylib/gyp/generator/ninja.py
+@@ -42,7 +42,8 @@ generator_default_variables = {
+     # the start of a string, while $| is used for variables that can appear
+     # anywhere in a string.
+     "INTERMEDIATE_DIR": "$!INTERMEDIATE_DIR",
+-    "SHARED_INTERMEDIATE_DIR": "$!PRODUCT_DIR/gen",
++    # nodejs-mobile patch: allow multiple rules to generate the same object (host and target)
++    "SHARED_INTERMEDIATE_DIR": "$!PRODUCT_DIR/$|OBJ/gen",
+     "PRODUCT_DIR": "$!PRODUCT_DIR",
+     "CONFIGURATION_NAME": "$|CONFIGURATION_NAME",
+     # Special variables that may be used by gyp 'rule' targets.
+@@ -283,6 +284,13 @@ class NinjaWriter:
+         CONFIGURATION_NAME = "$|CONFIGURATION_NAME"
+         path = path.replace(CONFIGURATION_NAME, self.config_name)
+ 
++        # nodejs-mobile patch: allow multiple rules to generate the same object (host and target)
++        obj = "obj"
++        if self.toolset != "target":
++            obj += "." + self.toolset
++
++        path = path.replace("$|OBJ", obj)
++
+         return path
+ 
+     def ExpandRuleVariables(self, path, root, dirname, source, ext, name):
+@@ -301,7 +309,8 @@ class NinjaWriter:
+ 
+         See the above discourse on path conversions."""
+         if env:
+-            if self.flavor == "mac":
++            # nodejs-mobile patch: add ios
++            if self.flavor in ("mac", "ios"):
+                 path = gyp.xcode_emulation.ExpandEnvVars(path, env)
+             elif self.flavor == "win":
+                 path = gyp.msvs_emulation.ExpandMacros(path, env)
+@@ -393,7 +402,8 @@ class NinjaWriter:
+ 
+         self.is_mac_bundle = gyp.xcode_emulation.IsMacBundle(self.flavor, spec)
+         self.xcode_settings = self.msvs_settings = None
+-        if self.flavor == "mac":
++        # nodejs-mobile patch: add ios
++        if self.flavor in ("mac", "ios"):
+             self.xcode_settings = gyp.xcode_emulation.XcodeSettings(spec)
+             mac_toolchain_dir = generator_flags.get("mac_toolchain_dir", None)
+             if mac_toolchain_dir:
+@@ -409,7 +419,8 @@ class NinjaWriter:
+             self.ninja.variable("cxx_host", "$cl_" + arch)
+             self.ninja.variable("asm", "$ml_" + arch)
+ 
+-        if self.flavor == "mac":
++        # nodejs-mobile patch: add ios
++        if self.flavor in ("mac", "ios"):
+             self.archs = self.xcode_settings.GetActiveArchs(config_name)
+             if len(self.archs) > 1:
+                 self.arch_subninjas = {
+@@ -476,7 +487,8 @@ class NinjaWriter:
+             print('spec.get("sources"): ', str(spec.get("sources")))
+             raise
+         if sources:
+-            if self.flavor == "mac" and len(self.archs) > 1:
++            # nodejs-mobile patch: add ios
++            if self.flavor in ("mac", "ios") and len(self.archs) > 1:
+                 # Write subninja file containing compile and link commands scoped to
+                 # a single arch if a fat binary is being built.
+                 for arch in self.archs:
+@@ -512,14 +524,16 @@ class NinjaWriter:
+             # Some actions/rules output 'sources' that are already object files.
+             obj_outputs = [f for f in sources if f.endswith(self.obj_ext)]
+             if obj_outputs:
+-                if self.flavor != "mac" or len(self.archs) == 1:
++                # nodejs-mobile patch: add ios
++                if self.flavor not in ("mac", "ios") or len(self.archs) == 1:
+                     link_deps += [self.GypPathToNinja(o) for o in obj_outputs]
+                 else:
+                     print(
+                         "Warning: Actions/rules writing object files don't work with "
+                         "multiarch targets, dropping. (target %s)" % spec["target_name"]
+                     )
+-        elif self.flavor == "mac" and len(self.archs) > 1:
++        # nodejs-mobile patch: add ios
++        elif self.flavor in ("mac", "ios") and len(self.archs) > 1:
+             link_deps = collections.defaultdict(list)
+ 
+         compile_deps = self.target.actions_stamp or actions_depends
+@@ -1026,7 +1040,8 @@ class NinjaWriter:
+             self.ninja.variable("nm", "$nm_host")
+             self.ninja.variable("readelf", "$readelf_host")
+ 
+-        if self.flavor != "mac" or len(self.archs) == 1:
++        # nodejs-mobile patch: add ios
++        if self.flavor not in ("mac", "ios") or len(self.archs) == 1:
+             return self.WriteSourcesForArch(
+                 self.ninja,
+                 config_name,
+@@ -1065,7 +1080,8 @@ class NinjaWriter:
+         """Write build rules to compile all of |sources|."""
+ 
+         extra_defines = []
+-        if self.flavor == "mac":
++        # nodejs-mobile patch: add ios
++        if self.flavor in ("mac", "ios"):
+             cflags = self.xcode_settings.GetCflags(config_name, arch=arch)
+             cflags_c = self.xcode_settings.GetCflagsC(config_name)
+             cflags_cc = self.xcode_settings.GetCflagsCC(config_name)
+@@ -1173,7 +1189,8 @@ class NinjaWriter:
+             )
+ 
+         pch_commands = precompiled_header.GetPchBuildCommands(arch)
+-        if self.flavor == "mac":
++        # nodejs-mobile patch: add ios
++        if self.flavor in ("mac", "ios"):
+             # Most targets use no precompiled headers, so only write these if needed.
+             for ext, var in [
+                 ("c", "cflags_pch_c"),
+@@ -1194,7 +1211,8 @@ class NinjaWriter:
+         self.WriteVariableList(
+             ninja_file, "cflags_cc", map(self.ExpandSpecial, cflags_cc)
+         )
+-        if self.flavor == "mac":
++        # nodejs-mobile patch: add ios
++        if self.flavor in ("mac", "ios"):
+             self.WriteVariableList(
+                 ninja_file, "cflags_objc", map(self.ExpandSpecial, cflags_objc)
+             )
+@@ -1225,9 +1243,11 @@ class NinjaWriter:
+                 # Add the _asm suffix as msvs is capable of handling .cc and
+                 # .asm files of the same name without collision.
+                 obj_ext = "_asm.obj"
+-            elif self.flavor == "mac" and ext == "m":
++            # nodejs-mobile patch: add ios
++            elif self.flavor in ("mac", "ios") and ext == "m":
+                 command = "objc"
+-            elif self.flavor == "mac" and ext == "mm":
++            # nodejs-mobile patch: add ios
++            elif self.flavor in ("mac", "ios") and ext == "mm":
+                 command = "objcxx"
+                 self.target.uses_cpp = True
+             elif self.flavor == "win" and ext == "rc":
+@@ -1302,8 +1322,9 @@ class NinjaWriter:
+             ninja_file.build(gch, cmd, input, variables=[(var_name, lang_flag)])
+ 
+     def WriteLink(self, spec, config_name, config, link_deps, compile_deps):
+-        """Write out a link step. Fills out target.binary."""
+-        if self.flavor != "mac" or len(self.archs) == 1:
++        """Write out a link step. Fills out target.binary. """
++        # nodejs-mobile patch: add ios
++        if self.flavor not in ("mac", "ios") or len(self.archs) == 1:
+             return self.WriteLinkForArch(
+                 self.ninja, spec, config_name, config, link_deps, compile_deps
+             )
+@@ -1346,7 +1367,7 @@ class NinjaWriter:
+     def WriteLinkForArch(
+         self, ninja_file, spec, config_name, config, link_deps, compile_deps, arch=None
+     ):
+-        """Write out a link step. Fills out target.binary."""
++        """Write out a link step. Fills out target.binary. """
+         command = {
+             "executable": "link",
+             "loadable_module": "solink_module",
+@@ -1419,7 +1440,8 @@ class NinjaWriter:
+         elif self.toolset == "host":
+             env_ldflags = os.environ.get("LDFLAGS_host", "").split()
+ 
+-        if self.flavor == "mac":
++        # nodejs-mobile patch: add ios
++        if self.flavor in ("mac", "ios"):
+             ldflags = self.xcode_settings.GetLdflags(
+                 config_name,
+                 self.ExpandSpecial(generator_default_variables["PRODUCT_DIR"]),
+@@ -1491,7 +1513,8 @@ class NinjaWriter:
+         libraries = gyp.common.uniquer(
+             map(self.ExpandSpecial, spec.get("libraries", []))
+         )
+-        if self.flavor == "mac":
++        # nodejs-mobile patch: add ios
++        if self.flavor in ("mac", "ios"):
+             libraries = self.xcode_settings.AdjustLibraries(libraries, config_name)
+         elif self.flavor == "win":
+             libraries = self.msvs_settings.AdjustLibraries(libraries)
+@@ -1598,7 +1621,8 @@ class NinjaWriter:
+                     )
+                     variables.append(("libflags", libflags))
+ 
+-                if self.flavor != "mac" or len(self.archs) == 1:
++                # nodejs-mobile patch: add ios
++                if self.flavor not in ("mac", "ios") or len(self.archs) == 1:
+                     self.AppendPostbuildVariable(
+                         variables, spec, self.target.binary, self.target.binary
+                     )
+@@ -1754,9 +1778,11 @@ class NinjaWriter:
+             + " && ".join([ninja_syntax.escape(command) for command in postbuilds])
+         )
+         command_string = (
+-            commands + "); G=$$?; "
++            commands
++            + "); G=$$?; "
+             # Remove the final output if any postbuild failed.
+-            "((exit $$G) || rm -rf %s) " % output + "&& exit $$G)"
++            "((exit $$G) || rm -rf %s) " % output
++            + "&& exit $$G)"
+         )
+         if is_command_start:
+             return "(" + command_string + " && "
+@@ -1847,7 +1873,7 @@ class NinjaWriter:
+ 
+         if (
+             arch is None
+-            and self.flavor == "mac"
++            and self.flavor in ("mac", "ios") # nodejs-mobile patch: add ios
+             and type
+             in ("static_library", "executable", "shared_library", "loadable_module")
+         ):
+@@ -1862,7 +1888,7 @@ class NinjaWriter:
+         # Some products go into the output root, libraries go into shared library
+         # dir, and everything else goes into the normal place.
+         type_in_output_root = ["executable", "loadable_module"]
+-        if self.flavor == "mac" and self.toolset == "target":
++        if self.flavor in ("mac", "ios") and self.toolset == "target":
+             type_in_output_root += ["shared_library", "static_library"]
+         elif self.flavor == "win" and self.toolset == "target":
+             type_in_output_root += ["shared_library"]
+@@ -1908,7 +1934,8 @@ class NinjaWriter:
+             description = self.msvs_settings.ConvertVSMacros(
+                 description, config=self.config_name
+             )
+-        elif self.flavor == "mac":
++        # nodejs-mobile patch: add ios
++        elif self.flavor in ("mac", "ios"):
+             # |env| is an empty list on non-mac.
+             args = [gyp.xcode_emulation.ExpandEnvVars(arg, env) for arg in args]
+             description = gyp.xcode_emulation.ExpandEnvVars(description, env)
+@@ -1945,8 +1972,7 @@ class NinjaWriter:
+                 )
+             else:
+                 rspfile_content = gyp.msvs_emulation.EncodeRspFileList(
+-                    args, win_shell_flags.quote
+-                )
++                    args, win_shell_flags.quote)
+             command = (
+                 "%s gyp-win-tool action-wrapper $arch " % sys.executable
+                 + rspfile
+@@ -1980,8 +2006,9 @@ def CalculateVariables(default_variables, params):
+     global generator_additional_non_configuration_keys
+     global generator_additional_path_sections
+     flavor = gyp.common.GetFlavor(params)
+-    if flavor == "mac":
+-        default_variables.setdefault("OS", "mac")
++    # nodejs-mobile patch: add ios
++    if flavor in ("mac", "ios"):
++        default_variables.setdefault("OS", flavor)
+         default_variables.setdefault("SHARED_LIB_SUFFIX", ".dylib")
+         default_variables.setdefault(
+             "SHARED_LIB_DIR", generator_default_variables["PRODUCT_DIR"]
+@@ -2083,7 +2110,6 @@ def GetDefaultConcurrentLinks():
+         return pool_size
+ 
+     if sys.platform in ("win32", "cygwin"):
+-
+         class MEMORYSTATUSEX(ctypes.Structure):
+             _fields_ = [
+                 ("dwLength", ctypes.c_ulong),
+@@ -2103,8 +2129,8 @@ def GetDefaultConcurrentLinks():
+ 
+         # VS 2015 uses 20% more working set than VS 2013 and can consume all RAM
+         # on a 64 GiB machine.
+-        mem_limit = max(1, stat.ullTotalPhys // (5 * (2**30)))  # total / 5GiB
+-        hard_cap = max(1, int(os.environ.get("GYP_LINK_CONCURRENCY_MAX") or 2**32))
++        mem_limit = max(1, stat.ullTotalPhys // (5 * (2 ** 30)))  # total / 5GiB
++        hard_cap = max(1, int(os.environ.get("GYP_LINK_CONCURRENCY_MAX") or 2 ** 32))
+         return min(mem_limit, hard_cap)
+     elif sys.platform.startswith("linux"):
+         if os.path.exists("/proc/meminfo"):
+@@ -2115,14 +2141,14 @@ def GetDefaultConcurrentLinks():
+                     if not match:
+                         continue
+                     # Allow 8Gb per link on Linux because Gold is quite memory hungry
+-                    return max(1, int(match.group(1)) // (8 * (2**20)))
++                    return max(1, int(match.group(1)) // (8 * (2 ** 20)))
+         return 1
+     elif sys.platform == "darwin":
+         try:
+             avail_bytes = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]))
+             # A static library debug build of Chromium's unit_tests takes ~2.7GB, so
+             # 4GB per ld process allows for some more bloat.
+-            return max(1, avail_bytes // (4 * (2**30)))  # total / 4GB
++            return max(1, avail_bytes // (4 * (2 ** 30)))  # total / 4GB
+         except subprocess.CalledProcessError:
+             return 1
+     else:
+@@ -2345,7 +2371,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
+         master_ninja.variable("ld", CommandWithWrapper("LINK", wrappers, ld))
+         master_ninja.variable("ldxx", CommandWithWrapper("LINK", wrappers, ldxx))
+         master_ninja.variable("ar", GetEnvironFallback(["AR_target", "AR"], ar))
+-        if flavor != "mac":
++        # nodejs-mobile patch: add ios
++        if flavor not in ("mac", "ios"):
+             # Mac does not use readelf/nm for .TOC generation, so avoiding polluting
+             # the master ninja with extra unused variables.
+             master_ninja.variable("nm", GetEnvironFallback(["NM_target", "NM"], nm))
+@@ -2411,7 +2438,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
+             "cc_s",
+             description="CC $out",
+             command=(
+-                "$cc $defines $includes $cflags $cflags_c $cflags_pch_c -c $in -o $out"
++                "$cc $defines $includes $cflags $cflags_c "
++                "$cflags_pch_c -c $in -o $out"
+             ),
+         )
+         master_ninja.rule(
+@@ -2522,7 +2550,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
+             "solink",
+             description="SOLINK $lib",
+             restat=True,
+-            command=mtime_preserving_solink_base % {"suffix": "@$link_file_list"},
++            command=mtime_preserving_solink_base
++            % {"suffix": "@$link_file_list"},
+             rspfile="$link_file_list",
+             rspfile_content=(
+                 "-Wl,--whole-archive $in $solibs -Wl,--no-whole-archive $libs"
+@@ -2707,7 +2736,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
+             command="$env %(python)s gyp-mac-tool compile-ios-framework-header-map "
+             "$out $framework $in && $env %(python)s gyp-mac-tool "
+             "copy-ios-framework-headers $framework $copy_headers"
+-            % {"python": sys.executable},
++            % {'python': sys.executable},
+         )
+         master_ninja.rule(
+             "mac_tool",
+@@ -2791,7 +2820,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
+         )
+ 
+         spec = target_dicts[qualified_target]
+-        if flavor == "mac":
++        # nodejs-mobile patch: add ios
++        if flavor in ("mac", "ios"):
+             gyp.xcode_emulation.MergeGlobalXcodeSettingsToSpec(data[build_file], spec)
+ 
+         # If build_file is a symlink, we must not follow it because there's a chance
+@@ -2954,4 +2984,4 @@ def GenerateOutput(target_list, target_dicts, data, params):
+             for config_name in config_names:
+                 GenerateOutputForConfig(
+                     target_list, target_dicts, data, params, config_name
+-                )
++                )
+\ No newline at end of file
+diff --git a/tools/gyp/pylib/gyp/xcode_emulation.py b/tools/gyp/pylib/gyp/xcode_emulation.py
+index d13eaa9af240b755fd0e049398682456e947a985..ef010d69613696f9636235329a780735e8dc9c82 100644
+--- a/tools/gyp/pylib/gyp/xcode_emulation.py
++++ b/tools/gyp/pylib/gyp/xcode_emulation.py
+@@ -552,8 +552,10 @@ class XcodeSettings:
+         return XcodeSettings._sdk_path_cache[sdk_root]
+ 
+     def _AppendPlatformVersionMinFlags(self, lst):
+-        self._Appendf(lst, "MACOSX_DEPLOYMENT_TARGET", "-mmacosx-version-min=%s")
+-        if "IPHONEOS_DEPLOYMENT_TARGET" in self._Settings():
++        if (
++            'IPHONEOS_DEPLOYMENT_TARGET' in self._Settings()
++            and self._Settings()['IPHONEOS_DEPLOYMENT_TARGET']
++        ):
+             # TODO: Implement this better?
+             sdk_path_basename = os.path.basename(self._SdkPath())
+             if sdk_path_basename.lower().startswith("iphonesimulator"):
+@@ -564,6 +566,9 @@ class XcodeSettings:
+                 self._Appendf(
+                     lst, "IPHONEOS_DEPLOYMENT_TARGET", "-miphoneos-version-min=%s"
+                 )
++        else:
++            # Only use -mmacosx-version-min if it's not an iOS build.
++            self._Appendf(lst, 'MACOSX_DEPLOYMENT_TARGET', '-mmacosx-version-min=%s')
+ 
+     def GetCflags(self, configname, arch=None):
+         """Returns flags that need to be added to .c, .cc, .m, and .mm
+@@ -652,7 +657,10 @@ class XcodeSettings:
+         # If GYP_CROSSCOMPILE (--cross-compiling), disable architecture-specific
+         # additions and assume these will be provided as required via CC_host,
+         # CXX_host, CC_target and CXX_target.
+-        if not gyp.common.CrossCompileRequested():
++        #
++        # nodejs-mobile patch: force this to run because we need to compile
++        # on x64 macs targetting iOS:
++        if not gyp.common.CrossCompileRequested() or True:
+             if arch is not None:
+                 archs = [arch]
+             else:
+@@ -933,7 +941,8 @@ class XcodeSettings:
+             ldflags.append("-Wl,-order_file")
+             ldflags.append("-Wl," + gyp_to_build_path(self._Settings()["ORDER_FILE"]))
+ 
+-        if not gyp.common.CrossCompileRequested():
++        # nodejs-mobile patch to add `or True`:
++        if not gyp.common.CrossCompileRequested() or True:
+             if arch is not None:
+                 archs = [arch]
+             else:
+diff --git a/tools/v8_gypfiles/toolchain.gypi b/tools/v8_gypfiles/toolchain.gypi
+index e614c39a6b53b9afeaa7c1b4ab228a3015d47c20..711428f89856a3b0fc43ea26a3cf699e95119805 100644
+--- a/tools/v8_gypfiles/toolchain.gypi
++++ b/tools/v8_gypfiles/toolchain.gypi
+@@ -598,6 +598,20 @@
+           }],
+         ],
+       }],
++      ['OS=="ios"', {
++        'target_conditions': [
++          ['_toolset=="host" and host_os=="mac"', {
++            'conditions':[
++              ['target_arch=="arm64" and host_arch != "arm64"', {
++                'xcode_settings': {
++                  'ARCHS!': ['arm64'],
++                  'ARCHS': ['x86_64'],
++                },
++              }],
++            ],
++          }],
++        ]
++      }],
+     ],  # conditions
+     'configurations': {
+       'Debug': {
+diff --git a/tools/v8_gypfiles/v8.gyp b/tools/v8_gypfiles/v8.gyp
+index f90a29d102ac0246a9261e223f0b5f69ec6d328b..b814fee5446237e0e5a2f7ede60f68b6cbe76392 100644
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -868,6 +868,15 @@
+       'direct_dependent_settings': {
+         'sources': ['<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources = ")'],
+         'conditions': [
++          # nodejs-mobile: mirror GN's "if (!v8_enable_maglev)" block — with
++          # Maglev off, Turboshaft's Turbolev frontend still needs Maglev's
++          # graph builder. Upstream gyp never scraped it (Maglev-off is only
++          # reachable here via non-default arches upstream never gyp-builds).
++          ['v8_enable_maglev==0', {
++            'sources': [
++              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?!v8_enable_maglev.*?v8_compiler_sources \\+= ")',
++            ],
++          }],
+           ['v8_target_arch=="ia32"', {
+             'sources': [
+               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_current_cpu == \\"x86\\".*?v8_compiler_sources \\+= ")',
+@@ -930,6 +939,11 @@
+       'target_name': 'v8_compiler_for_mksnapshot_source_set',
+       'type': 'static_library',
+       'toolsets': ['host', 'target'],
++      # nodejs-mobile: always the real compiler sources, mirroring GN —
++      # mksnapshot needs the TurboFan backend to generate builtins even when
++      # v8_enable_turbofan==0 stubs the shipped v8_compiler. Upstream gyp
++      # wrongly stubbed this target too (that configuration is never built
++      # upstream) and omitted the fp16/abseil deps its include paths need.
+       'dependencies': [
+         'generate_bytecode_builtins_list',
+         'run_torque',
+@@ -939,13 +953,9 @@
+         'v8_libbase',
+         'v8_shared_internal_headers',
+         'v8_pch',
+-      ],
+-      'conditions': [
+-        ['v8_enable_turbofan==1', {
+-          'dependencies': ['v8_compiler_sources'],
+-        }, {
+-          'sources': ['<(V8_ROOT)/src/compiler/turbofan-disabled.cc'],
+-        }],
++        'v8_compiler_sources',
++        'fp16',
++        'abseil.gyp:abseil',
+       ],
+     },  # v8_compiler_for_mksnapshot_source_set
+     {
+@@ -965,11 +975,12 @@
+         'abseil.gyp:abseil',
+       ],
+       'conditions': [
+-        ['v8_enable_maglev==0', {
+-          'sources': [
+-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?!v8_enable_maglev.*?sources \\+= ")',
+-          ],
+-        }],
++        # nodejs-mobile: the upstream v8_enable_maglev==0 scrape that lived
++        # here matched GN's "!v8_enable_maglev → v8_compiler_sources +=" block
++        # only by substring accident ("sources += " inside
++        # "v8_compiler_sources += "); that block now lives in
++        # v8_compiler_sources, so with v8_enable_turbofan==0 this target is
++        # the pure turbofan-disabled stub, matching GN's v8_compiler.
+         ['v8_enable_turbofan==1', {
+           'dependencies': ['v8_compiler_sources'],
+         }, {
+@@ -1184,7 +1195,7 @@
+           'conditions': [
+             ['v8_enable_webassembly==1', {
+               'conditions': [
+-                ['((_toolset=="host" and host_arch=="arm64" or _toolset=="target" and target_arch=="arm64") and (OS in "linux mac ios openharmony")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS in "linux mac openharmony"))', {
++                ['((_toolset=="host" and host_arch=="arm64" or _toolset=="target" and target_arch=="arm64") and (OS in "linux mac ios openharmony")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS in "linux mac ios openharmony"))', {
+                   'sources': [
+                     '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
+                     '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
+@@ -1327,7 +1338,8 @@
+         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
+         # to implement atomic memory access.
+         # Clang needs it for some atomic operations (https://clang.llvm.org/docs/Toolchain.html#atomics-library).
+-        ['(OS=="linux" and clang==1) or (v8_current_cpu in ["mips64", "mips64el", "arm", "riscv64", "loong64"])', {
++        # nodejs-mobile patch: https://github.com/nodejs/node/pull/57748
++        ['((OS=="linux" or OS=="android") and clang==1) or (v8_current_cpu in ["mips64", "mips64el", "ppc", "arm", "riscv64", "loong64"])', {
+           'link_settings': {
+             'libraries': ['-latomic', ],
+           },
+@@ -1477,6 +1489,8 @@
+             '<(V8_ROOT)/src/base/platform/platform-posix.h',
+             '<(V8_ROOT)/src/base/platform/platform-posix-time.cc',
+             '<(V8_ROOT)/src/base/platform/platform-posix-time.h',
++            # nodejs-mobile patch: https://github.com/nodejs/node/pull/57748
++            '<(V8_ROOT)/src/base/platform/platform-linux.h',
+           ],
+           'link_settings': {
+             'target_conditions': [
+@@ -1489,9 +1503,18 @@
+           },
+           'target_conditions': [
+             ['_toolset=="host"', {
+-              'sources': [
+-                '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
+-                '<(V8_ROOT)/src/base/platform/platform-linux.cc',
++              'target_conditions': [
++                ['host_os == "mac"', {
++                  'sources': [
++                    '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
++                    '<(V8_ROOT)/src/base/platform/platform-darwin.cc',
++                  ]
++                }, {
++                  'sources': [
++                    '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
++                    '<(V8_ROOT)/src/base/platform/platform-linux.cc',
++                  ]
++                }],
+               ],
+             }, {
+               'sources': [
+@@ -2073,12 +2096,14 @@
+             ],
+           }, { # 'OS!="win"'
+             'conditions': [
+-              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
++              # nodejs-mobile patch: https://github.com/nodejs/node/pull/57748
++              ['_toolset == "host" and host_arch == "x64" and (target_arch == "x64" or target_arch == "arm64") or (_toolset == "target" and target_arch == "x64")', {
+                 'sources': [
+                   '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_asm.cc',
+                 ],
+               }],
+-              ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
++              # nodejs-mobile patch: https://github.com/nodejs/node/pull/57748
++              ['_toolset == "host" and host_arch == "x64" and (target_arch == "arm" or target_arch == "ia32") or (_toolset == "target" and target_arch == "ia32")', {
+                 'sources': [
+                   '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_asm.cc',
+                 ],
+@@ -2294,6 +2319,46 @@
+       },
+     },  # postmortem-metadata
+ 
++    # nodejs-mobile patch: this whole target
++    {
++      'target_name': 'ndk_sources',
++      'type': 'none',
++      'conditions': [
++        ['OS=="android"', {
++          'copies': [{
++            'files': [
++              '<(android_ndk_path)/sources/android/cpufeatures/cpu-features.c',
++            ],
++            'destination': '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/',
++          }],
++        }]
++      ]
++    },
++
++    # nodejs-mobile patch: this whole target
++    {
++      'target_name': 'ndk_cpufeatures',
++      'type': 'static_library',
++      'toolsets': ['target'],
++      'conditions': [
++        ['OS=="android" and _toolset=="target"', {
++          'dependencies': ['ndk_sources'],
++          'include_dirs': [
++            '<(android_ndk_path)/sources/android/cpufeatures',
++            '<(android_ndk_sysroot)/usr/include', # cpu-features.c needs sys/system_properties.h
++          ],
++          'sources': [
++            '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/cpu-features.c',
++          ],
++          'direct_dependent_settings': {
++            'include_dirs': [
++              '<(android_ndk_path)/sources/android/cpufeatures',
++            ],
++          },
++        }],
++      ],
++    },
++
+     {
+       'target_name': 'v8_zlib',
+       'type': 'static_library',
+@@ -2308,6 +2373,10 @@
+             }]
+           ]
+         }],
++        # nodejs-mobile patch:
++        ['OS=="android" and _toolset=="target"', {
++          'dependencies': ['ndk_cpufeatures'],
++        }],
+       ],
+       'direct_dependent_settings': {
+         'include_dirs': [

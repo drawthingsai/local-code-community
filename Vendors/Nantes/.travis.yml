@@ -1,0 +1,17 @@
+language: swift
+osx_image: xcode10.2
+cache:
+  bundler: true
+  directories:
+    - .build
+before_install:
+  - brew install carthage || true
+  - brew outdated carthage || brew upgrade carthage
+install: bundle install
+before_script:
+  - cd Nantes
+  - carthage bootstrap --platform iOS --no-use-binaries --cache-builds
+  - cd ../
+script:
+  - bundle exec fastlane ios lint
+  - bundle exec fastlane ios test

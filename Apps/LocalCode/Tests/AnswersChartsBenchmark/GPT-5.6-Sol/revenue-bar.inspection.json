@@ -1,0 +1,82 @@
+{
+  "runtime": {
+    "python": "3.14.7 (tags/v3.14.7-dirty:823f0323ee6, Aug 28 2026, 13:14:07) [Clang 21.0.0 (clang-2100.1.1.101)]",
+    "matplotlib": "3.11.1",
+    "pillow": "12.3.0",
+    "backend": "Agg"
+  },
+  "script_sha256": "022a204b839b370b3543621598783e631c27da2332db545861c2b7852c345abe",
+  "figures": [
+    {
+      "png": {
+        "name": "revenue-ranking.png",
+        "size": [
+          2090,
+          1174
+        ],
+        "sha256": "d0ccb63609d8b48f55aa3624f90a380a924db157f31dae9db6b501cf29b17a74"
+      },
+      "axes": [
+        {
+          "titles": [
+            "Revenue ranking",
+            "",
+            ""
+          ],
+          "xlabel": "Revenue (USD)",
+          "ylabel": "",
+          "xscale": "linear",
+          "yscale": "linear",
+          "xticks": [
+            "$0.0M",
+            "$0.2M",
+            "$0.4M",
+            "$0.6M",
+            "$0.8M",
+            "$1.0M",
+            "$1.2M"
+          ],
+          "yticks": [
+            "Enterprise platform subscriptions",
+            "Professional implementation services",
+            "Managed data operations",
+            "Security and compliance packages",
+            "Analytics and reporting add-ons",
+            "Developer productivity extensions",
+            "Training and enablement programs",
+            "Premium customer support"
+          ],
+          "texts": [
+            "$985,000",
+            "$870,000",
+            "$760,000",
+            "$650,000",
+            "$540,000",
+            "$430,000",
+            "$320,000",
+            "$210,000"
+          ],
+          "legend": [],
+          "bars": [
+            {
+              "orientation": "horizontal",
+              "values": [
+                985000.0,
+                870000.0,
+                760000.0,
+                650000.0,
+                540000.0,
+                430000.0,
+                320000.0,
+                210000.0
+              ]
+            }
+          ],
+          "lines": [],
+          "scatter": [],
+          "pie_percentages": []
+        }
+      ]
+    }
+  ]
+}

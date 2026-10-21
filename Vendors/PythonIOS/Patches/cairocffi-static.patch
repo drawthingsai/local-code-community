@@ -1,0 +1,279 @@
+--- a/cairocffi/__init__.py
++++ b/cairocffi/__init__.py
+@@ -9,57 +9,15 @@
+ 
+ """
+ 
+-import os
+ import sys
+-from contextlib import suppress
+-from ctypes.util import find_library
+ 
+ from . import constants
+-from .ffi import ffi
++from ._ffi import ffi, lib as cairo
+ 
+ VERSION = __version__ = '1.7.1'
+ # supported version of cairo, used to be pycairo version too:
+ version = '1.17.2'
+ version_info = (1, 17, 2)
+-
+-
+-# Python 3.8 no longer searches for DLLs in PATH, so we can add everything in
+-# CAIROCFFI_DLL_DIRECTORIES manually. Note that unlike PATH, add_dll_directory
+-# has no defined order, so if there are two cairo DLLs in PATH we might get a
+-# random one.
+-dll_directories = os.getenv('CAIROCFFI_DLL_DIRECTORIES')
+-if dll_directories and hasattr(os, 'add_dll_directory'):
+-    for path in dll_directories.split(';'):
+-        with suppress((OSError, FileNotFoundError)):
+-            os.add_dll_directory(path)
+-
+-
+-def dlopen(ffi, library_names, filenames):
+-    """Try various names for the same library, for different platforms."""
+-    exceptions = []
+-
+-    for library_name in library_names:
+-        library_filename = find_library(library_name)
+-        if library_filename:
+-            filenames = (library_filename, *filenames)
+-        else:
+-            exceptions.append(
+-                'no library called "{}" was found'.format(library_name))
+-
+-    for filename in filenames:
+-        try:
+-            return ffi.dlopen(filename)
+-        except OSError as exception:  # pragma: no cover
+-            exceptions.append(exception)
+-
+-    error_message = '\n'.join(  # pragma: no cover
+-        str(exception) for exception in exceptions)
+-    raise OSError(error_message)  # pragma: no cover
+-
+-
+-cairo = dlopen(
+-    ffi, ('cairo-2', 'cairo', 'libcairo-2'),
+-    ('libcairo.so.2', 'libcairo.2.dylib', 'libcairo-2.dll'))
+ 
+ 
+ class _keepref(object):  # noqa: N801
+--- a/cairocffi/surfaces.py
++++ b/cairocffi/surfaces.py
+@@ -14,10 +14,7 @@
+ import operator
+ import os
+ import sys
+-import weakref
+ from functools import reduce
+-from pathlib import Path
+-from tempfile import NamedTemporaryFile
+ 
+ from . import _check_status, _keepref, cairo, constants, ffi
+ from .fonts import FontOptions, _encode_string
+@@ -25,28 +22,36 @@
+ SURFACE_TARGET_KEY = ffi.new('cairo_user_data_key_t *')
+ 
+ 
+-def _make_read_func(file_obj):
+-    """Return a CFFI callback that reads from a file-like object."""
+-    @ffi.callback("cairo_read_func_t", error=constants.STATUS_READ_ERROR)
+-    def read_func(_closure, data, length):
+-        string = file_obj.read(length)
+-        if len(string) < length:  # EOF too early
+-            return constants.STATUS_READ_ERROR
+-        ffi.buffer(data, length)[:len(string)] = string
+-        return constants.STATUS_SUCCESS
+-    return read_func
+-
+-
+-def _make_write_func(file_obj):
+-    """Return a CFFI callback that writes to a file-like object."""
+-    if file_obj is None:
+-        return ffi.NULL
+-
+-    @ffi.callback("cairo_write_func_t", error=constants.STATUS_WRITE_ERROR)
+-    def write_func(_closure, data, length):
+-        file_obj.write(ffi.buffer(data, length))
+-        return constants.STATUS_SUCCESS
+-    return write_func
++# Compiled CFFI entry points use Cairo's closure argument for Python state.
++# No ffi.callback() executable trampolines are needed on iOS.
++@ffi.def_extern(name="_pythonios_cairo_read", error=constants.STATUS_READ_ERROR)
++def _read(closure, data, length):
++    string = ffi.from_handle(closure).read(length)
++    if len(string) != length:
++        return constants.STATUS_READ_ERROR
++    ffi.buffer(data, length)[:] = string
++    return constants.STATUS_SUCCESS
++
++
++@ffi.def_extern(name="_pythonios_cairo_write", error=constants.STATUS_WRITE_ERROR)
++def _write(closure, data, length):
++    if closure != ffi.NULL:
++        ffi.from_handle(closure).write(ffi.buffer(data, length))
++    return constants.STATUS_SUCCESS
++
++
++@ffi.def_extern(name="_pythonios_cairo_destroy")
++def _destroy(closure):
++    value = ffi.from_handle(closure)
++    value.instances.remove(value)
++
++
++def _make_read_handle(file_obj):
++    return ffi.new_handle(file_obj)
++
++
++def _make_write_handle(file_obj):
++    return ffi.NULL if file_obj is None else ffi.new_handle(file_obj)
+ 
+ 
+ def _encode_filename(filename):  # pragma: no cover
+@@ -96,8 +101,7 @@
+ class KeepAlive(object):
+     """
+     Keep some objects alive until a callback is called.
+-    :attr:`closure` is a tuple of cairo_destroy_func_t and void* cdata objects,
+-    as expected by cairo_surface_set_mime_data().
++    :attr:`closure` is a retained handle passed to the compiled destroy callback.
+ 
+     Either :meth:`save` must be called before the callback,
+     or none of them must be called.
+@@ -107,17 +111,7 @@
+ 
+     def __init__(self, *objects):
+         self.objects = objects
+-        weakself = weakref.ref(self)
+-
+-        def closure(_):
+-            value = weakself()
+-            if value is not None:
+-                value.instances.remove(value)
+-
+-        callback = ffi.callback(
+-            'cairo_destroy_func_t', closure)
+-        # cairo wants a non-NULL closure pointer.
+-        self.closure = (callback, callback)
++        self.closure = ffi.new_handle(self)
+ 
+     def save(self):
+         """Start keeping a reference to the passed objects."""
+@@ -163,7 +157,8 @@
+         if not is_empty:
+             keep_alive = KeepAlive(target_keep_alive)
+             _check_status(cairo.cairo_surface_set_user_data(
+-                self._pointer, SURFACE_TARGET_KEY, *keep_alive.closure))
++                self._pointer, SURFACE_TARGET_KEY, keep_alive.closure,
++                cairo._pythonios_cairo_destroy))
+             keep_alive.save()
+ 
+     def _check_status(self):
+@@ -508,7 +503,7 @@
+             keep_alive = KeepAlive(data, mime_type)
+             _check_status(cairo.cairo_surface_set_mime_data(
+                 self._pointer, mime_type, data, length,
+-                *keep_alive.closure))
++                cairo._pythonios_cairo_destroy, keep_alive.closure))
+             keep_alive.save()  # Only on success
+ 
+     def get_mime_data(self, mime_type):
+@@ -651,25 +646,9 @@
+         if return_bytes:
+             target = io.BytesIO()
+         if hasattr(target, 'write'):
+-            try:
+-                write_func = _make_write_func(target)
+-                _check_status(cairo.cairo_surface_write_to_png_stream(
+-                    self._pointer, write_func, ffi.NULL))
+-            except (SystemError, MemoryError):  # pragma: no cover
+-                # Callback creation has failed
+-                if hasattr(target, 'name'):
+-                    # File-like object has a name, write here
+-                    _check_status(cairo.cairo_surface_write_to_png(
+-                        self._pointer, _encode_filename(target.name)))
+-                else:
+-                    # Use a fallback temporary file
+-                    with NamedTemporaryFile('wb', delete=False) as fd:
+-                        filename = fd.name
+-                        _check_status(cairo.cairo_surface_write_to_png(
+-                            self._pointer, _encode_filename(filename)))
+-                    png_file = Path(filename)
+-                    target.write(png_file.read_bytes())
+-                    png_file.unlink()
++            write_handle = _make_write_handle(target)
++            _check_status(cairo.cairo_surface_write_to_png_stream(
++                self._pointer, cairo._pythonios_cairo_write, write_handle))
+         else:
+             _check_status(cairo.cairo_surface_write_to_png(
+                 self._pointer, _encode_filename(target)))
+@@ -775,9 +754,9 @@
+ 
+         """
+         if hasattr(source, 'read'):
+-            read_func = _make_read_func(source)
++            read_handle = _make_read_handle(source)
+             pointer = cairo.cairo_image_surface_create_from_png_stream(
+-                read_func, ffi.NULL)
++                cairo._pythonios_cairo_read, read_handle)
+         else:
+             pointer = cairo.cairo_image_surface_create_from_png(
+                 _encode_filename(source))
+@@ -862,14 +841,14 @@
+     """
+     def __init__(self, target, width_in_points, height_in_points):
+         if hasattr(target, 'write') or target is None:
+-            write_func = _make_write_func(target)
++            write_handle = _make_write_handle(target)
+             pointer = cairo.cairo_pdf_surface_create_for_stream(
+-                write_func, ffi.NULL, width_in_points, height_in_points)
++                cairo._pythonios_cairo_write, write_handle, width_in_points, height_in_points)
+         else:
+-            write_func = None
++            write_handle = None
+             pointer = cairo.cairo_pdf_surface_create(
+                 _encode_filename(target), width_in_points, height_in_points)
+-        Surface.__init__(self, pointer, target_keep_alive=write_func)
++        Surface.__init__(self, pointer, target_keep_alive=write_handle)
+ 
+     def set_size(self, width_in_points, height_in_points):
+         """Changes the size of a PDF surface
+@@ -1059,14 +1038,14 @@
+     """
+     def __init__(self, target, width_in_points, height_in_points):
+         if hasattr(target, 'write') or target is None:
+-            write_func = _make_write_func(target)
++            write_handle = _make_write_handle(target)
+             pointer = cairo.cairo_ps_surface_create_for_stream(
+-                write_func, ffi.NULL, width_in_points, height_in_points)
++                cairo._pythonios_cairo_write, write_handle, width_in_points, height_in_points)
+         else:
+-            write_func = None
++            write_handle = None
+             pointer = cairo.cairo_ps_surface_create(
+                 _encode_filename(target), width_in_points, height_in_points)
+-        Surface.__init__(self, pointer, target_keep_alive=write_func)
++        Surface.__init__(self, pointer, target_keep_alive=write_handle)
+ 
+     def dsc_comment(self, comment):
+         """ Emit a comment into the PostScript output for the given surface.
+@@ -1304,14 +1283,14 @@
+     """
+     def __init__(self, target, width_in_points, height_in_points):
+         if hasattr(target, 'write') or target is None:
+-            write_func = _make_write_func(target)
++            write_handle = _make_write_handle(target)
+             pointer = cairo.cairo_svg_surface_create_for_stream(
+-                write_func, ffi.NULL, width_in_points, height_in_points)
++                cairo._pythonios_cairo_write, write_handle, width_in_points, height_in_points)
+         else:
+-            write_func = None
++            write_handle = None
+             pointer = cairo.cairo_svg_surface_create(
+                 _encode_filename(target), width_in_points, height_in_points)
+-        Surface.__init__(self, pointer, target_keep_alive=write_func)
++        Surface.__init__(self, pointer, target_keep_alive=write_handle)
+ 
+     def restrict_to_version(self, version):
+         """Restricts the generated SVG file to ``version``.

@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: caca
+Description: Colour ASCII-Art library
+Version: @VERSION@
+Requires: 
+Conflicts: 
+Libs: -L${libdir} -lcaca
+Libs.private: @ZLIB_LIBS@
+Cflags: -I${includedir}

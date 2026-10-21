@@ -1,0 +1,313 @@
+--- a/yt_dlp/utils/_utils.py
++++ b/yt_dlp/utils/_utils.py
+@@ -839,90 +839,34 @@
+             self._parse('-', stream, False)
+ 
+ 
+-class Popen(subprocess.Popen):
+-    if sys.platform == 'win32':
+-        _startupinfo = subprocess.STARTUPINFO()
+-        _startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+-    else:
+-        _startupinfo = None
++class Popen:
++    """Synchronous commands through ios_system; native process creation stays disabled."""
++
++    def __init__(self, *args, **kwargs):
++        raise OSError(errno.ENOTSUP, 'Streaming child processes are unavailable in embedded yt-dlp')
+ 
+     @staticmethod
+-    def _fix_pyinstaller_issues(env):
+-        if not hasattr(sys, '_MEIPASS'):
+-            return
+-
+-        # Force spawning independent subprocesses for exes bundled with PyInstaller>=6.10
+-        # Ref: https://pyinstaller.org/en/v6.10.0/CHANGES.html#incompatible-changes
+-        #      https://github.com/yt-dlp/yt-dlp/issues/11259
+-        env['PYINSTALLER_RESET_ENVIRONMENT'] = '1'
+-
+-        # Restore LD_LIBRARY_PATH when using PyInstaller
+-        # Ref: https://pyinstaller.org/en/v6.10.0/runtime-information.html#ld-library-path-libpath-considerations
+-        #      https://github.com/yt-dlp/yt-dlp/issues/4573
+-        def _fix(key):
+-            orig = env.get(f'{key}_ORIG')
+-            if orig is None:
+-                env.pop(key, None)
+-            else:
+-                env[key] = orig
+-
+-        _fix('LD_LIBRARY_PATH')  # Linux
+-        _fix('DYLD_LIBRARY_PATH')  # macOS
+-
+-    def __init__(self, args, *remaining, env=None, text=False, shell=False, **kwargs):
+-        if env is None:
+-            env = os.environ.copy()
+-        self._fix_pyinstaller_issues(env)
+-
+-        self.__text_mode = kwargs.get('encoding') or kwargs.get('errors') or text or kwargs.get('universal_newlines')
+-        if text is True:
+-            kwargs['universal_newlines'] = True  # For 3.6 compatibility
++    def run(args, *, input=None, env=None, shell=False, **kwargs):
++        if env is not None and env != dict(os.environ):
++            raise OSError(errno.ENOTSUP, 'Custom command environments are unavailable in embedded yt-dlp')
++        if shell:
++            if not isinstance(args, str):
++                raise OSError(errno.ENOTSUP, 'Shell commands must be strings')
++            args = ['sh', '-c', args]
++        text_mode = bool(kwargs.get('text') or kwargs.get('universal_newlines')
++                         or kwargs.get('encoding') or kwargs.get('errors'))
++        if text_mode:
+             kwargs.setdefault('encoding', 'utf-8')
+             kwargs.setdefault('errors', 'replace')
+-
+-        if os.name == 'nt' and kwargs.get('executable') is None:
+-            # Must apply shell escaping if we are trying to run a batch file
+-            # These conditions should be very specific to limit impact
+-            if not shell and isinstance(args, list) and args and args[0].lower().endswith(('.bat', '.cmd')):
+-                shell = True
+-
+-            if shell:
+-                if not isinstance(args, str):
+-                    args = shell_quote(args, shell=True)
+-                shell = False
+-                # Set variable for `cmd.exe` newline escaping (see `utils.shell_quote`)
+-                env['='] = '"^\n\n"'
+-                args = f'{self.__comspec()} /Q /S /D /V:OFF /E:ON /C "{args}"'
+-
+-        super().__init__(args, *remaining, env=env, shell=shell, **kwargs, startupinfo=self._startupinfo)
+-
+-    def __comspec(self):
+-        comspec = os.environ.get('ComSpec') or os.path.join(
+-            os.environ.get('SystemRoot', ''), 'System32', 'cmd.exe')
+-        if os.path.isabs(comspec):
+-            return comspec
+-        raise FileNotFoundError('shell not found: neither %ComSpec% nor %SystemRoot% is set')
+-
+-    def communicate_or_kill(self, *args, **kwargs):
+-        try:
+-            return self.communicate(*args, **kwargs)
+-        except BaseException:  # Including KeyboardInterrupt
+-            self.kill(timeout=None)
+-            raise
+-
+-    def kill(self, *, timeout=0):
+-        super().kill()
+-        if timeout != 0:
+-            self.wait(timeout=timeout)
+-
+-    @classmethod
+-    def run(cls, *args, timeout=None, input=None, **kwargs):
+-        if input is not None and kwargs.get('stdin') is None:
+-            kwargs['stdin'] = subprocess.PIPE
+-        with cls(*args, **kwargs) as proc:
+-            default = '' if proc.__text_mode else b''
+-            stdout, stderr = proc.communicate_or_kill(input=input, timeout=timeout)
+-            return stdout or default, stderr or default, proc.returncode
++        # subprocess.run supplies its own stdin when input is provided. A PIPE
++        # without input means EOF, never the interactive terminal's stdin.
++        if kwargs.get('stdin') == subprocess.PIPE:
++            del kwargs['stdin']
++            if input is None:
++                input = '' if text_mode else b''
++        result = subprocess.run(args, input=input, **kwargs)
++        empty = '' if text_mode else b''
++        return result.stdout or empty, result.stderr or empty, result.returncode
+ 
+ 
+ def encodeArgument(s):
+--- a/yt_dlp/extractor/youtube/jsc/_builtin/node.py
++++ b/yt_dlp/extractor/youtube/jsc/_builtin/node.py
+@@ -38,20 +38,15 @@
+ 
+         cmd = [self.runtime_info.path, *args, *self._ARGS]
+         self.logger.debug(f'Running node: {shlex.join(cmd)}')
+-        with Popen(
+-            cmd,
+-            text=True,
+-            stdin=subprocess.PIPE,
+-            stdout=subprocess.PIPE,
+-            stderr=subprocess.PIPE,
+-        ) as proc:
+-            stdout, stderr = proc.communicate_or_kill(stdin)
+-            stderr = self._clean_stderr(stderr)
+-            if proc.returncode or stderr:
+-                msg = f'Error running node process (returncode: {proc.returncode})'
+-                if stderr:
+-                    msg = f'{msg}: {stderr.strip()}'
+-                raise JsChallengeProviderError(msg)
++        stdout, stderr, returncode = Popen.run(
++            cmd, text=True, input=stdin,
++            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
++        stderr = self._clean_stderr(stderr)
++        if returncode or stderr:
++            msg = f'Error running node process (returncode: {returncode})'
++            if stderr:
++                msg = f'{msg}: {stderr.strip()}'
++            raise JsChallengeProviderError(msg)
+ 
+         return stdout
+ 
+--- a/yt_dlp/downloader/external.py
++++ b/yt_dlp/downloader/external.py
+@@ -413,7 +413,6 @@
+         if not self.params.get('verbose'):
+             args += ['-hide_banner']
+ 
+-        env = None
+         proxy = self.params.get('proxy')
+         if proxy:
+             if not re.match(r'[\da-zA-Z]+://', proxy):
+@@ -424,14 +423,6 @@
+                     f'{self.get_basename()} does not support SOCKS proxies. Downloading is likely to fail. '
+                     'Consider adding --hls-prefer-native to your command.')
+ 
+-            # Since December 2015 ffmpeg supports -http_proxy option (see
+-            # http://git.videolan.org/?p=ffmpeg.git;a=commit;h=b4eb1f29ebddd60c41a2eb39f5af701e38e0d3fd)
+-            # We could switch to the following code if we are able to detect version properly
+-            # args += ['-http_proxy', proxy]
+-            env = os.environ.copy()
+-            env['HTTP_PROXY'] = proxy
+-            env['http_proxy'] = proxy
+-
+         start_time, end_time = info_dict.get('section_start') or 0, info_dict.get('section_end')
+ 
+         fallback_input_args = traverse_obj(info_dict, ('downloader_options', 'ffmpeg_args', ...))
+@@ -439,6 +430,8 @@
+         selected_formats = info_dict.get('requested_formats') or [info_dict]
+         for i, fmt in enumerate(selected_formats):
+             is_http = re.match(r'https?://', fmt['url'])
++            if proxy and is_http:
++                args += ['-http_proxy', proxy]
+             cookies = self.ydl.cookiejar.get_cookies_for_url(fmt['url']) if is_http else []
+             if cookies:
+                 args.extend(['-cookies', ''.join(
+@@ -557,23 +550,9 @@
+         self._debug_cmd(args)
+ 
+         piped = any(fmt['url'] in ('-', 'pipe:') for fmt in selected_formats)
+-        with Popen(args, stdin=subprocess.PIPE, env=env) as proc:
+-            if piped:
+-                self.on_process_started(proc, proc.stdin)
+-            try:
+-                retval = proc.wait()
+-            except BaseException as e:
+-                # subprocces.run would send the SIGKILL signal to ffmpeg and the
+-                # mp4 file couldn't be played, but if we ask ffmpeg to quit it
+-                # produces a file that is playable (this is mostly useful for live
+-                # streams). Note that Windows is not affected and produces playable
+-                # files (see https://github.com/ytdl-org/youtube-dl/issues/8300).
+-                if isinstance(e, KeyboardInterrupt) and sys.platform != 'win32' and not piped:
+-                    proc.communicate_or_kill(b'q')
+-                else:
+-                    proc.kill(timeout=None)
+-                raise
+-            return retval
++        if piped:
++            raise DownloadError('Piped FFmpeg input is unavailable in embedded yt-dlp')
++        return Popen.run(args, stdin=subprocess.PIPE)[2]
+
+
+ _BY_NAME = {
+--- a/yt_dlp/YoutubeDL.py
++++ b/yt_dlp/YoutubeDL.py
+@@ -737,7 +737,7 @@
+                     raise
+ 
+         # Note: this must be after plugins are loaded
+-        self.params['js_runtimes'] = self.params.get('js_runtimes', {'deno': {}})
++        self.params['js_runtimes'] = self.params.get('js_runtimes', {'node': {}})
+         self._clean_js_runtimes(self.params['js_runtimes'])
+ 
+         self.params['remote_components'] = set(self.params.get('remote_components', ()))
+--- a/yt_dlp/options.py
++++ b/yt_dlp/options.py
+@@ -464,13 +464,13 @@
+         callback=_list_from_options_callback,
+         type='str',
+         callback_kwargs={'delim': None},
+-        default=['deno'],
++        default=['node'],
+         help=(
+             'Additional JavaScript runtime to enable, with an optional location for the runtime '
+             '(either the path to the binary or its containing directory). '
+             'This option can be used multiple times to enable multiple runtimes. '
+             'Supported runtimes are (in order of priority, from highest to lowest): deno, node, quickjs, bun. '
+-            'Only "deno" is enabled by default. The highest priority runtime that is both enabled and '
++            'Only "node" is enabled by default. The highest priority runtime that is both enabled and '
+             'available will be used. In order to use a lower priority runtime when "deno" is available, '
+             '--no-js-runtimes needs to be passed before enabling other runtimes'))
+     general.add_option(
+--- a/yt_dlp/update.py
++++ b/yt_dlp/update.py
+@@ -55,61 +55,8 @@
+ 
+ @functools.cache
+ def _get_variant_and_executable_path():
+-    """@returns (variant, executable_path)"""
+-    if getattr(sys, 'frozen', False):
+-        path = sys.executable
+-
+-        # py2exe: No longer officially supported, but still identify it to block updates
+-        if not hasattr(sys, '_MEIPASS'):
+-            return 'py2exe', path
+-
+-        # staticx builds: sys.executable returns a /tmp/ path
+-        # No longer officially supported, but still identify them to block updates
+-        # Ref: https://staticx.readthedocs.io/en/latest/usage.html#run-time-information
+-        if static_exe_path := os.getenv('STATICX_PROG_PATH'):
+-            return 'linux_static_exe', static_exe_path
+-
+-        # We know it's a PyInstaller bundle, but is it "onedir" or "onefile"?
+-        if (
+-            # PyInstaller >= 6.0.0 sets sys._MEIPASS for onedir to its `_internal` subdirectory
+-            # Ref: https://pyinstaller.org/en/v6.0.0/CHANGES.html#incompatible-changes
+-            sys._MEIPASS == f'{os.path.dirname(path)}/_internal'
+-            # compat: PyInstaller < 6.0.0
+-            or sys._MEIPASS == os.path.dirname(path)
+-        ):
+-            suffix = 'dir'
+-        else:
+-            suffix = 'exe'
+-
+-        system_platform = remove_end(sys.platform, '32')
+-
+-        if system_platform == 'darwin':
+-            # darwin_legacy_exe is no longer supported, but still identify it to block updates
+-            machine = '_legacy' if version_tuple(platform.mac_ver()[0]) < (10, 15) else ''
+-            return f'darwin{machine}_{suffix}', path
+-
+-        if system_platform == 'linux' and platform.libc_ver()[0] != 'glibc':
+-            system_platform = 'musllinux'
+-
+-        machine = f'_{platform.machine().lower()}'
+-        is_64bits = sys.maxsize > 2**32
+-        # Ref: https://en.wikipedia.org/wiki/Uname#Examples
+-        if machine[1:] in ('x86', 'x86_64', 'amd64', 'i386', 'i686'):
+-            machine = '_x86' if not is_64bits else ''
+-        # platform.machine() on 32-bit raspbian OS may return 'aarch64', so check "64-bitness"
+-        # See: https://github.com/yt-dlp/yt-dlp/issues/11813
+-        elif machine[1:] == 'aarch64' and not is_64bits:
+-            machine = '_armv7l'
+-
+-        return f'{system_platform}{machine}_{suffix}', path
+-
+-    path = os.path.dirname(__file__)
+-    if isinstance(__loader__, zipimporter):
+-        return 'zip', os.path.join(path, '..')
+-    elif (os.path.basename(sys.argv[0]) in ('__main__.py', '-m')
+-          and os.path.exists(os.path.join(path, '../.git/HEAD'))):
+-        return 'source', path
+-    return 'unknown', path
++    """App resources are updated together with the app's command adapters."""
++    return 'ios_system', os.path.abspath(__file__)
+ 
+ 
+ def detect_variant():
+@@ -142,6 +89,7 @@
+ }
+ 
+ _NON_UPDATEABLE_REASONS = {
++    'ios_system': 'This yt-dlp is bundled with Local Code; update the app to update yt-dlp',
+     **dict.fromkeys(_FILE_SUFFIXES),  # Updatable
+     **dict.fromkeys(
+         ['linux_armv7l_dir', *(f'{variant[:-4]}_dir' for variant in _FILE_SUFFIXES if variant.endswith('_exe'))],

@@ -1,0 +1,56 @@
+enum ProjectHistoryRole: byte {
+  User,
+  Assistant,
+  Memory,
+}
+
+// A project's USER.md / MEMORY.md, each rendered as its entries.
+table MemoryContext {
+  user: string;
+  memory: string;
+}
+
+table ToolCallParameter {
+  name: string;
+  value: string;
+}
+
+table ToolCall {
+  function: string;
+  parameters: [ToolCallParameter];
+}
+
+enum EmbedKind: ubyte {
+  Image,
+  Audio,
+  Video,
+}
+
+table EmbedSpan {
+  start: long;
+  length: long;
+  digest: [ubyte];
+  kind: EmbedKind;
+}
+
+table ProjectHistoryNode {
+  thread_id: long (primary);
+  datetime: long (primary);
+  role: ProjectHistoryRole;
+  log_tokens: [int];
+  tokens: [int];
+  tool_calls: [ToolCall];
+  text_edits: long = -1;
+  text_lineage: long = -1;
+  plaintext: string;
+  log_plaintext: string;
+  compacted: bool;
+  duration: double;
+  embed_spans: [EmbedSpan];
+  // Only observed targets are populated; absent targets inherit their last value in history.
+  // System snapshots contain both targets and are recorded when the prompt ingests memory.
+  memory_context: MemoryContext;
+  system_seen_memory_context: MemoryContext;
+}
+
+root_type ProjectHistoryNode;

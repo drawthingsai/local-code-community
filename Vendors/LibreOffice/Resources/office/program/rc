@@ -1,0 +1,4 @@
+[Bootstrap]
+URE_BOOTSTRAP=${ORIGIN}/fundamentalrc
+UNO_TYPES=${ORIGIN}/types.rdb ${ORIGIN}/types/offapi.rdb
+UNO_SERVICES=${ORIGIN}/services.rdb ${ORIGIN}/services/services.rdb

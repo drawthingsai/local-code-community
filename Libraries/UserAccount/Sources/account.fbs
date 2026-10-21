@@ -1,0 +1,20 @@
+enum PlanType: byte {
+  Free,
+  Community,
+  Plus,
+  Max_Edition,
+}
+
+table Account {
+  id: long (primary);
+  legacy_plan: PlanType (deprecated);
+  email: string;
+  short_term_token: string;
+  original_transaction_id: string;
+  is_subscribed_iap: bool;
+  is_subscribed_on_server: bool;
+  apple_credential_id: string;
+  server_subscription_plan: PlanType;
+}
+
+root_type Account;

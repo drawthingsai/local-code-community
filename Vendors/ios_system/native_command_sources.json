@@ -1,0 +1,224 @@
+[
+  {
+    "path": "shell_cmds/basename/basename.1",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "shell_cmds/basename/basename.1"
+  },
+  {
+    "path": "shell_cmds/basename/basename.c",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "shell_cmds/basename/basename.c"
+  },
+  {
+    "path": "shell_cmds/basename/dirname.1",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "shell_cmds/basename/dirname.1"
+  },
+  {
+    "path": "shell_cmds/dirname/dirname.c",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "shell_cmds/dirname/dirname.c"
+  },
+  {
+    "path": "shell_cmds/realpath/realpath.c",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "shell_cmds/realpath/realpath.c"
+  },
+  {
+    "path": "file_cmds/chmod/chmod.1",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "file_cmds/chmod/chmod.1"
+  },
+  {
+    "path": "file_cmds/chmod/chmod.c",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "file_cmds/chmod/chmod.c"
+  },
+  {
+    "path": "file_cmds/chmod/chmod_acl.c",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "file_cmds/chmod/chmod_acl.c"
+  },
+  {
+    "path": "file_cmds/chmod/chmod_acl.h",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "file_cmds/chmod/chmod_acl.h"
+  },
+  {
+    "path": "shell_cmds/mktemp/mktemp.1",
+    "repository": "apple-oss-distributions/shell_cmds",
+    "commit": "298787009e5432c5e4c378a077f98267077e3495",
+    "upstream_path": "mktemp/mktemp.1"
+  },
+  {
+    "path": "shell_cmds/mktemp/mktemp.c",
+    "repository": "apple-oss-distributions/shell_cmds",
+    "commit": "298787009e5432c5e4c378a077f98267077e3495",
+    "upstream_path": "mktemp/mktemp.c"
+  },
+  {
+    "path": "text_cmds/cut/cut.1",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "cut/cut.1"
+  },
+  {
+    "path": "text_cmds/cut/cut.c",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "cut/cut.c"
+  },
+  {
+    "path": "text_cmds/comm/comm.1",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "comm/comm.1"
+  },
+  {
+    "path": "text_cmds/comm/comm.c",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "comm/comm.c"
+  },
+  {
+    "path": "text_cmds/paste/paste.1",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "paste/paste.1"
+  },
+  {
+    "path": "text_cmds/paste/paste.c",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "paste/paste.c"
+  },
+  {
+    "path": "text_cmds/join/join.1",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "join/join.1"
+  },
+  {
+    "path": "text_cmds/join/join.c",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "join/join.c"
+  },
+  {
+    "path": "text_cmds/split/split.1",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "split/split.1"
+  },
+  {
+    "path": "text_cmds/split/split.c",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "split/split.c"
+  },
+  {
+    "path": "text_cmds/md5/md5.1",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "md5/md5.1"
+  },
+  {
+    "path": "text_cmds/md5/md5.c",
+    "repository": "apple-oss-distributions/text_cmds",
+    "commit": "592aaf8a50aa5810ee8183df20f0ba48bb23aa7e",
+    "upstream_path": "md5/md5.c"
+  },
+  {
+    "path": "file_cmds/du/du.1",
+    "repository": "apple-oss-distributions/file_cmds",
+    "commit": "659a8a301e2acf0343f8b8673a154a2ca4d07084",
+    "upstream_path": "du/du.1"
+  },
+  {
+    "path": "file_cmds/du/du.c",
+    "repository": "apple-oss-distributions/file_cmds",
+    "commit": "659a8a301e2acf0343f8b8673a154a2ca4d07084",
+    "upstream_path": "du/du.c"
+  },
+  {
+    "path": "text_cmds/cmp/cmp.1",
+    "repository": "openbsd/src",
+    "commit": "9bba88810ddf464f3a467f1cbf56a1c289be2653",
+    "upstream_path": "usr.bin/cmp/cmp.1"
+  },
+  {
+    "path": "text_cmds/cmp/cmp.c",
+    "repository": "openbsd/src",
+    "commit": "9bba88810ddf464f3a467f1cbf56a1c289be2653",
+    "upstream_path": "usr.bin/cmp/cmp.c"
+  },
+  {
+    "path": "text_cmds/cmp/extern.h",
+    "repository": "openbsd/src",
+    "commit": "9bba88810ddf464f3a467f1cbf56a1c289be2653",
+    "upstream_path": "usr.bin/cmp/extern.h"
+  },
+  {
+    "path": "text_cmds/cmp/misc.c",
+    "repository": "openbsd/src",
+    "commit": "9bba88810ddf464f3a467f1cbf56a1c289be2653",
+    "upstream_path": "usr.bin/cmp/misc.c"
+  },
+  {
+    "path": "text_cmds/cmp/regular.c",
+    "repository": "openbsd/src",
+    "commit": "9bba88810ddf464f3a467f1cbf56a1c289be2653",
+    "upstream_path": "usr.bin/cmp/regular.c"
+  },
+  {
+    "path": "text_cmds/cmp/special.c",
+    "repository": "openbsd/src",
+    "commit": "9bba88810ddf464f3a467f1cbf56a1c289be2653",
+    "upstream_path": "usr.bin/cmp/special.c"
+  },
+  {
+    "path": "text_cmds/xxd/xxd.c",
+    "repository": "vim/vim",
+    "commit": "f1b454912996d6417acd0d738de0eb7b60902c56",
+    "upstream_path": "src/xxd/xxd.c"
+  },
+  {
+    "path": "file_cmds/base64/base64.c",
+    "repository": "freebsd/freebsd-src",
+    "commit": "76f5fccc5fbdf2a7b42f1e4aa71fe625be32fa13",
+    "upstream_path": "usr.bin/bintrans/bintrans.c"
+  },
+  {
+    "path": "text_cmds/xxd/LICENSE",
+    "repository": "vim/vim",
+    "commit": "f1b454912996d6417acd0d738de0eb7b60902c56",
+    "upstream_path": "LICENSE"
+  },
+  {
+    "path": "file_cmds/df/df.c",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "file_cmds/df/df.c"
+  },
+  {
+    "path": "file_cmds/df/df.1",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "file_cmds/df/df.1"
+  },
+  {
+    "path": "file_cmds/df/vfslist.c",
+    "repository": "holzschu/ios_system",
+    "commit": "7658fcf551935b42d6bb5bedc9315d8f53f760c4",
+    "upstream_path": "file_cmds/df/vfslist.c"
+  }
+]

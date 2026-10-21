@@ -1,0 +1,89 @@
+diff --git a/xet_runtime/Cargo.toml b/xet_runtime/Cargo.toml
+index 3163a96c8..bda3d3536 100644
+--- a/xet_runtime/Cargo.toml
++++ b/xet_runtime/Cargo.toml
+@@ -35 +34,0 @@ serde_json = { workspace = true }
+-sysinfo = { workspace = true }
+@@ -80,0 +80,3 @@ libc = { workspace = true }
++[target.'cfg(not(any(target_os = "ios", target_os = "macos")))'.dependencies]
++sysinfo = { workspace = true }
++
+@@ -81,0 +84 @@ libc = { workspace = true }
++system-monitor = []
+diff --git a/xet_runtime/src/core/runtime/native.rs b/xet_runtime/src/core/runtime/native.rs
+index d06c50b15..e9021c14f 100644
+--- a/xet_runtime/src/core/runtime/native.rs
++++ b/xet_runtime/src/core/runtime/native.rs
+@@ -21,0 +22 @@ use crate::fd_diagnostics::{report_fd_count, track_fd_scope};
++#[cfg(feature = "system-monitor")]
+@@ -131,0 +133 @@ pub struct XetRuntime {
++    #[cfg(feature = "system-monitor")]
+@@ -134,0 +137 @@ pub struct XetRuntime {
++#[cfg(feature = "system-monitor")]
+@@ -161,0 +165 @@ impl XetRuntime {
++            #[cfg(feature = "system-monitor")]
+@@ -221,0 +226 @@ impl XetRuntime {
++            #[cfg(feature = "system-monitor")]
+@@ -240,0 +246 @@ impl XetRuntime {
++            #[cfg(feature = "system-monitor")]
+@@ -293,0 +300 @@ impl XetRuntime {
++            #[cfg(feature = "system-monitor")]
+@@ -311,0 +319 @@ impl XetRuntime {
++            #[cfg(feature = "system-monitor")]
+@@ -322,0 +331 @@ impl XetRuntime {
++        #[cfg(feature = "system-monitor")]
+diff --git a/xet_runtime/src/logging/init.rs b/xet_runtime/src/logging/init.rs
+index 1f5856a1b..051b23efd 100644
+--- a/xet_runtime/src/logging/init.rs
++++ b/xet_runtime/src/logging/init.rs
+@@ -2,0 +3 @@ use std::ffi::OsStr;
++#[cfg(feature = "system-monitor")]
+@@ -4,0 +6 @@ use std::path::{Path, PathBuf};
++#[cfg(feature = "system-monitor")]
+@@ -7,0 +10 @@ use std::sync::OnceLock;
++#[cfg(feature = "system-monitor")]
+@@ -8,0 +12 @@ use std::thread::JoinHandle;
++#[cfg(feature = "system-monitor")]
+@@ -11 +15,4 @@ use std::time::Duration;
+-use chrono::{DateTime, FixedOffset, Local, Utc};
++use chrono::{DateTime, FixedOffset, Local};
++#[cfg(feature = "system-monitor")]
++use chrono::Utc;
++#[cfg(feature = "system-monitor")]
+@@ -26,0 +34 @@ use crate::utils::ByteSize;
++#[cfg(feature = "system-monitor")]
+@@ -33,2 +41 @@ pub fn wait_for_log_directory_cleanup() {
+-    if let Ok(mut handle_opt) = LOG_CLEANUP_HANDLE.lock()
+-        && let Some(handle) = handle_opt.take()
++    #[cfg(feature = "system-monitor")]
+@@ -36 +43,5 @@ pub fn wait_for_log_directory_cleanup() {
+-        let _ = handle.join();
++        if let Ok(mut handle_opt) = LOG_CLEANUP_HANDLE.lock()
++            && let Some(handle) = handle_opt.take()
++        {
++            let _ = handle.join();
++        }
+@@ -41,0 +53 @@ pub fn init(cfg: LoggingConfig) {
++    #[cfg(feature = "system-monitor")]
+@@ -46,0 +59 @@ pub fn init(cfg: LoggingConfig) {
++                #[cfg(feature = "system-monitor")]
+@@ -72,0 +86 @@ pub fn init(cfg: LoggingConfig) {
++    #[cfg(feature = "system-monitor")]
+@@ -209,0 +224 @@ pub fn parse_log_file_name(path: impl AsRef<Path>) -> Option<(String, DateTime<F
++#[cfg(feature = "system-monitor")]
+@@ -222,0 +238 @@ struct CandidateLogFile {
++#[cfg(feature = "system-monitor")]
+@@ -235,0 +252 @@ fn pid_protects_log_file(sys: &System, pid: u32, log_timestamp: DateTime<FixedOf
++#[cfg(feature = "system-monitor")]
+@@ -251,0 +269 @@ fn run_log_directory_cleanup_background(cfg: LogDirConfig, log_dir: &Path) {
++#[cfg(feature = "system-monitor")]
+diff --git a/xet_runtime/src/logging/mod.rs b/xet_runtime/src/logging/mod.rs
+index feeb28347..63e09de18 100644
+--- a/xet_runtime/src/logging/mod.rs
++++ b/xet_runtime/src/logging/mod.rs
+@@ -6 +6 @@ mod init;
+-#[cfg(not(target_family = "wasm"))]
++#[cfg(all(not(target_family = "wasm"), feature = "system-monitor"))]
+@@ -12 +12 @@ pub use init::{init, wait_for_log_directory_cleanup};
+-#[cfg(not(target_family = "wasm"))]
++#[cfg(all(not(target_family = "wasm"), feature = "system-monitor"))]

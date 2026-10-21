@@ -1,0 +1,11 @@
+{
+  "name": "node-mobile-vitepress-fixture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vitepress build docs"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}

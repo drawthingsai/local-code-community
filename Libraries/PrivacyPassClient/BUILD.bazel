@@ -1,0 +1,13 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+swift_library(
+    name = "PrivacyPassClient",
+    srcs = glob([
+        "Sources/PrivacyPassClient/**/*.swift",
+    ]),
+    module_name = "PrivacyPassClient",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@SwiftCrypto//:_CryptoExtras",
+    ],
+)

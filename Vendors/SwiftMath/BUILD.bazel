@@ -1,0 +1,13 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+swift_library(
+    name = "SwiftMath",
+    srcs = glob([
+        "Sources/SwiftMath/**/*.swift",
+    ]),
+    data = glob([
+        "Sources/SwiftMath/mathFonts.bundle/**",
+    ]),
+    module_name = "SwiftMath",
+    visibility = ["//visibility:public"],
+)

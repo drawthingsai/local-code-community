@@ -1,0 +1,75 @@
+diff --git a/LongGapsBetweenPrimes.lean b/LongGapsBetweenPrimes.lean
+index 14467e08a..f0fa83c8d 100644
+--- a/LongGapsBetweenPrimes.lean
++++ b/LongGapsBetweenPrimes.lean
+@@ -681,7 +681,7 @@ theorem assignment_row_bound {α : Type*} [Fintype α]
+       intro p _
+       cases σ p <;> simp [localRow]
+     _ ≤ ∏ _ ∈ assignmentSupport σ, Real.exp ((k : ℝ) / (z - 1)) := by
+-      apply Finset.prod_le_prod
++      apply Finset.prod_le_prod₀
+       · intro p _
+         exact add_nonneg zero_le_one
+           (div_nonneg hk1 (hz1.le.trans (sub_le_sub_right (hsize p) 1)))
+@@ -1081,7 +1081,7 @@ theorem eulerProduct_comparison (N : ℕ) {r : ℝ} (hr : 0 ≤ r) :
+   calc
+     _ ≤ ∏ p ∈ N.primesLE,
+         (1 - (p : ℝ) ^ (-(1 + r)))⁻¹ * Real.exp (2 * r * Real.log p / p) := by
+-      apply Finset.prod_le_prod
++      apply Finset.prod_le_prod₀
+       · intro p hp
+         apply inv_nonneg.mpr
+         apply sub_nonneg.mpr
+@@ -1166,7 +1166,7 @@ lemma eulerProduct_pos (N : ℕ) {σ : ℝ} (hσ : 0 < σ) : 0 < eulerProduct N
+ /-- The finite Euler product decreases as its positive exponent increases. -/
+ lemma eulerProduct_antitone (N : ℕ) {σ τ : ℝ} (hσ : 0 < σ) (hστ : σ ≤ τ) :
+     eulerProduct N τ ≤ eulerProduct N σ := by
+-  apply Finset.prod_le_prod
++  apply Finset.prod_le_prod₀
+   · intro p hp
+     exact inv_nonneg.mpr (sub_nonneg.mpr (Real.rpow_lt_one_of_one_lt_of_neg
+       (by exact_mod_cast (Nat.mem_primesLE.mp hp).2.one_lt) (by linarith)).le)
+@@ -1233,7 +1233,7 @@ theorem divisorEulerMoment_ge_eulerProduct {Z Y : ℕ} (hZY : Z ≤ Y) {t : ℝ}
+   apply mul_le_mul_of_nonneg_right _ (eulerProduct_pos Z (by linarith)).le
+   rw [auxiliaryProduct, divisorEulerMoment_primeProduct _
+     (fun _ hp => auxiliaryPrimes_prime hp)]
+-  apply Finset.prod_le_prod
++  apply Finset.prod_le_prod₀
+   · intro p hp
+     exact (inv_pos.mpr (sub_pos.mpr (Real.rpow_lt_one_of_one_lt_of_neg
+       (by exact_mod_cast (auxiliaryPrimes_prime hp).one_lt) (by linarith)))).le
+@@ -1514,7 +1514,7 @@ lemma divisorEulerMoment_tilt (ps : Finset ℕ) (hps : ∀ p ∈ ps, p.Prime)
+     divisorEulerMoment (∏ p ∈ ps, p) γ ≤
+       divisorEulerMoment (∏ p ∈ ps, p) 0 *
+         Real.exp (E * γ * ∑ p ∈ ps, Real.log p / p) := by
+-  have h := Finset.prod_le_prod (s := ps)
++  have h := Finset.prod_le_prod₀ (s := ps)
+     (f := fun p : ℕ => 1 + (p : ℝ) ^ γ / ((p : ℝ) - 1))
+     (g := fun p : ℕ => (1 + 1 / ((p : ℝ) - 1)) * Real.exp (E * γ * Real.log p / p))
+     (fun p hp => by
+@@ -2614,14 +2614,14 @@ lemma abs_productBasis_le_one {α : Type*} [Fintype α] {Ω J : α → Type*}
+     (f : (p : α) → J p → Ω p → ℝ) (hf : ∀ p i t, |f p i t| ≤ 1)
+     (σ : (p : α) → J p) (t : (p : α) → Ω p) : |productBasis f σ t| ≤ 1 := by
+   rw [productBasis, Finset.abs_prod]
+-  exact Finset.prod_le_one (fun _ _ => abs_nonneg _) (fun p _ => hf p _ _)
++  exact Finset.prod_le_one₀ (fun _ _ => abs_nonneg _) (fun p _ => hf p _ _)
+ 
+ /-- Coefficients bounded by one give tuple amplitudes bounded by one. -/
+ lemma tupleAmplitude_abs_le {P k : ℕ}
+     (h : ∀ d ∈ P.divisors, |coefficient P d| ≤ 1) (r : DivisorTuple P k) :
+     |tupleAmplitude r| ≤ 1 := by
+   rw [tupleAmplitude, Finset.abs_prod]
+-  exact Finset.prod_le_one (fun _ _ => abs_nonneg _)
++  exact Finset.prod_le_one₀ (fun _ _ => abs_nonneg _)
+     (fun i _ => h _ (r i).property)
+ 
+ /-- Every assigned prime divides the assignment product. -/
+@@ -3737,7 +3737,7 @@ lemma eulerProduct_left_comparison (N : ℕ) {t : ℝ} (ht : 0 ≤ t) (ht' : t 
+   calc
+     _ ≤ ∏ p ∈ N.primesLE, (1 - (p : ℝ) ^ (-(1 : ℝ)))⁻¹ *
+         Real.exp (smoothEulerConstant * ((p : ℝ) ^ t - 1) / p) := by
+-      apply Finset.prod_le_prod
++      apply Finset.prod_le_prod₀
+       · intro p hp
+         exact inv_nonneg.mpr (sub_nonneg.mpr (Real.rpow_lt_one_of_one_lt_of_neg
+           (by exact_mod_cast (Nat.mem_primesLE.mp hp).2.one_lt) (by linarith)).le)

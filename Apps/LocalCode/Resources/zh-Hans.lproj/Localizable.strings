@@ -1,0 +1,2777 @@
+
+"needs_to_download" = " 需要下载 ";
+
+"costly_download_confirmation" = " 启动模型。您当前使用的是昂贵的网络，是否要继续下载？";
+
+"confirm_download_continuation" = " 启动模型。是否要继续下载？";
+
+"configuration_profile" = "配置";
+
+"configuration_profile_message" = "输入配置名称";
+
+"configuration_profile_placeholder" = "我的配置名称";
+
+"delete_configuration_title" = "按名称删除配置";
+
+"delete_configuration" = "删除配置";
+
+"paste_configuration" = "粘贴配置";
+
+"copy_configuration" = "复制配置";
+
+"start_download" = "开始下载";
+
+"restart_download" = "重新下载";
+
+"downloading_model" = "正在下载模型";
+
+"error" = "错误";
+
+"enable" = "启用";
+
+"connecting" = "正在连接";
+
+"failed" = "失败";
+
+"server_live" = "服务器在线";
+
+"connected" = "已连接";
+
+"incompatible" = "不兼容";
+
+"basic_settings" = "基本设置";
+
+"advanced_settings" = "高级设置";
+
+"all_settings" = "所有设置";
+
+"project" = "项目";
+
+"projects" = "项目";
+
+"load_project" = "加载项目...";
+
+"rename" = "重命名";
+
+"rename_thread_dot" = "重命名对话...";
+
+"delete_thread_dot" = "删除对话...";
+
+"delete_thread" = "删除对话";
+
+"delete_thread_warning" = "此对话及其对话历史记录将被永久删除。此操作无法撤销。";
+
+"close_browser_tabs_dot" = "关闭浏览器标签页...";
+
+"close_browser_tabs" = "关闭浏览器标签页";
+
+"close_browser_tabs_detail" = "此对话打开的网页将被关闭。";
+
+"export_model_context_dot" = "导出模型上下文...";
+
+"clear_browser_data_dot" = "清除浏览器数据...";
+
+"clear_browser_data" = "清除浏览器数据";
+
+"clear_directory_browser_data_detail" = "此目录的 Cookie 和其他网站数据将被删除。其对话已登录的网站需要重新登录。";
+
+"clear_bot_browser_data_detail" = "此机器人的 Cookie 和其他网站数据将被删除。其对话已登录的网站需要重新登录。";
+
+"clear" = "清除";
+
+"close" = "关闭";
+
+"rename_directory_dot" = "重命名目录...";
+
+"delete_directory_dot" = "删除目录...";
+
+"delete_directory" = "删除目录";
+
+"move_to_trash" = "移到废纸篓";
+
+"move_directory_to_trash_warning" = "此目录及其所有内容将被移到废纸篓。";
+
+"cannot_move_directory_to_trash" = "无法将目录移到废纸篓";
+
+"cannot_move_active_directory_to_trash_message" = "请先停止当前回复，然后再将此目录移到废纸篓。";
+
+"export_project" = "导出项目...";
+
+"start_project" = "开始新项目";
+
+"start_a_new_thread" = "开始新对话。";
+
+"switch_thread_during_generation_title" = "切换对话？";
+
+"switch_thread_during_generation_message" = "此对话仍在生成回复。若要切换对话，需要先停止当前生成。";
+
+"keep_generating" = "继续生成";
+
+"stop_and_switch" = "停止并切换";
+
+"save" = "保存";
+
+"downloading" = "正在下载";
+
+"presets" = "预设";
+
+"generate" = "生成";
+
+"image" = "图片";
+
+"share" = "分享";
+
+"select_layer_display" = "选择图层显示";
+
+"scribble" = "涂鸦";
+
+"pose" = "姿势";
+
+"color_palette" = "调色板";
+
+"custom" = "自定义";
+
+"depth_map" = "深度图";
+
+"depth_map_dot" = "深度图...";
+
+"load_layers" = "加载图层...";
+
+"manage_dot" = "管理...";
+
+"mask_dot" = "蒙版...";
+
+"mask_from_photos" = "从照片中获取蒙版...";
+
+"mask_from_files" = "从文件中获取蒙版...";
+
+"paste_as_mask" = "粘贴为蒙版";
+
+"depth_map_photos" = "从照片中获取深度图...";
+
+"depth_map_files" = "从文件中获取深度图...";
+
+"paste_as_depth_map" = "粘贴为深度图";
+
+"scribble_dot" = "涂鸦...";
+
+"scribble_from_photos" = "从照片中获取涂鸦...";
+
+"scribble_from_files" = "从文件中获取涂鸦...";
+
+"paste_as_scribble" = "粘贴为涂鸦";
+
+"pose_dot" = "姿势...";
+
+"pose_from_photos" = "从照片中获取姿势...";
+
+"pose_from_files" = "从文件中获取姿势...";
+
+"paste_as_pose" = "粘贴为姿势";
+
+"color_palette_dot" = "调色板...";
+
+"color_palette_from_photos" = "从照片中获取调色板...";
+
+"color_palette_from_files" = "从文件中获取调色板...";
+
+"paste_as_color_palette" = "粘贴为调色板";
+
+"custom_dot" = "自定义...";
+
+"moodboard" = "创意板";
+
+"moodboard_dot" = "创意板...";
+
+"moodboard_from_files" = "从文件获取创意板...";
+
+"moodboard_from_photos" = "从照片获取创意板...";
+
+"custom_from_photos" = "从照片中获取自定义...";
+
+"custom_from_files" = "从文件中获取自定义...";
+
+"paste_as_custom" = "粘贴为自定义";
+
+"delete_custom" = "删除自定义";
+
+"save_layers" = "保存图层...";
+
+"save_to_photos" = "保存至照片...";
+
+"save_to_files" = "保存至文件夹...";
+
+"save_to_elsewhere" = "保存至其他位置...";
+
+"save_to_dot" = "保存至...";
+
+"copy" = "复制";
+
+"copied_to_clipboard" = "已复制到剪贴板";
+
+"move_image_canvas" = "在画布上重新定位图像。";
+
+"blank_canvas" = "开始新画布。";
+
+"select_from_files" = "从文件中选择...";
+
+"select_from_photos" = "从照片中选择...";
+
+"paste" = "粘贴";
+
+"text_image_generation" = "文本到图像生成";
+
+"inpainting" = "图像合成 + 修复";
+
+"image_image_generation" = "图像合成";
+
+"model" = "模型";
+
+"steps" = "步数";
+
+"sampler" = "采样器";
+
+"disabled" = "禁用";
+
+"strength" = "强度";
+
+"text_guidance" = "文本指导";
+
+"seed_mode_legacy" = "种子模式：旧版";
+
+"seed_mode_torch_cpu_compatible" = "种子模式：Torch CPU 兼容";
+
+"seed_mode_nvidia_gpu_compatible" = "种子模式：NVIDIA GPU 兼容";
+
+"seed_mode_scale_alike" = "种子模式：比例相似";
+
+"image_guidance" = "图像指导";
+
+"batch_size" = "批量大小";
+
+"control" = "控制";
+
+"controlnet" = "控制(ControlNet)";
+
+"controlnet_name_detail" = "ControlNet 列表中的显示名称";
+
+"controlnet_modifier" = "ControlNet 预处理器类型";
+
+"controlnet_modifier_detail" = "选择 ControlNet 模型使用的预处理器类型。默认为自定义";
+
+"import_control" = "导入 ControlNet";
+
+"controlnet_exist" = "ControlNet 模型已存在";
+
+"controlnet_overwite_confirmation" = "名称为 %@ 的 ControlNet 已存在。您要覆盖吗？";
+
+"face_restoration" = "人脸修复";
+
+"upscaler" = "放大器";
+
+"show_past_edits" = "显示之前的编辑记录。";
+
+"wait" = "等待";
+
+"seconds" = "秒";
+
+"converting_coreML_from" = "正在将 CoreML 模型转换自";
+
+"loading_model" = "正在加载模型";
+
+"edits_to_image" = "显示导致最新图像的编辑记录。";
+
+"show_generated_image" = "仅显示生成的图像。";
+
+"show_edits_popover" = "以弹出窗口的形式显示之前的编辑记录。";
+
+"show_all_edits" = "显示所有之前的编辑记录。";
+
+"edits" = "%d 编辑记录";
+
+"generations" = "%d 生成记录";
+
+"delete_dot" = "删除...";
+
+"delete" = "删除";
+
+"restore" = "恢复";
+
+"rewrite_history" = "重写历史记录";
+
+"delete_image_history" = "从历史记录中删除图像是不可逆操作，是否继续？";
+
+"cancel" = "取消";
+
+"downloaded_file" = "已下载文件";
+
+"downloaded_file_detail" = "您可以通过 Safari 下载文件并将其移动到 Files 应用程序下的 \"Draw Things\" 文件夹中的\"下载\"文件夹，或直接输入 URL 从互联网下载 LoRA 模型。";
+
+"name" = "名称";
+
+"trigger_word" = "触发词";
+
+"lora_model_name" = "该名称将显示在 LoRA 模型列表中。";
+
+"lora_model_trigger" = "一些 LoRA 模型可能需要使用稀有单词/标记进行触发。将触发词放在此处将自动在选择模型时将您的提示前缀与此触发词相匹配。";
+
+"import_lora" = "导入 LoRA";
+
+"delete_lora" = "是否要删除此 LoRA？";
+
+"enter_url" = "请输入 URL";
+
+"enter_url_dot" = "输入 URL...";
+
+"download_to_local" = "这将通过网络将文件下载到本地存储空间。";
+
+"continue" = "继续";
+
+"lora_exists" = "LoRA 已存在";
+
+"model_exists_confirmation" = "您要下载的模型已经存在，是否要继续下载？";
+
+"lora_overwrite_confirmation" = "名为%@的 LoRA 已存在。是否要覆盖？";
+
+"overwrite" = "覆盖";
+
+"import_succeed" = "导入成功";
+
+"model_import_succeed" = "成功导入模型。";
+
+"ok" = "确定";
+
+"delete_downloaded_model" = "模型已成功导入，是否要删除已下载的文件以释放一些空间？";
+
+"yes" = "是";
+
+"yes_prefer_quantized" = "是，优先量化 Attention";
+
+"yes_prefer_non_quantized" = "是，优先非量化 Attention";
+
+"yes_prefer_apple_neural_engine_only" = "是，优先仅使用 Apple Neural Engine";
+
+"yes_prefer_apple_neural_engine_and_gpu" = "是，优先同时使用 Apple Neural Engine 和 GPU";
+
+"no" = "否";
+
+"import_model" = "导入模型";
+
+"custom_text_encoder" = "自定义文本编码器";
+
+"finetune_image_size" = "微调图像大小";
+
+"finetune_image_detail" = "模型用于微调的图像大小。大多数 v1 模型调整为 512x512，许多 v2 模型调整为 768x768。";
+
+"dreambooth_finetune_encoder" = "Dreambooth 模型（例如需要前缀字符串的模型）还会微调文本编码器。如果您相信使用的模型不会对文本编码器进行微调（例如 Anything v3、Waifu Diffusion 和 Hassanblend），则取消选择此选项。";
+
+"custom_variational_autoencoder" = "自定义变分自编码器";
+
+"custom_models_vae" = "一些自定义模型（例如 Anything v3）会微调变分自编码器（VAE）以获得更好的结果。其他模型（例如大多数 Dreambooth 模型）只使用默认自编码器。这些自定义模型通常会单独发布它们的 VAE 检查点。因此，您可以选择不同的文件作为 VAE。";
+
+"v-prediction" = "V-Prediction";
+
+"stable_diffusion_v-prediction" = "稳定扩散 v2 引入了一个执行 v-prediction 的蒸馏模型。这是一种可以加速图像生成的技术（通常只需要20个步骤）。如果自定义模型使用了 v-prediction，则应启用此选项以进行正确的渲染。";
+
+"high_precision_attention" = "更高精度的注意力";
+
+"custom_models_precision" = "某些自定义训练的模型（例如 Stable Diffusion v2.1 768-v 或 Versatile Diffusion）需要在其注意力层中以更高的精度运行，否则可能无法渲染。为那些不需要此要求的模型启用此选项会将其速度减慢 30% 至 40%。";
+
+"model_version" = "模型版本";
+
+"v1_v2_xl" = "v1 或 v2 或 SDXL";
+
+"stable_diffusion_compatibility" = "稳定扩散 v1 和 v2 互不兼容。导入的自定义模型是基于 v1 还是 v2 将自动推断。";
+
+"dreambooth_model_trigger" = "Dreambooth 模型通常需要使用罕见的单词/标记触发。将触发词放在这里会自动在选择模型时在您的提示前加上该触发词。";
+
+"model_name" = "模型名称";
+
+"model_name_detail" = "名称将显示在模型列表中。";
+
+"import_custom_model" = "导入自定义模型";
+
+"model_exist" = "模型已存在";
+
+"model_exist_confirmation" = "您要选择该模型，还是要继续下载？";
+
+"select" = "选择";
+
+"model_with_name" = "名称为 %@ 的模型已存在。您要覆盖它吗？";
+
+"data_usage" = "数据使用情况";
+
+"confirm_download_prompt" = "需要通过网络下载文件，是否继续？";
+
+"export_dot" = "导出...";
+
+"external_folder_move" = "移动到外部文件夹";
+
+"internal_folder_move" = "移动到内部文件夹";
+
+"models" = "模型";
+
+"select_a_folder_dot" = "选择一个文件夹...";
+
+"workspace" = "工作区";
+
+"inside_app_documents" = "应用文档内";
+
+"reveal_in_files_dot" = "在“文件”中显示...";
+
+"reveal_in_finder_dot" = "在 Finder 中显示...";
+
+"external_model_folder" = "外部模型文件夹";
+
+"model_list" = "模型列表";
+
+"confirm_model_deletion" = "您要删除此模型吗？";
+
+"model_precision_selection" = "选择模型保存的精度。 \"Float 16\" 大约占用 2GB 磁盘空间，而 \"Float 32\" 则需要 4GB。更高的精度有助于将来与其他模型进行混合。在图像生成过程中没有任何区别。";
+
+"weighted_sum" = "加权和";
+
+"weight" = "权重";
+
+"add_diff" = "添加差异";
+
+"freeform" = "自由形态";
+
+"freeform_dot" = "自由形态...";
+
+"same_mix" = "相同混合";
+
+"model_mixing" = "模型混合";
+
+"mixing" = "混合";
+
+"output_model_name" = "输出模型名称";
+
+"model_precision" = "模型精度";
+
+"vae_encoder" = "VAE - 编码器";
+
+"vae_merging_risky" = "某些自定义模型（如 Anything v3）微调变分自编码器（VAE）以获得更好的结果。在不同模型之间合并 VAE 可能存在风险，因为它会影响对比度、亮度和其他低级别的图像视觉方面。您可以选择从其中一个模型中使用 VAE，而不是混合它们。";
+
+"note" = "注意";
+
+"model_saved_note" = "此处的任何备注将与模型一起保存。";
+
+"different_versions" = "不同版本";
+
+"models_version_incompatible" = "不同主要版本（v1.x 和 v2.x）的模型不能混合在一起。";
+
+"vprediction_mismatch" = "不同的 V-Prediction";
+
+"vprediction_mixing_disallowed" = "启用 v-prediction 的模型不能与关闭 v-prediction 的模型混合。";
+
+"no_model_selected" = "未选择模型";
+
+"two_models_required" = "至少需要两个模型才能混合。";
+
+"single_model_selected" = "只选择了一个模型";
+
+"single_model_confirmation" = "您只选择了一个模型，这只适用于该模型的系数。这可能是一个错误，仍要继续吗？";
+
+"two_model_selected" = "只选择了两个模型";
+
+"three_model_required" = "您仅选择了 2 个模型进行 \"添加差异\" 模式。此模式至少需要 3 个模型。这可能是一个错误，仍要继续吗？";
+
+"preset_image_strength" = "70% 强度的图像到图像";
+
+"upscale_with" = "使用...进行升级";
+
+"face_restoration_with" = "使用...进行人脸修复";
+
+"support_no_prompt" = "支持 \"无提示\"";
+
+"width" = "宽度";
+
+"height" = "高度";
+
+"disable_attention_computation" = "默认情况下，图像解码/编码使用中间层的注意力模块。这只会以微妙的方式影响最终图像，但可能会占用大量内存。禁用注意力计算允许我们使用小内存占用解码更大的图像。";
+
+"first_pass_width" = "第一遍宽度";
+
+"first_pass_height" = "第一遍高度";
+
+"preload_coreml_only" = "仅预加载(CoreML)";
+
+"automatic" = "自动";
+
+"all" = "全部";
+
+"always" = "始终";
+"always_partial" = "始终（部分）";
+"always_full" = "始终（完整）";
+
+"sometimes" = "有时";
+
+"never" = "从不";
+
+"preload" = "预加载";
+
+"machine_settings"= "机器设置";
+
+"prefill_warmup" = "预填充预热";
+
+"prefill_warmup_detail" = "在处理首个提示词前准备好所选的本地模型，以加快提示词处理速度。应用刚启动时，预热可能会短暂增加内存占用或延迟首次响应。配备至少 128 GiB 内存的 Mac 默认启用此功能，其他设备需手动启用。更改在应用启动或选择模型时生效。";
+
+"key_model_memory_for_sd_sdxl" = "为 SD 1.5 和 SDXL 将模型保留在内存中";
+
+"automatic_yes"= "自动(是)";
+
+"automatic_no"= "自动(否)";
+
+"efficient_model_loading" = "默认情况下，在生成图像后，我们会卸载模型并在下次生成时重新加载模型。模型加载时间通常需要2到5秒。启用此选项，我们将保留模型以提高生成速度，并仅在操作系统告诉我们内存不足时卸载模型。您还可以选择仅预加载CoreML模型，这样可以分摊CoreML模型加载时间，并且不占用内存。";
+
+"coreml_if_possible" = "如果可能，为 SD 1.5 使用 CoreML";
+
+"coreml_memory_usage" = "CoreML消耗更多内存，不适用于许多移动设备。第一次加载需要大约70秒。但是回报是大约快50%。最好同时启用'保留模型在内存中 - 预加载'，以分摊第一次加载时间。";
+
+"coreml_for_lora"= "为 SD 1.5 配合 LoRA 使用 CoreML";
+
+"coreml_lora_detail"= "对于LoRA模型，可以利用CoreML。但是，权重的每个更改、不同的LoRA模型或它们的组合都会生成一个新的CoreML模型，并导致模型编译，这可能需要数分钟。";
+
+"file_swap_weights" = "文件交换权重";
+
+"file_swap_detail" = "稳定扩散的核心操作需要至少1.7GiB的参数，拥有3GiB RAM的移动设备仅加载参数就会很困难。此选项允许我们将这些参数转移到磁盘并仅在需要时加载它们。对于较慢的设备，这不会成为瓶颈，但对于更快的设备，可能会成为瓶颈。这需要额外的磁盘空间，选择'Never'将强制删除这些参数文件。";
+
+"automatic_sometimes" = "自动（有时）";
+
+"screen_saver" = "屏幕保护程序";
+
+"screen_saver_detail" = "在移动设备上，应用程序需要在前台才能继续生成图像。在高屏幕亮度下过度使用可能会对OLED屏幕产生持久影响（通常在iPhone Pro型号上可见）。屏幕保护程序将在图像生成期间降低屏幕亮度，以避免潜在的负面影响。";
+
+"temporary_directory" = "临时目录";
+
+"temporary_directory_detail" = "由于操作系统内部机制的工作方式，'Draw Things'可能在tmp目录下生成过多的临时文件。当操作系统的磁盘空间不足时，这些文件将被自动删除。但如果您的磁盘空间不足，也可以使用此选项显式地进行清理。";
+
+"cleanup" = "清理";
+
+"reset_to_default" = "重置为默认值";
+
+"seed_explain" = "种子值确定图像生成的起点。相同的种子将生成相同的图像。";
+
+"seed_mode" = "种子模式";
+
+"seed_mode_detail" = "种子模式确定如何使用种子。'旧版'与旧版Draw Things应用程序兼容，'NVIDIA GPU 兼容'与NVIDIA GPU / Linux / Windows上的其他桌面工具（例如AUTOMATIC1111或Invoke.AI）兼容，'Torch CPU 兼容'与macOS上的其他桌面工具兼容，而'Scale Alike'允许种子在不同的图像大小下保持某些相似之处。";
+
+"legacy" = "旧版";
+
+"image_size" = "图像大小";
+
+"image_size_detail" = "生成图像的大小。最佳效果请用 1:1/Normal。";
+
+"final_output_size" = "输出图像尺寸";
+
+"upscaler_detail" = "放大器可将较小的图像（512x512）生成视觉上令人愉悦的高分辨率（2048x2048）图像。根据您使用的放大器，它可能会填充不同的细节并引入微妙的不同风格。";
+
+"steps_detail" = "用于图像生成的步骤数。步骤越多，生成的图像越好，但需要更长的时间。";
+
+"text_guidance_detail" = "文本输入应该如何被对待。较高的值会更忠实于文本，而较低的值则具有更多的艺术自由度。(CFG Scale)";
+
+"text_to_image" = "文本到图像";
+
+"image_to_image" = "图像到图像";
+
+"strength_detail" = "在从图像生成时，高值会从原始图像中获得更多的艺术自由度。 100％表示不受现有图像的影响（即文本到图像）。";
+
+"dpm_2m_karras" = "DPM ++ 2M Karras";
+
+"sampler_detail" = "不同的采样器可以在不同的步骤下收敛，并可能导致不同的视觉样式。Euler A被认为会生成更多“梦幻般”的图像，而DPM ++ 2M Karras可以在不到30步的时间内生成高质量的图像。";
+
+"image_guidance_detail" = "编辑模型使用图像作为文本的指导。该值与文本指导一起，决定模型可以从其中一个方面偏离多少。更高的图像指导会更忠实于原始图像。";
+
+"clip_skip" = "CLIP跳过";
+
+"clip_skip_detail" = "“CLIP Skip”控制从文本编码器中跳过最后几层。文本编码器将您的文本转换为计算机理解的向量。在文本编码器中跳过更多层将迫使计算机更专注于单个单词而不是它们的组合含义。这对于在标签式文本输入上进行微调的模型可能很有用。";
+
+"mask_blur" = "蒙版模糊";
+
+"mask_blur_detail" = "蒙版模糊 “Mask Blur”尝试使蒙版在边缘更柔和，这可能有助于与图像的其余部分混合。";
+
+"face_restoration_detail" = "人脸修复可以使用附加的模型在图像生成期间修复扭曲的人脸。这个过程最适合照片般逼真的图像。对于动漫或艺术图像，可能不理想。";
+
+"batch_size_detail" = "一次生成的图像数量。";
+
+"high_resolution_fix" = "高分辨率修复";
+
+"save_images_to" = "保存生成的图像到";
+
+"save_images_detail" = "生成的图像可以保存到您选择的文件夹中。如果您使用外部应用程序来组织生成的图像，则会更加方便。";
+
+"first_pass_size" = "第一步尺寸";
+
+"second_pass_strength" = "第二步强度";
+
+"hires_fix_detail" = "高分辨率修复使用您选择的尺寸进行第一步图像生成，然后在选定的强度下应用图像到图像生成进行细化以达到目标尺寸。它避免了直接生成时的重复对象，并倾向于比使用通用上采样器生成更多的细节。";
+
+"torch_cpu_compatible" = "Torch CPU 兼容";
+
+"nvidia_gpu_compatible" = "NVIDIA GPU 兼容";
+
+"scale_alike" = "尺寸类似";
+
+"stable_diffusion_v1.4" = "通用（稳定扩散 v1.4）";
+
+"stable_diffusion_v1" = "稳定扩散 v1";
+
+"stable_diffusion_v2" = "稳定扩散 v2";
+
+"choose_model" = "选择用于图像生成的模型。通用模型可用于所有用途，而某些模型（例如 waifu-diffusion）适用于动漫风格的生成。";
+
+"lora_detail" = "LoRA（低阶秩自适应）是一种技术，可将经过单独训练的小型加性模型应用于稳定扩散基础模型。这些模型通常比全模型微调训练更快。";
+
+"additive_models_control" = "加性模型可以为图像生成过程提供额外的控制。它们通常以涂鸦、姿势、深度图或边缘图的形式输入。这些加性模型仅与其指定版本的稳定扩散兼容。\"权重\"确定控制对图像生成过程的影响程度。\"无提示\"可以生成没有提示的图像。\"开始\"和\"结束\"确定在去噪过程中，附加控制何时介入。";
+
+"textual_inversion_exist" = "T.I. Embedding已存在";
+
+"textual_exist_confirmation" = "您要下载的模型已存在，是否继续下载？";
+
+"textual_inversion_detail" = "“T.I. Embedding”或“Emebedding”通常是用来表达使用文本难以实现的东西。它可以是一种风格、一个角色或一些通用概念。";
+
+"seed" = "种子";
+
+"download" = "下载";
+
+// Spellcast
+
+"go_to_start" = "回到文本开头。";
+
+"go_to_end" = "前往文本结尾（%ld 个词）。";
+
+"select_all" = "全选。";
+
+"tidy_prompt_text" = "整理提示文本，使其更美观。";
+
+// Textual Inversion
+
+"textual_inversion" = "T.I. Embedding";
+
+"download_textual_inversions" = "您可以从Safari下载文件并将其移动到“Draw Things”文件夹下的“下载”文件夹中，或者直接输入网址从互联网上下载T.I. Embedding文件。";
+
+"textual_display_name" = "名称将显示在T.I. Embedding列表中。";
+
+"keyword" = "关键词";
+
+"keyword_trigger_prompt" = "触发T.I. Embedding的关键词。";
+
+"import_textual_inversion" = "导入T.I. Embedding";
+
+"textual_delete_confirmation" = "您是否要删除此T.I. Embedding？";
+
+"textual_inversion_exists" = "T.I. Embedding已存在";
+
+"textual_inversion_message" = "名称为 %@ 的T.I. Embedding已存在。您是否要覆盖？";
+
+"stop" = "停止";
+
+"stopping" = "正在停止...";
+
+"clip_weight" = "CLIP权重";
+
+"clip_weight_detail" = "\"Kandinsky\"模型同时使用XLM Roberta和CLIP来编码文本。CLIP编码器有助于提高图像质量，但仅支持英语。\"CLIP权重\"有助于调整我们在CLIP编码器上放置的权重。较小的值会产生更好的文本跟随效果。";
+
+"new_project_warning" = "操作后，当前项目将不可见，是否继续？";
+
+"cannot_rename" = "无法重命名";
+
+"cannot_rename_message" = "项目名称已存在，你可以在重命名之前删除文件。";
+
+"enter_new_name" = "请输入新名称";
+
+"vacuum_project" = "清理项目？";
+
+"vacuum_export_project" = "清理并导出";
+
+"export_directly" = "直接导出";
+
+"vacuum_project_message" = "此项目大约有 %@ MB，清理它以节省空间会花费一些时间，你希望在导出之前清理吗？";
+
+"model_download_confirmation" = "需要通过网络下载所选模型，是否继续？";
+
+"automatic_state"= "自动 (%@)";
+
+"global_average_pooling" = "全局平均池化";
+
+"negative_prompt_for_image_prior" = "图像先验的负提示";
+
+"negative_prompt_for_image_prior_detail" = "通常，负提示用于文本编码器，以告诉图像生成过程图像中不应有什么。然而，对于Kandinsky模型，如果主要用于质量属性，最好使用负提示生成图像先验。";
+
+"image_prior_steps" = "图像先验步骤";
+
+"image_prior_steps_detail" = "Kandinsky模型首先生成一个图像“先验”，这是一个强调风格和质量的图像的简洁表示。更高的步骤可能会在图像先验上有更好的保真度。";
+
+"deep_clean_and_vacuum" = "深度清理";
+
+"language_settings" = "语言选择";
+
+"language_settings_detail" = "应用语言更改，需要终止程序后重启生效。";
+
+"english" = "English";
+
+"spanish" = "Español";
+
+"simplified_chinese" = "简体中文";
+
+"traditional_chinese" = "繁體中文";
+
+"font_size_settings" = "字体大小";
+
+"font_size_settings_detail" = "更改用户界面的默认字体大小。";
+
+"extra_small" = "特小";
+
+"small" = "小";
+
+"normal" = "正常";
+
+"large" = "大";
+
+"extra_large" = "特大";
+
+
+"final_image_from_last" = "上一代的最终图像。";
+
+"low_res_approximation" = "低分辨率的近似，不是最终图像。";
+
+"wrong_model_type" = "这看起来像一个%@文件，您是否希望 <intent>导入为 %@</intent> ?";
+
+"lora_missing_info" = "以下来自civitai的生成数据的Models尚未下载，请手动配置它们. \n %@ \n %@";
+
+"paste_generation_data" = "粘贴Civitai生成数据";
+
+"manage_scripts" = "管理脚本...";
+
+"scripts" = "脚本";
+
+"add_script_title" = "创建脚本";
+
+"add_script" = "创建";
+
+"add_script_button" = "创建...";
+
+"save_script_title" = "保存";
+
+"save_script_message" = "是否需要保存？";
+
+"dont_save" = "不保存";
+
+"file_name" = "文件名...";
+
+"file_already_exists" = "脚本重名了.";
+
+"confirm_script_deletion" = "想要删除此脚本吗？";
+
+"error_onboard_proceed" = "无法继续";
+
+"error_onboard_official" = "无法开始下载官方模型";
+
+"error_onboard_import" = "无法导入本地模型";
+
+"error_onboard_civitai" = "无法开始下载Civitai模型";
+
+"warning_checkpoint_small" = "正常的基础模型应大于1GiB";
+
+"unsupport_url" = "不支持的URL";
+
+"unsupport_url_message" = "只支持Civitai的URL";
+
+"extract_pose" = "提取姿势";
+
+"extract_color_palette" = "提取调色板";
+
+"delete_depth_map" = "删除深度图";
+
+"random_seed" = "生成一个随机种子";
+
+"enter_seed" = "输入一个种子...";
+
+"down_sampling_rate" = "向下采样率";
+
+"save_visible_region_dot" = "保存可见区域...";
+
+"guided_rectangle" = "为橡皮擦或画笔绘制矩形。";
+
+"new_seed_on_generation" = "生成时使用新种子";
+
+"image_too_large" = "图像太大";
+
+"image_too_large_info" = "混合像素密度的图像的输出大小为 %@，这可能会给您的操作系统带来挑战。您可以选择一个不同的缩放因子来输出图像。";
+
+"image_too_large_save_anyway" = "仍然使用 %@";
+
+"image_too_large_at_res" = "输出 %@ (%@)";
+
+"create_8bit_dot" = "创建8位模型...";
+
+"8bit_model_title" = "正要创建8位模型";
+
+"8bit_model_detail" = "导入的Stable Diffusion模型大约占用1.6GiB的空间。使用~8位量化的模型仅占用大约800MiB的空间，并且在视觉上几乎没有差异。您可以创建一个8位量化的模型，将其与原始模型进行比较，如果喜欢量化的结果，则可以删除原始模型以节省磁盘空间。创建8位量化模型大约需要20到40分钟，具体时间取决于您的设备，请问是否要继续？";
+
+"create_int8_scaled_dot" = "创建 Int8 Scaled（8-bit S）模型...";
+
+"int8_scaled_model_title" = "正在创建 Int8 Scaled（8-bit S）模型";
+
+"int8_scaled_model_detail" = "Int8 Scaled（8-bit S）是一种专为 Apple M5 特别优化的新模型变体。它通常比我们的其他变体快约 1.8 倍，同时质量损失极小。创建 Int8 Scaled（8-bit S）模型大约需要 10 到 20 分钟，具体时间取决于您的设备。是否继续？";
+
+"add_image_dot" = "添加图片...";
+
+"refiner_model" = "精化模型";
+
+"refiner_start" = "开始精化";
+
+"refiner_model_detail" = "精化模型可以在后续的图像生成阶段（接近100%完成）使用，并且通常可以大幅改进图像的细节。这比后期进行图像生成更具成本效益。";
+
+"original_image_size" = "原始图像尺寸";
+
+"original_width" = "原始宽度";
+
+"original_height" = "原始高度";
+
+"original_size_detail" = "训练期间图像裁剪前的原始尺寸。这有助于设置与图像尺寸不同的特定纵横比的生成效果。";
+
+"crop" = "裁剪";
+
+"crop_top" = "裁剪顶部";
+
+"crop_left" = "裁剪左侧";
+
+"crop_detail" = "训练时裁剪图像的顶部和左侧坐标。正确使用此设置可以使生成的图像关注不同的部分。";
+
+"target_image_size" = "目标图像尺寸";
+
+"target_width" = "目标宽度";
+
+"target_height" = "目标高度";
+
+"target_size_detail" = "训练期间图像裁剪后的目标尺寸。这有助于设置与图像尺寸不同的分辨率细节。例如，1024x1024的图像可以设置目标尺寸为512x512，这将生成比原图像更少的细节。";
+
+"aesthetic_score" = "美学评分";
+
+"negative_aesthetic_score" = "负美学评分";
+
+"aesthetic_score_detail" = "美学评分描述图像在艺术上的愉悦程度。调整这两个参数可以帮助将图像导向所期望的特定质量。";
+
+"zero_negative_prompt" = "零负指令";
+
+"zero_negative_prompt_detail" = "启用此选项将忽略用户提供的负指令，并在推理时使用0作为负指令。";
+
+"mfa_if_possible" = "Metal Flash Attention";
+
+"mfa_usage" = "我们实现了在图像生成模型中特定类型操作更快的自定义GPU函数。如果遇到某些兼容性问题，或者想要生成与之前完全相同的图像，您可以禁用它。";
+
+"use_apple_neural_engine_for_8bit_s_models" = "为 8-bit S 模型使用 Apple Neural Engine";
+
+"apple_neural_engine_for_8bit_s_models_detail" = "在 M4 上，Apple Neural Engine 运行 8-bit S 模型可达到 2 倍或更高速度，甚至可与 M4 Max 持平。在 M5 上，它通常会更慢，但更省电。您可以使用此选项覆盖我们的默认选择。";
+
+"skip" = "跳过";
+
+"skipping" = "正在跳过...";
+
+"generated_in_seconds" = "生成时间：%.2f秒。";
+
+"port" = "端口";
+
+"port_placeholder" = "端口号...";
+
+"ip" = "IP";
+
+"localhost_ip_detail" = "127.0.0.1（仅限本地）";
+
+"global_ip_detail" = "0.0.0.0（允许所有连接）";
+
+"server_error" = "服务器错误";
+
+"server_error_message" = "尝试连接时发生错误。请检查端口是否有效，即介于1024和65535之间，且未被使用。";
+
+"run_server" = "HTTP API 服务器";
+
+"server_detail" = "\"HTTP API 服务器\" 运行兼容的 HTTP API 服务器，允许使用 txt2img 或 img2img API 的扩展在本地连接进行图像生成。生成的图像将在绘图界面中反映。";
+
+"negative_original_image_size" = "负向原始图像尺寸";
+
+"negative_original_width" = "负向原始宽度";
+
+"negative_original_height" = "负向原始高度";
+
+"negative_original_size_detail" = "负向原始图像尺寸用于负向指令，以更好地对比生成过程中不希望出现的内容。较小的负向原始图像尺寸有助于避免基础模型的塑料感。";
+
+"select_multiple_dot" = "选择多个...";
+
+"paste_as_moodboard" = "粘贴到创意板";
+
+"delete_moodboard" = "删除创意板";
+
+"moodboard_detail" = "您可以将多个图像加载或拖放到“创意板”中。像 ControlNet Shuffle 等模型可以引用这些图像，以影响最终的图像生成。";
+
+"not_for_8bit" = "不适用于量化模型";
+
+"merge_lora" = "合并 LoRA";
+
+"merge_lora_detail" = "LoRA 权重可以与模型权重即时合并，以减少运行时的延迟。或者，LoRA 权重可以作为单独的神经网络运行。将 LoRA 作为单独的神经网络运行使我们能够继续使用量化模型权重，从而降低 RAM 消耗。将 LoRA 作为单独的神经网络运行速度会比合并方式慢 10% 到 30%。";
+
+"restart_training" = "重新开始";
+
+"start_training" = "开始训练";
+
+"resume_training" = "恢复训练";
+
+"lora_training" = "LoRA 训练";
+
+"dataset" = "数据集";
+
+"hyperparameters" = "超参数";
+
+"base_model" = "基础模型";
+
+"auto_fill_prompt" = "自动填充提示";
+
+"add_dot" = "添加...";
+
+"unet_learning_rate" = "UNet 学习率";
+
+"cotrain_text_model" = "共同训练文本模型";
+
+"text_model_learning_rate" = "文本模型学习率";
+
+"lora_model" = "LoRA 模型";
+
+"denoising_schedule" = "降噪进程";
+
+"import_from_preset" = "从文件夹导入...";
+
+"output_lora_name" = "LoRA 输出名称";
+
+"lora_network_dim" = "网络维度";
+
+"noise_offset" = "噪音偏移";
+
+"cotrain_custom_embedding" = "共同训练 Embedding";
+
+"custom_embedding_length" = "Embedding 长度";
+
+"custom_embedding_learning_rate" = "自定义 Embedding 学习率";
+
+"training_steps" = "训练步数";
+
+"save_every_n_steps" = "每 N 步保存";
+
+"gradient_accumulation_steps" = "梯度累积步数";
+
+"save_as_dot" = "另存为...";
+
+"lora_network_scale" = "网络尺度";
+
+"warmup_steps" = "预热步数";
+
+"create_fp16_dot" = "创建 FP16 模型...";
+
+"8bit_lora_detail" = "LoRA 模型可能需要数百 MiB 的内存。一个 ~8 位量化的模型大约只需要一半内存，且视觉上几乎没有差异。您可以创建一个 8 位量化的模型，与原模型进行比较，如果喜欢量化后的结果，可以删除原模型以节省磁盘空间。创建 8 位量化模型的时间约为 1 到 5 分钟，具体取决于您的设备。是否要继续？";
+
+"base_model_detail" = "LoRA 是一种增量模型，它需要一个基础模型，然后从那里进行微调。一个良好的基础模型可以减少所需的步数，并使最终结果更具美感。";
+
+"output_lora_name_detail" = "将显示在 LoRA 列表中的 LoRA 的名称。我们还会使用此名称保存与培训相关的信息，如超参数和培训数据集的标题。如果您使用相同的名称，我们将能够恢复这些信息。";
+
+"trigger_word_detail" = "触发词有助于使用触发词填充标题，为 LoRA 提供良好的起点。您应选择一个对模型来说没有特别强烈含义的触发词，否则可能会抹去模型的原始概念。";
+
+"network_dim_detail" = "“网络维度”确定了 LoRA 网络的容量。较大的值需要更多的数据来训练，但可能能够捕捉到训练数据的更多细微差异。";
+
+"network_scale_detail" = "这是其他训练器中的“网络 Alpha”/“网络维度”。它确定了 LoRA 网络中随机权重的初始影响。较小的尺度可能有助于稳定训练。";
+
+"training_image_size_detail" = "训练网络时的分辨率。我们将提供的图像进行中心裁剪和缩放以适应此分辨率。请确保训练数据的大小大于或等于此分辨率，否则网络可能会学到放大的伪像。";
+
+"training_steps_detail" = "要执行多少训练步骤。这必须与学习速率一起修改以生成良好的模型。较低的学习速率和更高的容量需要更多的训练步骤。";
+
+"save_every_n_steps_detail" = "这允许我们在每 N 步保存一次 LoRA，以避免过度训练模型。";
+
+"warmup_steps_detail" = "这控制了我们何时在训练中使用全学习速率。预热步骤有助于更早地稳定训练动态，避免在早期示例上产生过大的权重。";
+
+"gradient_accumulation_steps_detail" = "这控制了何时执行网络更新。在更新之前积累更多的梯度有助于网络获得更多关于前进方向的统计信息。您应根据此值来调整学习速率（即 2 倍的积累步骤，2 倍的学习速率）。";
+
+"cotrain_text_model_detail" = "是否要微调文本编码器。对于 SD v1 / v2 模型，微调文本编码器可以帮助更快地将概念普及到模型中。在微调 SDXL 时通常不需要这样做。";
+
+"text_model_learning_rate_detail" = "微调文本编码器的学习速率。";
+
+"noise_offset_detail" = "“噪音偏移”引入了噪音分布的额外偏移。这有助于微调模型更好地表示暗/亮场景，而不是总是落入中等曝光。";
+
+"denoising_schedule_detail" = "这控制我们在降噪过程的哪个阶段专注于微调。例如，您可以训练一个 LoRA，仅专注于 70% 到 100% 之间的降噪进程，以帮助“精炼”图像。或者专注于 0% 到 50% 的进程以获得良好的构图。";
+
+"copy_style_template" = "将样式模板复制为纯文本...";
+
+"select_style_template" = "选择样式模板。";
+
+"delete_controlnet" = "您是否要删除此 ControlNet？";
+
+"downloaded_model_file_detail" = "您可以从 Safari 下载文件，然后将其移动到 Files 应用程序中的 Draw Things 文件夹的“下载”文件夹中，或者直接输入 URL 从互联网下载模型。";
+
+"downloaded_lora_file_detail" = "您可以从 Safari 下载文件，然后将其移动到 Files 应用程序中的 Draw Things 文件夹的“下载”文件夹中，或者直接输入 URL 从互联网下载 LoRA 模型。";
+
+"downloaded_controlnet_file_detail" = "您可以从 Safari 下载文件，然后将其移动到 Files 应用程序中的 Draw Things 文件夹的“下载”文件夹中，或者直接输入 URL 从互联网下载 ControlNet 模型。";
+
+"midjourney_syntax_processing" = "使用 Midjourney 语法处理提示词";
+
+"midjourney_syntax_migrating" = "迁移 Midjourney 语法";
+
+"accept" = "接受";
+
+"reject" = "拒绝";
+
+"sort_models_order_dot" = "按名称字母顺序排序...";
+
+"sort_models_details" = "按名称字母顺序对已下载的模型进行排序；内置模型的顺序不会改变。";
+
+"sort_models_order_title" = "排序模型列表？";
+
+"interrogate" = "审问";
+
+"interrogate_dot" = "审问...";
+
+"fixed_captioning" = "固定";
+
+"auto_captioning" = "自动";
+
+"copy_to_prompt" = "复制到提示";
+
+"apply_image_metadata" = "从图像元数据加载配置？";
+
+"apply_image_metadata_detail" = "该图像可能由\"Draw Things\"或其他类似应用程序生成。它包含有关提示、模型和其他信息的元数据，使您能够重新生成所说的图像。您是否希望将这些元数据加载到\"Draw Things\"中？";
+
+"custom_embedding_detail" = "自定义 T.I. Embedding 更适合捕捉本质，而不是使用罕见词标记作为触发词。另一方面，它要求您与训练后的 LoRA 一起使用 T.I. Embedding，否则训练后的 LoRA 将无法正常工作。";
+
+"custom_embedding_learning_rate_detail" = "用于共同训练 T.I. Embedding 的学习率。";
+
+"custom_embedding_length_detail" = "较长的 Embedding 长度有助于捕捉训练数据的更多细微差别，但也占用更多 Embedding 的令牌。";
+
+"stop_embedding_training_at_step" = "停止在步骤处停止 Embedding 训练";
+
+"stop_embedding_training_at_step_detail" = "在给定步数之后停止更新 Embedding 。这有助于一旦学会 Embedding 就稳定训练。";
+
+"embedding_training" = "T.I. Embedding 训练";
+
+"recaption_image" = "重新为图像加标题";
+
+"midjourney_automatic_detect_and_ask" = "在点击“生成”时提示。";
+
+"search" = "搜索";
+"show_details" = "显示详细信息";
+
+"grid" = "网格";
+
+"list" = "列表";
+
+"manage" = "管理";
+
+"manage_detail" = "管理您的模型";
+
+"disable_lora_detail" = "禁用 LoRA";
+
+"prompt_template_title" = "提示模板";
+
+"disable_refiner_detail" = "禁用 Refiner";
+
+"num_frames" = "帧数";
+
+"num_frames_detail" = "要生成的总帧数。将其除以 FPS 可以得到视频长度（以秒为单位）";
+
+"fps" = "FPS 帧率";
+
+"fps_detail" = "FPS 决定生成帧的期望播放速度。建议设置在 5 到 30 之间。高于或低于这个范围会产生次优结果。";
+
+"motion_scale" = "运动比例";
+
+"motion_scale_detail" = "也称为“运动分组”。较低的值会导致较少的全局运动（可能会增强主体运动）。较高的值会导致更多的全局运动。";
+
+"cond_aug" = "引导帧噪声";
+
+"cond_aug_detail" = "也称为“条件增强”。较高的值会在引导帧中注入更多噪声，这可能会给后续帧带来更多的创造自由度。";
+
+"start_frame_guidance" = "开始帧引导";
+
+"start_frame_guidance_detail" = "从开始帧到结束帧，我们逐渐增加引导值，从这一点到“文本引导”，因此后续帧将被迫偏离平均值更多，从而产生更多的变形或运动。";
+
+"erase" = "擦除";
+
+"freeform" = "自由绘制";
+
+"rectangle" = "矩形";
+
+"color" = "颜色";
+
+"custom_tools" = "自定义工具";
+
+"version_history" = "版本历史";
+
+"restore_default" = "恢复默认";
+
+"peft" = "PEFT";
+
+"basic" = "基本";
+
+"advanced" = "高级";
+
+"local" = "本地";
+"cloud" = "云端";
+"cloud_project_required" = "开始云端对话前，请先选择或创建项目。";
+
+"local_scripts_detail" = "本地存储的脚本是我们提供的程序，用于完成常见任务。";
+
+"local_projects_detail" = "显示本地存储的项目。";
+
+"presets_detail" = "这些是内置函数，对于某些任务可能会很方便。";
+
+"placeholder_negative_prompt" = "输入负面提示...";
+
+"placeholder_positive_prompt" = "输入正面提示...";
+
+"delete_project_file" = "从磁盘删除项目文件 \"%@\" 是一个不可逆的操作。是否继续?";
+
+"vae_decoder" = "VAE - 解码器";
+
+"mask_blur_outset" = "蒙版模糊外延";
+
+"mask_blur_outset_detail" = "“蒙版模糊外延”尝试通过外延值扩展（或缩小）蒙版，这可能有助于与图像的其余部分混合，特别是用于图像扩展操作。";
+
+"sharpness" = "锐度";
+
+"sharpness_detail" = "锐度对扩散模型预测的噪声实施额外的滤镜，使最终生成更加清晰。";
+
+"export_selected_dot" = "导出所选...";
+
+"extract_depth_map_photos" = "从照片中提取深度图...";
+
+"extract_depth_map_files" = "从文件中提取深度图...";
+
+"paste_to_extract_depth_map" = "粘贴以提取深度图";
+
+"extract_depth_map_from_canvas" = "从画布提取深度图";
+
+"balanced" = "平衡";
+
+"prompt_more_important" = "提示";
+
+"control_more_important" = "控制";
+
+"control_mode" = "控制重要性";
+
+"8bit_controlnet_detail" = "ControlNet 模型可能需要数百 MiB 的内存。一个 ~8 位量化的模型占用一半左右的内存，视觉差异很小。您可以创建一个 8 位量化的模型，将其与原始模型进行比较，如果喜欢量化后的结果，可以删除原始模型以节省磁盘空间。创建 8 位量化模型大约需要 10 到 20 分钟，具体取决于您的设备。是否要继续？";
+
+"type_to_select" = "输入以选择区域（即将推出）";
+
+"done" = "完成";
+
+"interrogate_this_image" = "审问此图像 ✍️";
+
+"reset" = "重置";
+
+"run" = "运行";
+
+"interrogation_model" = "审问模型";
+
+"system_prompt_editable" = "系统提示（可编辑）";
+
+"system_prompt_non_editable" = "系统提示（不可编辑）";
+
+"system_prompt_detail" = "“系统提示”有助于引导图像到文本模型以特定方式生成文本。您可以通过输入空白来重置内置系统提示。";
+
+"generated_caption" = "生成的标题";
+
+"import" = "导入";
+
+"welcome_pick_a_model_to_start" = "欢迎！👋 选择一个模型开始 🚀";
+
+"next" = "下一步";
+
+"step_1_of_2" = "第1步，共2步";
+
+"step_2_of_2" = "第2步，共2步";
+
+"download_model_official" = "从 Draw Things 服务器下载模型";
+
+"download_model_official_detail" = "我们提供了经过优化以进行推理的模型。这些模型各有优劣。对于最快的生成速度，我们建议从 Turbo 模型中选择一个开始。对于最具视觉吸引力的生成，我们建议从 SDXL 模型中选择一个开始。";
+
+"save_images_to_dot" = "将生成的图像保存到...";
+
+"choose_a_place_to_save_your_images" = "选择一个地方保存您的图像 🏠";
+
+"choose_a_folder_dot" = "选择一个文件夹...";
+
+"model_file" = "模型文件";
+
+"vae_optional" = "VAE（可选）";
+
+"configuration_file_optional" = "配置文件（可选）";
+
+"choose_a_file_dot" = "选择一个文件...";
+
+"import_a_model_from_local_storage" = "从本地存储导入模型";
+
+"importing" = "导入中";
+
+"download_again" = "重新下载";
+
+"model_objective" = "模型目标";
+
+"model_objective_detail" = "模型被训练用于预测特定目标。不同的模型可能具有不同的目标。例如，Stable Diffusion XL 和 Stable Diffusion v1.5 被训练用于预测“Epsilon”目标，Stable Diffusion v2.0 768-v 被训练用于预测“V”目标。";
+
+"epsilon" = "Epsilon";
+
+"edm" = "EDM";
+
+"conditioning" = "调节";
+
+"conditioning_detail" = "扩散需要模型在不同的噪声水平下进行预测。当模型知道自己处于哪个噪声水平时，它是一个更好的预测者。将“调节”参数传递给模型以让它知道。对于这一点有不同的表述。例如，Stable Diffusion XL / v1.5 / v2.0 将“时间步”传递进去，而 Stable Video Diffusion 将“噪声”传递进去。";
+
+"timestep" = "时间步";
+
+"noise" = "噪声";
+
+"noise_discretization" = "噪声离散化";
+
+"noise_discretization_detail" = "扩散需要模型在不同的噪声水平下进行预测。有不同的表述来区分这些噪声水平。重要的是，这些可以是离散的或连续的。Stable Diffusion XL / v1.5 / v2.0 使用已知为“DDPM”的离散时间表进行训练。Stable Video Diffusion / Playground v2.5 使用已知为“EDM”的连续时间表进行训练。";
+
+"ddpm" = "DDPM";
+
+"shift" = "移动";
+
+"shift_detail" = "移动控制采样器的时间表将偏向于低噪声区域的程度。较高的移动值意味着我们会花费更多时间在低噪声区域，这可能有助于给模型更多时间处理局部细节。";
+
+"end_frame_guidance" = "结束帧指导";
+
+"stage_1_steps" = "第1阶段的步骤";
+
+"stage_2_steps" = "第2阶段的步骤";
+
+"stage_2_steps_detail" = "稳定级联模型的第二阶段所需的步骤数。这是其他地方称为“阶段 B”的步骤数。";
+
+"stage_1_cfg" = "第1阶段的文本指导";
+
+"stage_2_cfg" = "第2阶段的指导";
+
+"stage_2_cfg_detail" = "第二阶段稳定级联模型中要应用的多少无分类器的指导。这是其他地方称为“阶段 B”的 CFG。通常它在 1 到 2 之间。";
+
+"stage_1_shift" = "第1阶段的移动";
+
+"stage_2_shift" = "第2阶段的移动";
+
+"stage_2_shift_detail" = "要应用于稳定级联模型的第二阶段的移动值。这是其他地方称为“阶段 B”的移动值。通常是 1。";
+
+"stage_1_latents_size" = "第1阶段的潜变量大小";
+
+"alt_stage_1_image_size" = "替代第1阶段的图像大小";
+
+"alt_stage_1_image_size_detail" = "第1阶段在压缩的潜变量空间中运行。您可以将潜变量空间与第2阶段的解码器混合和匹配。启用此选项，您将能够指定不同的第1阶段图像大小。较大的第1阶段图像大小将更慢，但可以将更多的细节合并到最终生成中。潜变量空间 = 图像大小 / 32。";
+
+"export_as_video" = "导出为视频";
+
+"export_as_image_sequence" = "导出为图像序列";
+
+"export_image_dot" = "导出图像...";
+
+"export_video_failed" = "导出视频失败！";
+
+"export_video_inprogress" = "视频导出中，无法启动另一个！";
+
+"tiled_decoding" = "分块解码";
+
+"tiled_decoding_detail" = "分块解码允许自动编码器根据平铺中的潜在值解码图像。这有助于在略微增加时间的同时减少内存使用峰值。对于在 iPhone 上生成 1024x1024 或更大图像特别有用。";
+
+"decoding_tile_size" = "解码块大小";
+
+"decoding_tile_width" = "解码块宽度";
+
+"decoding_tile_height" = "解码块高度";
+
+"decoding_tile_overlapping" = "解码块重叠";
+
+"stage_1_image_size" = "第1阶段图像尺寸";
+
+"stage_1_image_width" = "第1阶段图像宽度";
+
+"stage_1_image_height" = "第1阶段图像高度";
+
+"local_projects_detail" = "存储在此设备上的本地项目将显示在此处。";
+
+"local_network" = "本地网络";
+
+"local_network_detail" = "您希望通过本地网络连接的其他设备将显示在此处。";
+
+"shared_projects" = "共享项目";
+
+"shared_projects_detail" = "要将共享项目从这些设备下载到您的本地设备，请升级到 Draw Things+。要了解更多，请查看我们的文档。";
+
+"verify_connection" = "验证连接";
+
+"formatted_verification_code" = "验证代码：%@";
+
+"verify_learn_more" = "要验证与 Nazir 的 iPad 的端到端加密，请将上述数字与其设备进行比较。了解更多";
+
+"attempting_to_connect" = "尝试通过本地网络连接";
+
+"decline" = "拒绝";
+
+"connect" = "连接";
+
+"external_on_demand" = "按需加载外部权重";
+
+"external_on_demand_detail" = "启用此功能将仅在计算的精确时间内加载权重。在低端设备上，这有助于节省 RAM 使用量，但会影响速度。我们还将在计算之前自动优化模型权重，因此您可能会看到文件结构发生一些变化。";
+
+"optimize_for_compact_store" = "优化以获得紧凑存储";
+
+"optimize_for_weights_loading" = "优化以获得更快的加载速度";
+
+"exporting" = "正在导出";
+
+"exporting_video" = "正在导出视频";
+
+"strategic_stochastic_sampling" = "策略性随机抽样";
+
+"strategic_stochastic_sampling_detail" = "此参数控制 TCD 采样器需要应用多少错误校正。0% 将生成更清晰的图像，但可能存在错误的局部细节。100% 会使图像模糊，但局部细节的错误较少。";
+
+"downloading_some_item" = "正在下载 %@";
+
+"cancel_download" = "取消 %@ 下载";
+
+"cancel_download_confirmation" = "是否要取消下载 %@？";
+
+"minimal" = "最小";
+
+"balanced" = "平衡";
+
+"speed" = "速度";
+
+"turbo" = "加速";
+
+"memory_saver" = "节省内存";
+
+"memory_saver_detail" = "此选项允许您在 LoRA 训练期间在性能和 RAM 使用之间进行交换。最小将是最慢的，但使用的内存最少。平衡将提供适度的吞吐量和适度的内存使用。速度将比平衡更快，但使用的内存更多。加速将是最快的，使用的内存资源最多。";
+
+"draw_things_plus" = "Draw Things+";
+
+"draw_things_plus_description" = "优化您的项目、模型和脚本工作流程。通过本地网络从连接的设备下载共享文件。";
+
+"supported_files" = "支持的文件";
+
+"models_and_loras" = "模型和 LoRA";
+
+"get_dt_+" = "获取 Draw Things+";
+
+"get_x_off_by_upgrading" = "升级到 Draw Things+，立减 %@，享受这些功能。";
+
+"get_upgrade" = "升级到 Draw Things+，享受这些功能。";
+
+"get_x_off" = "立减 %@";
+
+"get_it" = "获取";
+
+"restore_sub" = "恢复订阅";
+
+"not_now" = "暂时不";
+
+"customize_your_app_icon" = "自定义应用图标";
+
+"customize_your_app_icon_description" = "用 Draw Things+ 表达你的个人风格。用你自己的库生成的图像替换默认应用图标。";
+
+"official_models" = "官方模型";
+
+"community_models" = "社区模型";
+
+"official_loras" = "官方 LoRA";
+
+"community_loras" = "社区 LoRA";
+
+"official_t_i_embeddings" = "官方 T.I. Embedding";
+
+"community_t_i_embeddings" = "社区 T.I. Embedding";
+
+"duplicate" = "复制";
+
+"general" = "常规";
+
+"back" = "返回";
+
+"preserve_original_after_inpaint" = "修补后保留原始";
+
+"preserve_original_after_inpaint_detail" = "在修补作业之后，生成的图像可能包含应保留的区域中的一些变化。默认情况下，我们将原始中应保留的内容复制回像素空间的图像，以保持其原始外观。如果存在这种情况，这可能会导致与底层生成图像不一致，并且您可能希望将其关闭。";
+
+"lora_import_model_version_detail" = "一些 LoRA 仅在某些层面上部分微调。这使得我们很难检测到此 LoRA 对应的版本。您可以选择一个建议的模型版本来帮助我们确定给定 LoRA 的版本。但是，如果我们能够成功检测到版本，则会使用该版本而不是建议的版本。";
+
+"shared_scripts" = "共享脚本";
+
+"shared_scripts_detail" = "要将共享的脚本从这些设备下载到您的本地设备，请升级到 Draw Things+。要了解更多信息，请查看我们的文档。";
+
+"tiled_diffusion" = "分塊生成";
+
+"tiled_diffusion_detail" = "分塊生成將生成過程分成了數個方塊。這使得能夠以更大的尺寸生成圖像。";
+
+"diffusion_tile_size" = "分塊生成大小";
+
+"diffusion_tile_width" = "分塊生成寬度";
+
+"diffusion_tile_height" = "分塊生成高度";
+
+"diffusion_tile_overlapping" = "分塊重疊";
+
+"community_scripts" = "社区脚本";
+
+"community_scripts_detail" = "从 Draw Things 的社区存储库下载共享脚本到您的本地设备。";
+
+"local_lora_detail" = "存储在此设备上的 LoRAs 会显示在这里。";
+
+"local_control_detail" = "存储在此设备上的 ControlNets 会显示在这里。";
+
+"dt_model_detail" = "这些是随 Draw Things 应用程序一起提供的内置模型。";
+
+"dt_control_detail" = "这些是随 Draw Things 应用程序一起提供的内置 ControlNet 模型。";
+
+"community_lora_detail" = "社区成员创建并发布的 LoRAs 会显示在这里。";
+
+"training" = "训练";
+
+"lora_models" = "LoRA 模型";
+
+"community_models" = "社区模型";
+
+"dt_models" = "Draw Things 模型（官方）";
+
+"local_model_detail" = "存储在此设备上的模型会显示在这里。";
+
+"community_model_detail" = "由社区成员创建和发布的模型会显示在这里。";
+
+"enter_model_name" = "输入模型名称...";
+
+"enter_trigger_word" = "输入触发词...";
+
+"importing_custom_model" = "正在导入自定义模型...";
+
+"importing_custom_lora" = "正在导入自定义 LoRA...";
+
+"importing_custom_contronet" = "正在导入自定义 ControlNet...";
+
+"import_control_title" = "导入控制";
+
+"past_edits" = "以前的编辑";
+
+"most_recent" = "最近的";
+
+"generated_image" = "生成的图像";
+
+"export_lead" = "导出中：";
+
+"create_8bit_lead" = "创建 8 位模型：";
+
+"create_fp16_lead" = "创建 FP16 模型：";
+
+"optimize_weights_loading_lead" = "优化以加快加载：";
+
+"optimize_compact_store_lead" = "优化以紧凑存储：";
+
+"confirm" = "确认";
+
+"disable_control_detail" = "禁用控制";
+
+"official_controls" = "官方控制";
+
+"textual_inversion_models" = "T.I. Embedding";
+
+"local_t_i_embeddings_detail" = "存储在此设备上的 T.I. Embedding 会显示在这里。";
+
+"community_t_i_embeddings_detail" = "由社区成员创建和发布的 T.I. Embedding会显示在这里。";
+
+"add_more_title" = "您还没有添加任何图像";
+
+"add_more_subtitle" = "上传图像以生成描述（您可以上传多个图像）";
+
+"enter_name" = "输入名称...";
+
+"enter_keyword" = "输入关键字...";
+
+"importing_t_i_embedding" = "正在导入 T.I. Embedding...";
+
+"vae" = "VAE";
+
+"enter_note_placeholder" = "输入备注...";
+
+"mixing_custom_model" = "混合自定义模型...";
+
+"mix" = "混合";
+
+"enter_trigger_words" = "输入触发词...";
+
+"resume" = "恢复";
+
+"overwrite" = "覆盖";
+
+"overwrite_script" = "是否要重新下载并覆盖您现有的脚本？";
+
+"home" = "主页";
+
+"javascript_console" = "JavaScript 控制台";
+
+"delete_repl_cell" = "此单元格不为空，是否要删除？";
+
+"add" = "添加";
+
+"enter_text" = "输入文本";
+
+"style_only" = "仅风格";
+
+"style_and_layout" = "风格和布局";
+
+"instastyle_blocks" = "即时风格模块";
+
+"script" = "脚本";
+
+"author" = "作者";
+
+"description" = "描述";
+
+"lora" = "LoRA";
+
+"text_encoder_file" = "文本编码器文件";
+
+"text_encoder_file_detail" = "如果使用自定义文本编码器，您可以指定要导入的单独文本编码器文件。";
+
+"text_encoder_2_file" = "文本编码器 2 文件";
+
+"text_encoder_2_file_detail" = "如果使用自定义文本编码器，您可以指定要导入的单独文本编码器文件。";
+
+"t5_text_encoder" = "T5文本编码器";
+
+"t5_text_encoder_detail" = "SD3可以使用T5文本编码器来帮助文本的遵循和渲染。你可以禁用它，以查看是否生成更好的图像。";
+
+"separate_clip_l_text" = "分开CLIP L文本";
+
+"separate_clip_l_text_detail" = "SD3使用3个独立的文本编码器。你可以为CLIP L文本编码器指定一个单独的输入，这可能有助于确定整体风格和图像质量。";
+
+"clip_l_text" = "CLIP L文本";
+
+"separate_open_clip_g_text" = "分开OpenCLIP G文本";
+
+"separate_open_clip_g_text_detail" = "SD3使用3个独立的文本编码器。你可以为OpenCLIP G文本编码器指定一个单独的输入，这可能有助于设置图像生成的全球上下文。";
+
+"open_clip_g_text" = "OpenCLIP G文本";
+
+"lora_network_scale_factor" = "网络缩放因子";
+
+"lora_network_scale_factor_detail" = "一些LoRAs使用了缩放因子，该因子不是嵌入在网络中，而是在一个单独的配置文件中。此选项允许你明确提供缩放因子，以便我们可以在导入期间将其嵌入到模型中。";
+
+"clip_score" = "CLIP得分";
+
+"clip_score_detail" = "CLIP得分用于评估图像与文本描述之间的对齐程度，计算范围从0到100。";
+
+"community_controls" = "社区ControlNet";
+
+"community_control_detail" = "由社区成员创建和发布的ControlNet模型将出现在这里。";
+
+"speed_up_with_guidance_embed" = "通过Guidance Embed加速";
+
+"speed_up_with_guidance_embed_detail" = "像FLUX.1 [dev]这样的模型是Guidance精炼的。这意味着如果你只使用Guidance Embed来表示文本指导值，它的运行速度可以提高一倍。但在这种模式下，负面提示将被忽略。你可以禁用此功能，并使用单独的Guidance值来接近你对FLUX.1 [pro]模型的期望。";
+
+"guidance_embed" = "Guidance Embed";
+
+"dresses" = "衣物（连衣裙）";
+
+"upper_body" = "上半身（合身）";
+
+"upper_body_extra" = "上半身（额外）";
+
+"dresses_upper" = "上半身衣物（合身）";
+
+"dresses_upper_extra" = "上半身衣物（额外）";
+
+"resolution_dependent_shift" = "分辨率依赖 Shift";
+
+"resolution_dependent_shift_detail" = "像 FLUX.1 或 SD3 这样的模型通常是通过分辨率依赖的 Shift 值进行训练的。这有助于模型在更高分辨率下对结构进行更深入的考虑。启用此选项可自动计算 Shift 值。";
+
+"copy_canvas_settings_dot" = "复制画布位置";
+
+"paste_canvas_settings_dot" = "粘贴画布位置";
+
+"choose_an_input_override_dot" = "选择输入覆盖...";
+
+"unspecified" = "未指定";
+
+"http_server" = "HTTP";
+
+"grpc_server" = "gRPC";
+
+"server_detail" = "\"HTTP\" 运行一个兼容的 HTTP API 服务器，允许使用 txt2img 或 img2img API 的扩展进行本地连接以生成图像。生成将反映在 Draw Things 界面中。\"gRPC\" 运行一个兼容的无状态 API 服务器，支持更丰富灵活的生成。";
+
+"version" = "版本";
+
+"server_offload" = "服务器协助";
+
+"this_device" = "此设备";
+
+"other_devices" = "其他设备";
+
+"discovering_devices_dot" = "正在发现设备...";
+
+"connecting_to_device_dot" = "正在连接设备...";
+
+"device_failed_to_connect" = "设备连接失败";
+
+"server_offload_detail" = "\"服务器协助\" 允许您使用更强大的计算机来协助图像生成任务。在另一台计算机上启用 \"gRPC API 服务器\"，以与同一本地网络中的其他设备共享其计算资源。";
+
+"serving_remote_request_dot" = "正在处理远程请求...";
+
+"generating_image_on_device" = "在 \"%@\" 上生成图像";
+
+"cancelling_dot" = "正在取消...";
+
+"uploading_model_to_server" = "正在上传模型到连接的服务器";
+
+"uploading_model_to_server_detail" = "下载到您本地设备的模型和 LoRAs 可以上传到任何连接的服务器，从而更方便地进行远程图像生成。";
+
+"active_server" = "连接的服务器";
+
+"uploading_model" = "上传模型";
+
+"upload_succeed" = "模型上传成功";
+
+"upload_failure" = "模型上传失败";
+
+"uploading" = "正在上传";
+
+"tls" = "传输层安全协议";
+
+"response_compression" = "响应压缩";
+
+"enter_new_device_ip" = "请输入设备的 IP / 端口";
+
+"trainable_layers" = "可训练层";
+
+"trainable_layers_detail" = "选择在 Transformer 模型中应用 LoRA 训练的层。这样可以有效防止\"灾难性遗忘\"，即在训练过程中模型可能丧失跟随提示或美学特征的能力。";
+
+"latents_embedder_layer" = "潜在嵌入层";
+
+"context_embedder_layer" = "上下文嵌入层";
+
+"project_out_layer" = "投影层";
+
+"qkv_layers" = "Q、K、V 层";
+
+"qkv_context_layers" = "Q、K、V 上下文层";
+
+"out_layers" = "注意力输出层";
+
+"out_context_layers" = "注意力输出上下文层";
+
+"ff_layers" = "前馈层";
+
+"ff_context_layers" = "前馈上下文层";
+
+"layer_indices" = "层索引";
+
+"guidance_embed_detail" = "FLUX.1 [dev] 模型是经过指导精炼的。训练过程中，随机化指导嵌入值可以帮助模型在图像生成过程中用不同的指导嵌入值更好地进行泛化。";
+
+"start_end" = "开始 / 结束";
+
+"compiling_computation_graph_dot" = "编译计算图...";
+
+"weights_memory_management" = "权重内存管理";
+
+"weights_memory_management_detail" = "对于像 FLUX.1 [dev] 这样的较大模型，权重可能会占用大量内存。Just-in-Time 使我们能够在需要时加载/卸载权重，从而节省内存使用。";
+
+"just_in_time" = "Just-in-Time";
+
+"cached" = "缓存";
+
+"upper_bound" = "上限";
+
+"lower_bound" = "下限";
+
+"learning_rate" = "学习率";
+
+"learning_rate_detail" = "主扩散模型的学习率。我们使用余弦退火和热重启，热重启时在下限和上限之间插值学习率。";
+
+"steps_between_restarts" = "重启之间的步数";
+
+"caption_dropout_rate" = "描述丢失率";
+
+"caption_dropout_rate_detail" = "确定我们使用空描述的样本百分比。使用空描述有助于更通用地将概念提炼到模型中，但也可能导致更多概念的泄漏。";
+
+"orthonormal_lora_down" = "固定正交 LoRA 投影";
+
+"orthonormal_lora_down_detail" = "LoRA 训练涉及两个子矩阵：一个下行矩阵将激活投影到较小的子空间，一个上行矩阵将其投影回原始输出潜在空间。对于 LoRA，我们基本上是将 y = (W + W')x 替换为 y = (W + BA)x，其中 W' 是微调的增量。我们可以将下行矩阵固定为正交矩阵，以强制所有微调发生在 B 矩阵上。这有助于我们通过施加更强的正则化约束来更接近完整的微调动态。";
+
+"save_to_tensorboard" = "保存到 TensorBoard";
+
+"save_to_tensorboard_detail" = "一些训练统计数据可以以 TensorBoard 可视化的格式保存。这有助于高级用户更好地跟踪他们的训练过程。";
+
+"settings" = "设置";
+
+"max_text_length" = "最大文本长度";
+
+"max_text_length_detail" = "FLUX.1 模型通常使用 512 的最大文本长度进行训练。它们中的一些，比如 schnell 变体，使用 256 的最大文本长度进行微调。较小的文本长度可能使 LoRA 在文本理解上更加简洁。";
+
+"aspect_ratio_and_multi_scale" = "宽高比与多尺度";
+
+"aspect_ratio_and_multi_scale_detail" = "当 \"使用图像宽高比\" 关闭时，我们将训练图像调整大小并居中裁剪至上述指定的图像大小。当此选项启用时，我们将使用上述指定的图像大小作为我们需要逼近的总像素，并改用训练图像的宽高比。这有助于模型看到训练图像的完整画面。\"多尺度\" 允许你选择几个额外的尺度一起训练，使得 LoRA 能在不同分辨率下看到相同的图像。这通常有助于 LoRA 能捕捉到更多的结构和更多的细节。";
+
+"use_image_aspect_ratio" = "使用图像宽高比";
+
+"additional_scales" = "附加尺度";
+
+"additional_scale_1" = "附加尺度 1";
+
+"additional_scale_2" = "附加尺度 2";
+
+"additional_scale_3" = "附加尺度 3";
+
+"size" = "大小";
+
+"power_function_ema" = "幂函数 EMA";
+
+"power_function_ema_detail" = "EMA（指数移动平均），一种在训练过程中对模型进行平均的方法，是提高模型性能的有效手段。基本上，这种方法不直接使用最新模型，而是允许你保存一个经过一段时间平均的模型，这样的模型比最终模型更平滑。我们实现了一个特定的幂函数 EMA 配置，详细信息见 Karras 的《分析与改进扩散模型的训练动态》论文，该方法还允许在训练后选择不同的平均超参数。\"最后 % 进行平均\" 超参数允许你选择一个范围，在最后 % 步骤上对模型进行平均。";
+
+"ema_averaging_over_last" = "最后 % 上的平均";
+
+"enable_model_browsing" = "启用模型浏览";
+
+"server_mismatch_hash" = "服务器上的文件不匹配";
+
+"server_mismatch_hash_message" = "服务器上的一些文件与本地的文件相同名称，但不同。你可以使用本地复制文件覆盖远程服务器的文件，或者继续使用远程服务器的复制文件。";
+
+"keep_mismatched_files" = "保留远程复制";
+
+"overwrite_mismatched_files" = "使用本地复制文件覆盖";
+
+"remote_server" = "远程服务器";
+
+"protocol" = "协议";
+
+"verify_totp" = "要验证与%@的端到端加密，请将上述数字与设备进行比较。";
+
+"learn_more" = "了解更多";
+
+"discovering_dot" = "正在发现...";
+
+"transaction_pending" = "交易待处理，请稍后再试。";
+
+"explore_editions" = "探索版本";
+
+"local_edition_subtitle" = "选择一个适合你工作流程的版本进行快速、私密、离线图像创建";
+
+"local_edition" = "本地";
+
+"local_edition_pill" = "本地与私密";
+
+"features_perks" = "功能与特权";
+
+"continue_with_local" = "继续使用本地";
+
+"download_models_from_our_server" = "从我们的服务器下载模型";
+
+"use_local_compute_to_generate" = "使用本地计算生成";
+
+"infinite_canvas" = "无限画布";
+
+"inpainting_and_outpainting" = "图像填充与扩展";
+
+"create_an_account" = "创建账户";
+
+"community_edition_subtitle" = "登录免费版即可通过你的账户享受优化的工作流和特权。";
+
+"community" = "免费";
+
+"community_edition_pill" = "免费账户";
+
+"community_edition_description" = "使用自己的账户访问专属功能，并将图像生成任务卸载到 Draw Things 管理的服务器。";
+
+"everything_in_local" = "本地的全部内容";
+
+"your_own_account" = "你的账户";
+
+"cloud_compute" = "云计算";
+
+"plus_edition_subtitle" = "升级到 Draw Things+ 以享受更多特权和功能。";
+
+"plus_edition" = "Draw Things+";
+
+"everything_in_community" = "免费版中的所有内容";
+
+"premium_cloud_compute" = "高级云计算";
+
+"multipeer_sharing" = "多端共享";
+
+"local_edition" = "本地";
+
+"have_an_account" = "有账户吗？";
+
+"community_edition" = "免费版";
+
+"draw_things_plus_edition" = "Draw Things+ 版 • ";
+
+"sign_out" = "登出";
+
+"restore_subscription" = "恢复订阅";
+
+"return_to_local" = "返回本地";
+
+"downgrade_to_community" = "降级到免费版";
+
+"active_edition" = "当前版本";
+
+"using_local_will_sign_out" = "使用本地将使你退出登录";
+
+"you_are_using_local" = "你正在使用本地";
+
+"you_are_using_community" = "你正在使用免费版";
+
+"community_edition_requires_sign_in" = "免费版需要登录";
+
+"community_edition_set_to_activate" = "免费版将于 %@ 激活";
+
+"this_cancels_your_subscription" = "这将取消你的 Draw Things+ 订阅";
+
+"your_subscription_is_set_to_expire" = "你的订阅将于 %@ 到期";
+
+"your_subscription_is_set_to_renew" = "你的订阅将于 %@ 自动续订";
+
+"draw_things_plus_requires_subscription" = "Draw Things+ 需要订阅";
+
+"active_edition" = "当前版本";
+
+"set_to_activate" = "设置为激活";
+
+"sign_in" = "登录";
+"sign_in_with_apple" = "使用 Apple 登录";
+"sign_in_with_google" = "使用 Google 登录";
+
+"sign_in" = "登录";
+
+"return_to_local_question" = "返回本地吗？";
+
+"return_to_local_from_plus" = "返回本地将使你退出登录，并使你的 Draw Things+ 版在当前订阅周期结束时到期。要在此之前继续访问 Draw Things+ 功能，请保持登录。";
+
+"return_to_local_from_community" = "返回本地将使你退出免费版。要继续访问免费版功能，请保持登录。";
+
+"confirm_downgrade" = "确认降级";
+
+"sign_out_community" = "退出免费版";
+
+"downgrade_to_community_question" = "降级到免费版吗？";
+
+"downgrade_to_community_description" = "降级到免费版后，你的 Draw Things+ 版将于当前订阅周期结束时到期。在此之前你仍可继续使用 Draw Things+。";
+
+"downgrade" = "降级";
+
+"delete_account" = "删除账户";
+
+"explore_editions_menu" = "探索版本";
+
+"confirm_delete_account" = "删除你的账户？";
+
+"confirm_delete_account_description" = "删除你的 Draw Things+ 账户将使你登出，切换到免费版，并在当前周期结束时取消订阅。要在不删除账户的情况下切换，只需退出登录。保持登录可以继续享受 Draw Things+ 功能。";
+"confirm_delete_local_code_account_description" = "删除 Local Code 账户会将你退出登录。如果你使用同一 Apple 或 Google 账户再次登录，剩余的 Local Code 额度和新用户赠送额度领取状态仍会保留。";
+"deleting_local_code_account" = "正在删除 Local Code 账户…";
+
+"enable_shared_secret" = "共享密钥";
+
+"enter_shared_secret" = "输入共享密钥";
+
+"cloud_compute_units" = "云计算单元";
+
+"cloud_compute_units_detail" = "云计算单元用于衡量生成图像所需的服务器资源。单位随着分辨率、图像数量和其他设置而变化。生成限制依据层级不同而有所不同：免费用户每次请求可使用最多 %@ 单元，而 Draw Things+ 用户则有 %@ 单元。超过层级限制时，请调整设置。";
+
+"cloud_compute_and_sharing" = "显示云端和共享相关功能";
+
+"cloud_and_sharing_features" = "云端和共享相关功能";
+
+"cloud_compute_and_sharing_detail" = "在应用中显示账户、共享和云端选项。只有当你选择在 Draw Things 托管服务器上运行生成时，才会使用 Cloud Compute。关闭后，这些功能将被隐藏。部分更改可能需要重启应用。";
+
+"exceed_limit_error" = "请求超限";
+
+"exceed_error_message" = "你可能在短时间内发出了过多请求。请稍等片刻再试。";
+
+"control_inputs" = "控制输入";
+
+"cloud_compute_unavailable" = "云计算不可用";
+
+"cloud_compute_missing_files_message" = "云计算只能访问官方或社区渠道的模型。您的本地模型无法用于这次生成。您是否希望改为在本地运行？";
+
+"browse_dot" = "浏览...";
+
+"official_upscalers" = "官方放大器";
+
+"disable_upscaler_detail" = "禁用放大器";
+
+"browse_detail" = "浏览本地文件。";
+
+"model_import_failed" = "模型导入失败";
+
+"upscaler_import_failed_message" = "无法导入所选的放大器。目前，我们仅支持具有2x和4x缩放的ESRGAN衍生品。";
+
+"japanese" = "日本語";
+
+"korean" = "한국어";
+
+"control_inputs_detail" = "控制输入管理各种用于控制模块（如ControlNets、IP-Adapters和Redux）的输入源。可以单独加载特定的输入以与这些模块一起使用。";
+
+"load_dot" = "加载...";
+
+"save_dot" = "保存...";
+
+"german" = "Deutsch";
+"vietnamese" = "Tiếng Việt";
+
+"french" = "Français";
+
+"community_configs" = "社区配置";
+
+"remove_configuration" = "删除配置";
+
+"remove_configuration_message" = "您确定要删除配置“%@”吗？此操作不可撤销。";
+
+"tea_cache" = "TeaCache";
+
+"threshold" = "阈值";
+
+"starting_dot" = "启动中...";
+
+"processing_dot" = "处理中...";
+
+"sampling_dot" = "采样中...";
+
+"finishing_dot" = "完成中...";
+
+"tea_cache_detail" = "时步嵌入感知缓存（TeaCache）是一种无需训练的缓存方法，它估算并利用模型在各时步输出中的波动差异，从而加速推理。Start / End 定义了应用 TeaCache 的去噪步骤。Threshold 设置了误差容忍界限——较高的值允许更快生成，但会牺牲质量。";
+
+"duration_est" = "%02d:%02d:%02d / 预估 %02d:%02d:%02d";
+
+"upscaling_dot" = "正在放大…";
+
+"x_est" = "%@ / %@ 预估。";
+
+"separate_t5_text" = "单独 T5 文本";
+
+"separate_t5_text_detail" = "HiDream 使用 4 个独立的文本编码器。你可以为 T5 文本编码器指定单独的输入，以帮助设置图像生成的全局上下文。";
+
+"t5_text" = "T5 文本";
+
+"return_to_local_description" = "返回本地将使你退出当前版本。要继续访问当前版本功能，请保持登录。";
+
+"api_key" = "API 密钥";
+
+"api_secret_key" = "API 密钥（私密）";
+
+"api_key_section" = "API 凭据";
+
+"api_key_section_detail" = "所选模型使用第三方远程服务（例如 Kling）。要生成图像，请输入该提供商的 API 密钥和密钥私密。";
+
+"welcome_wave" = "欢迎！👋";
+
+"browse_models_via_cloud_compute" = "通过 Cloud Compute 浏览模型";
+
+"browse_models_via_cloud_compute_detail" = "Cloud Compute 可让你在 Draw Things 服务器上执行图像生成等任务；选择模型后需使用 Apple 登录。";
+
+"download_a_model_via_draw_things" = "通过 Draw Things 下载模型";
+
+"download_a_model_via_draw_things_detail" = "你可以考虑使用 FLUX.1，这是一个功能强大且流行的图像生成模型，拥有广泛社区支持和多样化工具。";
+
+"import_a_model_from_local_storage" = "从本地存储导入模型";
+
+"import_a_model_from_local_storage_detail" = "将本地设备上的模型上传，以更好地满足生成流程需求。我们会询问一些信息以帮助你快速开始。";
+
+"step_1_of_3" = "第 1 步，共 3 步";
+
+"step_2_of_3" = "第 2 步，共 3 步";
+
+"step_3_of_3" = "第 3 步，共 3 步（可选）";
+
+"enable_cloud_compute" = "显示云端和共享相关功能";
+
+"show_features" = "显示功能";
+
+"turn_on_cloud_compute_to_access_account_features" = "开启云端和共享相关功能以打开账户选项。这会显示登录、同步、共享，以及在你想要在 Draw Things 托管服务器上运行生成时选择 Cloud Compute 的功能。";
+
+"enable_cloud_compute_detail" = "关闭后，Cloud Compute、账户和共享功能将被隐藏。你可以稍后在“机器设置”中重新开启。";
+
+"select_a_model_via_cloud_compute_detail" = "通过 Cloud Compute 选择模型，在 Draw Things 服务器上运行图像生成。下一步将提示登录。";
+
+"select_a_model_via_draw_things_detail" = "通过 Draw Things 服务器选择模型，在本地运行生成。然后选择要保存生成图像的位置。";
+
+"pick_a_model_via_cloud_compute_title" = "通过 Cloud Compute 选择模型 ✨";
+
+"download_a_model_via_draw_things_title" = "通过 Draw Things 下载模型 🪐";
+
+"import_a_model_from_local_storage_title" = "从本地存储导入模型 📂";
+
+"max_skip_steps" = "最大跳过步数";
+
+"sign_in_to_community" = "登录免费版";
+
+"sign_in_is_required_to_use_cloud_compute_detail" = "使用 Draw Things 服务器的 Cloud Compute 需要登录。";
+
+"i_understand" = "我知道了";
+
+"local_import_may_not_be_suitable_for_all_users_detail" = "**注意：** 本地导入可能不适合所有用户。对于最新最先进的模型（如 FLUX.1 图像模型或 Hunyuan 和 Wan 2.1 视频模型），本地导入将加载完整模型，而官方服务器下载的模型经过量化，可在更广泛设备上优化性能同时保持高质量。\n\n如仍要继续本地导入，请点击“**我知道了**”继续。";
+
+"to_start_pick_a_model_source_detail" = "**开始前，请选择一个模型来源**。你也可以稍后从任一选项获取模型。";
+
+"text_to_video" = "文本到视频";
+
+"image_to_video" = "图像到视频";
+
+"video_to_video" = "视频到视频";
+
+"weights_cache_size" = "权重缓存大小";
+
+"weights_cache_size_detail" = "对于 FLUX.1、Wan v2.1、Hunyuan 或 HiDream-I1 等大型模型，具有超过 48 GiB 内存的设备可以利用新的权重缓存机制，将多个模型权重副本存储在内存中，从而加快重新加载和生成速度。以前需要 7–8 秒加载的模型现在可以在半秒内完成加载。您可以根据需要调整权重缓存大小以减少设备的内存使用。";
+
+"save_media_to" = "保存生成的媒体到";
+
+"save_media_detail" = "生成的图像或视频可以保存到您选择的文件夹中。如果您使用外部应用程序来组织它们，这将更加方便。";
+
+"save_video_as" = "视频保存为";
+
+"save_video_as_movie" = "电影 (.mov)";
+
+"save_video_as_images" = "图像序列";
+
+"this_frame_dot" = "当前帧...";
+
+"video_export_format" = "视频导出格式";
+
+"video_export_format_detail" = "从应用保存的视频默认使用最高质量。您可以选择其他格式以更好地满足您的需求。";
+
+"remote_api_providers" = "远程 API 提供商";
+"on_device" = "设备端";
+"where_models_run" = "模型运行位置";
+"where_models_run_detail" = "设备端模型直接在此设备上运行。云端模型通过所选服务运行。";
+
+"causal_inference" = "因果推理";
+
+"causal_inference_every_n_frames" = "每 N 帧";
+
+"causal_inference_detail" = "因果推理只考虑当前帧及之前帧（不包括未来帧），这种方法被称为 CausVid。此选项仅适用于为因果生成专门微调的视频模型。\"每 N 帧\" 设置控制推理的粒度：模型不再逐帧生成，而是每次生成 N 帧的区块，使用当前为止所有帧作为上下文。例如，N = 2 时，帧 a 和 b 使用 a–b 作为上下文一起生成；帧 c 和 d 使用 a–d 作为上下文生成，依此类推。";
+
+"data_required_for_downloads" = "下载所需数据";
+
+"estimated_time_to_generate" = "预计生成时间";
+
+"return_to_local_description" = "返回本地将使您退出当前版本。要继续访问当前版本功能，请保持登录。";
+
+"exceed_lora_storage_limit_error" = "存储空间超出限制";
+
+"exceed_lora_storage_limit_error_message" = "您的生成请求中指定的 LoRA 上传总量已超出最大存储限制。";
+
+"space_occupied" = "已占用空间：%@";
+
+"byom_delete_view_title" = "释放空间以继续上传 LoRA";
+
+"byom_loras" = "自带 LoRA (BYOM)";
+
+"byom_loras_detail" = "这些 LoRA 已上传到当前连接的远程服务器（Draw Things+）。";
+
+"generic_r2_upload_error" = "上传错误";
+
+"generic_r2_upload_error_message" = "上传过程中发生错误，请稍后再试。";
+
+"lora_upload_subscription_verification_error_message" = "我们的服务器无法验证此账号的有效订阅。LoRA 上传不可用。请重新登录并检查订阅状态。";
+
+"byom_upload_requires" = "上传所需：%@";
+
+"byom_free_space" = "可用空间：%@";
+
+"byom_required" = "所需空间：%@";
+
+"byom_using" = "已使用：%@";
+
+"byom_using_x_of_y" = "上传后使用 %@ / %@";
+
+"you_may_continue" = "你可以继续。";
+
+"remove_some_loras" = "请删除一些 LoRA。";
+
+"byom_out_of_space" = "空间不足！";
+
+"byom_explanation_text" = "请从连接的服务器（Draw Things+）中移除部分已上传的 LoRA，以释放空间继续进行图像生成。";
+
+"first_time_upload_lora_sha256_as_file" = "首次上传 LoRA？";
+
+"first_time_upload_lora_sha256_as_file_message" = "Draw Things 的云计算可以保存每个上传的 LoRA 文件名，以便日后识别，例如删除时使用。否则将仅保存内容哈希。点击“是”保存文件名以便于管理。";
+
+"save_uploaded_lora_name" = "保存已上传的 LoRA 名称";
+
+"uncurated_community_models" = "未筛选";
+
+"dwnloading_to_cloud_compute_dot" = "正在下载到云计算...";
+
+"dwnloading_to_cloud_compute_quote_dot" = "正在下载到云计算（%@）...";
+
+"reset_to_recommended" = "重置为推荐设置";
+
+"lab_hours" = "实验时段";
+
+"lab_hours_detail" = "计算单元用于衡量图像生成所需的服务器资源。单位根据分辨率、图像数量和其他设置而变化。在服务器资源充足的“实验时段”，我们会提高常规限制，让你更自由地进行实验。免费用户每次请求最多可使用 %@ 单位，Draw Things+ 用户可使用 %@ 单位。如超出限额，请调整设置。";
+
+"enter_a_prompt_dot" = "输入提示词...";
+
+"negative" = "负面";
+
+"edit_history_slider" = "编辑历史滑块";
+
+"image_interpreter" = "图像解析器";
+
+"image_interpreter_detail" = "使用大型语言模型分析图像并生成描述性提示词。该提示词可以进一步优化，用于生成具有相似外观的新图像。";
+
+"project_dot" = "项目...";
+
+"load_dot" = "加载...";
+
+"new_canvas" = "新建画布";
+
+"share_dot" = "分享...";
+
+"save_dot" = "保存...";
+
+"tools" = "工具";
+
+"prompt_editor" = "提示词编辑器";
+
+"canvas_tools" = "画布工具";
+
+"enter_a_negative_prompt_dot" = "输入负面提示词...";
+
+"save_image_file" = "将图像保存到文件。";
+
+"save_image_photo" = "将图像保存到照片。";
+
+"save_image_clipboard" = "将图像保存到剪贴板（复制到剪贴板）。";
+
+"select_image_from_photos" = "从照片中选择图像。";
+
+"select_image_from_files" = "从文件中选择图像。";
+
+"select_image_from_clipboard" = "从剪贴板粘贴图像。";
+
+"token_count_detail" = "显示文本的标记数量。";
+
+"insert_invert_keyword" = "插入 T.I. 嵌入关键词。";
+
+"change_invert_keyword" = "更改 T.I. 嵌入关键词。";
+
+"select_eraser_paintbrush" = "仅对选定区域使用橡皮或画笔。";
+
+"erase_for_inpainting" = "橡皮擦。用于擦除或遮盖区域以便修复。";
+
+"guided_paintbrush" = "画笔。使用选定颜色涂抹区域。";
+
+"select_foreground" = "选择前景。";
+
+"select_background" = "选择背景。";
+
+"tap_to_select" = "点击选择。";
+
+"mask" = "遮罩";
+
+"unmask" = "取消遮罩";
+
+"add_negative_prompt" = "添加负面提示词。";
+
+"cfg_zero_star" = "CFG Zero*";
+"expand_prompt_to_json" = "扩展为 JSON";
+"expand_prompt_to_json_detail" = "使用 Magic Prompt 在生成前将提示词扩展为结构化 JSON 描述。";
+
+"cfg_zero_init_steps" = "CFG Zero 初始步数";
+
+"duration_minutes_est" = "%02d:%02d / %02d:%02d 估计";
+
+"show_history_slider" = "显示历史滑块。";
+
+"hide_history_slider" = "隐藏历史滑块。";
+
+"base" = "基础";
+
+"refiner" = "精修器";
+
+"builtin_prompts_dot" = "内置提示...";
+
+"privacy_pass" = "隐私通行证";
+
+"privacy_pass_detail" = "Draw Things+ 使用名为隐私通行证（Privacy Pass）的功能来增强匿名性。它允许由你的设备而非我们的服务器生成用于创作艺术的匿名令牌，因此最终的作品无法追溯到原始请求。这是对现有隐私功能的增强。";
+
+"privacy_pass_is_enabled" = "隐私通行证已启用。";
+
+"privacy_pass_is_temporarily_unavailable" = "隐私通行证暂时不可用。";
+
+"enabled" = "启用";
+
+"copy_to_settings" = "复制到设置";
+
+"try_recommended_settings" = "尝试推荐设置";
+
+"seconds_format" = "%@秒";
+
+"show_generation_time" = "显示生成时间";
+
+"show_generation_time_detail" = "在历史记录中显示生成每张图片或视频所用的时间。";
+
+"Boost" = "加速包";
+
+"Cash" = "现金";
+
+"purchase_success_message" = "%@ 已添加到你的钱包。";
+
+"purchase_failure_message" = "购买失败。你未被扣费。";
+
+"record_purchase_failure_message" = "购买成功。余额将很快更新。";
+
+"adding_x_to_balance" = "正在更新 %@ 余额…";
+
+"add_more_funds" = "添加更多资金";
+
+"buy_more_boosts" = "购买更多加速包";
+
+"boost_description_0" = "你目前没有任何加速包。";
+
+"boost_description" = "加速包已加载。";
+
+"cash_description" = "你的余额以美元 (USD) 显示。";
+
+"balance_title" = "%@ 余额: %@";
+
+"consumption_request_consent" = "我同意与 App Store 共享购买信息，以支持退款请求（如有需要）。";
+
+"wallet_title" = "钱包";
+
+"transfer_funds" = "转账";
+
+"view_wallet_menu" = "查看钱包";
+
+"wallet_subtitle" = "在钱包中管理你的加速包和现金余额。通过第三方充值并购买加速包，以便随时增强你的创作。仅在 Draw Things+ 中提供。";
+
+"wallet" = "钱包";
+
+"view_wallet" = "查看钱包";
+
+"compute_units_boost_balance" = "余额: %@";
+
+"compute_units_boost_balance_needed" = "需要 %@";
+
+"compute_units_boost_balance_to_spend" = "将花费 %@";
+
+"bridge_mode" = "桥接模式";
+
+"bridge_mode_is_a_plus_feature" = "桥接模式允许此设备充当桥梁以连接远程服务器（如我们的云计算后端）。为防止滥用，此功能仅对 Draw Things+ 订阅者开放。";
+
+"see_purchase_benefits" = "查看购买权益";
+
+"boost_detail" = "加速包让你突破默认任务限制。每个加速包提供 60,000 计算单元，例如 1 个加速包 = 60,000，2 个加速包 = 120,000。加速包需单独购买。";
+
+"compat" = "兼容";
+
+"free_feature_1" = "使用本地计算生成";
+
+"free_feature_2" = "从我们的服务器下载模型";
+
+"free_feature_3" = "无限画布";
+
+"free_feature_4" = "本地训练 LoRA";
+
+"community_feature_1" = "免费使用云计算";
+
+"community_feature_2" = "访问实验室时间";
+
+"community_feature_3" = "包含本地的全部内容";
+
+"plus_feature_1" = "提高云计算上限";
+
+"plus_feature_2" = "在云计算中使用自定义 LoRA";
+
+"plus_feature_3" = "按需提升计算上限";
+
+"plus_feature_4" = "隐私通行证";
+
+"plus_feature_5" = "包含免费版中的所有内容";
+
+"plus_edition_description" = "享受更高的计算上限，并访问高级云功能，包括自定义 LoRA 上传、增强的隐私保护等。我们的 [使用条款](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) 和 [隐私政策](https://drawthings.ai/policy/)。";
+
+"community_edition_description" = "使用您自己的账户访问独家功能，并将图像生成等任务卸载到 Draw Things 管理的服务器。";
+
+"local_edition_description" = "创建提示并从我们的服务器下载模型，在您自己的设备上本地私密地生成图像。";
+
+"create_quantized_dot" = "创建量化模型...";
+
+"buy_boost_error_message" = "此次生成需要更多 Boost。";
+
+"generic_error_message" = "服务器遇到问题。";
+
+"upgrade_error_message" = "计算单元超出当前阈值。";
+
+"enable_boost_error_message" = "此次生成需要开启 Boost。";
+
+"buy_boosts" = "购买 Boost";
+
+"enable_boosts" = "开启 Boost";
+
+"upgrade_to_dt_plus" = "升级到 Draw Things+";
+
+"show_high_resolution_preview" = "尽可能使用高分辨率预览";
+
+"show_high_resolution_preview_detail" = "TAESD 是一种轻量级图像解码器。在条件允许时，我们可以使用 Apple 神经引擎通过 TAESD 解码预览（通常为 20–150 毫秒）。由于它运行在与 GPU 不同的芯片上，通常不会影响生成速度。";
+
+"change_model_type" = "更改模型类型";
+
+"try_recommended_settings_confirmation" = "你已切换到不同的模型类型。不同模型类型可能适合不同的设置。是否尝试推荐设置？";
+
+"not_this_time" = "暂不";
+
+"ask_try_recommended_settings_when_changing_model_type" = "更改模型类型时询问“尝试推荐设置”";
+
+"ask_try_recommended_settings_when_changing_model_type_detail" = "当你切换模型类型时，我们可以询问是否要应用该模型类型的推荐设置。关闭此选项将不再显示该提示。";
+
+"transparency_as_mask_title" = "将透明区域用作蒙版？";
+
+"transparency_as_mask_detail" = "这张图片包含透明区域。您可以将这些透明区域作为修复用蒙版导入，或在不使用蒙版的情况下导入图片。";
+
+"use_transparency_as_mask" = "用作蒙版";
+
+"import_without_mask" = "不使用蒙版导入";
+
+"history_generated_image" = "已生成图片";
+
+"history_generated" = "已生成";
+
+"history_generated_video" = "已生成视频";
+
+"history_loaded_image" = "已加载图片";
+
+"history_updated_canvas" = "已更新画布";
+
+"history_updated_mask_area" = "已更新遮罩区域";
+
+"history_updated_scribble" = "已更新涂鸦";
+
+"history_updated_moodboard" = "已更新创意板";
+
+"history_updated_depth_map" = "已更新深度图";
+
+"history_cleared_canvas" = "已清空画布";
+
+"lightning_draft" = "闪电草稿";
+"interactive_generation_available" = "闪电草稿";
+"interactive_generation_available_detail" = "“闪电草稿”可让你以交互方式运行图像生成，让你在几秒内看到提示词中的内容反映到结果上，而不必等到整次生成完成。";
+"lightning_draft_requires_local_generation_message" = "“闪电草稿”需要本地生成。要切换到本地生成模式吗？";
+"switch_to_local" = "切换到本地";
+"auto" = "自动";
+"generation" = "生成";
+"gen_dot" = "生成";
+"edit" = "编辑";
+"generation_area" = "生成区域";
+
+"project_empty_state_no_projects" = "You don't have any projects";
+"project_empty_state_select_or_create_project" = "Select a project from the Projects panel\nor create a new one";
+"project_empty_state_create_project_to_enter_prompt" = "Create a project to enter a prompt";
+"project_empty_state_select_or_create_project_to_enter_prompt" = "Select or create a project to enter a prompt";
+"create_new_project" = "Create a new project";
+"generation_region" = "Generation Region";
+"canvas_empty_state_add_or_paste_file_image" = "Add or paste an image";
+"canvas_empty_state_drag_or_paste_file_image" = "Drag or paste an image";
+"reading_dot" = "正在读取...";
+"writing_dot" = "正在写入...";
+"cooling_down_dot" = "正在冷却...";
+"bringing_up_dot" = "正在准备...";
+"thinking_dot" = "正在思考...";
+"working_dot" = "正在工作...";
+"worked" = "工作耗时";
+"compacting_dot" = "正在压缩...";
+"avg_speed" = "平均速度";
+"view_more" = "查看更多";
+"model_speed" = "模型速度";
+"x_on_y_with_z_gpu_cores" = "%@，%@（%d 核 GPU）";
+"x_on_y" = "%@，%@";
+"prompt_processing_detail" = "按已占用的上下文，读取 %@ 令牌提示词时每秒的令牌数。";
+"token_generation_detail" = "按已占用的上下文，生成 128 个令牌时每秒的令牌数。";
+"start_again" = "重新开始";
+"context_x_used" = "上下文已使用 %@";
+"prompt_processing" = "提示词处理";
+"token_generation" = "令牌生成";
+"low" = "低";
+"medium" = "中";
+"high" = "高";
+"max" = "最大";
+"deterministic" = "确定性";
+"creative" = "创意";
+"reasoning_effort" = "推理强度";
+"reasoning_effort_detail" = "控制助手在行动前进行多深入的推理。更高的强度可改善困难任务的结果，但会消耗更多时间和令牌。";
+"work_attitude" = "工作方式";
+"work_attitude_detail" = "控制助手处理工作的方式。确定性模式偏向专注、一致的回复；创意模式会探索更多样的可能性。";
+"memory" = "记忆";
+"memory_detail" = "记住你的偏好和各个项目的有用信息，让你在今后的对话中无需重复说明。";
+"reviewing_memory_dot" = "正在整理记忆...";
+"thinking_budget" = "思考预算";
+"thinking_budget_tokens" = "令牌";
+"thinking_budget_detail" = "助手开始回答前可使用的最大隐藏推理令牌数。设为 0 可禁用思考。";
+"search_provider" = "搜索提供方";
+"search_provider_detail" = "选择助手需要网页结果时使用的搜索引擎。禁用可阻止网页搜索。";
+"search_provider_duckduckgo" = "DuckDuckGo";
+"search_provider_sogou" = "搜狗";
+"search_provider_kagi" = "Kagi";
+"search_provider_brave" = "Brave";
+"enter_your_api_key" = "请输入您的 API 密钥。";
+"tool_bash_now" = "Bash";
+"tool_bash_past" = "已运行";
+"tool_bash_status_now" = "Bash 状态";
+"tool_bash_status_past" = "Bash 状态";
+"tool_bash_wait_now" = "等待 Bash";
+"tool_bash_wait_past" = "等待 Bash";
+"tool_bash_stop_now" = "停止 Bash";
+"tool_bash_stop_past" = "已停止";
+"tool_read_now" = "读取";
+"tool_read_past" = "已读取";
+"tool_memory" = "记忆";
+"tool_memory_read_now" = "读取记忆";
+"tool_memory_read_past" = "已读取记忆";
+"tool_memory_append_now" = "追加记忆";
+"tool_memory_append_past" = "已追加记忆";
+"tool_memory_replace_now" = "替换记忆";
+"tool_memory_replace_past" = "已替换记忆";
+"tool_memory_remove_now" = "移除记忆";
+"tool_memory_remove_past" = "已移除记忆";
+"tool_saved_response" = "已保存的工具响应";
+"tool_more_now" = "继续读取";
+"tool_more_past" = "继续读取";
+"tool_write_now" = "写入";
+"tool_write_past" = "已写入";
+"tool_edit_now" = "编辑";
+"tool_edit_past" = "已编辑";
+"tool_search_now" = "搜索";
+"tool_search_past" = "已搜索";
+"tool_list_now" = "列出";
+"tool_list_past" = "列出";
+"tool_datetime_now" = "日期时间";
+"tool_datetime_past" = "日期时间";
+"tool_check_smt_now" = "求解";
+"tool_check_smt_past" = "已求解";
+"tool_web_search_now" = "网页搜索";
+"tool_web_search_past" = "已网页搜索";
+"tool_web_fetch_now" = "网页获取";
+"tool_web_fetch_past" = "已获取网页";
+"new_directory" = "新建文件夹";
+"create" = "创建";
+"untitled" = "未命名";
+"cannot_create_directory" = "无法创建文件夹";
+"cannot_create_directory_message" = "请选择一个尚不存在的有效名称。";
+"remote_api" = "OpenAI 兼容 API";
+"remote_api_configuration_detail" = "连接到兼容 OpenAI 的服务器。";
+"cloud_compute_configuration_detail" = "登录以管理 Cloud Compute 额度、凭据和托管模型。";
+"remote_api_not_configured" = "未配置";
+"sign_in_to_local_code" = "登录 Local Code";
+"remote_api_configured_model" = "已配置 · %@";
+"base_api_url" = "API 基础 URL";
+"remote_api_key_placeholder" = "API 密钥（不会显示）";
+"remove_api_key" = "移除 API 密钥";
+"remote_api_error" = "远程 API 错误";
+"remote_api_invalid_configuration" = "请输入有效的 HTTPS API 地址或本地 HTTP 地址。";
+"remote_api_key_required" = "请输入此基础 URL 的 API 密钥。";
+"remote_api_disclosure_title" = "使用远程 API？";
+"remote_api_disclosure_message" = "提示词、文件内容和工具输出可能会发送给所配置的服务提供商。远程模型可以调用此设备上 Local Code 的工具。数据处理和保留政策因提供商而异。";
+"remote_api_tool_call" = "远程工具调用";
+"remote_context_used" = "已用上下文（令牌）";
+"remote_context_free" = "可用上下文（令牌）";
+"remote_compaction_trigger" = "压缩触发阈值";
+"claude_api" = "Claude API";
+"claude_api_configuration_detail" = "输入 Claude 模型标识和 Anthropic API 密钥。密钥留空可保留已保存的密钥。";
+"claude_api_invalid_configuration" = "请输入 Claude 模型标识。";
+"claude_api_key_required" = "请输入 Anthropic API 密钥。";
+"openrouter_api" = "OpenRouter";
+"openrouter_api_configuration_detail" = "输入 OpenRouter 模型标识符（例如 openai/gpt-4o）和 API 密钥。若要保留已保存的密钥，请将密钥留空。";
+"openrouter_api_invalid_configuration" = "请输入 OpenRouter 模型标识符。";
+"openrouter_api_key_required" = "请输入 OpenRouter API 密钥。";
+"remote_oauth_openai_action" = "使用 ChatGPT 登录";
+"remote_oauth_anthropic_action" = "使用 Claude 登录";
+"remote_oauth_openai_title" = "使用 ChatGPT 登录";
+"remote_oauth_anthropic_title" = "使用 Claude 登录";
+"remote_oauth_device_message" = "代码 %@ 已复制。请在浏览器中完成登录，然后返回 Local Code。";
+"remote_oauth_anthropic_message" = "请在浏览器中完成登录，然后在下方粘贴授权代码或重定向 URL。";
+"remote_oauth_code_placeholder" = "授权代码或重定向 URL";
+"remote_oauth_openai_official_endpoint" = "ChatGPT 登录需要官方 https://api.openai.com 端点。";
+"cloud_compute_by_draw_things" = "Cloud Compute（由 Draw Things 提供）";
+"account_balance" = "账户余额";
+"add_funds" = "充值";
+"account_id" = "账户 ID";
+"add_more_credit" = "添加更多额度";
+"credit_unavailable" = "余额不可用";
+"show_api_key" = "显示 API 密钥";
+"hide_api_key" = "隐藏 API 密钥";
+"coming_soon" = "即将推出";
+"new_project" = "新建项目";
+"new_project_dot" = "新建项目...";
+"new_from_template_dot" = "从模板新建...";
+"new_bot_dot" = "新建机器人...";
+"new_bot_from_template_dot" = "从模板新建机器人...";
+"community_templates" = "社区模板";
+"loading_templates" = "正在加载模板…";
+"no_templates_found" = "未找到模板。";
+"cannot_load_templates" = "无法加载社区模板。请检查网络连接后重试。";
+"cannot_download_template" = "无法下载模板";
+"cannot_download_template_message" = "项目已创建，但无法下载其模板。";
+"new_chat" = "新建聊天";
+"focus_chat" = "聚焦聊天";
+"stop_conversation" = "停止对话";
+
+"thread_completed_title" = "工作已完成";
+
+"thread_completed_body" = "已完成，用时 %@。打开查看。";
+
+"kit" = "工具包";
+"draw_things_detail" = "通过 Draw Things 集成，在 Local Code 中生成图像和视频。请选择 Draw Things 模型的存储位置，也可以使用现有的 Draw Things 模型文件夹。";
+"model_folder" = "模型文件夹";
+"in_local_code_app" = "Local Code 应用内";
+"choose_a_models_folder" = "选择模型文件夹";
+"choose_a_models_folder_detail" = "draw-things-cli 需要访问模型文件夹。如果已安装 Draw Things，可以共用其模型文件夹，以节省磁盘空间。\n\n你希望将模型存储在哪里？";
+"use_local_code_storage" = "存储在 Local Code 内";
+"choose_a_folder_on_disk_dot" = "选择磁盘上的文件夹…";
+
+// Idle model unloading
+"unload_models_when_idle" = "空闲时卸载模型";
+"unload_models_when_idle_detail" = "在一段时间未使用后，卸载本地模型及其对话缓存以释放内存。模型在整个活动轮次期间保持加载，包括等待工具执行或权限确认时。需要时会自动重新加载模型，下一次响应可能需要更长时间才能开始。";
+"after_10_seconds" = "10 秒后";
+"after_1_minute" = "1 分钟后";
+"after_5_minutes" = "5 分钟后";
+"after_10_minutes" = "10 分钟后";
+
+"unlock_pdf" = "解锁 PDF";
+"pdf_password_detail" = "打开此受保护的 PDF 需要密码：\n\n%@";
+"pdf_password_incorrect" = "密码不正确，请重试。";
+"password" = "密码";
+"unlock" = "解锁";
+"all_projects" = "所有项目";
+"all_bots" = "所有机器人";
+"recent_threads" = "最近会话";
+"no_recent_threads" = "没有最近会话";
+"no_recent_threads_detail" = "你在任何项目中开始的会话都会按从新到旧显示在这里。";
+"no_recent_threads_bot_detail" = "你与任何机器人开始的会话都会按从新到旧显示在这里。";
+
+"insufficient_balance" = "余额不足";
+"insufficient_balance_description" = "由于余额不足，你的请求未能完成。请充值余额以完成请求并继续创作。";
+"account_balance_topped_up" = "账户余额已充值";
+"ready_to_continue" = "可以继续了。";
+"free_request_rate_limit_reached" = "已达到免费请求速率限制";
+"free_request_rate_limit_description" = "免费请求的速率限制较低。向余额充值 $10 或以上即可解锁更高限额并继续创作。";
+"remote_performance" = "远程性能";
+"avg_time_to_first_token" = "平均首令牌时间";
+"observed_output" = "实测输出";
+"shared_balance" = "共享余额：%@";
+"top_up" = "充值";
+"top_up_description" = "为 Local Code 远程模型和 Draw Things 云端图像生成充值额度。";
+"purchase_pending_approval" = "购买正在等待批准。额度将自动添加。";
+"credit" = "额度";
+"finishing_sign_in" = "正在完成 %@ 登录…";
+"refreshing_cloud_compute" = "正在刷新云计算…";
+"local_code_router_url_not_configured" = "未配置 Local Code Router URL。";
+"sign_in_callback_mismatch" = "登录回调与待处理的 Local Code 请求不匹配。";
+"sign_in_no_token" = "%@ 登录未返回令牌。";
+"no_cloud_compute_models_enabled" = "未启用任何云计算模型。";
+"could_not_securely_start_sign_in" = "无法安全地开始 %@ 登录。";
+"could_not_open_sign_in" = "无法打开 %@ 登录。";
+"sign_in_invalid_callback" = "%@ 登录返回了无效的 Local Code 回调。";
+"could_not_complete_sign_in" = "无法完成 %@ 登录。";
+"apple_sign_in_no_credential" = "Apple 登录未返回凭据。";
+"cloud_compute_invalid_response" = "云计算服务返回了无效的响应。";
+"cloud_compute_http_error" = "云计算服务返回了 HTTP %d。%@";
+"cloud_compute_decoding_failed" = "无法解码云计算响应。";
+"cloud_compute_missing_default_api_key" = "云计算未返回默认 API 密钥。";
+"request_failed" = "请求失败。";
+"tool_view_now" = "查看";
+"tool_view_past" = "已查看";
+"openai_compatible" = "OpenAI 兼容";
+"could_not_run_tool" = "无法运行 %@";
+"could_not_open_browser" = "无法打开浏览器。";
+"keychain_operation_failed" = "钥匙串操作失败（%d）。";
+"remote_credential_unreadable" = "无法读取已保存的远程凭据。";
+"remote_credential_unavailable" = "已保存的远程凭据不可用。";
+"remote_credential_changed" = "远程凭据已更改。请重新打开对话后重试。";
+"remote_credential_unsupported" = "此提供商不支持已保存的身份验证方式。";
+"remote_status_title" = "云端状态";
+"remote_status_provider_not_configured" = "提供商：未配置。";
+"remote_status_provider" = "提供商：%@";
+"remote_status_context" = "上下文：`%@ / %@` 令牌（%d%%）";
+"remote_status_context_free" = "可用上下文：`%@` 令牌";
+"remote_status_configured_context" = "已配置上下文：`%@` 令牌";
+"remote_status_compaction_threshold" = "压缩阈值：`%@` 令牌";
+"remote_status_compaction_reserve" = "压缩预留：`%@` 令牌";
+"remote_status_output_reserve" = "输出预留：`%@` 令牌";
+"remote_status_active_history" = "当前历史：%@ 条消息";
+"remote_status_current_turn" = "当前轮次：第 %d 轮，共 %d 轮";
+"remote_status_turn_limit" = "轮次上限：%d 轮模型/工具调用";
+"remote_status_select_project" = "上下文：选择一个项目以开始会话。";
+"remote_status_account_quota_not_exposed" = "账户配额：此提供商的聊天 API 未提供。";
+"remote_status_openrouter_account" = "OpenRouter 账户";
+"remote_status_checking_key_usage" = "正在检查密钥用量…";
+"remote_status_tier" = "等级：%@";
+"remote_status_tier_free" = "免费";
+"remote_status_tier_funded" = "已充值";
+"remote_status_usage" = "用量：共 %@";
+"remote_status_usage_with_today" = "用量：共 %@，今日 %@";
+"remote_status_key_limit" = "密钥限额：%@";
+"remote_status_key_limit_remaining" = "密钥限额：%@，剩余 %@";
+"remote_status_key_spending_limit_none" = "密钥消费限额：无";
+"remote_status_free_model_requests_not_exposed" = "免费模型剩余请求数：OpenRouter 密钥 API 未提供。";
+"remote_status_unavailable" = "不可用：%@";
+
+"openai_sign_in_provider" = "OpenAI";
+"openai_sign_in_configuration_detail" = "使用 OpenAI 账户登录。无需 API 密钥或自定义 URL。";
+"model_optional" = "模型（可选）";
+"welcome_dot" = "欢迎...";
+"welcome_to_local_code" = "欢迎使用 Local Code！";
+
+"manage_account" = "管理账户";
+"get_started" = "开始使用";
+"connect_provider" = "连接提供商";
+"choose_a_model" = "选择模型";
+"choose_a_model_detail" = "你可以随时在设置中切换或添加模型。已为你预先选择了合适的默认模型。";
+"other_providers" = "其他提供商";
+"other_models" = "其他模型";
+"getting_things_ready" = "正在准备…";
+"python_batteries_included" = "Python，开箱即用";
+"node_js_packed_in" = "Node.js，已内置";
+"shell_tools_ready" = "Shell 工具，已就绪";
+"office_chores_under_control" = "office 杂务，尽在掌控";
+"version_control_packed_in" = "版本控制，已内置";
+"video_creation_from_idea_to_final_cut" = "视频创作，从创意到成片";
+"formal_reasoning_on_tap" = "形式推理，随时可用";
+"draw_things_cli_hooked_up" = "draw-things-cli，已接入";
+"making_it_fast" = "正在提速…";
+"apple_silicon_up_to_2x_faster" = "Apple Silicon，最高快 2 倍";
+"app_sandbox_locked_down" = "App 沙盒，严格隔离";
+"private_execution_built_in" = "私密执行，内置支持";
+"awesomeness_110_percent" = "酷炫程度，110%";
+"ready_to_work" = "准备就绪。";
+"initializing" = "正在初始化…";
+"your_account_your_workspace" = "你的账户，你的工作区";
+"your_account_your_workspace_detail" = "你的设置和工作区会在所有设备间保持同步。";
+"you_are_all_set" = "一切就绪！";
+"you_are_all_set_detail" = "下面简单介绍 Local Code 的组织方式。";
+"threads" = "对话";
+"onboarding_workspace_detail" = "工作区是 Local Code 可以读写的目录。“应用文档内”将一切限定在应用内；“本地”则可访问整台 Mac。可按项目分别设置。";
+"onboarding_workspace_bot_detail" = "工作区是 Local Code 可以读写的目录。“应用文档内”将一切限定在应用内；“本地”则可访问整台 Mac。可按机器人分别设置。";
+"onboarding_projects_detail" = "一个项目对应你电脑上的一个目录。可按代码库、客户或主题将相关对话归为一组。项目会记住你的工作区和环境设置。";
+"onboarding_bots_detail" = "一个机器人对应你电脑上的一个目录。可按代码库、客户或主题将相关对话归为一组。机器人会记住你的工作区和环境设置。";
+"onboarding_threads_detail" = "每个对话都属于某个项目。开始一个对话来提问、运行代码或处理多步骤任务。对话会在消息之间保留上下文。";
+"onboarding_threads_bot_detail" = "每个对话都属于某个机器人。开始一个对话来提问、运行代码或处理多步骤任务。对话会在消息之间保留上下文。";
+"here_are_some_project_ideas" = "这里有一些项目创意！";
+"here_are_some_bot_ideas" = "这里有一些机器人创意！";
+"here_are_some_project_ideas_detail" = "选择一个项目开始，或稍后从零创建你自己的项目。";
+"here_are_some_bot_ideas_detail" = "选择一个机器人开始，或稍后从零创建你自己的机器人。";
+"file_organizer" = "文件整理";
+"file_organizer_detail" = "整理你的桌面和下载文件夹。";
+"house_chores" = "家务";
+"house_chores_detail" = "控制你的智能家居和家电。";
+"daily_brief" = "每日简报";
+"daily_brief_detail" = "了解对你重要的新闻。";
+"tax_proofread" = "税务校对";
+"tax_proofread_detail" = "检查你的税务文件是否有错误。";
+"graphic_novelist" = "图像小说作家";
+"graphic_novelist_detail" = "创作并绘制图像小说。";
+"explainer_videos" = "讲解视频";
+"explainer_videos_detail" = "制作讲解事物的短视频。";
+"office_work" = "办公事务";
+"office_work_detail" = "编辑你的文档、表格和幻灯片。";
+"enable_bot_mode" = "启用机器人模式";
+"bot_mode" = "机器人模式";
+"bot_mode_detail" = "在整个应用中使用“机器人”代替“项目”，让各项功能更显亲切。";
+"bots" = "机器人";
+"x_of_y" = "%d / %d";
+"start" = "开始";
+"start_new_thread" = "开始新对话";
+"expanded" = "已展开";
+"collapsed" = "已折叠";
+"setting_up_cloud_compute" = "正在设置 Cloud Compute…";
+"manage_connection" = "管理连接";
+"sign_in_to_use_cloud_compute_detail" = "登录你的 Local Code 账户以使用 Cloud Compute。";
+"local_code_account_optional_detail" = "设置 Local Code 账户，让设置和工作区保持同步（可选）。";
+"signed_in_setting_up_cloud_compute" = "已登录。正在设置 Cloud Compute…";
+"you_are_signed_in_to_local_code" = "你已登录 Local Code。";
+"loading_models" = "正在加载模型…";
+"local_model" = "本地模型";
+"onboarding_local_model_detail" = "借助 Apple Silicon 完全在你的设备上运行。完全私密、速度快，并可离线使用。继续后将开始下载默认模型（%@）或你选择的模型。";
+"recommended" = "推荐";
+"requires_sign_in" = "需要登录";
+"setting_up" = "正在设置";
+"signed_in" = "已登录";
+"not_connected" = "未连接";
+"api_key_connected" = "API 密钥已连接";
+"cloud_compute_by_draw_things_detail" = "使用你的 Local Code 账户连接云端托管的模型。需要互联网连接。数据会离开你的设备。";
+"openai_compatible_api_detail" = "使用你自己的端点和 API 密钥连接 OpenAI 兼容的提供商。";
+"anthropic_detail" = "使用 API 密钥或登录你的 Anthropic 账户来连接 Claude。";
+"connected_choose_a_model_detail" = "已连接。请选择要使用的模型。";
+"connect_your_provider_to_continue" = "连接提供商后才能继续。";
+"no_models_returned_detail" = "未返回任何模型。请通过“管理连接”输入模型。";
+"could_not_load_models_detail" = "无法加载模型：%@ 请通过“管理连接”输入模型或重试。";
+"attachments" = "附件";
+"preview_some_item" = "预览 %@";
+"remove_some_item" = "移除 %@";
+"attachment_copy_failed_detail" = "无法将附件复制到项目文件夹。%@";
+
+"remote_api_fallback_context" = "备用上下文限制（令牌）";
+
+"remote_api_fallback_output" = "备用输出限制（令牌）";
+
+"remote_api_invalid_limits" = "上下文须为 4096–10000000 个令牌，输出须为 512–10000000 个令牌。任一字段留空则使用默认值。";
+
+"remote_api_disconnect" = "断开连接";
+
+"remote_api_connected_without_key" = "已连接，无 API 密钥";
+
+"remote_api_without_key_title" = "不使用 API 密钥连接？";
+
+"remote_api_changed_url_without_key" = "URL 已更改，且没有为此 URL 保存的密钥。不会复用旧 URL 的密钥。如需使用密钥，请取消并输入；否则请确认在无身份验证的情况下连接。";
+
+"remote_api_connect_without_key" = "无密钥连接";
+
+"remote_api_url_tip" = "包含 /v1 等 API 路径。使用 HTTPS，或在可信的本地网络中使用未加密的 HTTP。";
+
+"remote_api_model_tip" = "可选。输入模型 ID，或在连接后选择模型。";
+
+"remote_api_key_tip" = "留空会使用此确切地址已保存的密钥；如未保存，则无需密钥连接。";
+
+"remote_api_context_tip" = "服务器未提供上下文限制时使用。留空则使用默认值。";
+
+"remote_api_output_tip" = "服务器未提供输出限制时使用。留空则使用默认值。";
+
+"messages_permission" = "“信息”权限";
+"mail_permission" = "“邮件”权限";
+"notes_permission" = "“备忘录”权限";
+"calendar_permission" = "日历权限";
+"photos_permission" = "“照片”权限";
+"authorized" = "已授权";
+"authorize" = "授权";
+"denied" = "已拒绝";
+"not_determined" = "未确定";
+"messages_permission_detail" = "控制 imessage 命令能否读取您的“信息”记录。选择“已授权”会请您选择“信息”文件夹，选择“已拒绝”会移除该访问权限并阻止该命令。";
+"mail_permission_detail" = "控制 mail 命令能否读取“邮件” App 在这台 Mac 上保存的邮件。选择“已授权”会请您选择“邮件”文件夹，选择“已拒绝”会移除该访问权限并阻止该命令。";
+"notes_permission_detail" = "控制 notes 命令能否读取“备忘录” App 在这台 Mac 上保存的备忘录。选择“已授权”会请您选择“备忘录”数据文件夹，选择“已拒绝”会移除该访问权限并阻止该命令。";
+"calendar_permission_detail" = "控制 calendar 命令能否读取和编辑您的日程。“已拒绝”会阻止该命令；日历访问权限本身只能在系统设置中撤销。";
+"photos_permission_detail" = "控制 photos 命令和 view 工具能否读取和更改您的照片与视频。“已拒绝”会阻止它们；“照片”访问权限本身只能在系统设置中撤销。";
+"attach" = "添加附件";
+"take_photo_dot" = "拍照...";
+"add_from_photos_dot" = "从照片添加...";
+"add_files_dot" = "添加文件...";
+"dictate" = "听写";
+"stop_dictation" = "停止听写";
+"dictation_not_authorized" = "要使用听写，请在“设置”中允许 Local Code 访问麦克风和语音识别。";
+"dictation_unavailable" = "语音识别暂时不可用，请稍后再试。";
+"preview" = "预览";
+"play" = "播放";
+"pause" = "暂停";
+"full_screen" = "全屏";
+"forward" = "前进";
+"reload" = "重新载入";
+"no_open_tabs" = "没有打开的标签页。";
+"activities" = "活动";
+"browser_tabs" = "浏览器标签页";
+"browser_tabs_detail" = "代理用 web-browse-cli 打开的标签页，此会话的排在前面。打开即可查看和使用。减号按钮会关闭标签页，并停止仍在使用它的命令。";
+"processes" = "进程";
+"processes_detail" = "代理启动且仍在运行的 shell 命令，此会话的排在前面。减号按钮会停止命令，代理会看到它已被停止。";
+"no_running_process" = "没有正在运行的进程。";
+"stop_process" = "停止进程";
+"stop_process_detail" = "启动此命令的代理会看到它已被停止。";
+"lockdown_mode" = "锁定模式";
+"lockdown_mode_detail" = "在此设备锁定期间，让 Local Code 的文件（包括应用文档内的项目）保持不可读取。在你解锁之前，代理无法打开这些文件，因此设备锁定时运行的任务可能会失败。关闭后，文件会从重启后首次解锁起保持可用。应用之外的文件夹会保留其自身的保护设置。";
+"steer" = "引导";

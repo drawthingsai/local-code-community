@@ -1,0 +1,41 @@
+## Release Notes
+
+- 3.0.3 *29 March 2026*
+    - Add important caveat regarding line-numbering to Read Me. No functional changes to code.
+- 3.0.2 *24 March 2026*
+    - Tighten error-checking on Highlight.js load.
+- 3.0.1 *18 March 2026*
+    - Strict concurrency compilation warning fix (thanks [@Wcowin](https://github.com/Wcowin)).
+- 3.0.0 *9 February 2026*
+    - **Potential Break** Migrate minimum supported iOS version to 13 (thanks [@aabagdi](https://github.com/aabagdi)).
+    - Fix use of non-shimmed `NSColor` and `NSFont`.
+- 2.0.1 *2 February 2026*
+    - Correct certain framework imports for iOS (thanks [@florianreinhart](https://github.com/florianreinhart)).
+- 2.0.0 *11 September 2025*
+    - Add line numbering facility.
+    - Add preliminary VisionOS support.
+    - **Potential Break** Migrate minimum supported macOS version to Big Sur (11).
+    - **Potential Break** Update baseline Swift version to 5.9.
+    - **Potential Break** Change access rules for many module components.
+- 1.1.7 *23 July 2025*
+    - Update to the latest version of Highlight.js 11.11.1.
+- 1.1.6 *30 August 2024*
+    - Update to the latest version of Highlight.js 11.9.0.
+- 1.1.5 *29 April 2024*
+    - Add dark GitHub theme.
+- 1.1.4 *10 November 2023*
+    - Update to Highlight.js 11.9.0.
+    - Fix: add missing iOS-oriented import (thanks [@greggreg](https://github.com/gregggreg)).
+- 1.1.3 *16 May 2023*
+    - Add line and paragraph spacing controls.
+- 1.1.2 *15 March 2023*
+    - Include missing languages.
+- 1.1.1 *14 March 2023*
+    - Update to Highlight.js 11.7.0.
+- 1.1.0 *26 April 2022*
+    - Update to Highlight.js 11.5.0.
+    - Include all Highlight.js languages.
+- 1.0.1 *23 July 2021*
+    - Correct list of available themes in `package.swift`.
+- 1.0.0 *15 July 2021*
+    - Initial public release.

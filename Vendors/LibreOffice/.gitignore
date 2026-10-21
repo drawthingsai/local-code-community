@@ -1,0 +1,9 @@
+.build/
+Artifacts/
+__pycache__/
+!Frameworks/
+!Frameworks/**
+!Resources/
+!Resources/**
+!ResourcesMacOS/
+!ResourcesMacOS/**

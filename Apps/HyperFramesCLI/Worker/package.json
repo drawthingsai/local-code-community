@@ -1,0 +1,21 @@
+{
+  "dependencies": {
+    "@babel/parser": "7.29.9",
+    "@chenglou/pretext": "0.0.5",
+    "acorn": "8.18.0",
+    "acorn-walk": "8.3.5",
+    "esbuild": "0.25.12",
+    "htmlparser2": "10.1.0",
+    "linkedom": "0.18.13",
+    "magic-string": "0.30.21",
+    "postcss": "8.5.28",
+    "postcss-selector-parser": "7.1.6",
+    "recast": "0.23.21"
+  },
+  "name": "hyperframes-native-worker-build",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

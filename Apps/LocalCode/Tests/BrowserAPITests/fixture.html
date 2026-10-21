@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Browser API fixture</title>
+<style>
+  body { margin: 24px; font: 18px system-ui; color: #172b4d; background: #eef4ff; }
+  form { display: grid; gap: 12px; max-width: 500px; padding: 16px; background: white; }
+  input, button, select { padding: 8px; font: inherit; }
+  [hidden] { display: none !important; }
+  #tail { margin-top: 1300px; padding: 40px; background: #1478aa; color: white; }
+</style>
+<h1>Browser API fixture</h1>
+<form aria-label="Profile">
+  <label for="name">Full name</label><input id="name" placeholder="Your name" value="Initial">
+  <label><input id="enabled" type="checkbox"> Enabled</label>
+  <label for="country">Country</label>
+  <select id="country"><option value="us">United States</option><option value="ca">Canada</option></select>
+  <button>Save profile</button>
+</form>
+<p role="status" aria-label="Result" id="result">Waiting</p>
+<button id="replace">Replace control</button>
+<button>Duplicate</button><button>Duplicate</button>
+<button disabled>Disabled</button><button hidden>Save profile</button>
+<div id="late"></div><div id="shadow"></div>
+<button id="menu-trigger" aria-haspopup="menu">Actions</button>
+<ul role="menu" aria-label="Actions menu" id="menu" hidden><li role="menuitem">Rename</li></ul>
+<div id="hover-card"><span>Hover target</span><p role="tooltip" id="tooltip" hidden>Tooltip text</p></div>
+<form id="search" aria-label="Search"><input aria-label="Query" id="query"></form>
+<p role="status" aria-label="Search outcome" id="search-result">None</p>
+<input type="number" aria-label="Quantity" value="1">
+<a href="popup.html" target="_blank">Open popup</a>
+<button id="window-open">Open window</button>
+<a href="popup.html">Same tab link</a>
+<form action="popup.html" aria-label="Page form"><button>Submit to popup</button></form>
+<a href="archive.zip">Download archive</a>
+<button id="confirm">Confirm delete</button>
+<div id="tail">Full page screenshot marker</div>
+<script>
+  window.appState = { count: 3 };
+  // What the page's own world can see of the host, for the client's world to read back.
+  document.documentElement.dataset.pageIdentity = JSON.stringify({
+    webkit: typeof window.webkit,
+    consoleNative: /\[native code\]/.test(Function.prototype.toString.call(console.log)),
+    consoleName: console.log.name,
+  });
+  console.error('fixture error');
+  const nameInput = document.querySelector('#name');
+  const valueProperty = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  let trackedValue = nameInput.value;
+  let modelName = trackedValue;
+  let inputEvents = 0;
+  // Model the instance value tracker used by controlled inputs. A value set from the page's
+  // world updates the tracker without updating application state; the client runs in its own
+  // world and must still deliver exactly one input event.
+  Object.defineProperty(nameInput, 'value', {
+    get() { return valueProperty.get.call(this); },
+    set(value) { trackedValue = value; valueProperty.set.call(this, value); },
+  });
+  nameInput.addEventListener('input', () => {
+    inputEvents++;
+    if (nameInput.value !== trackedValue) { modelName = nameInput.value; trackedValue = modelName; }
+  });
+  document.querySelector('form').addEventListener('submit', event => {
+    event.preventDefault();
+    document.querySelector('#result').textContent = JSON.stringify({
+      name: modelName, enabled: document.querySelector('#enabled').checked,
+      country: document.querySelector('#country').value, inputEvents,
+    });
+  });
+  document.querySelector('#replace').addEventListener('click', event => {
+    const fresh = event.currentTarget.cloneNode(true);
+    fresh.textContent = 'Replacement control';
+    event.currentTarget.replaceWith(fresh);
+  });
+  const shadow = document.querySelector('#shadow').attachShadow({mode:'open'});
+  shadow.innerHTML = '<label>Shadow name<input data-testid="shadow-input"></label>';
+  shadow.querySelector('input').addEventListener('click', event => event.currentTarget.setAttribute('data-clicked', 'yes'));
+  setTimeout(() => {
+    const button = document.createElement('button');
+    button.textContent = 'Delayed control';
+    document.querySelector('#late').append(button);
+  }, 150);
+  // Menus in several component libraries open on pointerdown, not click, and close on Escape.
+  document.querySelector('#menu-trigger').addEventListener('pointerdown', () => { document.querySelector('#menu').hidden = false; });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') document.querySelector('#menu').hidden = true; });
+  const card = document.querySelector('#hover-card');
+  card.addEventListener('mouseenter', () => { document.querySelector('#tooltip').hidden = false; });
+  card.addEventListener('mouseleave', () => { document.querySelector('#tooltip').hidden = true; });
+  document.querySelector('#search').addEventListener('submit', event => {
+    event.preventDefault();
+    document.querySelector('#search-result').textContent = 'Searched ' + document.querySelector('#query').value;
+  });
+  document.querySelector('#window-open').addEventListener('click', () => { window.open('popup.html'); });
+  document.querySelector('#confirm').addEventListener('click', event => {
+    event.currentTarget.dataset.confirmed = String(confirm('Delete everything?'));
+  });
+</script>
+</html>

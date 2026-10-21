@@ -1,0 +1,8 @@
+
+table PrivacyPass {
+  id: long (primary);
+  token: [ubyte];
+  expiration_date: ulong;
+}
+
+root_type PrivacyPass;

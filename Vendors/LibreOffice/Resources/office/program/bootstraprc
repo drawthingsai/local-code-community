@@ -1,0 +1,4 @@
+[Bootstrap]
+InstallMode=<installmode>
+ProductKey=LibreOfficeDev 26.8
+UserInstallation=$ORIGIN/..

@@ -1,0 +1,234 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f8ee65a..06297a1 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -42,6 +42,8 @@ option(MLX_BUILD_GGUF "Include support for GGUF format" ON)
+ option(MLX_BUILD_SAFETENSORS "Include support for safetensors format" ON)
+ option(MLX_BUILD_PYTHON_STUBS "Build stub files for python bindings" ON)
+ option(MLX_METAL_JIT "Use JIT compilation for Metal kernels" OFF)
++option(MLX_METALCPP_DYNAMIC_CONSTANTS
++       "Resolve metal-cpp constants dynamically for cross-platform builds" OFF)
+ option(MLX_USE_CCACHE "Use CCache for compilation cache when available" ON)
+ option(BUILD_SHARED_LIBS "Build mlx as a shared library" OFF)
+ option(USE_SYSTEM_FMT "Use system's provided fmt library" OFF)
+@@ -206,17 +208,23 @@ if(MLX_BUILD_METAL)
+     if(CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
+       set(CMAKE_OSX_DEPLOYMENT_TARGET "${MACOS_VERSION}")
+     endif()
+-    if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 14.0)
+-      message(FATAL_ERROR "MLX requires macOS >= 14.0")
+-    endif()
+     message(STATUS "Building for macOS ${CMAKE_OSX_DEPLOYMENT_TARGET}")
+
++    if(MLX_METAL_COMPILER)
++      set(MLX_METAL_COMPILER_SHELL "\"${MLX_METAL_COMPILER}\"")
++    else()
++      set(MLX_METAL_COMPILER_SHELL "xcrun -sdk macosx metal")
++    endif()
++
+     # Get Metal version.
+     set(XCRUN_FLAGS "-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
++    if(MLX_METAL_LANGUAGE_STANDARD)
++      string(APPEND XCRUN_FLAGS " -std=${MLX_METAL_LANGUAGE_STANDARD}")
++    endif()
+     execute_process(
+       COMMAND
+         zsh "-c"
+-        "echo \"__METAL_VERSION__\" | xcrun -sdk macosx metal ${XCRUN_FLAGS} -E -x metal -P - | tail -1"
++        "echo \"__METAL_VERSION__\" | ${MLX_METAL_COMPILER_SHELL} ${XCRUN_FLAGS} -E -x metal -P - | tail -1"
+       OUTPUT_VARIABLE MLX_METAL_VERSION
+       OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
+     message(STATUS "Metal version: ${MLX_METAL_VERSION}")
+@@ -231,6 +239,9 @@ if(MLX_BUILD_METAL)
+   target_include_directories(
+     mlx PUBLIC $<BUILD_INTERFACE:${metal_cpp_SOURCE_DIR}>
+                $<INSTALL_INTERFACE:include/metal_cpp>)
++  if(MLX_METALCPP_DYNAMIC_CONSTANTS)
++    target_compile_definitions(mlx PRIVATE MLX_METALCPP_DYNAMIC_CONSTANTS)
++  endif()
+   target_link_libraries(mlx PUBLIC ${METAL_LIB} ${FOUNDATION_LIB} ${QUARTZ_LIB})
+ endif()
+
+diff --git a/mlx/backend/metal/CMakeLists.txt b/mlx/backend/metal/CMakeLists.txt
+index 5eb8f54..d779c3a 100644
+--- a/mlx/backend/metal/CMakeLists.txt
++++ b/mlx/backend/metal/CMakeLists.txt
+@@ -1,3 +1,17 @@
++set(MLX_METAL_PREAMBLE_FLAGS)
++if(MLX_METAL_MODULE_CACHE_PATH)
++  list(APPEND MLX_METAL_PREAMBLE_FLAGS
++       "-fmodules-cache-path=${MLX_METAL_MODULE_CACHE_PATH}")
++endif()
++if(MLX_METAL_LANGUAGE_STANDARD)
++  list(APPEND MLX_METAL_PREAMBLE_FLAGS
++       "-std=${MLX_METAL_LANGUAGE_STANDARD}")
++endif()
++if(MLX_METAL_PLATFORM_FLAG)
++  list(APPEND MLX_METAL_PREAMBLE_FLAGS "${MLX_METAL_PLATFORM_FLAG}")
++endif()
++list(JOIN MLX_METAL_PREAMBLE_FLAGS " " MLX_METAL_PREAMBLE_FLAGS)
++
+ function(make_jit_source SRC_FILE)
+   # This function takes a metal header file, runs the C preprocessesor on it,
+   # and makes the processed contents available as a string in a C++ function
+@@ -12,9 +26,10 @@ function(make_jit_source SRC_FILE)
+   add_custom_command(
+     OUTPUT jit/${SRC_NAME}.cpp
+     COMMAND
+-      bash ${CMAKE_CURRENT_SOURCE_DIR}/make_compiled_preamble.sh
++      ${CMAKE_COMMAND} -E env "MLX_METAL_COMPILER=${MLX_METAL_COMPILER}" bash
++      ${CMAKE_CURRENT_SOURCE_DIR}/make_compiled_preamble.sh
+       ${CMAKE_CURRENT_BINARY_DIR}/jit ${CMAKE_C_COMPILER} ${PROJECT_SOURCE_DIR}
+-      ${SRC_FILE}
++      ${SRC_FILE} "${MLX_METAL_PREAMBLE_FLAGS}"
+     DEPENDS make_compiled_preamble.sh kernels/${SRC_FILE}.h ${ARGN})
+   add_custom_target(${SRC_NAME} DEPENDS jit/${SRC_NAME}.cpp)
+   add_dependencies(mlx ${SRC_NAME})
+diff --git a/mlx/backend/metal/make_compiled_preamble.sh b/mlx/backend/metal/make_compiled_preamble.sh
+index 07c8863..b6d17d7 100644
+--- a/mlx/backend/metal/make_compiled_preamble.sh
++++ b/mlx/backend/metal/make_compiled_preamble.sh
+@@ -31,8 +31,12 @@ OUTPUT_FILE=${OUTPUT_DIR}/${SRC_NAME}.cpp
+ mkdir -p "$OUTPUT_DIR"
+
+ # Use the metal compiler to get a list of headers (with depth)
+-CCC="xcrun -sdk macosx metal -x metal"
+-HDRS=$( $CCC -I"$SRC_DIR" -I"$JIT_INCLUDES" -DMLX_METAL_JIT -E -P -CC -C -H "$INPUT_FILE" $CFLAGS -w 2>&1 1>/dev/null )
++if [ -n "${MLX_METAL_COMPILER:-}" ]; then
++  CCC=("$MLX_METAL_COMPILER" -x metal)
++else
++  CCC=(xcrun -sdk macosx metal -x metal)
++fi
++HDRS=$( "${CCC[@]}" -I"$SRC_DIR" -I"$JIT_INCLUDES" -DMLX_METAL_JIT -E -P -CC -C -H "$INPUT_FILE" $CFLAGS -w 2>&1 1>/dev/null )
+
+ # Fail early if the Metal compiler returned errors instead of header paths.
+ # Valid lines start with '.' chars (depth indicators); anything else means
+@@ -44,8 +48,7 @@ if [ -n "$HDRS" ]; then
+     echo "Expected lines starting with '.' but got:" >&2
+     echo "$invalid_lines" >&2
+     echo "" >&2
+-    echo "This usually means xcrun or the Metal toolchain is not configured correctly." >&2
+-    echo "Try running: xcrun -sdk macosx metal --version" >&2
++    echo "This usually means the selected Metal toolchain is not configured correctly." >&2
+     exit 1
+   fi
+ fi
+diff --git a/mlx/backend/metal/kernels/CMakeLists.txt b/mlx/backend/metal/kernels/CMakeLists.txt
+index edc169e..2d8d75e 100644
+--- a/mlx/backend/metal/kernels/CMakeLists.txt
++++ b/mlx/backend/metal/kernels/CMakeLists.txt
+@@ -1,3 +1,9 @@
++if(MLX_METAL_COMPILER)
++  set(MLX_METAL_COMPILER_COMMAND "${MLX_METAL_COMPILER}")
++else()
++  set(MLX_METAL_COMPILER_COMMAND xcrun -sdk macosx metal)
++endif()
++
+ set(BASE_HEADERS
+     bf16.h
+     bf16_math.h
+@@ -24,12 +30,21 @@ function(build_kernel_base TARGET SRCFILE DEPS)
+   if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND MLX_METAL_VERSION GREATER_EQUAL 320)
+     set(METAL_FLAGS ${METAL_FLAGS} -fmetal-enable-logging)
+   endif()
+-  if(NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
++  if(MLX_METAL_MODULE_CACHE_PATH)
++    set(METAL_FLAGS ${METAL_FLAGS}
++                    "-fmodules-cache-path=${MLX_METAL_MODULE_CACHE_PATH}")
++  endif()
++  if(MLX_METAL_LANGUAGE_STANDARD)
++    set(METAL_FLAGS ${METAL_FLAGS} "-std=${MLX_METAL_LANGUAGE_STANDARD}")
++  endif()
++  if(MLX_METAL_PLATFORM_FLAG)
++    set(METAL_FLAGS ${METAL_FLAGS} "${MLX_METAL_PLATFORM_FLAG}")
++  elseif(NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
+     set(METAL_FLAGS ${METAL_FLAGS}
+                     "-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+   endif()
+   add_custom_command(
+-    COMMAND xcrun -sdk macosx metal ${METAL_FLAGS} -c ${SRCFILE}
++    COMMAND ${MLX_METAL_COMPILER_COMMAND} ${METAL_FLAGS} -c ${SRCFILE}
+             -I${PROJECT_SOURCE_DIR} -o ${TARGET}.air
+     DEPENDS ${SRCFILE} ${DEPS} ${BASE_HEADERS}
+     OUTPUT ${TARGET}.air
+@@ -179,13 +194,20 @@ if(NOT MLX_METAL_JIT)
+ endif()
+
+ set(METAL_LINK_FLAGS)
+-if(NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
+-  set(METAL_LINK_FLAGS "-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
++if(MLX_METAL_LANGUAGE_STANDARD)
++  set(METAL_LINK_FLAGS ${METAL_LINK_FLAGS}
++                       "-std=${MLX_METAL_LANGUAGE_STANDARD}")
++endif()
++if(MLX_METAL_PLATFORM_FLAG)
++  set(METAL_LINK_FLAGS ${METAL_LINK_FLAGS} "${MLX_METAL_PLATFORM_FLAG}")
++elseif(NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
++  set(METAL_LINK_FLAGS ${METAL_LINK_FLAGS}
++                       "-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+ endif()
+
+ add_custom_command(
+   OUTPUT ${MLX_METAL_PATH}/mlx.metallib
+-  COMMAND xcrun -sdk macosx metal ${METAL_LINK_FLAGS} ${KERNEL_AIR} -o
++  COMMAND ${MLX_METAL_COMPILER_COMMAND} ${METAL_LINK_FLAGS} ${KERNEL_AIR} -o
+           ${MLX_METAL_PATH}/mlx.metallib
+   DEPENDS ${KERNEL_AIR}
+   COMMENT "Building mlx.metallib"
+diff --git a/python/src/CMakeLists.txt b/python/src/CMakeLists.txt
+index 4472715..a537c8e 100644
+--- a/python/src/CMakeLists.txt
++++ b/python/src/CMakeLists.txt
+@@ -2,8 +2,7 @@ nanobind_add_module(
+   core
+   NB_STATIC
+   STABLE_ABI
+   FREE_THREADED
+-  LTO
+   NOMINSIZE
+   NB_DOMAIN
+   mlx
+@@ -84,6 +83,11 @@ set_target_properties(
+              LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL
+              ${MLX_PYTHON_BINDINGS_OUTPUT_DIRECTORY})
+
++if(MLX_PYTHON_METALLIB_RELATIVE_PATH)
++  target_compile_definitions(
++    core PRIVATE MLX_PYTHON_METALLIB_RELATIVE_PATH="${MLX_PYTHON_METALLIB_RELATIVE_PATH}")
++endif()
++
+ target_link_libraries(core PRIVATE mlx)
+
+ if(BUILD_SHARED_LIBS)
+diff --git a/python/src/mlx.cpp b/python/src/mlx.cpp
+index cb031cf..366cf28 100644
+--- a/python/src/mlx.cpp
++++ b/python/src/mlx.cpp
+@@ -1,7 +1,11 @@
+ // Copyright © 2023-2024 Apple Inc.
+
++#include <cstdlib>
++#include <string>
++
+ #include <nanobind/nanobind.h>
+
++#include "mlx/backend/metal/metal.h"
+ #include "mlx/version.h"
+
+ namespace mx = mlx::core;
+@@ -26,6 +30,15 @@ void init_export(nb::module_&);
+ void init_print(nb::module_&);
+
+ NB_MODULE(core, m) {
++#ifdef MLX_PYTHON_METALLIB_RELATIVE_PATH
++  const char* python_home = std::getenv("PYTHONHOME");
++  if (python_home != nullptr && python_home[0] != '\0') {
++    mx::metal::set_metallib_path(
++        std::string(python_home) + "/" +
++        MLX_PYTHON_METALLIB_RELATIVE_PATH);
++  }
++#endif
++
+   m.doc() = "mlx: A framework for machine learning on Apple silicon.";
+
+   auto reprlib_fix = nb::module_::import_("mlx._reprlib_fix");

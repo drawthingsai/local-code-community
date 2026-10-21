@@ -1,0 +1,7 @@
+Office uses LibreOffice 26.8.0.3 and dsh-libreoffice-kit.
+LibreOffice source: https://github.com/LibreOffice/core/tree/bce0998afefdbc355585ca324285661a2170ba77
+dsh source: https://github.com/deepseek-ai/dsh-libreoffice-kit/tree/b19bb73c74ed893b8a5d1716d32df32a113ed31b
+Modified sources, patches and build instructions: Vendors/LibreOffice in
+https://github.com/drawthingsai/draw-things (the source revision of this app).
+LibreOffice and the adapted worker are covered by MPL-2.0; bundled
+dependencies retain the accompanying third-party notices.

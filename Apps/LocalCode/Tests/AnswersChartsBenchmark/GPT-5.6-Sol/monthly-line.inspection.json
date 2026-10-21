@@ -1,0 +1,132 @@
+{
+  "runtime": {
+    "python": "3.14.7 (tags/v3.14.7-dirty:823f0323ee6, Aug 28 2026, 13:14:07) [Clang 21.0.0 (clang-2100.1.1.101)]",
+    "matplotlib": "3.11.1",
+    "pillow": "12.3.0",
+    "backend": "Agg"
+  },
+  "script_sha256": "49ac6f0a9afb33a208d03cbe4f1473d07b1a2ad38de1cebfb112b3feda95422c",
+  "figures": [
+    {
+      "png": {
+        "name": "monthly-revenue.png",
+        "size": [
+          2000,
+          1064
+        ],
+        "sha256": "2cdcd1b6c1bec12e38064fcc20d5179f4cd39474af6c7a23b2aab6aa6bbb8b56"
+      },
+      "axes": [
+        {
+          "titles": [
+            "Monthly revenue",
+            "",
+            ""
+          ],
+          "xlabel": "",
+          "ylabel": "Revenue (USD)",
+          "xscale": "linear",
+          "yscale": "linear",
+          "xticks": [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec"
+          ],
+          "yticks": [
+            "$100K",
+            "$120K",
+            "$140K",
+            "$160K",
+            "$180K",
+            "$200K",
+            "$220K"
+          ],
+          "texts": [
+            "$208K",
+            "$210K"
+          ],
+          "legend": [
+            "Actual",
+            "Planned"
+          ],
+          "bars": [],
+          "lines": [
+            {
+              "label": "Actual",
+              "x": [
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec"
+              ],
+              "y": [
+                120000,
+                128000,
+                135000,
+                141000,
+                149000,
+                155000,
+                162000,
+                170000,
+                178000,
+                187000,
+                196000,
+                208000
+              ]
+            },
+            {
+              "label": "Planned",
+              "x": [
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec"
+              ],
+              "y": [
+                125000,
+                130000,
+                134000,
+                140000,
+                148000,
+                156000,
+                164000,
+                171000,
+                180000,
+                188000,
+                198000,
+                210000
+              ]
+            }
+          ],
+          "scatter": [],
+          "pie_percentages": []
+        }
+      ]
+    }
+  ]
+}

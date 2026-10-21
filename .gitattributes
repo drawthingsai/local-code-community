@@ -1,0 +1,36 @@
+Vendors/NodeJS/Frameworks/** -diff -merge -text
+Vendors/NodeJS/Frameworks/**/*.a filter=lfs diff=lfs merge=lfs -text
+Vendors/NodeJS/LICENSE -whitespace
+Vendors/NodeJS/Patches/** -whitespace
+Vendors/Ripgrep/*.patch -whitespace
+Vendors/PythonIOS/Frameworks/** -diff -merge -text
+Vendors/PythonIOS/Resources/** -diff -merge -text
+Vendors/PythonIOS/ResourcesMacOS/** -diff -merge -text
+Vendors/PythonIOS/Frameworks/**/*.a filter=lfs diff=lfs merge=lfs -text
+Vendors/PythonIOS/Resources/**/*.metallib filter=lfs diff=lfs merge=lfs -text
+Vendors/PythonIOS/ResourcesMacOS/**/*.metallib filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Patches/** -whitespace
+Vendors/LibreOffice/Resources*/** -whitespace
+Vendors/LibreOffice/Frameworks/** -diff -merge -text
+Vendors/LibreOffice/Frameworks/**/*.a filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/office/** -diff -merge -text
+Vendors/LibreOffice/Resources*/**/*.nib filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.png filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.rdb filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.sop filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.ttf filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.odb filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.fmt filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.sdv filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.thm filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.bau filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.dbf filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.dbt filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.gif filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.sdg filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.dat filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.sob filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.ott filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.oth filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Resources*/**/*.odt filter=lfs diff=lfs merge=lfs -text
+Vendors/LibreOffice/Notices/** -whitespace

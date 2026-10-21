@@ -1,0 +1,383 @@
+[
+  {
+    "case": "revenue-bar",
+    "prompt": "Use $answers-charts. Create one polished bar chart ranking these eight revenue categories. Preserve every exact label and value: Enterprise platform subscriptions $985,000; Professional implementation services $870,000; Managed data operations $760,000; Security and compliance packages $650,000; Analytics and reporting add-ons $540,000; Developer productivity extensions $430,000; Training and enablement programs $320,000; Premium customer support $210,000. Use a layout that keeps the long category labels readable. Title it Revenue ranking and describe it as exact revenue by category.",
+    "model": "qwen_3.8_27b_i4x.ckpt",
+    "started_at": "2026-09-09T19:37:04Z",
+    "process_wall_seconds": 101.38698941700568,
+    "agent_seconds": 98.78689706325531,
+    "skill_sha256": "b4c5a3a36367253644cbf96155c461d30900a5d616bfc23c5a0063efb4062994",
+    "cli_sha256": "65207cfdb983d248f0615b05418dd1d5dac53bc1d53a87b138ae660a142923d0",
+    "return_code": 0,
+    "stopped_at_token_limit": false,
+    "interrupted": false,
+    "final_text": "Done. I built a horizontal bar chart (best for long labels) ranking all eight categories by exact revenue, with each bar annotated to its precise dollar value.\n\n![Revenue ranking — exact revenue by category](outputs/charts/revenue-ranking.png)\n\n- **Layout:** horizontal bars, top-to-bottom in descending order, so every long category label stays fully readable on the y-axis.\n- **Title:** \"Revenue ranking\", with the subtitle \"Exact revenue by category\".\n- **Values:** all eight labels and dollar amounts preserved exactly, annotated on each bar.\n- **Verification:** script ran clean (exit 0); PNG reopened via Pillow (format PNG, ≥800×450) and the SVG is nonempty.\n\nAn editable SVG is also available at `outputs/charts/revenue-ranking.svg`.",
+    "final_text_characters": 741,
+    "final_text_words": 105,
+    "reported_recent_round_mean_generated_tokens": 1072,
+    "context_used_tokens": 9108,
+    "context_window_tokens": 131072,
+    "tool_response_source": "prefixTokens recovery",
+    "tool_calls": [
+      {
+        "function": "read",
+        "parameters": {
+          "path": "/app_bundle/Skills/answers-charts/SKILL.md",
+          "whole": "true"
+        },
+        "response": "[Skill read; contents retained in SKILL.md]",
+        "response_sha256": "9065fc03a24497c4436ac775cdaf62d6e7b1e57fd2ecd22189207379b25d18b6"
+      },
+      {
+        "function": "write",
+        "parameters": {
+          "path": "outputs/chart_task.py"
+        },
+        "response": "Wrote 1984 bytes to outputs/chart_task.py",
+        "response_sha256": "5ba46e00c552ad4d7359dc58469ea2be33fb0902d31264728537318c91a7a508"
+      },
+      {
+        "function": "bash",
+        "parameters": {
+          "command": "python3 outputs/chart_task.py"
+        },
+        "response": "job=1\nstatus=running",
+        "response_sha256": "161f3d1735211215acdf2e2f6919ec3789e630b6fe046dc2d005dd14892b07b4"
+      },
+      {
+        "function": "bash_wait",
+        "parameters": {
+          "job": "1"
+        },
+        "response": "job=1\nstatus=completed\nexit=0\nstdout:\nverified outputs/charts/revenue-ranking.png and outputs/charts/revenue-ranking.svg",
+        "response_sha256": "bd50e25d3288c1569b6227171fb1afd4cb006df2bae992339304f3780464fec1"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "outputs/charts/revenue-ranking.png",
+        "bytes": 127912,
+        "sha256": "c0a6de07957690e209a7b6cf5264f314193a85e5b1f7a8175e593dfc6b0dba67",
+        "size": [
+          2000,
+          1190
+        ]
+      },
+      {
+        "path": "outputs/charts/revenue-ranking.svg",
+        "bytes": 60347,
+        "sha256": "bbf60680f24b66a89e89682f4edd546d96cd920ef7397b02f65f1c470a4954d9"
+      }
+    ],
+    "automated_score": {
+      "case": "revenue-bar",
+      "automated_passed": true,
+      "duration_seconds": 98.78689706325531,
+      "recent_round_statistics": {
+        "scope": "mean-of-last-three-model-rounds",
+        "generated_tokens": 1072,
+        "context_used_tokens": 9108,
+        "context_window_tokens": 131072
+      },
+      "tool_call_count": 4,
+      "errors": [],
+      "tool_response_source": "prefixTokens recovery",
+      "manual_review_required": "layout, units, labels/series association, summary, limitation behavior"
+    }
+  },
+  {
+    "case": "monthly-line",
+    "prompt": "Use $answers-charts. Create one polished line chart of actual versus planned monthly revenue. Preserve all 12 months and both series: Jan 120000/125000, Feb 128000/130000, Mar 135000/134000, Apr 141000/140000, May 149000/148000, Jun 155000/156000, Jul 162000/164000, Aug 170000/171000, Sep 178000/180000, Oct 187000/188000, Nov 196000/198000, Dec 208000/210000, where each pair is actual/planned dollars. Title it Monthly revenue.",
+    "model": "qwen_3.8_27b_i4x.ckpt",
+    "started_at": "2026-09-09T19:38:48Z",
+    "process_wall_seconds": 150.5639108339965,
+    "agent_seconds": 145.17891907691956,
+    "skill_sha256": "b4c5a3a36367253644cbf96155c461d30900a5d616bfc23c5a0063efb4062994",
+    "cli_sha256": "65207cfdb983d248f0615b05418dd1d5dac53bc1d53a87b138ae660a142923d0",
+    "return_code": 0,
+    "stopped_at_token_limit": false,
+    "interrupted": false,
+    "final_text": "Chart created and verified — all 12 months and both series (actual, planned) plotted exactly as supplied, with the title \"Monthly revenue\".\n\n![Monthly revenue: actual vs planned](outputs/charts/monthly-revenue-actual-vs-planned.png)\n\n- Actual (solid blue) vs Planned (dashed red), with distinct markers so the series aren't color-only.\n- Y-axis formatted in dollars; gridlines for readability.\n- PNG (180 dpi) and SVG saved under `outputs/charts/`; Pillow reopened the PNG and confirmed dimensions.\n\n[SVG for download/editing](outputs/charts/monthly-revenue-actual-vs-planned.svg)",
+    "final_text_characters": 580,
+    "final_text_words": 70,
+    "reported_recent_round_mean_generated_tokens": 1386,
+    "context_used_tokens": 9433,
+    "context_window_tokens": 131072,
+    "tool_response_source": "prefixTokens recovery",
+    "tool_calls": [
+      {
+        "function": "read",
+        "parameters": {
+          "path": "/app_bundle/Skills/answers-charts/SKILL.md",
+          "whole": "true"
+        },
+        "response": "[Skill read; contents retained in SKILL.md]",
+        "response_sha256": "9065fc03a24497c4436ac775cdaf62d6e7b1e57fd2ecd22189207379b25d18b6"
+      },
+      {
+        "function": "write",
+        "parameters": {
+          "path": "outputs/chart_task.py"
+        },
+        "response": "Wrote 1622 bytes to outputs/chart_task.py",
+        "response_sha256": "9b41bdad09158b78eaa2bf0260259e9524e0ad9cc3e483733fee2ceeed00ba03"
+      },
+      {
+        "function": "bash",
+        "parameters": {
+          "command": "python3 outputs/chart_task.py"
+        },
+        "response": "job=1\nstatus=running",
+        "response_sha256": "161f3d1735211215acdf2e2f6919ec3789e630b6fe046dc2d005dd14892b07b4"
+      },
+      {
+        "function": "bash_wait",
+        "parameters": {
+          "job": "1"
+        },
+        "response": "job=1\nstatus=completed\nexit=0\nstdout:\nverified outputs/charts/monthly-revenue-actual-vs-planned.png and outputs/charts/monthly-revenue-actual-vs-planned.svg",
+        "response_sha256": "91f82581a517007af2a6bd930d8b70fa24144cce02137b56713a35d7fada66ab"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "outputs/charts/monthly-revenue-actual-vs-planned.png",
+        "bytes": 96350,
+        "sha256": "5dc74cd06a7b3ba141d489e0fcf6df930950985156330b45e6311c097a3e288e",
+        "size": [
+          1820,
+          1010
+        ]
+      },
+      {
+        "path": "outputs/charts/monthly-revenue-actual-vs-planned.svg",
+        "bytes": 40886,
+        "sha256": "b48194f7c89c8905d7e29d8cd106300c1db75d5aa1a3d900248cf9731b355b61"
+      }
+    ],
+    "automated_score": {
+      "case": "monthly-line",
+      "automated_passed": true,
+      "duration_seconds": 145.17891907691956,
+      "recent_round_statistics": {
+        "scope": "mean-of-last-three-model-rounds",
+        "generated_tokens": 1386,
+        "context_used_tokens": 9433,
+        "context_window_tokens": 131072
+      },
+      "tool_call_count": 4,
+      "errors": [],
+      "tool_response_source": "prefixTokens recovery",
+      "manual_review_required": "layout, units, labels/series association, summary, limitation behavior"
+    }
+  },
+  {
+    "case": "channel-pie",
+    "prompt": "Use $answers-charts. Create one polished pie chart for acquisition channel share: Organic search 35%, Paid social 25%, Partner referrals 20%, Email 15%, Events 5%. Preserve the five exact labels and percentage points. Title it Acquisition mix and state that the shares total 100%.",
+    "model": "qwen_3.8_27b_i4x.ckpt",
+    "started_at": "2026-09-09T19:41:19Z",
+    "process_wall_seconds": 83.51355487500405,
+    "agent_seconds": 78.17676198482513,
+    "skill_sha256": "b4c5a3a36367253644cbf96155c461d30900a5d616bfc23c5a0063efb4062994",
+    "cli_sha256": "65207cfdb983d248f0615b05418dd1d5dac53bc1d53a87b138ae660a142923d0",
+    "return_code": 0,
+    "stopped_at_token_limit": false,
+    "interrupted": false,
+    "final_text": "Done. The pie chart is built and verified:\n\n- **Title:** Acquisition mix, with a caption stating the channel shares total 100%.\n- **Slices (exact labels and values):** Organic search 35%, Paid social 25%, Partner referrals 20%, Email 15%, Events 5% — each annotated with its percentage.\n- **Verification:** Script ran cleanly; PNG reopened with Pillow (format PNG, ≥800×450 px) and the SVG is nonempty.\n\n![Acquisition mix pie chart](outputs/charts/acquisition-mix-pie.png)\n\nFiles: `outputs/charts/acquisition-mix-pie.png` (high-res) and [acquisition-mix-pie.svg](outputs/charts/acquisition-mix-pie.svg) for reuse.",
+    "final_text_characters": 613,
+    "final_text_words": 75,
+    "reported_recent_round_mean_generated_tokens": 970,
+    "context_used_tokens": 8926,
+    "context_window_tokens": 131072,
+    "tool_response_source": "prefixTokens recovery",
+    "tool_calls": [
+      {
+        "function": "read",
+        "parameters": {
+          "path": "/app_bundle/Skills/answers-charts/SKILL.md",
+          "whole": "true"
+        },
+        "response": "[Skill read; contents retained in SKILL.md]",
+        "response_sha256": "9065fc03a24497c4436ac775cdaf62d6e7b1e57fd2ecd22189207379b25d18b6"
+      },
+      {
+        "function": "write",
+        "parameters": {
+          "path": "outputs/chart_task.py"
+        },
+        "response": "Wrote 1574 bytes to outputs/chart_task.py",
+        "response_sha256": "d1c26a85968ee96f4d7e7bc03d29290816afedd47eab02ae9979a5822330d9c6"
+      },
+      {
+        "function": "bash",
+        "parameters": {
+          "command": "python3 outputs/chart_task.py"
+        },
+        "response": "job=1\nstatus=completed\nexit=0\nstdout:\nverified outputs/charts/acquisition-mix-pie.png and outputs/charts/acquisition-mix-pie.svg",
+        "response_sha256": "4aa15fdc360a6c27242d74a426b6004d9d6a96181e4f474b6e98f348c50e99cc"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "outputs/charts/acquisition-mix-pie.png",
+        "bytes": 87372,
+        "sha256": "8d0c95790d432c1b0453e2468fbcc8680b8e1e6ef3567894996f4af089466620",
+        "size": [
+          1220,
+          1010
+        ]
+      },
+      {
+        "path": "outputs/charts/acquisition-mix-pie.svg",
+        "bytes": 30310,
+        "sha256": "2178f5c26bbb0b957979aa037a27d23f19f84a7ce7a70110797b19d572718034"
+      }
+    ],
+    "automated_score": {
+      "case": "channel-pie",
+      "automated_passed": true,
+      "duration_seconds": 78.17676198482513,
+      "recent_round_statistics": {
+        "scope": "mean-of-last-three-model-rounds",
+        "generated_tokens": 970,
+        "context_used_tokens": 8926,
+        "context_window_tokens": 131072
+      },
+      "tool_call_count": 3,
+      "errors": [],
+      "tool_response_source": "prefixTokens recovery",
+      "manual_review_required": "layout, units, labels/series association, summary, limitation behavior"
+    }
+  },
+  {
+    "case": "spend-scatter",
+    "prompt": "Use $answers-charts. Create one polished scatter chart of ad spend versus revenue for these ten exact dollar observations: 10000/72000, 14000/88000, 18000/97000, 22000/121000, 26000/134000, 30000/151000, 34000/165000, 38000/181000, 42000/190000, 46000/214000. The first number is ad spend and the second is revenue. Title it Ad spend vs revenue.",
+    "model": "qwen_3.8_27b_i4x.ckpt",
+    "started_at": "2026-09-09T19:42:41Z",
+    "process_wall_seconds": 101.05256512499909,
+    "agent_seconds": 98.33819699287415,
+    "skill_sha256": "b4c5a3a36367253644cbf96155c461d30900a5d616bfc23c5a0063efb4062994",
+    "cli_sha256": "65207cfdb983d248f0615b05418dd1d5dac53bc1d53a87b138ae660a142923d0",
+    "return_code": 0,
+    "stopped_at_token_limit": false,
+    "interrupted": false,
+    "final_text": "Chart created and verified — the script ran cleanly, and both the PNG and SVG exist, are nonempty, and the PNG reopened successfully in Pillow. All ten exact observations are plotted as supplied, with dollar-formatted axes and per-point revenue labels.\n\n![Ad spend vs revenue scatter chart](outputs/charts/ad-spend-vs-revenue.png)\n\nThe points show a strong positive relationship: revenue rises from $72k at $10k spend to $214k at $46k spend.\n\nFiles:\n- `outputs/chart_task.py` — reusable chart script\n- `outputs/charts/ad-spend-vs-revenue.png` — high-resolution chart\n- [outputs/charts/ad-spend-vs-revenue.svg](outputs/charts/ad-spend-vs-revenue.svg) — vector version for editing",
+    "final_text_characters": 678,
+    "final_text_words": 84,
+    "reported_recent_round_mean_generated_tokens": 1248,
+    "context_used_tokens": 9332,
+    "context_window_tokens": 131072,
+    "tool_response_source": "prefixTokens recovery",
+    "tool_calls": [
+      {
+        "function": "read",
+        "parameters": {
+          "path": "/app_bundle/Skills/answers-charts/SKILL.md"
+        },
+        "response": "[Skill read; contents retained in SKILL.md]",
+        "response_sha256": "9065fc03a24497c4436ac775cdaf62d6e7b1e57fd2ecd22189207379b25d18b6"
+      },
+      {
+        "function": "write",
+        "parameters": {
+          "path": "outputs/chart_task.py"
+        },
+        "response": "Wrote 1708 bytes to outputs/chart_task.py",
+        "response_sha256": "07c75fccd5cca0dc260bb195e81733d7a8bf5f835b2f472a4a3d0a3b723763be"
+      },
+      {
+        "function": "bash",
+        "parameters": {
+          "command": "python3 outputs/chart_task.py"
+        },
+        "response": "job=1\nstatus=running",
+        "response_sha256": "161f3d1735211215acdf2e2f6919ec3789e630b6fe046dc2d005dd14892b07b4"
+      },
+      {
+        "function": "bash_wait",
+        "parameters": {
+          "job": "1"
+        },
+        "response": "job=1\nstatus=completed\nexit=0\nstdout:\nverified outputs/charts/ad-spend-vs-revenue.png and outputs/charts/ad-spend-vs-revenue.svg",
+        "response_sha256": "2a15996ab34a630c61543e7c2a1aaa576cc49041ac2533596ba6e11feb7965ad"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "outputs/charts/ad-spend-vs-revenue.png",
+        "bytes": 83168,
+        "sha256": "78c941e3e14f2ebb1b3fe43aaf285bc92910150e3700cfa1b0f5ff58bf5969f6",
+        "size": [
+          1640,
+          1010
+        ]
+      },
+      {
+        "path": "outputs/charts/ad-spend-vs-revenue.svg",
+        "bytes": 46576,
+        "sha256": "915df89c1fd1cdd125b807659f2a647054d10bb0ae33e74dea1a3fcf23a7cf65"
+      }
+    ],
+    "automated_score": {
+      "case": "spend-scatter",
+      "automated_passed": true,
+      "duration_seconds": 98.33819699287415,
+      "recent_round_statistics": {
+        "scope": "mean-of-last-three-model-rounds",
+        "generated_tokens": 1248,
+        "context_used_tokens": 9332,
+        "context_window_tokens": 131072
+      },
+      "tool_call_count": 4,
+      "errors": [],
+      "tool_response_source": "prefixTokens recovery",
+      "manual_review_required": "layout, units, labels/series association, summary, limitation behavior"
+    }
+  },
+  {
+    "case": "quadratic-limitation",
+    "prompt": "Use $answers-charts. Create a chart of the mathematical function y = x². Do not invent or sample x/y measurements. If required plotting inputs are missing, briefly explain the limitation and request them instead of creating artifacts.",
+    "model": "qwen_3.8_27b_i4x.ckpt",
+    "started_at": "2026-09-09T19:36:18Z",
+    "process_wall_seconds": 45.26815679200081,
+    "agent_seconds": 42.75948905944824,
+    "skill_sha256": "b4c5a3a36367253644cbf96155c461d30900a5d616bfc23c5a0063efb4062994",
+    "cli_sha256": "65207cfdb983d248f0615b05418dd1d5dac53bc1d53a87b138ae660a142923d0",
+    "return_code": 0,
+    "stopped_at_token_limit": false,
+    "interrupted": false,
+    "final_text": "I can't create the chart yet. The skill's workflow (and your instruction) requires actual plotting inputs, and for a mathematical function like y = x² those are:\n\n1. **Domain** — the x range to plot (e.g., x from −5 to 5).\n2. **Resolution** — how many points to evaluate the function at (e.g., 200 points), or a specific set of x values.\n\nWithout a domain and resolution, I'd have to invent sample points myself, which you've asked me not to do.\n\nPlease provide the x range and point count (or an explicit list of x values), and I'll generate the chart immediately.",
+    "final_text_characters": 565,
+    "final_text_words": 102,
+    "reported_recent_round_mean_generated_tokens": 576,
+    "context_used_tokens": 8405,
+    "context_window_tokens": 131072,
+    "tool_response_source": "prefixTokens recovery",
+    "tool_calls": [
+      {
+        "function": "read",
+        "parameters": {
+          "path": "/app_bundle/Skills/answers-charts/SKILL.md"
+        },
+        "response": "[Skill read; contents retained in SKILL.md]",
+        "response_sha256": "9065fc03a24497c4436ac775cdaf62d6e7b1e57fd2ecd22189207379b25d18b6"
+      }
+    ],
+    "artifacts": [],
+    "automated_score": {
+      "case": "quadratic-limitation",
+      "automated_passed": true,
+      "duration_seconds": 42.75948905944824,
+      "recent_round_statistics": {
+        "scope": "mean-of-last-three-model-rounds",
+        "generated_tokens": 576,
+        "context_used_tokens": 8405,
+        "context_window_tokens": 131072
+      },
+      "tool_call_count": 1,
+      "errors": [],
+      "tool_response_source": "prefixTokens recovery",
+      "manual_review_required": "layout, units, labels/series association, summary, limitation behavior"
+    }
+  }
+]

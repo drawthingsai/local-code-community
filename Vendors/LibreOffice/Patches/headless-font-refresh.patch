@@ -1,0 +1,76 @@
+diff --git a/vcl/inc/unx/fontmanager.hxx b/vcl/inc/unx/fontmanager.hxx
+index 22b5a195b..167415dc9 100644
+--- a/vcl/inc/unx/fontmanager.hxx
++++ b/vcl/inc/unx/fontmanager.hxx
+@@ -118,6 +118,8 @@ public:
+     ~PrintFontManager();
+     friend class ::GenericUnixSalData;
+     static PrintFontManager& get(); // one instance only
++    // Host changes fontconfig only between documents, under the Solar mutex.
++    void reloadFontconfig();
+ 
+     // There may be multiple font ids for font collections
+     std::vector<fontID> findFontFileIDs( std::u16string_view rFileUrl ) const;
+diff --git a/vcl/unx/generic/fontmanager/fontmanager.cxx b/vcl/unx/generic/fontmanager/fontmanager.cxx
+index a9455a1dd..b8b23cc9d 100644
+--- a/vcl/unx/generic/fontmanager/fontmanager.cxx
++++ b/vcl/unx/generic/fontmanager/fontmanager.cxx
+@@ -115,6 +115,18 @@ PrintFontManager::PrintFontManager()
+ #endif
+ }
+ 
++void PrintFontManager::reloadFontconfig()
++{
++    m_aFontInstallerTimer.Stop();
++    m_aCurrentRequests.clear();
++    m_aPreviousLangSupportRequests.clear();
++    m_aFontFileToFontID.clear();
++    m_aFonts.clear();
++    // Keep IDs monotonic so a stale selection cannot alias a new face.
++    initFontconfig();
++    countFontconfigFonts();
++}
++
+ PrintFontManager::~PrintFontManager()
+ {
+     m_aFontInstallerTimer.Stop();
+diff --git a/vcl/unx/generic/gdi/freetypetextrender.cxx b/vcl/unx/generic/gdi/freetypetextrender.cxx
+index 2af043a48..c86974ec7 100644
+--- a/vcl/unx/generic/gdi/freetypetextrender.cxx
++++ b/vcl/unx/generic/gdi/freetypetextrender.cxx
+@@ -37,6 +37,35 @@
+ #include <font/FontMetricData.hxx>
+ 
+ #include <sallayout.hxx>
++#include <vcl/outdev.hxx>
++#include <vcl/rendercontext/AddFontSubstituteFlags.hxx>
++#include <unotools/fontdefs.hxx>
++#include <string.h>
++
++// Private static-host hook. No live document may span a configuration change.
++extern "C" void office_refresh_fonts(const char* const* families, const char* const* substitutes, size_t count, int reloadFonts)
++{
++    SolarMutexGuard guard;
++    if (reloadFonts)
++    {
++        OutputDevice::ImplClearAllFontData(true);
++        psp::PrintFontManager::get().reloadFontconfig();
++        FreetypeManager::get().ClearFontCache();
++        OutputDevice::ImplUpdateAllFontData(true);
++    }
++    OutputDevice::BeginFontSubstitution();
++    OutputDevice::RemoveFontsSubstitute();
++    for (size_t i = 0; i < count; ++i)
++        OutputDevice::AddFontSubstitute(OUString::fromUtf8(families[i]),
++            OUString::fromUtf8(substitutes[i]), AddFontSubstituteFlags::ALWAYS);
++    OutputDevice::EndFontSubstitution();
++}
++
++// Use the same localized family normalization as VCL font substitution.
++extern "C" char* office_font_search_name(const char* family)
++{
++    return strdup(GetEnglishSearchFontName(OUString::fromUtf8(family)).toUtf8().getStr());
++}
+ 
+ FreeTypeTextRenderImpl::FreeTypeTextRenderImpl()
+     : mnTextColor(Color(0x00, 0x00, 0x00)) //black

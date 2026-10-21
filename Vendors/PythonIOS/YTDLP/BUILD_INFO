@@ -1,0 +1,4 @@
+YTDLP_VERSION=2026.8.19
+YTDLP_EJS_VERSION=0.8.0
+YTDLP_MUTAGEN_VERSION=1.48.1
+YTDLP_FEATURE_POLICY=python-resources node=embedded ffmpeg=embedded subprocess=synchronous self-update=app-release

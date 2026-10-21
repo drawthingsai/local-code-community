@@ -1,0 +1,190 @@
+--- a/meson.build
++++ b/meson.build
+@@ -467,38 +467,17 @@
+   endif
+ endif
+ 
++# PythonIOS renders to image/vector surfaces and uses Core Text for fonts.
++# Building just the font backend avoids desktop display and legacy ATS APIs.
+ if host_machine.system() == 'darwin' and not get_option('quartz').disabled()
+-  quartz_deps = dependency('appleframeworks', modules : ['CoreFoundation', 'ApplicationServices'], required: get_option('quartz'))
+-
+-  if quartz_deps.found()
+-    deps += [quartz_deps]
+-
+-    feature_conf.set('CAIRO_HAS_QUARTZ_SURFACE', 1)
+-    feature_conf.set('CAIRO_HAS_QUARTZ_IMAGE_SURFACE', 1)
+-
+-    built_features += [
+-      {
+-        'name': 'cairo-quartz',
+-        'description': 'Quartz surface backend',
+-        'deps': quartz_deps,
+-      },
+-      {
+-        'name': 'cairo-quartz-image',
+-        'description': 'Quartz Image surface backend',
+-        'deps': quartz_deps,
+-      }]
+-    compiler = meson.get_compiler('c')
+-    if compiler.has_function('CTFontDrawGlyphs', prefix: '#include <ApplicationServices/ApplicationServices.h>',
+-                             dependencies: quartz_deps)
+-      built_features += [
+-           {
+-               'name': 'cairo-quartz-font',
+-               'description': 'Quartz font backend',
+-               'deps': quartz_deps,
+-           }]
+-      feature_conf.set('CAIRO_HAS_QUARTZ_FONT', 1)
+-    endif
+-  endif
++  quartz_deps = dependency('appleframeworks', modules : ['CoreFoundation', 'CoreGraphics', 'CoreText'], required: get_option('quartz'))
++  deps += [quartz_deps]
++  feature_conf.set('CAIRO_HAS_QUARTZ_FONT', 1)
++  built_features += [{
++    'name': 'cairo-quartz-font',
++    'description': 'Core Text font backend',
++    'deps': quartz_deps,
++  }]
+ endif
+ 
+ if host_machine.system() == 'windows'
+--- a/src/cairo-quartz.h
++++ b/src/cairo-quartz.h
+@@ -38,9 +38,10 @@
+ 
+ #include "cairo.h"
+ 
+-#if CAIRO_HAS_QUARTZ_SURFACE
++#if CAIRO_HAS_QUARTZ_SURFACE || CAIRO_HAS_QUARTZ_FONT
+ 
+-#include <ApplicationServices/ApplicationServices.h>
++#include <CoreGraphics/CoreGraphics.h>
++#include <CoreText/CoreText.h>
+ 
+ CAIRO_BEGIN_DECLS
+ 
+@@ -66,8 +67,6 @@
+ cairo_public cairo_font_face_t *
+ cairo_quartz_font_face_create_for_cgfont (CGFontRef font);
+ 
+-cairo_public cairo_font_face_t *
+-cairo_quartz_font_face_create_for_atsu_font_id (ATSUFontID font_id);
+ 
+ #endif /* CAIRO_HAS_QUARTZ_FONT */
+ 
+--- a/src/cairo-quartz-private.h
++++ b/src/cairo-quartz-private.h
+@@ -40,7 +40,7 @@
+ 
+ #include "cairoint.h"
+ 
+-#if CAIRO_HAS_QUARTZ_SURFACE
++#if CAIRO_HAS_QUARTZ_SURFACE || CAIRO_HAS_QUARTZ_FONT
+ #include "cairo-quartz.h"
+ #include "cairo-surface-clipper-private.h"
+ 
+--- a/src/cairo-quartz-font.c
++++ b/src/cairo-quartz-font.c
+@@ -63,11 +63,6 @@
+  * Since: 1.6
+  **/
+ 
+-/* These are private functions */
+-static bool (*CGContextGetAllowsFontSmoothingPtr) (CGContextRef) = NULL;
+-static ATSFontRef (*FMGetATSFontRefFromFontPtr) (FMFont iFont) = NULL;
+-
+-static cairo_bool_t _cairo_quartz_font_symbol_lookup_done = FALSE;
+ /* Cairo's transformations assume a unit-scaled font. */
+ static const CGFloat font_scale = 1.0;
+ 
+@@ -75,27 +70,8 @@
+ #define CGGLYPH_MAX ((CGGlyph) 0xFFFE) /* kCGFontIndexMax */
+ #define CGGLYPH_INVALID ((CGGlyph) 0xFFFF) /* kCGFontIndexInvalid */
+ 
+-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1080
+-#define FONT_ORIENTATION_HORIZONTAL kCTFontHorizontalOrientation
+-#define FONT_COLOR_GLYPHS kCTFontColorGlyphsTrait
+-#else
+ #define FONT_ORIENTATION_HORIZONTAL kCTFontOrientationHorizontal
+ #define FONT_COLOR_GLYPHS kCTFontTraitColorGlyphs
+-#endif
+-
+-static void
+-quartz_font_ensure_symbols(void)
+-{
+-    if (_cairo_quartz_font_symbol_lookup_done)
+-	return;
+-
+-    CGContextGetAllowsFontSmoothingPtr =
+-	dlsym (RTLD_DEFAULT, "CGContextGetAllowsFontSmoothing");
+-
+-    FMGetATSFontRefFromFontPtr = dlsym(RTLD_DEFAULT, "FMGetATSFontRefFromFont");
+-
+-    _cairo_quartz_font_symbol_lookup_done = TRUE;
+-}
+ 
+ typedef struct _cairo_quartz_font_face cairo_quartz_font_face_t;
+ typedef struct _cairo_quartz_scaled_font cairo_quartz_scaled_font_t;
+@@ -782,10 +758,7 @@
+ 	case CAIRO_ANTIALIAS_BEST:
+ 	    CGContextSetShouldAntialias (cgContext, TRUE);
+ 	    CGContextSetShouldSmoothFonts (cgContext, TRUE);
+-	    quartz_font_ensure_symbols ();
+-	    if (CGContextGetAllowsFontSmoothingPtr &&
+-		!CGContextGetAllowsFontSmoothingPtr (cgContext))
+-		CGContextSetAllowsFontSmoothing (cgContext, TRUE);
++	    CGContextSetAllowsFontSmoothing (cgContext, TRUE);
+ 	    break;
+ 	case CAIRO_ANTIALIAS_NONE:
+ 	    CGContextSetShouldAntialias (cgContext, FALSE);
+@@ -803,49 +776,3 @@
+ 	}
+ 
+ }
+-/*
+- * compat with old ATSUI backend
+- */
+-
+-/**
+- * cairo_quartz_font_face_create_for_atsu_font_id:
+- * @font_id: an ATSUFontID for the font.
+- *
+- * Creates a new font for the Quartz font backend based on an
+- * #ATSUFontID. This font can then be used with
+- * cairo_set_font_face() or cairo_scaled_font_create().
+- *
+- * Return value: a newly created #cairo_font_face_t. Free with
+- *  cairo_font_face_destroy() when you are done using it.
+- *
+- * Since: 1.6
+- **/
+-cairo_font_face_t *
+-cairo_quartz_font_face_create_for_atsu_font_id (ATSUFontID font_id)
+-{
+-    quartz_font_ensure_symbols();
+-
+-    if (FMGetATSFontRefFromFontPtr != NULL) {
+-	ATSFontRef atsFont = FMGetATSFontRefFromFontPtr (font_id);
+-	CGFontRef cgFont = CGFontCreateWithPlatformFont (&atsFont);
+-	cairo_font_face_t *ff;
+-
+-	ff = cairo_quartz_font_face_create_for_cgfont (cgFont);
+-
+-	CGFontRelease (cgFont);
+-
+-	return ff;
+-    } else {
+-	_cairo_error_throw (CAIRO_STATUS_NO_MEMORY);
+-	return (cairo_font_face_t *)&_cairo_font_face_nil;
+-    }
+-}
+-
+-/* This is the old name for the above function, exported for compat purposes */
+-cairo_font_face_t *cairo_atsui_font_face_create_for_atsu_font_id (ATSUFontID font_id);
+-
+-cairo_font_face_t *
+-cairo_atsui_font_face_create_for_atsu_font_id (ATSUFontID font_id)
+-{
+-    return cairo_quartz_font_face_create_for_atsu_font_id (font_id);
+-}

@@ -1,0 +1,14 @@
+TypedStream decoder from https://github.com/mattt/Madrid
+Revision: 11ec80cb67700e47948f90cef6de38bce4dbfb12
+Files: Sources/TypedStream/*.swift
+License: MIT (Madrid-LICENSE.txt)
+
+Local changes:
+- Bound input size, nesting depth, parsed object counts, and array length arithmetic.
+- Read unaligned numeric data safely.
+- Validate byte ranges and placeholder indices.
+- Use a Swift error for invalid UTF-8.
+
+AppleUtilities extracts the first NSString value directly rather than using
+Archivable.stringValue, whose metadata heuristics discard valid emoji-only
+messages and strings containing 'NS'. No private Apple frameworks are linked.

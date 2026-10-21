@@ -1,0 +1,62 @@
+{
+  "fill" : "automatic",
+  "groups" : [
+    {
+      "blend-mode" : "normal",
+      "blur-material" : 0.5,
+      "hidden" : false,
+      "layers" : [
+        {
+          "fill" : "automatic",
+          "image-name" : "staroflife.fill 2-1.svg",
+          "name" : "staroflife.fill 2-1",
+          "position" : {
+            "scale" : 3,
+            "translation-in-points" : [
+              0,
+              90
+            ]
+          }
+        },
+        {
+          "image-name" : "staroflife.fill 2.svg",
+          "name" : "staroflife.fill 2",
+          "position" : {
+            "scale" : 3,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "image-name" : "staroflife.fill 1.svg",
+          "name" : "staroflife.fill 1",
+          "position" : {
+            "scale" : 3,
+            "translation-in-points" : [
+              0,
+              -90
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.5
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.45
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

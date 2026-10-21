@@ -1,0 +1,36 @@
+# Capability menu — what HyperFrames can bring to a video
+
+One list, three readers. The **pitch round** (`pitch-round.md`) speaks it before anyone reads it as a menu: each pitch names the capability or two its concept rides, phrased from the middle column — the rows experienced inside concepts, which is how most users first learn what they're allowed to want. The **intent layer** ([hyperframes](../SKILL.md) → `references/intent-interview.md`, step 7) recommends from it — one or two rows the confirmed concept specifically calls for and the chosen pitch didn't already name, with the route-filtered slice shown when the user asks what else is possible. **[general-video](../guides/general-video/GUIDE.md) in companion mode** uses the same list as its execution map — as its **trigger list**: each row's plain-language line is also the moment to offer it, when the conversation touches what the row does — and as each pass's **upgrade channel**: a plan, sketch, or build checkpoint may carry one or two traced offers pointed at material the user is looking at.
+
+Each row's last column reads **home → entry → what you get**: the owning skill, the exact doc or command to start from, and the artifact that comes back.
+
+| Capability                                                                                                                                             | Say it to the user as…                                                                                        | Home → entry → what you get                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Design spec (`frame.md`)** — one file that locks palette, type, and layout feel; every frame obeys it | "a design system for the video — colors and typography stay consistent" | [hyperframes-creative](../guides/hyperframes-creative/GUIDE.md) → `references/design-spec.md` and `frame-presets/` → `frame.md` |
+| **Motion blueprints** — proven scene shapes (reveals, counters, charts, dioramas) picked per beat                                                      | "each scene gets a proven motion treatment, not improvised movement"                                          | [hyperframes-animation](../guides/hyperframes-animation/GUIDE.md) → `blueprints-index.md` + `rules-index.md` → per-beat `blueprint:` ids the build reads                                                                                                                                                                                                                                 |
+| **Images and image edits** | "generate images, edit them, or remove a background" | [hyperframes-cli](../guides/hyperframes-cli/GUIDE.md) → Generate media → project-local assets |
+| **Generative video** | "a short audio-video clip to place in the composition" | [hyperframes-cli](../guides/hyperframes-cli/GUIDE.md) → Generate media → a 5–10 second clip |
+| **Captions** | "readable captions using your timing data" | [embedded-captions](../guides/embedded-captions/GUIDE.md) → foreground caption clips |
+| **Scene transitions** — cuts, crossfades, wipes, WebGL shader transitions between scenes | "how one scene hands off to the next" | [hyperframes-animation](../guides/hyperframes-animation/GUIDE.md) → `transitions/overview.md` then `transitions/catalog.md` |
+| **User media on the timeline** — the user's own images / clips staged and woven into frames | "your own footage, screenshots, or photos placed into the video" | [hyperframes-core](../guides/hyperframes-core/GUIDE.md) → `references/variables-and-media.md` |
+
+Offer, don't unload: the intent layer recommends the one or two rows the confirmed concept itself calls for, states each as one plain-language line traced to the brief, and asks once — the route-filtered slice on request, the full table for the companion.
+
+## The design ask — have it, pick it, or leave it
+
+The design-spec row is a three-state question, not an explainer (what a spec **is** stays in `design-spec.md`):
+
+- **They have one.** Brand guidelines, a `frame.md`, a `design.md` — note the path in `BRIEF.md` § Assets; the workflow reads it as brand truth (resolution order: [hyperframes-creative](../guides/hyperframes-creative/GUIDE.md) → `references/design-spec.md`).
+- **They don't, but the look matters — show, don't name.** Pick 2–3 shipped presets whose look fits the content, tone, and audience (browse [hyperframes-creative](../guides/hyperframes-creative/GUIDE.md) → `frame-presets/`), and author a preview page so the user picks **by eye**. The choice lands in `BRIEF.md` as `style_preset`. Apply supplied brand colors and fonts to the selected preset.
+- **They don't care — or nothing shipped fits.** Don't care: no further questions; the workflow's design step decides and says why. Nothing fits: announce the **design picker** as a deferred ask — the workflow's design step generates mood boards contextual to their content to choose from ([hyperframes-creative](../guides/hyperframes-creative/GUIDE.md) → `references/design-picker.md`); it needs a project and a generation pass, so it never runs inside the intent conversation.
+
+## Genre lenses — the shipped workflows' taste, borrowable
+
+The narrative workflows carry genre-tuned design references — `story-design.md` (narrative archetypes and beats), `visual-design.md` (the genre's look), `motion-language.md` + `cut-catalog.md` (motion and cut doctrine). When a companion or freeform piece resembles a genre, read that workflow's lens before planning or building in it (borrowing rule above):
+
+| The piece resembles…                     | Borrow from                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------------- |
+| a product promo / launch / site showcase | [product-launch-video](../guides/product-launch-video/GUIDE.md) → `references/`                                 |
+| a topic / mechanism / concept explainer  | [faceless-explainer](../guides/faceless-explainer/GUIDE.md) → `references/`                                   |
+
+`motion-language.md` and `cut-catalog.md` are near-identical across the three — take them from the genre you already resembled, or [faceless-explainer](../guides/faceless-explainer/GUIDE.md)'s as the neutral default. **Borrow the shape and the taste, never the machinery**: their scripts and directory rules belong to their pipelines; the generic back half of any build lives in `production-loop.md`.

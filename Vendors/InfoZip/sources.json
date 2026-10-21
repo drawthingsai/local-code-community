@@ -1,0 +1,362 @@
+{
+  "repository": "https://github.com/apple-oss-distributions/zip",
+  "commit": "c8d52ed44169a71e362af3814988685aa39ee7b4",
+  "archive_sha256": "8161a4919d9348ec96f72442d589ed77af5df63fc0456ca52dce3a39b9f049b1",
+  "tag": "zip-33",
+  "files": [
+    {
+      "path": "zip/CHANGES",
+      "upstream_path": "zip/zip30/CHANGES",
+      "upstream_sha256": "992ba8addd0da6f63700bbc98698043388e6b10816b2890c559cc02fdec71a42",
+      "modified": false
+    },
+    {
+      "path": "zip/LICENSE",
+      "upstream_path": "zip/zip30/LICENSE",
+      "upstream_sha256": "8ecd6c1bab449127eb665cef1561e73a8bce52e217375f6f466939e137b1e110",
+      "modified": false
+    },
+    {
+      "path": "zip/README",
+      "upstream_path": "zip/zip30/README",
+      "upstream_sha256": "6a284b20221c1f482fd8a91a9c1683951570f023d1e43bf211c016a63e8cfeff",
+      "modified": false
+    },
+    {
+      "path": "zip/api.h",
+      "upstream_path": "zip/zip30/api.h",
+      "upstream_sha256": "62749f5d01707cba2f0dd879fce34f9fadc2952945eeabdc340ec2d37dfb8df4",
+      "modified": false
+    },
+    {
+      "path": "zip/crc32.c",
+      "upstream_path": "zip/zip30/crc32.c",
+      "upstream_sha256": "ba20bcc0be4678c7cc454222eef4befd944758b22eeb90b23f8a762a63c847f4",
+      "modified": false
+    },
+    {
+      "path": "zip/crc32.h",
+      "upstream_path": "zip/zip30/crc32.h",
+      "upstream_sha256": "68493e023f612f89307d8f274bc5838462e20cfc0156d7c37dc8e8855a713b9b",
+      "modified": false
+    },
+    {
+      "path": "zip/crypt.c",
+      "upstream_path": "zip/zip30/crypt.c",
+      "upstream_sha256": "6fd84dee0cb3e2c0d425edf49c297d6c43003119b559c809666d31653966cc79",
+      "modified": true
+    },
+    {
+      "path": "zip/crypt.h",
+      "upstream_path": "zip/zip30/crypt.h",
+      "upstream_sha256": "fdea0e15bcb41a1d1fb5aaa5d6c03f46d15361b29e24913c3487d4e4427e588c",
+      "modified": true
+    },
+    {
+      "path": "zip/ebcdic.h",
+      "upstream_path": "zip/zip30/ebcdic.h",
+      "upstream_sha256": "89c6d870dd8d299f9fa7aca4d393037df70d46199b6619a873b2b8ff0f008197",
+      "modified": false
+    },
+    {
+      "path": "zip/fileio.c",
+      "upstream_path": "zip/zip30/fileio.c",
+      "upstream_sha256": "acda10cee23d289db8b0369f0e82525ea0523aad970ad6459517e151fc7d24b3",
+      "modified": true
+    },
+    {
+      "path": "zip/globals.c",
+      "upstream_path": "zip/zip30/globals.c",
+      "upstream_sha256": "f8867de1fb23dae8d82ac6e82c6ce0fbd85eba3ff8db9b21d199b0d107100b5d",
+      "modified": true
+    },
+    {
+      "path": "zip/revision.h",
+      "upstream_path": "zip/zip30/revision.h",
+      "upstream_sha256": "380aaf066602e3b9ff6d2636c5011b26efa3591fdb63da287e3a352b6e22bbe2",
+      "modified": true
+    },
+    {
+      "path": "zip/tailor.h",
+      "upstream_path": "zip/zip30/tailor.h",
+      "upstream_sha256": "4450ad59b67ad8f018d81272be019af10cca7b1e42985336244f3c24ea842fe9",
+      "modified": true
+    },
+    {
+      "path": "zip/timezone.h",
+      "upstream_path": "zip/zip30/timezone.h",
+      "upstream_sha256": "985799653fda936005d0a1a5331739545c24a9b26c8e6db6fb520a18f46cb921",
+      "modified": false
+    },
+    {
+      "path": "zip/ttyio.c",
+      "upstream_path": "zip/zip30/ttyio.c",
+      "upstream_sha256": "815251a3bc13dc1d31ab8a503aa7dbfcfb9ef4487542a415c141960d68c014fd",
+      "modified": true
+    },
+    {
+      "path": "zip/ttyio.h",
+      "upstream_path": "zip/zip30/ttyio.h",
+      "upstream_sha256": "bc9b831c934223e038ddfa439b7b9ed30f1c7ad7a5411484eeeb8b18f590b962",
+      "modified": false
+    },
+    {
+      "path": "zip/unix/osdep.h",
+      "upstream_path": "zip/zip30/unix/osdep.h",
+      "upstream_sha256": "574a545b95cfca46060fd0007c73bf1c49df510e5ba378fa9b1895e8dd24e616",
+      "modified": false
+    },
+    {
+      "path": "zip/unix/unix.c",
+      "upstream_path": "zip/zip30/unix/unix.c",
+      "upstream_sha256": "4b751735d24dfc95d92b7fb23977e0851192d19b195e890f91531bb22831b844",
+      "modified": true
+    },
+    {
+      "path": "zip/unix/zipup.h",
+      "upstream_path": "zip/zip30/unix/zipup.h",
+      "upstream_sha256": "d6a04f736947fccaa52d505e8ff39b37f16eac5375323ce497a8f4b64715748f",
+      "modified": true
+    },
+    {
+      "path": "zip/util.c",
+      "upstream_path": "zip/zip30/util.c",
+      "upstream_sha256": "1831178ad598cc39d4effc2a7f68d178a6eb17e518a18e62c327a551f56650fb",
+      "modified": true
+    },
+    {
+      "path": "zip/zbz2err.c",
+      "upstream_path": "zip/zip30/zbz2err.c",
+      "upstream_sha256": "bdd4c64e85100dc0bc48c5eeb9110667d5601161c397c3bdf07132dd58cd0d87",
+      "modified": false
+    },
+    {
+      "path": "zip/zip.c",
+      "upstream_path": "zip/zip30/zip.c",
+      "upstream_sha256": "bd2f853ebfb3cc762e277adb2c9b71abab313e0ef3eae9208fbe8d86b8f26339",
+      "modified": true
+    },
+    {
+      "path": "zip/zip.h",
+      "upstream_path": "zip/zip30/zip.h",
+      "upstream_sha256": "1d546615ac1148a83e06486e07c354514d5c37f5209ef7c8236a4381188cee5c",
+      "modified": true
+    },
+    {
+      "path": "zip/ziperr.h",
+      "upstream_path": "zip/zip30/ziperr.h",
+      "upstream_sha256": "da0d69afe30de5dd92adb096ff4a6f15819ff1ffeb72417c545585053ce1c9d0",
+      "modified": true
+    },
+    {
+      "path": "zip/zipfile.c",
+      "upstream_path": "zip/zip30/zipfile.c",
+      "upstream_sha256": "fe9bd493009a3102e4e48e4741091654667f12fb7ab443279973db03d50356cb",
+      "modified": true
+    },
+    {
+      "path": "zip/zipup.c",
+      "upstream_path": "zip/zip30/zipup.c",
+      "upstream_sha256": "70e76470de23ee35266b2064483747b526f066e13bcf7e1568c9005b7b9f050d",
+      "modified": true
+    },
+    {
+      "path": "unzip/LICENSE",
+      "upstream_path": "unzip/unzip60/LICENSE",
+      "upstream_sha256": "7469b81d5d29ac4fd670f7c86ba0cb9fa34f137a2d4d5198437d92ddf918984b",
+      "modified": false
+    },
+    {
+      "path": "unzip/README",
+      "upstream_path": "unzip/unzip60/README",
+      "upstream_sha256": "a65d3abe7f7baec3230c551bfcb96efc817f031032551cf4f51c7ff8b23c604f",
+      "modified": false
+    },
+    {
+      "path": "unzip/consts.h",
+      "upstream_path": "unzip/unzip60/consts.h",
+      "upstream_sha256": "8a1e9fb634abf4b61c8e5b23e594ede9db9563135ebaa9dddeae0d83407f8fb2",
+      "modified": false
+    },
+    {
+      "path": "unzip/crc32.c",
+      "upstream_path": "unzip/unzip60/crc32.c",
+      "upstream_sha256": "28964e99cdd6ac0bf8ea8f1a1332bdf2698425007f6658ad312c16c070c0c37f",
+      "modified": false
+    },
+    {
+      "path": "unzip/crc32.h",
+      "upstream_path": "unzip/unzip60/crc32.h",
+      "upstream_sha256": "68493e023f612f89307d8f274bc5838462e20cfc0156d7c37dc8e8855a713b9b",
+      "modified": false
+    },
+    {
+      "path": "unzip/crypt.c",
+      "upstream_path": "unzip/unzip60/crypt.c",
+      "upstream_sha256": "ee9f93bb9fdf01d00c401401b11777920e82d7a8ce5d42afb265e7e97863ed6b",
+      "modified": false
+    },
+    {
+      "path": "unzip/crypt.h",
+      "upstream_path": "unzip/unzip60/crypt.h",
+      "upstream_sha256": "fa372c740cd598e6413682d6fc395d999c2586de40154d97cdbd75896897025a",
+      "modified": false
+    },
+    {
+      "path": "unzip/ebcdic.h",
+      "upstream_path": "unzip/unzip60/ebcdic.h",
+      "upstream_sha256": "694c415f79655c1dfdfacfd7f5dbecaf79ff5d91486d3a93f27b046ba17515c3",
+      "modified": true
+    },
+    {
+      "path": "unzip/envargs.c",
+      "upstream_path": "unzip/unzip60/envargs.c",
+      "upstream_sha256": "d085ff936c5e53613bfaf51b4886f4ce427d29a927d7a3d42807a1f6aa60ae3e",
+      "modified": true
+    },
+    {
+      "path": "unzip/explode.c",
+      "upstream_path": "unzip/unzip60/explode.c",
+      "upstream_sha256": "7bc575227d13671d1284c04436aa62a227bbd4d2bbc9746de5904487c0612ac9",
+      "modified": false
+    },
+    {
+      "path": "unzip/extract.c",
+      "upstream_path": "unzip/unzip60/extract.c",
+      "upstream_sha256": "08ba96415ccdfcd6633a3505eb2846fe24f400922111e8bc32063dfa8cc257dd",
+      "modified": true
+    },
+    {
+      "path": "unzip/fileio.c",
+      "upstream_path": "unzip/unzip60/fileio.c",
+      "upstream_sha256": "c3ab8cb253cb985143b3748b015de0387eaaa6b1e863a38205e8787e5b314082",
+      "modified": true
+    },
+    {
+      "path": "unzip/globals.c",
+      "upstream_path": "unzip/unzip60/globals.c",
+      "upstream_sha256": "154de5a8368927abb26b198545e240e7c5259132c6cdb5415081382aaffe7c73",
+      "modified": true
+    },
+    {
+      "path": "unzip/globals.h",
+      "upstream_path": "unzip/unzip60/globals.h",
+      "upstream_sha256": "a094035ceddd0281f96ac88beae716e2630631d4f8010b67e5fbd237e3b432ad",
+      "modified": true
+    },
+    {
+      "path": "unzip/inflate.c",
+      "upstream_path": "unzip/unzip60/inflate.c",
+      "upstream_sha256": "35b499c347a18673779ea0ac0e116d8d64d51e3cb6ce0f36919be7429605c458",
+      "modified": false
+    },
+    {
+      "path": "unzip/inflate.h",
+      "upstream_path": "unzip/unzip60/inflate.h",
+      "upstream_sha256": "55cf9f8f4f338cdd7912a39b19387c4ddb51a277a04d569f3faee6fdf5103cac",
+      "modified": false
+    },
+    {
+      "path": "unzip/list.c",
+      "upstream_path": "unzip/unzip60/list.c",
+      "upstream_sha256": "2c458634c225d90905f831dff79f7cb5409f7d435bd86cf4eb32b3afb7ea09e6",
+      "modified": true
+    },
+    {
+      "path": "unzip/match.c",
+      "upstream_path": "unzip/unzip60/match.c",
+      "upstream_sha256": "9ada6688a88139f3afc1f0f519b3af383537d9e0a782ab3dd0ac4ad26cbe9379",
+      "modified": true
+    },
+    {
+      "path": "unzip/process.c",
+      "upstream_path": "unzip/unzip60/process.c",
+      "upstream_sha256": "e13ff873a9ad473090b5c7924a46058541943d3acd0380f12149a5ad1a0b6d0b",
+      "modified": true
+    },
+    {
+      "path": "unzip/timezone.h",
+      "upstream_path": "unzip/unzip60/timezone.h",
+      "upstream_sha256": "d6a288ea73c190b139dd635dc1608eab4f924b67cd825f4c20a662f2d0738693",
+      "modified": false
+    },
+    {
+      "path": "unzip/ttyio.c",
+      "upstream_path": "unzip/unzip60/ttyio.c",
+      "upstream_sha256": "916a664443f1752132f03e1822d6a4113b2dfdfbdb909c488411d64b5680a01b",
+      "modified": true
+    },
+    {
+      "path": "unzip/ttyio.h",
+      "upstream_path": "unzip/unzip60/ttyio.h",
+      "upstream_sha256": "8306e7649fc4330d2cbb0bc387a28b63b9d750f9620841e219cc420a7da99c42",
+      "modified": false
+    },
+    {
+      "path": "unzip/ubz2err.c",
+      "upstream_path": "unzip/unzip60/ubz2err.c",
+      "upstream_sha256": "c741a1b649402a68fefea852494409aeef8215cbc836616d0345fbc18a61b85d",
+      "modified": false
+    },
+    {
+      "path": "unzip/unix/unix.c",
+      "upstream_path": "unzip/unzip60/unix/unix.c",
+      "upstream_sha256": "fd8f8c19dba952f4e139aef96551bdb16d8db3132340dcafefc6b0b0bd90e3d5",
+      "modified": true
+    },
+    {
+      "path": "unzip/unix/unxcfg.h",
+      "upstream_path": "unzip/unzip60/unix/unxcfg.h",
+      "upstream_sha256": "6793bc525a17f35c62e5a0c9c7e7a1d5a869bfd35b9f64fc3504fa349339f2ea",
+      "modified": true
+    },
+    {
+      "path": "unzip/unreduce.c",
+      "upstream_path": "unzip/unzip60/unreduce.c",
+      "upstream_sha256": "540fe8965e1d50812ecd727049a312efc2d118b60b0fb888cd4b4b18d967f285",
+      "modified": false
+    },
+    {
+      "path": "unzip/unshrink.c",
+      "upstream_path": "unzip/unzip60/unshrink.c",
+      "upstream_sha256": "2335311703fce470576f7806fa92d9dea057f6f8a1843fe91d271fc726109e3f",
+      "modified": false
+    },
+    {
+      "path": "unzip/unzip.c",
+      "upstream_path": "unzip/unzip60/unzip.c",
+      "upstream_sha256": "09ca546884621abbae73d08892defb0f376ea2b2ef38ad76c91f5eecb37b29c8",
+      "modified": true
+    },
+    {
+      "path": "unzip/unzip.h",
+      "upstream_path": "unzip/unzip60/unzip.h",
+      "upstream_sha256": "a7fad0d49d6c35d9ddf42b06808d32f75d3c4cc901107c7b9d55ace579f7b50b",
+      "modified": false
+    },
+    {
+      "path": "unzip/unzpriv.h",
+      "upstream_path": "unzip/unzip60/unzpriv.h",
+      "upstream_sha256": "b038125e0c06c7895ec3c07884e02ad96ea1253ccf8c5f0e94194877e30c3b1f",
+      "modified": true
+    },
+    {
+      "path": "unzip/unzvers.h",
+      "upstream_path": "unzip/unzip60/unzvers.h",
+      "upstream_sha256": "4b0c4c0f25a89ae02a9c8747842fa2aecc1cbc02f1df895d27b7e83990c67ff4",
+      "modified": false
+    },
+    {
+      "path": "unzip/zip.h",
+      "upstream_path": "unzip/unzip60/zip.h",
+      "upstream_sha256": "3a74de36dc0f145b31a2bf1a19e39709e50e2b3b9db291eb00b74ddc5b953e52",
+      "modified": false
+    },
+    {
+      "path": "unzip/zipinfo.c",
+      "upstream_path": "unzip/unzip60/zipinfo.c",
+      "upstream_sha256": "b5c6e4bec4f40045183158ebfd24af67605c4fa0abd874a232b115ceedc41c11",
+      "modified": true
+    }
+  ]
+}

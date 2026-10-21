@@ -1,0 +1,2761 @@
+
+"needs_to_download" = " necesita descargar alrededor de ";
+
+"costly_download_confirmation" = " modelos para arrancar. Actualmente está en una red costosa, ¿desea continuar la descarga?";
+
+"confirm_download_continuation" = " modelos para arrancar. ¿Desea continuar la descarga?";
+
+"configuration_profile" = "Configuración";
+
+"configuration_profile_message" = "Ingrese el nombre de la configuración";
+
+"configuration_profile_placeholder" = "mi configuración";
+
+"delete_configuration_title" = "Eliminar configuración por nombre";
+
+"delete_configuration" = "Eliminar configuración";
+
+"paste_configuration" = "Pegar configuración";
+
+"copy_configuration" = "Copiar configuración";
+
+"start_download" = "Comenzar descarga";
+
+"restart_download" = "Reiniciar descarga";
+
+"downloading_model" = "Descargando modelo";
+
+"error" = "Error";
+
+"enable" = "Habilitar";
+
+"connecting" = "Conectando";
+
+"failed" = "Fallido";
+
+"server_live" = "Servidor En Línea";
+
+"connected" = "Conectado";
+
+"incompatible" = "Incompatible";
+
+"basic_settings" = "Configuración Básica";
+
+"advanced_settings" = "Configuración Avanzada";
+
+"all_settings" = "Todas las Configuraciones";
+
+"project" = "Proyecto";
+
+"projects" = "Proyectos";
+
+"load_project" = "Cargar proyecto...";
+
+"rename" = "Renombrar";
+
+"rename_thread_dot" = "Renombrar conversación...";
+
+"delete_thread_dot" = "Eliminar conversación...";
+
+"delete_thread" = "Eliminar conversación";
+
+"delete_thread_warning" = "Esta conversación y su historial se eliminarán permanentemente. Esta acción no se puede deshacer.";
+
+"close_browser_tabs_dot" = "Cerrar pestañas del navegador...";
+
+"close_browser_tabs" = "Cerrar pestañas del navegador";
+
+"close_browser_tabs_detail" = "Se cerrarán las páginas web que esta conversación tiene abiertas.";
+
+"export_model_context_dot" = "Exportar contexto del modelo...";
+
+"clear_browser_data_dot" = "Borrar datos del navegador...";
+
+"clear_browser_data" = "Borrar datos del navegador";
+
+"clear_directory_browser_data_detail" = "Se eliminarán las cookies y otros datos de sitios web de este directorio. Los sitios en los que iniciaron sesión sus conversaciones pedirán iniciar sesión de nuevo.";
+
+"clear_bot_browser_data_detail" = "Se eliminarán las cookies y otros datos de sitios web de este bot. Los sitios en los que iniciaron sesión sus conversaciones pedirán iniciar sesión de nuevo.";
+
+"clear" = "Borrar";
+
+"close" = "Cerrar";
+
+"rename_directory_dot" = "Renombrar directorio...";
+
+"delete_directory_dot" = "Eliminar directorio...";
+
+"delete_directory" = "Eliminar directorio";
+
+"move_to_trash" = "Mover a la papelera";
+
+"move_directory_to_trash_warning" = "Este directorio y todo su contenido se moverán a la papelera.";
+
+"cannot_move_directory_to_trash" = "No se puede mover el directorio a la papelera";
+
+"cannot_move_active_directory_to_trash_message" = "Detén la respuesta actual antes de mover este directorio a la papelera.";
+
+"export_project" = "Exportar el proyecto...";
+
+"start_project" = "Comenzar un nuevo proyecto";
+
+"start_a_new_thread" = "Iniciar una nueva conversación.";
+
+"switch_thread_during_generation_title" = "¿Cambiar de conversación?";
+
+"switch_thread_during_generation_message" = "Todavía se está generando una respuesta en esta conversación. Para cambiar, primero debes detener la generación.";
+
+"keep_generating" = "Continuar generando";
+
+"stop_and_switch" = "Detener y cambiar";
+
+"save" = "Guardar";
+
+"downloading" = "Descargando";
+
+"presets" = "Preajustes";
+
+"generate" = "Generar";
+
+"image" = "Imagen";
+
+"share" = "Compartir";
+
+"select_layer_display" = "Seleccionar capas para mostrar";
+
+"scribble" = "Boceto";
+
+"pose" = "Pose";
+
+"color_palette" = "Paleta de colores";
+
+"custom" = "Personalizado";
+
+"depth_map" = "Mapa de profundidad";
+
+"depth_map_dot" = "Mapa de profundidad...";
+
+"load_layers" = "Cargar capas...";
+
+"manage_dot" = "Gestionar...";
+
+"mask_dot" = "Máscara...";
+
+"mask_from_photos" = "Máscara desde Fotos...";
+
+"mask_from_files" = "Máscara desde Archivos...";
+
+"paste_as_mask" = "Pegar como máscara";
+
+"depth_map_photos" = "Mapa de profundidad desde Fotos...";
+
+"depth_map_files" = "Mapa de profundidad desde Archivos...";
+
+"paste_as_depth_map" = "Pegar como mapa de profundidad";
+
+"scribble_dot" = "Boceto...";
+
+"scribble_from_photos" = "Dibujo a partir de fotos...";
+
+"scribble_from_files" = "Dibujo a partir de archivos...";
+
+"paste_as_scribble" = "Pegar como dibujo";
+
+"pose_dot" = "Pose...";
+
+"pose_from_photos" = "Pose a partir de fotos...";
+
+"pose_from_files" = "Pose a partir de archivos...";
+
+"paste_as_pose" = "Pegar como pose";
+
+"color_palette_dot" = "Paleta de colores...";
+
+"color_palette_from_photos" = "Paleta de colores a partir de fotos...";
+
+"color_palette_from_files" = "Paleta de colores a partir de archivos...";
+
+"paste_as_color_palette" = "Pegar como paleta de colores";
+
+"custom_dot" = "Personalizado...";
+
+"moodboard" = "Tablero Creativo";
+
+"moodboard_dot" = "Tablero Creativo...";
+
+"moodboard_from_photos" = "Tablero Creativo a partir de fotos...";
+
+"moodboard_from_files" = "Tablero Creativo a partir de archivos...";
+
+"custom_from_photos" = "Personalizado a partir de fotos...";
+
+"custom_from_files" = "Personalizado a partir de archivos...";
+
+"paste_as_custom" = "Pegar como personalizado";
+
+"delete_custom" = "Eliminar personalizado";
+
+"save_layers" = "Guardar capas...";
+
+"save_to_photos" = "Guardar en Fotos...";
+
+"save_to_files" = "Guardar en Archivos...";
+
+"save_to_elsewhere" = "Guardar en otro lugar...";
+
+"save_to_dot" = "Guardar en...";
+
+"copy" = "Copiar";
+
+"copied_to_clipboard" = "Copiado al portapapeles";
+
+"move_image_canvas" = "Reposicionar la imagen en el lienzo.";
+
+"blank_canvas" = "Iniciar un lienzo en blanco.";
+
+"select_from_files" = "Seleccionar desde archivos...";
+
+"select_from_photos" = "Seleccionar desde Fotos...";
+
+"paste" = "Pegar";
+
+"text_image_generation" = "Generación de imagen a partir de texto";
+
+"inpainting" = "Generación de imagen a imagen + Inpainting";
+
+"image_image_generation" = "Generación de imagen a imagen";
+
+"model" = "Modelo";
+
+"steps" = "Pasos";
+
+"sampler" = "Muestreador";
+
+"disabled" = "Desactivado";
+
+"strength" = "Fuerza";
+
+"text_guidance" = "Guía de texto";
+
+"seed_mode_legacy" = "Modo de semillas: Legacy";
+
+"seed_mode_torch_cpu_compatible" = "Modo de semillas: Compatible con Torch CPU";
+
+"seed_mode_nvidia_gpu_compatible" = "Modo de semillas: Compatible con NVIDIA GPU";
+
+"seed_mode_scale_alike" = "Modo de semillas: Escala similar";
+
+"image_guidance" = "Guía de imagen";
+
+"batch_size" = "Tamaño del lote";
+
+"control" = "Control";
+
+"controlnet" = "ControlNet";
+
+"controlnet_name_detail" = "El nombre para mostrar en la lista ControlNet";
+
+"controlnet_modifier" = "Tipo de Preprocesador ControlNet";
+
+"controlnet_modifier_detail" = "Seleccione el tipo de preprocesador que utiliza el modelo ControlNet. El valor predeterminado es personalizado";
+
+"import_control" = "Importar ControlNet";
+
+"controlnet_exist" = "El modelo ControlNet ya existe";
+
+"controlnet_overwite_confirmation" = "ControlNet con nombre %@ ya existe. ¿Desea sobrescribir?";
+
+"face_restoration" = "Restauración facial";
+
+"upscaler" = "Amplificador";
+
+"show_past_edits" = "Mostrar ediciones anteriores.";
+
+"wait" = "Espera";
+
+"seconds" = "segundos";
+
+"converting_coreML_from" = "Convirtiendo el modelo CoreML desde";
+
+"loading_model" = "Cargando modelo";
+
+"edits_to_image" = "Mostrar ediciones que llevaron a la imagen más reciente.";
+
+"show_generated_image" = "Mostrar solo la imagen generada.";
+
+"show_edits_popover" = "Mostrar ediciones pasadas en una ventana emergente.";
+
+"show_all_edits" = "Mostrar todas las ediciones pasadas.";
+
+"edits" = "%d Ediciones";
+
+"generations" = "%d Generaciones";
+
+"delete_dot" = "Eliminar...";
+
+"delete" = "Eliminar";
+
+"restore" = "Restaurar";
+
+"rewrite_history" = "Reescribir historial";
+
+"delete_image_history" = "Eliminar la imagen del historial es una operación irreversible, ¿desea continuar?";
+
+"cancel" = "Cancelar";
+
+"downloaded_file" = "Archivo descargado";
+
+"downloaded_file_detail" = "Puede descargar un archivo desde Safari y moverlo a la carpeta \"Descargas\" dentro de la carpeta Draw Things en la aplicación Archivos, o ingresar una URL directamente para descargar el modelo LoRA de internet.";
+
+"name" = "Nombre";
+
+"trigger_word" = "Palabra de activación";
+
+"lora_model_name" = "El nombre aparecerá en la lista de modelos LoRA.";
+
+"lora_model_trigger" = "Algunos modelos LoRA pueden ser activados con una palabra/token poco común. Al colocar la palabra de activación aquí, se agregará automáticamente como prefijo a su texto de entrada al seleccionar el modelo.";
+
+"import_lora" = "Importar modelo LoRA";
+
+"delete_lora" = "¿Desea eliminar este modelo LoRA?";
+
+"enter_url" = "Por favor, introduzca una URL";
+
+"enter_url_dot" = "Introducir URL...";
+
+"download_to_local" = "Esto descargará el archivo a través de la red a su almacenamiento local.";
+
+"continue" = "Continuar";
+
+"lora_exists" = "El modelo LoRA ya existe";
+
+"model_exists_confirmation" = "¿Desea continuar descargando el modelo que ya existe?";
+
+"lora_overwrite_confirmation" = "Ya existe un modelo LoRA con el nombre %@. ¿Desea sobrescribirlo?";
+
+"overwrite" = "Sobrescribir";
+
+"import_succeed" = "Importación exitosa";
+
+"model_import_succeed" = "El modelo se importó correctamente.";
+
+"ok" = "OK";
+
+"delete_downloaded_model" = "El modelo se importó correctamente, ¿desea eliminar el archivo descargado para liberar espacio?";
+
+"yes" = "Sí";
+
+"yes_prefer_quantized" = "Sí, preferir atención cuantizada";
+
+"yes_prefer_non_quantized" = "Sí, preferir atención no cuantizada";
+
+"yes_prefer_apple_neural_engine_only" = "Sí, preferir solo Apple Neural Engine";
+
+"yes_prefer_apple_neural_engine_and_gpu" = "Sí, preferir Apple Neural Engine y GPU";
+
+"no" = "No";
+
+"import_model" = "Importar modelo";
+
+"custom_text_encoder" = "Codificador de texto personalizado";
+
+"finetune_image_size" = "Tamaño de imagen afinado";
+
+"finetune_image_detail" = "El tamaño de las imágenes que el modelo utilizó para el ajuste fino. La mayoría de los modelos v1 están ajustados a 512x512, muchos modelos v2 están ajustados a 768x768.";
+
+"dreambooth_finetune_encoder" = "Los modelos de Dreambooth (como aquellos que requieren palabras / tokens de prefijo) también ajustan los codificadores de texto. Desmarque esto si cree que el modelo que está utilizando no ajusta el codificador de texto (ejemplos serían Anything v3, Waifu Diffusion y Hassanblend).";
+
+"custom_variational_autoencoder" = "Autoencoder Variacional Personalizado";
+
+"custom_models_vae" = "Algunos modelos personalizados (como Anything v3) ajustan un autoencoder variacional (VAE) para obtener resultados aún mejores. Otros (como la mayoría de los modelos Dreambooth) solo usan el autoencoder predeterminado. Estos modelos personalizados a menudo publican su punto de control VAE por separado. Por lo tanto, puede seleccionar un archivo diferente para VAE.";
+
+"v-prediction" = "V-Predicción";
+
+"stable_diffusion_v-prediction" = "Stable Diffusion v2 introdujo un modelo destilado que realiza la v-predicción. Es una técnica que puede acelerar la generación de imágenes (a menudo 20 pasos son suficientes). Si el modelo personalizado utiliza la v-predicción, debe habilitar esto para una renderización correcta.";
+
+"high_precision_attention" = "Atención con Mayor Precisión";
+
+"custom_models_precision" = "Algunos modelos entrenados personalizados (como Stable Diffusion v2.1 768-v o Versatile Diffusion) requieren ejecutarse con mayor precisión en sus capas de atención, de lo contrario, pueden fallar al renderizar. Habilitar esto para modelos que no tienen este requisito los ralentizará entre un 30% y un 40%.";
+
+"model_version" = "Versión del Modelo";
+
+"v1_v2_xl" = "v1 o v2 o SDXL";
+
+"stable_diffusion_compatibility" = "Stable Diffusion v1 y v2 son incompatibles entre sí. Se inferirá automáticamente si el modelo personalizado que importó se basa en v1 o v2.";
+
+"dreambooth_model_trigger" = "Los modelos de Dreambooth a menudo requieren ser activados con una palabra / token raro. Al poner la palabra activadora aquí, se agregarán automáticamente al prefijo de su sugerencia al seleccionar el modelo.";
+
+"model_name" = "Nombre del Modelo";
+
+"model_name_detail" = "El nombre aparecerá en la lista de modelos.";
+
+"import_custom_model" = "Importar Modelo Personalizado";
+
+"model_exist" = "Modelo Existente";
+
+"model_exist_confirmation" = "El modelo que desea descargar ya existe. ¿Desea seleccionar ese o continuar descargando?";
+
+"select" = "Seleccionar";
+
+"model_with_name" = "Modelo con nombre %@ ya existe. ¿Desea sobrescribirlo?";
+
+"data_usage" = "Uso de Datos";
+
+"confirm_download_prompt" = "¿Necesita descargar el archivo por la red? ¿Desea continuar?";
+
+"export_dot" = "Exportar...";
+
+"external_folder_move" = "Mover a carpeta externa";
+
+"internal_folder_move" = "Mover a carpeta interna";
+
+"models" = "Modelos";
+
+"select_a_folder_dot" = "Seleccionar una carpeta...";
+
+"workspace" = "Espacio de trabajo";
+
+"inside_app_documents" = "Dentro de Documentos de la app";
+
+"reveal_in_files_dot" = "Mostrar en Archivos...";
+
+"reveal_in_finder_dot" = "Mostrar en Finder...";
+
+"external_model_folder" = "Carpeta Externa de Modelos";
+
+"model_list" = "Lista de Modelos";
+
+"confirm_model_deletion" = "¿Desea eliminar este modelo?";
+
+"model_precision_selection" = "Elija la precisión a la que se guardará el modelo. \"Float 16\" ocuparía aproximadamente 2 GiB de espacio en disco, mientras que \"Float 32\" ocuparía 4 GiB. Una mayor precisión ayuda si planea mezclarlo con otros modelos. No hace ninguna diferencia durante la generación de imágenes.";
+
+"weighted_sum" = "Suma ponderada";
+
+"weight" = "Peso";
+
+"add_diff" = "Añadir diferencia";
+
+"freeform" = "Forma libre";
+
+"freeform_dot" = "Forma libre...";
+
+"same_mix" = "Misca misma";
+
+"model_mixing" = "Mezcla de modelos";
+
+"mixing" = "Mezcla";
+
+"output_model_name" = "Nombre del modelo de salida";
+
+"model_precision" = "Precisión del modelo";
+
+"vae_encoder" = "VAE - Codificador";
+
+"vae_merging_risky" = "Algunos modelos personalizados (como Anything v3) afinan aún más el autoencoder variacional (VAE) para obtener mejores resultados. Mezclar VAE entre diferentes modelos puede ser arriesgado ya que afecta a los contrastes, brillo y otros aspectos visuales de la imagen de bajo nivel. Puede seleccionar usar el VAE de uno de los modelos en lugar de mezclarlos.";
+
+"note" = "Nota";
+
+"model_saved_note" = "Cualquier nota aquí se guardará con el modelo.";
+
+"different_versions" = "Versiones diferentes";
+
+"models_version_incompatible" = "Los modelos de diferentes versiones principales (v1.x y v2.x) no se pueden mezclar.";
+
+"vprediction_mismatch" = "Predicción V diferente";
+
+"vprediction_mixing_disallowed" = "Los modelos con predicción V activada no se pueden mezclar con modelos desactivados.";
+
+"no_model_selected" = "Ningún modelo seleccionado";
+
+"two_models_required" = "Necesita al menos dos modelos para mezclar.";
+
+"single_model_selected" = "Solo se ha seleccionado 1 modelo";
+
+"single_model_confirmation" = "Solo ha seleccionado un modelo, esto solo aplica el coeficiente a ese modelo. Es probable que sea un error, ¿aún así continuar?";
+
+"two_model_selected" = "Solo se han seleccionado 2 modelos";
+
+"three_model_required" = "Solo ha seleccionado 2 modelos para el modo \"Añadir diferencia\". Este modo requiere al menos 3 modelos. Es probable que sea un error, ¿aún así continuar?";
+
+"preset_image_strength" = "De imagen a imagen con una fuerza del 70%";
+
+"upscale_with" = "Ampliar con ";
+
+"face_restoration_with" = "Restauración facial con ";
+
+"support_no_prompt" = "Soporte de \"No hay mensaje\"";
+
+"width" = "Ancho";
+
+"height" = "Alto";
+
+"disable_attention_computation" = "Por defecto, la decodificación / codificación de imagen utiliza un módulo de atención en la capa intermedia. Esto solo afecta sutilmente la imagen final, pero puede consumir mucha memoria. Desactivar el cálculo de atención nos permite decodificar imágenes más grandes con una huella de memoria pequeña.";
+
+"first_pass_width" = "Ancho del primer pase";
+
+"first_pass_height" = "Alto del primer pase";
+
+"preload_coreml_only" = "Precarga (Solo CoreML)";
+
+"automatic" = "Automático ";
+
+"all" = "Todos";
+
+"always" = "Siempre";
+"always_partial" = "Siempre (Parcial)";
+"always_full" = "Siempre (Completa)";
+
+"sometimes" = "A veces";
+
+"never" = "Nunca";
+
+"preload" = "Precarga";
+
+"machine_settings"= "Configuraciones de la máquina";
+
+"prefill_warmup" = "Calentamiento del prellenado";
+
+"prefill_warmup_detail" = "Prepara el modelo local seleccionado antes del primer prompt para acelerar su procesamiento. El calentamiento puede aumentar brevemente el uso de memoria o retrasar la primera respuesta justo después de iniciar la aplicación. Activado de forma predeterminada en Macs con al menos 128 GiB de memoria; en otros dispositivos debe activarse manualmente. Los cambios se aplican al iniciar la aplicación o seleccionar un modelo.";
+
+"key_model_memory_for_sd_sdxl" = "Mantener el modelo en memoria para SD 1.5 y SDXL";
+
+"automatic_yes"= "Automático (Sí)";
+
+"automatic_no"= "Automático (No)";
+
+"efficient_model_loading" = "Por defecto, descargamos el modelo después de la generación de imágenes y lo volvemos a cargar cuando se genera de nuevo. La carga del modelo puede tardar entre 2 y 5 segundos cada vez. Al habilitar esto, mantendremos el modelo en memoria para una generación más rápida y solo lo descargaremos cuando el sistema operativo nos indique que estamos quedando sin memoria. Opcionalmente, puede precargar solo el modelo CoreML, lo que amortiza el tiempo de carga del modelo de CoreML y no ocupa memoria de otro modo.";
+
+"coreml_if_possible" = "Usar CoreML para SD 1.5 si es posible";
+
+"coreml_memory_usage" = "CoreML consume más memoria y no es aplicable para muchos dispositivos móviles. Incurre ~70 segundos de tiempo para cargar la primera vez. Pero a cambio, es aproximadamente un 50% más rápido. Es mejor habilitar 'Mantener modelo en memoria - Precarga' junto con esto para amortizar la carga de la primera vez.";
+
+"coreml_for_lora"= "Usar CoreML con LoRA para SD 1.5";
+
+"coreml_lora_detail"= "Para modelos LoRA, se puede aprovechar CoreML. Sin embargo, cada cambio en los pesos, diferentes modelos LoRA o sus combinaciones generarán un nuevo modelo CoreML, lo que conlleva la compilación del modelo, que puede durar minutos.";
+
+"file_swap_weights" = "Cambiar Pesos de Archivo";
+
+"file_swap_detail" = "La operación principal de Stable Diffusion requiere al menos 1,7 GiB para parámetros, los dispositivos móviles con 3 GiB de RAM tendrán dificultades para cargar solo los parámetros. Esta opción nos permite descargar estos parámetros al disco y cargarlos solo cuando sea necesario. Para dispositivos más lentos, esto no será un cuello de botella, pero para dispositivos más rápidos, puede serlo. Se requiere espacio adicional en el disco y seleccionar 'Nunca' forzará a eliminar estos archivos de parámetros.";
+
+"automatic_sometimes" = "Automático (A veces)";
+
+"screen_saver" = "Protector de Pantalla";
+
+"screen_saver_detail" = "En dispositivos móviles, la aplicación debe estar en primer plano para continuar con la generación de imágenes. El uso excesivo con un brillo de pantalla alto puede causar efectos duraderos en la pantalla OLED (que generalmente se ven en los modelos iPhone Pro). El protector de pantalla disminuirá el brillo de la pantalla durante la generación de imágenes para evitar el efecto potencialmente negativo.";
+
+"temporary_directory" = "Directorio Temporal";
+
+"temporary_directory_detail" = "Debido a cómo funciona el mecanismo interno del sistema operativo, 'Draw Things' puede generar archivos temporales excesivos en el directorio tmp. Estos archivos se eliminarán automáticamente cuando el sistema operativo esté bajo en espacio en disco. Pero también puedes usar esto para limpiarlo explícitamente si estás bajo en espacio en disco.";
+
+"cleanup" = "Limpieza";
+
+"reset_to_default" = "Restablecer a los valores predeterminados";
+
+"seed_explain" = "El valor de semilla determina cómo comienza la generación de imágenes. La misma semilla generará la misma imagen.";
+
+"seed_mode" = "Modo de Semilla";
+
+"seed_mode_detail" = "El modo de semilla determina cómo se utiliza la semilla. \"Herencia\" es compatible con la versión anterior de la aplicación Draw Things, \"Compatible con GPU NVIDIA\" es compatible con otras herramientas de escritorio como AUTOMATIC1111 o Invoke.AI en GPU NVIDIA / Linux / Windows, \"Compatible con Torch CPU\" es compatible con otras herramientas de escritorio en macOS y \"Mantener Escala\" permite que la semilla mantenga cierta similitud incluso en diferentes tamaños de imagen.";
+
+"legacy" = "Legacy";
+
+"image_size" = "Tamaño de Imagen";
+
+"image_size_detail" = "El tamaño de la imagen generada. Para obtener mejores resultados, utilice 1:1/Normal.";
+
+"final_output_size" = "Tamaño de Salida Final";
+
+"upscaler_detail" = "El Upscaler puede ayudar a generar imágenes de alta resolución visualmente agradables (2048x2048) a partir de una imagen relativamente más pequeña (512x512). Dependiendo del Upscaler que se utilice, puede llenar con diferentes detalles e introducir estilos ligeramente diferentes.";
+
+"steps_detail" = "Cantidad de pasos que se deben aplicar para la generación de imágenes. Cuantos más pasos, mejor será la imagen, pero tomará más tiempo.";
+
+"text_guidance_detail" = "Cómo se debe tratar la entrada de texto \"literalmente\". Un valor más alto sería más fiel al texto, mientras que un valor más bajo tendría más libertad artística. (CFG Scale)";
+
+"text_to_image" = "Texto a Imagen";
+
+"image_to_image" = "Imagen a Imagen";
+
+"strength_detail" = "Al generar desde una imagen, un valor alto daría más libertad artística a partir de la imagen original. El 100% significa que no hay influencia de la imagen existente (también conocido como texto a imagen).";
+
+"dpm_2m_karras" = "DPM++ 2M Karras";
+
+"sampler_detail" = "Diferentes samplers pueden converger en diferentes pasos y pueden resultar en diferentes estilos visuales. Se sabe que Euler A genera imágenes más \"oníricas\", mientras que DPM++ 2M Karras puede generar imágenes de alta calidad en no más de 30 pasos.";
+
+"image_guidance_detail" = "Los modelos de edición utilizan la imagen como guía al igual que el texto. Este valor, junto con la guía de texto, determina cómo el modelo puede divergir de cualquiera de los dos. Una guía de imagen más alta sería más fiel a la imagen original.";
+
+"clip_skip" = "Omitir CLIP";
+
+"clip_skip_detail" = "\"Omitir CLIP\" controla cuántas capas se omiten en el codificador de texto. El codificador de texto traduce su texto a vectores que la computadora entiende. Saltarse más capas en el codificador de texto obligará a la computadora a centrarse más en palabras individuales que en sus significados combinados. Esto podría ser útil para modelos que se afinan en entradas de texto similares a etiquetas.";
+
+"mask_blur" = "Desenfoque de Máscara";
+
+"mask_blur_detail" = "\"Desenfoque de Máscara\" intenta hacer que la máscara sea un poco más suave en el borde, lo que puede ayudar a mezclarse con el resto de la imagen.";
+
+"face_restoration_detail" = "La restauración facial puede utilizar un modelo adicional para corregir los rostros pequeños distorsionados durante la generación de imágenes. Este proceso funciona mejor para imágenes fotorealistas. Para imágenes de anime o artísticas, esto puede no ser deseable.";
+
+"batch_size_detail" = "Cuántas imágenes se generarán a la vez.";
+
+"high_resolution_fix" = "Corrección de Alta Resolución";
+
+"save_images_to" = "Guardar Imágenes Generadas en";
+
+"save_images_detail" = "Las imágenes generadas se pueden guardar en una carpeta de su elección. Esto facilita la organización de las imágenes generadas si se utilizan aplicaciones externas.";
+
+"first_pass_size" = "Tamaño del 1er Pase";
+
+"second_pass_strength" = "Fuerza del segundo pase";
+
+"hires_fix_detail" = "Hi-res Fix utiliza el tamaño seleccionado para la generación de la imagen del primer pase, luego aplica la generación de imagen a imagen en la fuerza seleccionada para refinar hasta alcanzar el tamaño objetivo. Evita objetos duplicados al generar directamente y tiende a generar más detalles que al usar un escalador genérico.";
+
+"torch_cpu_compatible" = "Torch CPU compatible";
+
+"nvidia_gpu_compatible" = "NVIDIA GPU compatible";
+
+"scale_alike" = "Escala similar";
+
+"stable_diffusion_v1.4" = "Genérico (Difusión estable v1.4)";
+
+"stable_diffusion_v1" = "Difusión estable v1";
+
+"stable_diffusion_v2" = "Difusión estable v2";
+
+"choose_model" = "Elija qué modelo utilizar para la generación de imágenes. Un modelo genérico es mejor para todo, mientras que ciertos modelos (waifu-diffusion) son buenos para la generación de estilo anime.";
+
+"lora_detail" = "LoRA (Adaptación de rango de bajo orden) es una técnica para aplicar modelos aditivos pequeños entrenados por separado al modelo base de Difusión Estable. Estos suelen entrenarse más rápido que el ajuste fino completo del modelo.";
+
+"additive_models_control" = "Los modelos aditivos pueden proporcionar control adicional para guiar el proceso de generación de imágenes. A menudo toman entradas en forma de garabato, poses, mapas de profundidad o mapas de bordes. Estos modelos aditivos solo son compatibles con sus versiones designadas de Difusión Estable. \"Peso\" determina cuánta influencia tiene el control sobre el proceso de generación de imágenes. \"Sin indicación\" puede generar imágenes sin indicación. \"Inicio\" y \"Fin\" determinan durante el proceso de eliminación de ruido cuándo entra en acción el control adicional.";
+
+"textual_inversion_exist" = "La T.I. Embedding ya existe";
+
+"textual_exist_confirmation" = "El modelo que intenta descargar ya existe, ¿desea continuar descargando?";
+
+"textual_inversion_detail" = "\"Inversiones textuales\" o \"incrustaciones\" a menudo se entrenan para expresar cosas que de otra manera serían más difíciles de hacer con texto. Podría ser un estilo, un personaje o algunos conceptos genéricos.";
+
+"seed" = "Semilla";
+
+"download" = "Descargar";
+
+// Spellcast
+
+"go_to_start" = "Ir al principio del texto.";
+
+"go_to_end" = "Ir al final del texto (%ld tokens).";
+
+"select_all" = "Seleccionar todo.";
+
+"tidy_prompt_text" = "Limpiar el texto de la prompt para que se vea mejor.";
+
+// Textual Inversion
+
+"textual_inversion" = "T.I. Embedding";
+
+"download_textual_inversions" = "Puede descargar un archivo desde Safari y moverlo a la carpeta \"Descargas\" dentro de la carpeta Draw Things en la aplicación Archivos, o ingresar una URL directamente para descargar inversiones textuales desde Internet.";
+
+"textual_display_name" = "El nombre que se mostrará en la lista de inversiones textuales.";
+
+"keyword" = "Palabra clave";
+
+"keyword_trigger_prompt" = "La palabra clave para activar la T.I. Embedding en el texto de entrada.";
+
+"import_textual_inversion" = "Importar T.I. Embedding";
+
+"textual_delete_confirmation" = "¿Desea eliminar esta T.I. Embedding?";
+
+"textual_inversion_exists" = "La T.I. Embedding ya existe";
+
+"textual_inversion_message" = "T.I. Embedding con nombre %@ ya existe. ¿Desea sobrescribirla?";
+
+"stop" = "Detener";
+
+"stopping" = "Deteniendo...";
+
+"clip_weight" = "Peso CLIP";
+
+"clip_weight_detail" = "El modelo \"Kandinsky\" utiliza tanto XLM Roberta como CLIP para codificar texto. El codificador CLIP ayuda a mejorar la calidad de la imagen pero solo está en inglés. \"Peso CLIP\" ayuda a ajustar cuánto peso ponemos en el codificador CLIP. Un valor más pequeño da como resultado un mejor seguimiento del texto.";
+
+"new_project_warning" = "El proyecto actual no será visible después de la operación, ¿continuar?";
+
+"cannot_rename" = "No se puede renombrar";
+
+"cannot_rename_message" = "El nombre del proyecto ya existe, puede eliminar el archivo antes de renombrar.";
+
+"enter_new_name" = "Por favor, introduzca un nuevo nombre";
+
+"vacuum_project" = "¿Vaciar el proyecto?";
+
+"vacuum_export_project" = "Vaciar y exportar";
+
+"export_directly" = "Exportar directamente";
+
+"vacuum_project_message" = "Este proyecto tiene un tamaño de aproximadamente %@ MB, vaciarlo para ahorrar espacio llevaría un tiempo, ¿desea vaciarlo antes de exportar?";
+
+"model_download_confirmation" = "Necesita descargar el modelo seleccionado a través de la red, ¿proceder?";
+
+"automatic_state"= "Automático (%@)";
+
+"global_average_pooling" = "Pooling Promedio Global";
+
+"negative_prompt_for_image_prior" = "Indicación Negativa para Prioridad de Imagen";
+
+"negative_prompt_for_image_prior_detail" = "Usualmente, las indicaciones negativas se utilizan en el codificador de texto para indicar al proceso de generación de imágenes qué cosas no deberían estar en la imagen. Sin embargo, para el modelo de Kandinsky, la indicación negativa se utiliza mejor para la generación de prioridades de imagen si principalmente se utilizan para atributos de calidad.";
+
+"image_prior_steps" = "Pasos de Prioridad de Imagen";
+
+"image_prior_steps_detail" = "Los modelos de Kandinsky primero generan una \"prioridad\" de imagen, una representación compacta de una imagen con énfasis en el estilo y la calidad. Pasos más altos pueden tener mejor fidelidad en la prioridad de la imagen.";
+
+"deep_clean_and_vacuum" = "Limpieza Profunda y Aspirado";
+
+"language_settings" = "Configuración de idioma";
+
+"language_settings_detail" = "Para aplicar los cambios de idioma, por favor cierre la aplicación y luego vuélvala a abrir.";
+
+"english" = "English";
+
+"spanish" = "Español";
+
+"simplified_chinese" = "简体中文";
+
+"traditional_chinese" = "繁體中文";
+
+"font_size_settings" = "Tamaño de Fuente";
+
+"font_size_settings_detail" = "Cambia el tamaño de fuente predeterminado de la interfaz de usuario.";
+
+"extra_small" = "Extra pequeña";
+
+"small" = "Pequeña";
+
+"normal" = "Normal";
+
+"large" = "Grande";
+
+"extra_large" = "Extra grande";
+
+"final_image_from_last" = "Imagen final de la última generación.";
+
+"low_res_approximation" = "Aproximación de baja resolución, NO es la imagen final.";
+
+"wrong_model_type" = "Esto parece un archivo %@, ¿deseas <intent>importar como %@</intent> ¿en lugar de eso?";
+
+"lora_missing_info" = "Las siguientes Models de los datos generados por Civitai pueden no haberse descargado aún, por favor configure esas Models manualmente. \n %@ \n %@";
+
+"paste_generation_data" = "Pegar Datos Generados de Civitai";
+
+"manage_scripts" = "Administrar Scripts...";
+
+"scripts" = "Scripts";
+
+"add_script_title" = "Crear Script";
+
+"add_script" = "Crear";
+
+"add_script_button" = "Crear...";
+
+"save_script_title" = "Guardar cambios";
+
+"save_script_message" = "¿Desea guardar sus cambios?";
+
+"dont_save" = "No guardar";
+
+"file_name" = "Nombre del archivo...";
+
+"file_already_exists" = "Ya existe un script con ese nombre.";
+
+"confirm_script_deletion" = "¿Eliminar este script?";
+
+"error_onboard_proceed" = "No se puede proceder";
+
+"error_onboard_official" = "Error al iniciar la descarga del modelo oficial";
+
+"error_onboard_import" = "Error al importar los modelos locales";
+
+"error_onboard_civitai" = "Error al iniciar la descarga del modelo de Civitai";
+
+"small_model_warning" = "El modelo base normal debe ser mayor de 1GiB";
+
+"unsupport_url" = "URL no admitido";
+
+"unsupport_url_message" = "Solo admitimos URL de Civitai";
+
+"extract_pose" = "Extraer pose";
+
+"extract_color_palette" = "Extraer paleta de colores";
+
+"delete_depth_map" = "Eliminar mapa de profundidad";
+
+"random_seed" = "Generar una semilla aleatoria";
+
+"enter_seed" = "Introducir una semilla...";
+
+"down_sampling_rate" = "Tasa de Submuestreo";
+
+"save_visible_region_dot" = "Guardar región visible...";
+
+"guided_rectangle" = "Dibujar rectángulo para borrador o pincel.";
+
+"new_seed_on_generation" = "Nueva semilla en generación";
+
+"image_too_large" = "Imagen demasiado grande";
+
+"image_too_large_info" = "La imagen de densidad de píxeles mixta tiene un tamaño de salida de %@ y eso podría causar problemas en tu sistema operativo. Puedes elegir un factor de escala diferente para exportar la imagen.";
+
+"image_too_large_save_anyway" = "Usar %@ de todos modos";
+
+"image_too_large_at_res" = "Salida %@ (%@)";
+
+"create_8bit_dot" = "Crear modelo de 8 bits...";
+
+"8bit_model_title" = "Creando modelo de 8 bits";
+
+"8bit_model_detail" = "Los modelos de difusión estables importados pueden ocupar alrededor de 1,6 GiB. Un modelo cuantizado de ~8 bits ocupa alrededor de 800 MiB con diferencias visuales mínimas. Puedes crear un modelo cuantizado de 8 bits, comparar el resultado con el original y, si te gusta el resultado cuantizado, eliminar el modelo original para ahorrar espacio en el disco. La creación del modelo cuantizado de 8 bits tomará aproximadamente de 20 a 40 minutos dependiendo de tu dispositivo, ¿deseas continuar?";
+
+"create_int8_scaled_dot" = "Crear modelo Int8 Scaled (8-bit S)...";
+
+"int8_scaled_model_title" = "Creando modelo Int8 Scaled (8-bit S)";
+
+"int8_scaled_model_detail" = "Int8 Scaled (8-bit S) es una nueva variante de modelo optimizada específicamente para Apple M5. Suele ser aproximadamente 1,8 veces más rápida que nuestras otras variantes con una pérdida mínima de calidad. La creación del modelo Int8 Scaled (8-bit S) tomará aproximadamente de 10 a 20 minutos según tu dispositivo. ¿Deseas continuar?";
+
+"add_image_dot" = "Agregar imagen...";
+
+"refiner_model" = "Modelo de Mejora";
+
+"refiner_start" = "Iniciar Mejora";
+
+"refiner_model_detail" = "Un modelo de \"mejora\" se puede utilizar en una etapa posterior de generación de imágenes (más cercana al 100% de finalización) y a menudo puede mejorar los detalles de la imagen de manera significativa. Esta es una forma más rentable que realizar la generación de imágenes más adelante.";
+
+"original_image_size" = "Tamaño Original de la Imagen";
+
+"original_width" = "Ancho Original";
+
+"original_height" = "Alto Original";
+
+"original_size_detail" = "El tamaño original antes del recorte de la imagen durante el entrenamiento. Esto ayuda a establecer una relación de aspecto específica de la generación diferente del tamaño de la imagen.";
+
+"crop" = "Recortar";
+
+"crop_top" = "Recortar Parte Superior";
+
+"crop_left" = "Recortar Parte Izquierda";
+
+"crop_detail" = "La coordenada superior y izquierda al recortar la imagen para el entrenamiento. Usar esta configuración adecuadamente puede generar imágenes enfocadas en partes diferentes a las demás.";
+
+"target_image_size" = "Tamaño Objetivo de la Imagen";
+
+"target_width" = "Ancho Objetivo";
+
+"target_height" = "Alto Objetivo";
+
+"target_size_detail" = "El tamaño objetivo después del recorte de la imagen durante el entrenamiento. Esto ayuda a establecer una resolución diferente a la del tamaño de la imagen. Por ejemplo, una imagen de 1024x1024 puede tener un tamaño objetivo de 512x512, lo que generará menos detalles que de otro modo.";
+
+"aesthetic_score" = "Puntuación Estética";
+
+"negative_aesthetic_score" = "Puntuación Estética Negativa";
+
+"aesthetic_score_detail" = "La puntuación estética describe cuán agradable artísticamente debe ser una imagen. Usar estas dos palancas puede ayudar a guiar la imagen hacia una calidad particular según se desee.";
+
+"zero_negative_prompt" = "Indicación Negativa Cero";
+
+"zero_negative_prompt_detail" = "Habilitar esto ignorará las indicaciones negativas proporcionadas por el usuario y usará 0 para la indicación negativa durante la inferencia.";
+
+"mfa_if_possible" = "Metal Flash Attention";
+
+"mfa_usage" = "Hemos implementado funciones personalizadas de GPU que son más rápidas en tipos específicos de operaciones que utiliza el modelo de generación de imágenes. Puede desactivarlo si encuentra algunos problemas de compatibilidad o si simplemente desea generar exactamente la misma imagen que antes.";
+
+"use_apple_neural_engine_for_8bit_s_models" = "Usar Apple Neural Engine para modelos S de 8 bits";
+
+"apple_neural_engine_for_8bit_s_models_detail" = "En M4, Apple Neural Engine puede ejecutar modelos S de 8 bits 2x más rápido o más, e incluso igualar el rendimiento de M4 Max. En M5, suele ser más lento, pero más eficiente en consumo. Esta opción le permite sobrescribir nuestra elección predeterminada.";
+
+"skip" = "Saltar";
+
+"skipping" = "Saltando...";
+
+"generated_in_seconds" = "Generado en %.2fs.";
+
+"port" = "Puerto";
+
+"port_placeholder" = "Puerto...";
+
+"ip" = "IP";
+
+"localhost_ip_detail" = "127.0.0.1 (solo localhost)";
+
+"global_ip_detail" = "0.0.0.0 (permitir todas las conexiones)";
+
+"server_error" = "Error del Servidor";
+
+"server_error_message" = "Se produjo un error al intentar la conexión. Verifique que el puerto sea válido, es decir, entre 1024 y 65535 y que no esté en uso.";
+
+"run_server" = "Servidor de API HTTP";
+
+"server_detail" = "\"Servidor de API HTTP\" ejecuta un servidor de API HTTP compatible, permitiendo que las extensiones que utilizan las API txt2img o img2img se conecten localmente para la generación de imágenes. Las generaciones se reflejarán en la interfaz de Draw Things.";
+
+"negative_original_image_size" = "Tamaño de Imagen Original Negativa";
+
+"negative_original_width" = "Ancho de Imagen Original Negativa";
+
+"negative_original_height" = "Alto de Imagen Original Negativa";
+
+"negative_original_size_detail" = "El tamaño de imagen original negativa se proporciona a la indicación negativa para contrastar mejor lo que no se desea en la generación. Un valor más pequeño del tamaño de imagen original negativa ayuda a evitar la estética plástica del modelo base.";
+
+"select_multiple_dot" = "Seleccionar múltiples...";
+
+"paste_as_moodboard" = "Pegar en el Tablero Creativo";
+
+"delete_moodboard" = "Eliminar Tablero Creativo";
+
+"moodboard_detail" = "Puedes cargar o arrastrar y soltar varias imágenes en el \"Tablero Creativo\". Modelos como ControlNet Shuffle pueden hacer referencia a estas imágenes en conjunto para influir en la generación de imágenes finales.";
+
+"not_for_8bit" = "No apto para modelos cuantizados";
+
+"merge_lora" = "Combinar LoRA";
+
+"merge_lora_detail" = "Los pesos de LoRA se pueden combinar con los pesos del modelo sobre la marcha para reducir la latencia en tiempo de ejecución. Alternativamente, los pesos de LoRA se pueden ejecutar como una red neuronal separada. Ejecutar LoRA como una red neuronal separada nos permite continuar utilizando los pesos del modelo cuantizado, lo que resulta en un menor consumo de RAM. Será un 10% a un 30% más lento ejecutar LoRA como una red neuronal separada.";
+
+"restart_training" = "Reiniciar";
+
+"start_training" = "Iniciar Entrenamiento";
+
+"resume_training" = "Reanudar Entrenamiento";
+
+"lora_training" = "Entrenamiento LoRA";
+
+"dataset" = "Conjunto de Datos";
+
+"hyperparameters" = "Hiperparámetros";
+
+"base_model" = "Modelo Base";
+
+"auto_fill_prompt" = "Auto Completar Indicación";
+
+"add_dot" = "Agregar...";
+
+"unet_learning_rate" = "Tasa de Aprendizaje UNet";
+
+"cotrain_text_model" = "Co-entrenar Modelo de Texto";
+
+"text_model_learning_rate" = "Tasa de Aprendizaje del Modelo de Texto";
+
+"lora_model" = "Modelo LoRA";
+
+"denoising_schedule" = "Programa de Reducción de Ruido";
+
+"import_from_preset" = "Importar desde Carpeta...";
+
+"output_lora_name" = "Nombre de Salida LoRA";
+
+"lora_network_dim" = "Dimensión de la Red";
+
+"noise_offset" = "Compensación de Ruido";
+
+"cotrain_custom_embedding" = "Co-entrenar Incrustación Personalizada";
+
+"custom_embedding_length" = "Longitud de la Incrustación Personalizada";
+
+"custom_embedding_learning_rate" = "Tasa de Aprendizaje de la Incrustación Personalizada";
+
+"training_steps" = "Pasos de Entrenamiento";
+
+"save_every_n_steps" = "Guardar cada N Pasos";
+
+"gradient_accumulation_steps" = "Pasos de Acumulación de Gradiente";
+
+"save_as_dot" = "Guardar como...";
+
+"lora_network_scale" = "Escala de la Red";
+
+"warmup_steps" = "Pasos de Calentamiento";
+
+"create_fp16_dot" = "Crear modelo FP16...";
+
+"8bit_lora_detail" = "El modelo LoRA puede ocupar cientos de MiB. Un modelo cuantizado de ~8 bits ocupa aproximadamente la mitad de eso con diferencias visuales mínimas. Puedes crear un modelo cuantizado de 8 bits, comparar el resultado con el original y, si te gusta el resultado cuantizado, eliminar el modelo original para ahorrar espacio en disco. La creación del modelo cuantizado de 8 bits llevaría aproximadamente de 1 a 5 minutos, dependiendo de tu dispositivo. ¿Deseas continuar?";
+
+"base_model_detail" = "LoRA es un modelo aditivo. Requiere un modelo base y luego un ajuste fino a partir de ahí. Un buen modelo base puede reducir el número de pasos requeridos y tener una mayor estética para el resultado final.";
+
+"output_lora_name_detail" = "El nombre del LoRA que se mostrará en la lista de LoRA. También guardamos información relacionada con el entrenamiento, como hiperparámetros y descripciones del conjunto de datos de entrenamiento, con este nombre. Si utilizas el mismo nombre, podremos recuperar esta información.";
+
+"trigger_word_detail" = "La palabra desencadenante ayuda a completar la descripción con la palabra desencadenante y proporciona un buen punto de partida para LoRA. Debes elegir una palabra desencadenante que no tenga un significado particularmente fuerte para el modelo, de lo contrario, podría borrar el concepto original del modelo.";
+
+"network_dim_detail" = "\"Dimensión de la Red\" determina la capacidad de la red LoRA. Un valor mayor requerirá más datos para entrenar, pero podría capturar más matices de los datos de entrenamiento.";
+
+"network_scale_detail" = "Esto es \"Alpha de Red\" / \"Dimensión de la Red\" en otros entrenadores. Determina la influencia inicial de los pesos aleatorios en la red LoRA. Una escala más pequeña podría ayudar a estabilizar el entrenamiento.";
+
+"training_image_size_detail" = "La resolución al entrenar la red. Recortamos y escalamos la imagen proporcionada a esta resolución. Asegúrate de que los datos de entrenamiento sean iguales o superiores a esta resolución, de lo contrario, la red podría aprender artefactos de aumento de escala.";
+
+"training_steps_detail" = "Cuántos pasos de entrenamiento realizar. Esto debe modificarse en conjunto con la tasa de aprendizaje para obtener un buen modelo. Una tasa de aprendizaje más baja y una mayor capacidad requieren más pasos de entrenamiento.";
+
+"save_every_n_steps_detail" = "Esto nos permite guardar LoRAs en cada n pasos para evitar sobreentrenar un modelo.";
+
+"warmup_steps_detail" = "Esto controla en qué paso utilizaremos la tasa de aprendizaje completa para el entrenamiento. Los pasos de calentamiento ayudan a estabilizar la dinámica de entrenamiento más temprano al evitar un exceso de peso en ejemplos iniciales.";
+
+"gradient_accumulation_steps_detail" = "Esto controla cuándo realizamos una actualización de red. Acumular más gradientes antes de la actualización ayuda a la red a obtener más estadísticas sobre dónde ir. Debes ajustar la tasa de aprendizaje junto con este valor (es decir, 2x pasos de acumulación, 2x tasa de aprendizaje).";
+
+"cotrain_text_model_detail" = "Si se debe ajustar finamente el codificador de texto. Para los modelos SD v1 / v2, el ajuste fino del codificador de texto ayuda a popularizar un concepto más rápido en el modelo. Esto a menudo no es necesario al ajustar finamente SDXL.";
+
+"text_model_learning_rate_detail" = "La tasa de aprendizaje para el ajuste fino del codificador de texto.";
+
+"noise_offset_detail" = "\"Compensación de ruido\" introduce un desplazamiento adicional en la distribución de ruido. Esto ayuda al ajuste fino del modelo a representar mejor escenarios oscuros / brillantes en lugar de caer siempre en una exposición media.";
+
+"denoising_schedule_detail" = "Esto controla en qué etapa del proceso de reducción de ruido nos enfocamos en el ajuste fino. Por ejemplo, puedes entrenar un LoRA que ayuda a \"refinar\" una imagen centrándote solo en el programa de reducción de ruido entre el 70% y el 100%. O un LoRA que ayuda a obtener una buena composición entre el 0% y el 50% del programa.";
+
+"copy_style_template" = "Usar plantilla de estilo como texto sin formato...";
+
+"select_style_template" = "Seleccionar plantilla de estilo.";
+
+"delete_controlnet" = "¿Deseas eliminar este ControlNet?";
+
+"downloaded_model_file_detail" = "Puedes descargar un archivo desde Safari y moverlo a la carpeta \"Descargas\" en la carpeta de Draw Things en la aplicación Archivos, o ingresar una URL directamente para descargar un modelo desde Internet.";
+
+"downloaded_lora_file_detail" = "Puedes descargar un archivo desde Safari y moverlo a la carpeta \"Descargas\" en la carpeta de Draw Things en la aplicación Archivos, o ingresar una URL directamente para descargar un modelo LoRA desde Internet.";
+
+"downloaded_controlnet_file_detail" = "Puedes descargar un archivo desde Safari y moverlo a la carpeta \"Descargas\" en la carpeta de Draw Things en la aplicación Archivos, o ingresar una URL directamente para descargar un modelo ControlNet desde Internet.";
+
+"midjourney_syntax_processing" = "Procesar el mensaje con la sintaxis de Midjourney";
+
+"midjourney_syntax_migrating" = "Migrar la sintaxis de Midjourney";
+
+"accept" = "Aceptar";
+
+"reject" = "Rechazar";
+
+"sort_models_order_dot" = "Ordenar por nombre en orden alfabético...";
+
+"sort_models_details" = "Clasificar modelos descargados alfabéticamente por nombre; el orden de los modelos integrados no cambiará.";
+
+"sort_models_order_title" = "¿Ordenar lista de modelos?";
+
+"interrogate" = "Interrogar";
+
+"interrogate_dot" = "Interrogar...";
+
+"fixed_captioning" = "Fijo";
+
+"auto_captioning" = "Automático";
+
+"copy_to_prompt" = "Copiar al Promt";
+
+"apply_image_metadata" = "¿Aplicar configuraciones desde metadatos de imagen?";
+
+"apply_image_metadata_detail" = "La imagen podría haber sido generada por \"Draw Things\" u otras aplicaciones similares. Contiene metadatos de promts, modelos y otra información que te permite reproducir la imagen. ¿Deseas cargar estos metadatos en \"Draw Things\"?";
+
+"custom_embedding_detail" = "La inserción personalizada de T.I. es mejor para capturar la esencia que usar una palabra rara como palabra desencadenante. Por otro lado, requiere que uses la inserción T.I. junto con la LoRA entrenada, de lo contrario, la LoRA entrenada no funcionará correctamente.";
+
+"custom_embedding_learning_rate_detail" = "La tasa de aprendizaje para el entrenamiento conjunto de la inserción T.I.";
+
+"custom_embedding_length_detail" = "Una longitud de inserción más larga ayuda a capturar más matices de los datos de entrenamiento, pero también ocupa más tokens por inserción.";
+
+"stop_embedding_training_at_step" = "Detener entrenamiento de inserción en el paso";
+
+"stop_embedding_training_at_step_detail" = "Detener la actualización de la inserción después del número de pasos especificado. Esto ayuda a estabilizar el entrenamiento una vez que se ha aprendido la inserción.";
+
+"embedding_training" = "Entrenamiento de Inserción T.I.";
+
+"recaption_image" = "Volver a titular la imagen";
+
+"midjourney_automatic_detect_and_ask" = "Detectar cuando se presiona \"Generar\".";
+
+"search" = "Buscar";
+"show_details" = "Mostrar detalles";
+
+"grid" = "Cuadrícula";
+
+"list" = "Lista";
+
+"manage" = "Administrar";
+
+"manage_detail" = "Administrar tus modelos";
+
+"disable_lora_detail" = "Desactivar LoRA";
+
+"prompt_template_title" = "Plantilla de Solicitud";
+
+"disable_refiner_detail" = "Desactivar Refinador";
+
+"num_frames" = "Número de Cuadros";
+
+"num_frames_detail" = "El número total de cuadros que se generarán. Dividir esto por los FPS le da la duración del video en segundos.";
+
+"fps" = "FPS (Fotogramas por Segundo)";
+
+"fps_detail" = "Los FPS determinan la velocidad de reproducción deseada para los cuadros generados. Se recomienda que esté entre 5 y 30. Más alto o más bajo que eso tendrá un resultado subóptimo.";
+"motion_scale" = "Escala de Movimiento";
+
+"motion_scale_detail" = "También conocida como \"Balde de Movimiento\". Un valor más bajo tendrá menos movimiento global (y podría mejorar el movimiento del sujeto). Un valor más alto tendrá más movimiento global.";
+
+"cond_aug" = "Ruido de Marco Guía";
+
+"cond_aug_detail" = "También conocida como \"Aumento de Condición\". Un valor más alto inyectará más ruido en el marco guía, lo que podría dar a los cuadros posteriores más libertad creativa.";
+
+"start_frame_guidance" = "Guía de Cuadro de Inicio";
+
+"start_frame_guidance_detail" = "Desde el cuadro de inicio hasta el cuadro final, aumentamos progresivamente el valor de guía desde este punto hasta \"Guía de Texto\", de modo que los cuadros posteriores se vean obligados a divergir más del promedio, lo que produce más deformación o movimiento.";
+
+"erase" = "Borrar";
+
+"freeform" = "Dibujo Libre";
+
+"rectangle" = "Rectángulo";
+
+"color" = "Color";
+
+"custom_tools" = "Herramientas Personalizadas";
+
+"version_history" = "Historial de Versiones";
+
+"restore_default" = "Restaurar Predeterminado";
+
+"peft" = "PEFT";
+
+"basic" = "Básico";
+
+"advanced" = "Avanzado";
+
+"local" = "Local";
+"cloud" = "Nube";
+"cloud_project_required" = "Selecciona o crea un proyecto antes de iniciar una conversación en la nube.";
+
+"local_scripts_detail" = "Los scripts almacenados localmente son rutinas programáticas que proporcionamos para llevar a cabo tareas populares.";
+
+"local_projects_detail" = "Mostrar proyectos almacenados localmente.";
+
+"presets_detail" = "Estas son funciones incorporadas que pueden ser útiles para ciertas tareas.";
+
+"placeholder_negative_prompt" = "Introducir indicación negativa...";
+
+"placeholder_positive_prompt" = "Introducir indicación positiva...";
+
+"delete_project_file" = "Eliminar el archivo de proyecto \"%@\" del disco es una operación irreversible. ¿Desea continuar?";
+
+"vae_decoder" = "VAE - Decodificador";
+
+"mask_blur_outset" = "Desenfoque del margen de la máscara";
+
+"mask_blur_outset_detail" = "\"Desenfoque del margen de la máscara\" intenta extender (o reducir) la máscara por el valor del margen, lo que puede ayudar en la mezcla con el resto de la imagen, especialmente para la pintura externa.";
+
+"sharpness" = "Nitidez";
+
+"sharpness_detail" = "La nitidez implementa un filtro adicional en el ruido predicho por el modelo de difusión para hacer que la generación final sea más nítida.";
+
+"export_selected_dot" = "Exportar seleccionado...";
+
+"extract_depth_map_photos" = "Extraer mapa de profundidad de Fotos...";
+
+"extract_depth_map_files" = "Extraer mapa de profundidad de Archivos...";
+
+"paste_to_extract_depth_map" = "Pegar para extraer mapa de profundidad";
+
+"extract_depth_map_from_canvas" = "Extraer mapa de profundidad desde el lienzo";
+
+"balanced" = "Equilibrado";
+
+"prompt_more_important" = "Indicación";
+
+"control_more_important" = "Control";
+
+"control_mode" = "Importancia de Control";
+
+"8bit_controlnet_detail" = "El modelo ControlNet puede ocupar cientos de MiB. Un modelo cuantizado de ~8 bits ocupa aproximadamente la mitad de eso con diferencias visuales mínimas. Puede crear un modelo cuantizado de 8 bits, comparar el resultado con el original y, si le gusta el resultado cuantizado, eliminar el modelo original para ahorrar espacio en disco. La creación del modelo cuantizado de 8 bits llevaría unos 10 a 20 minutos, según su dispositivo. ¿Desea continuar?";
+
+"type_to_select" = "Escriba para seleccionar un área (próximamente)";
+
+"done" = "Hecho";
+
+"interrogate_this_image" = "Interrogar esta imagen ✍️";
+
+"reset" = "Restablecer";
+
+"run" = "Ejecutar";
+
+"interrogation_model" = "Modelo de Interrogación";
+
+"system_prompt_editable" = "Indicación del Sistema (Editable)";
+
+"system_prompt_non_editable" = "Indicación del Sistema (No editable)";
+
+"system_prompt_detail" = "\"Indicación del Sistema\" ayuda a orientar el modelo de imagen a texto para generar el texto de una manera particular. Puede restablecer la indicación del sistema incorporada ingresando nada.";
+
+"generated_caption" = "Subtítulo Generado";
+
+"import" = "Importar";
+
+"welcome_pick_a_model_to_start" = "¡Bienvenido! 👋 Elige un modelo para comenzar 🚀";
+
+"next" = "Siguiente";
+
+"step_1_of_2" = "Paso 1 de 2";
+
+"step_2_of_2" = "Paso 2 de 2";
+
+"download_model_official" = "Descargar un modelo desde el servidor de Draw Things";
+
+"download_model_official_detail" = "Proporcionamos modelos optimizados para inferencia desde nuestros servidores. Estos modelos tienen sus fortalezas y debilidades. Para una generación más rápida, recomendamos comenzar con uno de los modelos Turbo. Para generaciones visualmente más atractivas, recomendamos comenzar con uno de los modelos SDXL.";
+
+"save_images_to_dot" = "Guardar imágenes generadas en...";
+
+"choose_a_place_to_save_your_images" = "Elige un lugar para guardar tus imágenes 🏠";
+
+"choose_a_folder_dot" = "Elegir una carpeta...";
+
+"model_file" = "Archivo del Modelo";
+
+"vae_optional" = "VAE (opcional)";
+
+"configuration_file_optional" = "Archivo de Configuración (opcional)";
+
+"choose_a_file_dot" = "Elegir un archivo...";
+
+"import_a_model_from_local_storage" = "Importar un modelo desde el almacenamiento local";
+
+"importing" = "Importando";
+
+"download_again" = "Descargar de nuevo";
+
+"model_objective" = "Objetivo del Modelo";
+
+"model_objective_detail" = "Los modelos están entrenados para predecir ciertos objetivos. Diferentes modelos pueden tener diferentes objetivos. Por ejemplo, Stable Diffusion XL y Stable Diffusion v1.5 fueron entrenados para predecir el objetivo \"Epsilon\", Stable Diffusion v2.0 768-v fue entrenado para predecir el objetivo \"V\".";
+
+"epsilon" = "Epsilon";
+
+"edm" = "EDM";
+
+"conditioning" = "Condicionamiento";
+
+"conditioning_detail" = "La difusión requiere que el modelo haga predicciones en diferentes niveles de ruido. El modelo es un mejor predictor cuando sabe en qué nivel de ruido se encuentra. El parámetro de \"Condicionamiento\" se pasa al modelo para que lo sepa. Hay diferentes formulaciones para esto. Por ejemplo, Stable Diffusion XL / v1.5 / v2.0 pasa \"paso temporal\", Stable Video Diffusion pasa \"ruido\".";
+
+"timestep" = "Paso Temporal";
+
+"noise" = "Ruido";
+
+"noise_discretization" = "Discretización del Ruido";
+
+"noise_discretization_detail" = "La difusión requiere que el modelo haga predicciones en diferentes niveles de ruido. Hay diferentes formulaciones para separar estos niveles de ruido. Es importante tener en cuenta que estos pueden ser discretos o continuos. Stable Diffusion XL / v1.5 / v2.0 fueron entrenados con un calendario discreto conocido como \"DDPM\". Stable Video Diffusion / Playground v2.5 fueron entrenados con un calendario continuo conocido como \"EDM\".";
+
+"ddpm" = "DDPM";
+
+"shift" = "Desplazamiento";
+
+"shift_detail" = "El desplazamiento controla cuánto se sesgará el calendario del muestreador hacia la región de ruido más bajo. Un valor de desplazamiento más alto significa que pasaremos más tiempo en la región de bajo ruido, lo que podría ayudar a darle al modelo más tiempo en los detalles locales.";
+
+"end_frame_guidance" = "Guía de Marco Final";
+
+"stage_1_steps" = "Pasos de la Etapa 1";
+
+"stage_2_steps" = "Pasos de la Etapa 2";
+
+"stage_2_steps_detail" = "¿Cuántos pasos se requieren para la segunda etapa del modelo Stable Cascade? Este es el recuento de pasos conocido como \"Etapa B\" en otros lugares.";
+
+"stage_1_cfg" = "Guía de Texto de la Etapa 1";
+
+"stage_2_cfg" = "Guía de la Etapa 2";
+
+"stage_2_cfg_detail" = "¿Qué cantidad de guía libre de clasificador se aplicará en la segunda etapa del modelo Stable Cascade? Esta es la CFG conocida como \"Etapa B\" en otros lugares. Por lo general, está entre 1 y 2.";
+
+"stage_1_shift" = "Desplazamiento de la Etapa 1";
+
+"stage_2_shift" = "Desplazamiento de la Etapa 2";
+
+"stage_2_shift_detail" = "El valor de desplazamiento que se aplicará en la segunda etapa del modelo Stable Cascade. Este es el valor de desplazamiento conocido como \"Etapa B\" en otros lugares. Por lo general, es 1.";
+
+"stage_1_latents_size" = "Tamaño de Latentes de la Etapa 1";
+
+"alt_stage_1_image_size" = "Tamaño de Imagen de la Etapa 1 Alternativa";
+
+"alt_stage_1_image_size_detail" = "La Etapa 1 opera en un espacio latente comprimido. Puede combinar y combinar el espacio latente con el decodificador de la etapa 2. Si habilita esta opción, podrá especificar un tamaño de imagen de la etapa 1 diferente. Un tamaño de imagen de la etapa 1 más grande será más lento, pero puede incorporar más detalles en la generación final. El espacio latente = tamaño de imagen / 32.";
+
+"export_as_video" = "Exportar como vídeo";
+
+"export_as_image_sequence" = "Exportar como secuencia de imágenes";
+
+"export_image_dot" = "Exportar imagen...";
+
+"export_video_failed" = "¡Error al exportar vídeo!";
+
+"export_video_inprogress" = "Exportando vídeo. No se puede iniciar otro.";
+
+"tiled_decoding" = "Decodificación en mosaico";
+
+"tiled_decoding_detail" = "La decodificación en mosaico permite que los autoencoders decodifiquen la imagen a partir de valores latentes en mosaicos. Esto ayuda a reducir el uso máximo de memoria a costa de un poco más de tiempo. Es particularmente útil para iPhones al generar imágenes de 1024x1024 o más grandes.";
+
+"decoding_tile_size" = "Tamaño del mosaico de decodificación";
+
+"decoding_tile_width" = "Ancho del mosaico de decodificación";
+
+"decoding_tile_height" = "Altura del mosaico de decodificación";
+
+"decoding_tile_overlapping" = "Superposición de mosaicos de decodificación";
+
+"stage_1_image_size" = "Tamaño de la imagen de la etapa 1";
+
+"stage_1_image_width" = "Ancho de la imagen de la etapa 1";
+
+"stage_1_image_height" = "Altura de la imagen de la etapa 1";
+
+"local_projects_detail" = "Los proyectos almacenados localmente en este dispositivo aparecen aquí.";
+
+"local_network" = "Red local";
+
+"local_network_detail" = "Otros dispositivos a los que desee conectar mediante la red local aparecerán aquí.";
+
+"shared_projects" = "Proyectos compartidos";
+
+"shared_projects_detail" = "Para descargar proyectos compartidos de estos dispositivos a su dispositivo local, actualice a Draw Things+. Para obtener más información, consulte nuestra documentación.";
+
+"verify_connection" = "Verificar conexión";
+
+"formatted_verification_code" = "Código de verificación: %@";
+
+"verify_learn_more" = "Para verificar el cifrado de extremo a extremo con el iPad de Nazir, compare los números anteriores con su dispositivo. Más información";
+
+"attempting_to_connect" = "Intentando conectar mediante la red local";
+
+"decline" = "Rechazar";
+
+"connect" = "Conectar";
+
+"external_on_demand" = "Carga de pesos JIT";
+
+"external_on_demand_detail" = "Activar esto solo cargará los pesos durante su tiempo preciso de cálculo. En dispositivos de gama baja, esto ayuda a ahorrar uso de RAM, pero tiene un costo en velocidad. También optimizaremos automáticamente los pesos del modelo antes del cálculo, por lo que es posible que vea algunos cambios en la estructura del archivo.";
+
+"optimize_for_compact_store" = "Optimizar para almacenamiento compacto";
+
+"optimize_for_weights_loading" = "Optimizar para carga más rápida";
+
+"exporting" = "Exportando";
+
+"exporting_video" = "Exportando vídeo";
+
+"strategic_stochastic_sampling" = "Muestreo estocástico estratégico";
+
+"strategic_stochastic_sampling_detail" = "Este parámetro controla cuánta corrección de errores necesita aplicar el muestreador TCD. El 0% generará imágenes más nítidas, pero podría tener detalles locales erróneos. El 100% hace que la imagen sea borrosa pero tiene menos errores en los detalles locales.";
+
+"downloading_some_item" = "Descargando %@";
+
+"cancel_download" = "Cancelar descarga de %@";
+
+"cancel_download_confirmation" = "¿Deseas cancelar la descarga de %@?";
+
+"minimal" = "Mínimo";
+
+"balanced" = "Equilibrado";
+
+"speed" = "Velocidad";
+
+"turbo" = "Turbo";
+
+"memory_saver" = "Ahorro de memoria";
+
+"memory_saver_detail" = "Esta opción te permite intercambiar rendimiento con el uso de RAM durante el entrenamiento de LoRA. Mínimo será el más lento, pero usa la menor cantidad de memoria. Equilibrado proporcionará un rendimiento moderado con un uso de memoria moderado. Velocidad será más rápido que Equilibrado con más memoria utilizada. Turbo será el más rápido y utiliza la mayor cantidad de recursos de memoria.";
+
+"draw_things_plus" = "Draw Things+";
+
+"draw_things_plus_description" = "Optimiza tus flujos de trabajo de proyecto, modelo y script. Descarga archivos compartidos de tus dispositivos conectados a través de la red local.";
+
+"supported_files" = "Archivos admitidos";
+
+"models_and_loras" = "Modelos y LoRAs";
+
+"get_dt_+" = "Obtener Draw Things+";
+
+"get_x_off_by_upgrading" = "Obtén un descuento del %@ al actualizar a Draw Things+ para disfrutar de estas funciones.";
+
+"get_upgrade" = "Actualiza a Draw Things+ para disfrutar de estas funciones.";
+
+"get_x_off" = "Obtén un descuento del %@";
+
+"get_it" = "Obtener";
+
+"restore_sub" = "Restaurar suscripción";
+
+"not_now" = "Ahora no";
+
+"customize_your_app_icon" = "Personaliza tu icono de aplicación";
+
+"customize_your_app_icon_description" = "Expresa tu estilo personal con Draw Things+. Cambia el icono de la aplicación por defecto con una imagen generada de tu propia biblioteca.";
+
+"official_models" = "Modelos oficiales";
+
+"community_models" = "Modelos comunitarios";
+
+"official_loras" = "LoRAs oficiales";
+
+"community_loras" = "LoRAs comunitarios";
+
+"official_t_i_embeddings" = "Incrustaciones T.I. oficiales";
+
+"community_t_i_embeddings" = "Incrustaciones T.I. comunitarias";
+
+"duplicate" = "Duplicar";
+
+"general" = "General";
+
+"back" = "Atrás";
+
+"preserve_original_after_inpaint" = "Conservar original después de reparación";
+
+"preserve_original_after_inpaint_detail" = "Después del trabajo de reparación, la imagen generada puede contener algunas variaciones en áreas que deben conservarse. Por defecto, copiamos lo que debe conservarse en el original de vuelta a la imagen en el espacio de píxeles para mantener su apariencia original. Eso podría introducir inconsistencias con la imagen de generación subyacente y es posible que desee desactivar esto si ese es el caso.";
+
+"lora_import_model_version_detail" = "Algunas LoRAs están afinadas parcialmente solo en algunas capas. Esto hace que sea más difícil para nosotros detectar a qué versión corresponde esta LoRA. Puedes seleccionar una versión de modelo sugerida para ayudarnos a determinar la versión de una LoRA determinada. Sin embargo, si podemos detectar la versión correctamente, la utilizaremos en lugar de la versión sugerida.";
+
+"shared_scripts" = "Scripts compartidos";
+
+"shared_scripts_detail" = "Para descargar scripts compartidos de estos dispositivos a tu dispositivo local, actualiza a Draw Things+. Para obtener más información, consulta nuestra documentación.";
+
+"tiled_diffusion" = "Difusión en mosaico";
+
+"tiled_diffusion_detail" = "La difusión en mosaico divide el proceso de generación en mosaicos. Esto permite generar imágenes de un tamaño considerablemente mayor.";
+
+"diffusion_tile_size" = "Tamaño del mosaico de difusión";
+
+"diffusion_tile_width" = "Ancho del mosaico de difusión";
+
+"diffusion_tile_height" = "Alto del mosaico de difusión";
+
+"diffusion_tile_overlapping" = "Superposición del mosaico de difusión";
+
+"community_scripts" = "Scripts de la comunidad";
+
+"community_scripts_detail" = "Descarga scripts compartidos del repositorio comunitario de Draw Things en tu dispositivo local.";
+
+"local_lora_detail" = "Las LoRAs almacenadas localmente en este dispositivo aparecen aquí.";
+
+"local_control_detail" = "Los ControlNets almacenados localmente en este dispositivo aparecen aquí.";
+
+"dt_model_detail" = "Estos son modelos integrados que vienen de serie con la aplicación Draw Things.";
+
+"dt_control_detail" = "Estos son modelos integrados de ControlNet que vienen de serie con la aplicación Draw Things.";
+
+"community_lora_detail" = "Las LoRAs creadas y publicadas por miembros de la comunidad aparecen aquí.";
+
+"training" = "Entrenamiento";
+
+"lora_models" = "Modelos LoRA";
+
+"community_models" = "Modelos de la comunidad";
+
+"dt_models" = "Modelos de Draw Things (oficiales)";
+
+"local_model_detail" = "Los modelos almacenados localmente en este dispositivo aparecen aquí.";
+
+"community_model_detail" = "Los modelos creados y publicados por miembros de la comunidad aparecen aquí.";
+
+"enter_model_name" = "Ingresa un nombre de modelo...";
+
+"enter_trigger_word" = "Ingresa una palabra de activación...";
+
+"importing_custom_model" = "Importando modelo personalizado...";
+
+"importing_custom_lora" = "Importando LoRA personalizado...";
+
+"importing_custom_contronet" = "Importando ControlNet personalizado...";
+
+"import_control_title" = "Importar control";
+
+"past_edits" = "Ediciones anteriores";
+
+"most_recent" = "Más reciente";
+
+"generated_image" = "Imagen generada";
+
+"export_lead" = "Exportando: ";
+
+"create_8bit_lead" = "Creando modelo de 8 bits: ";
+
+"create_fp16_lead" = "Creando modelo FP16: ";
+
+"optimize_weights_loading_lead" = "Optimizando para una carga más rápida: ";
+
+"optimize_compact_store_lead" = "Optimizando para un almacenamiento compacto: ";
+
+"confirm" = "Confirmar";
+
+"disable_control_detail" = "Desactivar control";
+
+"official_controls" = "Controles oficiales";
+
+"textual_inversion_models" = "Incrustaciones T.I.";
+
+"local_t_i_embeddings_detail" = "Las incrustaciones T.I. almacenadas localmente en este dispositivo aparecen aquí.";
+
+"community_t_i_embeddings_detail" = "Las incrustaciones T.I. creadas y publicadas por miembros de la comunidad aparecen aquí.";
+
+"add_more_title" = "Todavía no has añadido ninguna imagen";
+
+"add_more_subtitle" = "Sube una imagen para generar una descripción (puedes subir varias imágenes)";
+
+"enter_name" = "Ingresa un nombre...";
+
+"enter_keyword" = "Ingresa una palabra clave...";
+
+"importing_t_i_embedding" = "Importando incrustación T.I....";
+
+"vae" = "VAE";
+
+"enter_note_placeholder" = "Ingresa una nota...";
+
+"mixing_custom_model" = "Mezclando modelos personalizados...";
+
+"mix" = "Mezclar";
+
+"enter_trigger_words" = "Ingresa palabras de activación...";
+
+"resume" = "Reanudar";
+
+"overwrite" = "Sobrescribir";
+
+"overwrite_script" = "¿Deseas volver a descargar y sobrescribir tu script existente?";
+
+"home" = "Inicio";
+
+"javascript_console" = "Consola de JavaScript";
+
+"delete_repl_cell" = "Esta celda no está vacía, ¿deseas eliminarla?";
+
+"add" = "Agregar";
+
+"enter_text" = "Ingrese texto";
+
+"style_only" = "Solo estilo";
+
+"style_and_layout" = "Estilo y diseño";
+
+"instastyle_blocks" = "Bloques InstaStyle";
+
+"script" = "Script";
+
+"author" = "Autor";
+
+"description" = "Descripción";
+
+"lora" = "LoRA";
+
+"text_encoder_file" = "Archivo del codificador de texto";
+
+"text_encoder_file_detail" = "Puede especificar un archivo de codificador de texto separado para importar si se utiliza un codificador de texto personalizado.";
+
+"text_encoder_2_file" = "Archivo del codificador de texto 2";
+
+"text_encoder_2_file_detail" = "Puede especificar un archivo de codificador de texto separado para importar si se utiliza un codificador de texto personalizado.";
+
+"t5_text_encoder" = "Codificador de Texto T5";
+
+"t5_text_encoder_detail" = "SD3 puede usar el codificador de texto T5 para ayudar a la adhesión y representación del texto. Puedes desactivarlo para ver si genera mejores imágenes o no.";
+
+"separate_clip_l_text" = "Texto CLIP L Separado";
+
+"separate_clip_l_text_detail" = "SD3 utiliza 3 codificadores de texto separados. Puedes especificar una entrada separada para el codificador de texto CLIP L, lo que puede ayudar a determinar el estilo general y la calidad de la imagen.";
+
+"clip_l_text" = "Texto CLIP L";
+
+"separate_open_clip_g_text" = "Texto OpenCLIP G Separado";
+
+"separate_open_clip_g_text_detail" = "SD3 utiliza 3 codificadores de texto separados. Puedes especificar una entrada separada para el codificador de texto OpenCLIP G, lo que puede ayudar a configurar el contexto global para la generación de imágenes.";
+
+"open_clip_g_text" = "Texto OpenCLIP G";
+
+"lora_network_scale_factor" = "Factor de Escala de Red";
+
+"lora_network_scale_factor_detail" = "Algunos LoRAs tienen un factor de escala aplicado que no está integrado en la red sino en un archivo de configuración separado. Esta opción te permite proporcionar explícitamente el factor de escala para que podamos integrarlo en el modelo durante la importación.";
+
+"clip_score" = "Puntuación CLIP";
+
+"clip_score_detail" = "La puntuación CLIP se utiliza para evaluar la alineación entre imágenes y descripciones de texto, calculada en un rango de 0 a 100.";
+
+"community_controls" = "Controles de la Comunidad";
+
+"community_control_detail" = "Modelos de ControlNet creados y publicados por miembros de la comunidad aparecen aquí.";
+
+"speed_up_with_guidance_embed" = "Acelerar con Incrustación de Guía";
+
+"speed_up_with_guidance_embed_detail" = "Modelos como FLUX.1 [dev] son guiados destilados. Eso significa que puedes ejecutarlo el doble de rápido si simplemente usas una incrustación para representar el valor de guía del texto. Pero en este modo, el aviso negativo será ignorado. Puedes desactivar esto y usar un valor de guía separado para acercarte a lo que esperarías del modelo FLUX.1 [pro].";
+
+"guidance_embed" = "Incrustación de Guía";
+
+"dresses" = "Ropa (Vestido)";
+
+"upper_body" = "Parte Superior (Ajuste)";
+
+"upper_body_extra" = "Parte Superior (Extra)";
+
+"dresses_upper" = "Ropa de Parte Superior (Ajuste)";
+
+"dresses_upper_extra" = "Ropa de Parte Superior (Extra)";
+
+"resolution_dependent_shift" = "Desplazamiento Dependiente de Resolución";
+
+"resolution_dependent_shift_detail" = "Los modelos entrenados con flujo rectificado, como FLUX.1 o SD3, generalmente lo hicieron con valores de desplazamiento dependientes de la resolución. Esto ayuda al modelo a ponderar más las estructuras en resoluciones más altas. Activa esto para calcular el valor de desplazamiento automáticamente.";
+
+"copy_canvas_settings_dot" = "Copiar ubicación del lienzo";
+
+"paste_canvas_settings_dot" = "Pegar ubicación del lienzo";
+
+"choose_an_input_override_dot" = "Elegir una sobrescritura de entrada...";
+
+"unspecified" = "No especificado";
+
+"http_server" = "HTTP";
+
+"grpc_server" = "gRPC";
+
+"server_detail" = "\"HTTP\" ejecuta un servidor API HTTP compatible, permitiendo que las extensiones que usan las APIs txt2img o img2img se conecten localmente para la generación de imágenes. Las generaciones se reflejarán en la interfaz de Draw Things. \"gRPC\" ejecuta un servidor API sin estado compatible, apoyando generaciones más completas / flexibles sobre la API HTTP.";
+
+"version" = "Versión";
+
+"server_offload" = "Descarga de Servidor";
+
+"this_device" = "Este Dispositivo";
+
+"other_devices" = "Otros Dispositivos";
+
+"discovering_devices_dot" = "Descubriendo dispositivos...";
+
+"connecting_to_device_dot" = "Conectando al dispositivo...";
+
+"device_failed_to_connect" = "El dispositivo no pudo conectarse";
+
+"server_offload_detail" = "\"Descarga de Servidor\" te permite usar una computadora más poderosa para ayudar con las tareas de generación de imágenes. Activa \"Servidor API gRPC\" en la otra computadora para compartir sus recursos de cómputo con otros dispositivos en la misma red local.";
+
+"serving_remote_request_dot" = "Atendiendo una solicitud remota...";
+
+"generating_image_on_device" = "Generando una imagen en \"%@\"";
+
+"cancelling_dot" = "Cancelando...";
+
+"uploading_model_to_server" = "Subiendo modelo al servidor conectado";
+
+"uploading_model_to_server_detail" = "Los modelos y LoRAs descargados en tu dispositivo local pueden ser subidos a cualquier servidor conectado, facilitando la generación de imágenes de forma remota.";
+
+"active_server" = "Servidor Activo";
+
+"uploading_model" = "Subiendo Modelo";
+
+"upload_succeed" = "Subida del modelo exitosa";
+
+"upload_failure" = "Error en la subida del modelo";
+
+"uploading" = "Subiendo";
+
+"tls" = "Seguridad en la Capa de Transporte";
+
+"response_compression" = "Compresión de Respuesta";
+
+"enter_new_device_ip" = "Por favor ingrese la IP / Puerto del dispositivo";
+
+"trainable_layers" = "Capas Entrenables";
+
+"trainable_layers_detail" = "Elige qué capas aplicar en el entrenamiento LoRA en modelos de transformadores. Esto puede ser eficaz para prevenir el \"olvido catastrófico\", donde el modelo puede perder su capacidad de seguir el prompt o las cualidades estéticas durante el entrenamiento.";
+
+"latents_embedder_layer" = "Capa de Incrustación de Latentes";
+
+"context_embedder_layer" = "Capa de Incrustación de Contexto";
+
+"project_out_layer" = "Capa de Proyección";
+
+"qkv_layers" = "Capas Q, K, V";
+
+"qkv_context_layers" = "Capas de Contexto Q, K, V";
+
+"out_layers" = "Capas de Salida de Atención";
+
+"out_context_layers" = "Capas de Salida de Contexto de Atención";
+
+"ff_layers" = "Capas de Adelante";
+
+"ff_context_layers" = "Capas de Contexto de Adelante";
+
+"layer_indices" = "Índices de Capas";
+
+"guidance_embed_detail" = "Los modelos FLUX.1 [dev] están destilados por guía. Durante el entrenamiento, aleatorizar el valor de incrustación de guía puede ayudar al modelo a generalizar mejor con diferentes valores de incrustación de guía durante la generación de imágenes.";
+
+"start_end" = "Inicio / Fin";
+
+"compiling_computation_graph_dot" = "compilando gráfico de computación...";
+
+"weights_memory_management" = "Gestión de Memoria de Pesos";
+
+"weights_memory_management_detail" = "Para modelos más grandes como FLUX.1 [dev], los pesos pueden consumir una cantidad significativa de memoria RAM. Just-in-Time permitiría cargar/descargar los pesos tan pronto como los necesitemos o ya no los necesitemos, ahorrando así el uso de memoria RAM.";
+
+"just_in_time" = "Just-in-Time";
+
+"cached" = "En caché";
+
+"upper_bound" = "Límite superior";
+
+"lower_bound" = "Límite inferior";
+
+"learning_rate" = "Tasa de Aprendizaje";
+
+"learning_rate_detail" = "La tasa de aprendizaje para el modelo principal de difusión. Usamos recocido coseno con reinicios calientes, lo que interpola entre el límite inferior y el límite superior de la tasa de aprendizaje entre reinicios.";
+
+"steps_between_restarts" = "Pasos Entre Reinicios";
+
+"caption_dropout_rate" = "Tasa de Abandono de Descripción";
+
+"caption_dropout_rate_detail" = "Determina el porcentaje de muestras en las que usaremos una descripción vacía. Usar una descripción vacía ayuda a destilar el concepto en el modelo de manera más genérica, pero también puede causar más mezcla de conceptos.";
+
+"orthonormal_lora_down" = "LoRA Ortonormal Fijo Abajo";
+
+"orthonormal_lora_down_detail" = "El entrenamiento LoRA involucra dos sub-matrices: una matriz hacia abajo que proyecta la activación a un subespacio pequeño, y una matriz hacia arriba que proyecta de vuelta al espacio latente de salida original. Para LoRA, básicamente sustituimos y = (W + W')x por y = (W + BA)x donde W' es el delta de ajuste fino. Podemos fijar la matriz hacia abajo como una matriz ortonormal para forzar que todo el ajuste fino ocurra en la matriz B. Esto nos ayuda a acercarnos a la dinámica completa del ajuste fino al imponer una restricción más fuerte de regularización.";
+
+"save_to_tensorboard" = "Guardar en TensorBoard";
+
+"save_to_tensorboard_detail" = "Algunas estadísticas de entrenamiento pueden guardarse en un formato que se puede visualizar en TensorBoard. Esto puede ayudar a los usuarios avanzados a seguir mejor su proceso de entrenamiento.";
+
+"settings" = "Configuraciones";
+
+"max_text_length" = "Longitud máxima de texto";
+
+"max_text_length_detail" = "Los modelos FLUX.1 generalmente se entrenan con una longitud máxima de texto de 512. Algunos de ellos, por ejemplo, la variante schnell, están ajustados con una longitud máxima de texto de 256. Una longitud de texto más pequeña puede hacer que el LoRA sea más conciso en la comprensión del texto.";
+
+"aspect_ratio_and_multi_scale" = "Relación de aspecto y Multi-escala";
+
+"aspect_ratio_and_multi_scale_detail" = "Cuando \"usar la relación de aspecto de la imagen\" está desactivado, redimensionamos y luego recortamos al centro la imagen de entrenamiento al tamaño de imagen especificado arriba. Cuando esa opción está activada, utilizaremos el tamaño de imagen especificado arriba como el total de píxeles que necesitamos aproximar y utilizaremos en su lugar la relación de aspecto de la imagen de entrenamiento. Esto ayuda al modelo a ver la imagen completa del entrenamiento. \"Multi-escala\" te permite seleccionar algunas escalas adicionales para entrenar juntas, de modo que el LoRA pueda ver la misma imagen en diferentes resoluciones. Esto generalmente ayuda al LoRA a capturar tanto más estructura como más detalles.";
+
+"use_image_aspect_ratio" = "Usar la relación de aspecto de la imagen";
+
+"additional_scales" = "Escalas adicionales";
+
+"additional_scale_1" = "Escala adicional 1";
+
+"additional_scale_2" = "Escala adicional 2";
+
+"additional_scale_3" = "Escala adicional 3";
+
+"size" = "Tamaño";
+
+"power_function_ema" = "Función de Potencia EMA";
+
+"power_function_ema_detail" = "EMA (promedio móvil exponencial), un método para promediar el modelo durante la trayectoria de entrenamiento, es una forma eficaz de mejorar el rendimiento del modelo. Básicamente, en lugar de obtener el último modelo, este método permite guardar un modelo promediado durante un periodo, lo que puede ser más suave que los modelos finales. Implementamos un perfil de función de potencia EMA particular detallado en el artículo de Karras \"Analizando y mejorando la dinámica de entrenamiento de los modelos de difusión\" que también permite seleccionar diferentes hiperparámetros de promediado después del entrenamiento. El hiperparámetro \"Promediar sobre los últimos\" te permite elegir un rango para promediar el modelo sobre el último % de pasos.";
+
+"ema_averaging_over_last" = "Promediar sobre los últimos %";
+
+"enable_model_browsing" = "Habilitar navegación de modelos";
+
+"server_mismatch_hash" = "Archivos no coincidentes en el servidor";
+
+"server_mismatch_hash_message" = "Algunos archivos en el servidor, aunque comparten el mismo nombre que los disponibles localmente, son diferentes. Puedes sobrescribir los archivos del servidor remoto con tu copia local o seguir utilizando la copia del servidor remoto.";
+
+"keep_mismatched_files" = "Mantener la copia remota";
+
+"overwrite_mismatched_files" = "Sobrescribir con la copia local";
+
+"remote_server" = "Servidor remoto";
+
+"protocol" = "Protocolo";
+
+"verify_totp" = "Para verificar el cifrado de extremo a extremo con %@, compara los números arriba con el dispositivo.";
+
+"learn_more" = "Aprende más";
+
+"discovering_dot" = "Descubriendo...";
+
+"transaction_pending" = "La transacción está pendiente, por favor intente nuevamente más tarde.";
+
+"explore_editions" = "Explorar Ediciones";
+
+"local_edition_subtitle" = "Elige una edición que se adapte a tu flujo de trabajo para la creación rápida, privada y sin conexión de imágenes";
+
+"local_edition" = "Local";
+
+"local_edition_pill" = "LOCAL Y PRIVADO";
+
+"features_perks" = "Características y Beneficios";
+
+"continue_with_local" = "Continuar con Local";
+
+"download_models_from_our_server" = "Descargar Modelos de Nuestro Servidor";
+
+"use_local_compute_to_generate" = "Usar Cómputo Local para Generar";
+
+"infinite_canvas" = "Lienzo Infinito";
+
+"inpainting_and_outpainting" = "Inpainting y Outpainting";
+
+"create_an_account" = "Crear una cuenta";
+
+"community_edition_subtitle" = "Inicia sesión en la Edición Gratuita para disfrutar de flujos de trabajo optimizados y ventajas con tu propia cuenta.";
+
+"community" = "Gratis";
+
+"community_edition_pill" = "CUENTA GRATUITA";
+
+"community_edition_description" = "Usa tu propia cuenta para acceder a características exclusivas y descargar tareas como la generación de imágenes a los servidores gestionados de Draw Things.";
+
+"everything_in_local" = "Todo en Local";
+
+"your_own_account" = "Tu Propia Cuenta";
+
+"cloud_compute" = "Cómputo en la Nube";
+
+"plus_edition_subtitle" = "Actualiza a Draw Things+ para disfrutar de beneficios y características adicionales.";
+
+"plus_edition" = "Draw Things+";
+
+"everything_in_community" = "Todo en la Edición Gratuita";
+
+"premium_cloud_compute" = "Cómputo en la Nube Premium";
+
+"multipeer_sharing" = "Compartición Multi-peer";
+
+"local_edition" = "Local";
+
+"have_an_account" = "¿Tienes cuenta?";
+
+"community_edition" = "Edición Gratuita";
+
+"draw_things_plus_edition" = "Edición Draw Things+ • ";
+
+"sign_out" = "Cerrar sesión";
+
+"restore_subscription" = "Restaurar suscripción";
+
+"return_to_local" = "Volver a Local";
+
+"downgrade_to_community" = "Cambiar a la Edición Gratuita";
+
+"active_edition" = "Edición activa";
+
+"using_local_will_sign_out" = "Usar Local cerrará sesión";
+
+"you_are_using_local" = "Estás usando Local";
+
+"you_are_using_community" = "Estás usando la Edición Gratuita";
+
+"community_edition_requires_sign_in" = "La Edición Gratuita requiere iniciar sesión";
+
+"community_edition_set_to_activate" = "La Edición Gratuita se activará %@";
+
+"this_cancels_your_subscription" = "Esto cancela tu suscripción a Draw Things+";
+
+"your_subscription_is_set_to_expire" = "Tu suscripción caducará el %@";
+
+"your_subscription_is_set_to_renew" = "Tu suscripción se renovará el %@";
+
+"draw_things_plus_requires_subscription" = "Draw Things+ requiere una suscripción";
+
+"active_edition" = "Edición Activa";
+
+"set_to_activate" = "Configurado para Activar";
+
+"sign_in" = "Iniciar sesión";
+"sign_in_with_apple" = "Iniciar sesión con Apple";
+"sign_in_with_google" = "Iniciar sesión con Google";
+
+"sign_in" = "Iniciar sesión";
+
+"return_to_local_question" = "¿Volver a Local?";
+
+"return_to_local_from_plus" = "Volver a Local cerrará sesión y hará que tu edición de Draw Things+ caduque al final de tu periodo de suscripción actual. Para seguir accediendo a las funciones de Draw Things+ hasta entonces, mantente conectado.";
+
+"return_to_local_from_community" = "Volver a Local cerrará tu sesión en la Edición Gratuita. Para seguir accediendo a las funciones de la Edición Gratuita, mantente conectado.";
+
+"confirm_downgrade" = "Confirmar Degradación";
+
+"sign_out_community" = "Cerrar sesión de la Edición Gratuita";
+
+"downgrade_to_community_question" = "¿Cambiar a la Edición Gratuita?";
+
+"downgrade_to_community_description" = "Cambiar a la Edición Gratuita hará que tu edición de Draw Things+ caduque al final de tu periodo de suscripción actual. Hasta entonces podrás seguir usando Draw Things+.";
+
+"downgrade" = "Degradar";
+
+"delete_account" = "Eliminar cuenta";
+
+"explore_editions_menu" = "Explorar ediciones";
+
+"confirm_delete_account" = "¿Eliminar tu cuenta?";
+
+"confirm_delete_account_description" = "Eliminar tu cuenta de Draw Things+ cerrará sesión, cambiará a la Edición Gratuita y cancelará tu suscripción al final del periodo actual. Para cambiar sin eliminar tu cuenta, simplemente cierra sesión. Mantente conectado para seguir disfrutando de las características de Draw Things+.";
+"confirm_delete_local_code_account_description" = "Eliminar tu cuenta de Local Code cerrará tu sesión. Tu crédito restante de Local Code y el estado del crédito de bienvenida se conservarán si vuelves a iniciar sesión con la misma cuenta de Apple o Google.";
+"deleting_local_code_account" = "Eliminando la cuenta de Local Code…";
+
+"enable_shared_secret" = "Clave compartida";
+
+"enter_shared_secret" = "Ingresar clave compartida";
+
+"cloud_compute_units" = "Unidades de Cómputo en la Nube";
+
+"cloud_compute_units_detail" = "Las Unidades de Cómputo miden los recursos del servidor necesarios para la generación de imágenes. Las unidades varían con la resolución, el número de imágenes y otros ajustes. Los límites de generación varían según el nivel: los usuarios gratuitos pueden usar hasta %@ unidades por solicitud, mientras que los usuarios de Draw Things+ obtienen %@ unidades. Ajusta tus configuraciones si superas el límite de tu nivel.";
+
+"cloud_compute_and_sharing" = "Mostrar funciones de nube y uso compartido";
+
+"cloud_and_sharing_features" = "Funciones de nube y uso compartido";
+
+"cloud_compute_and_sharing_detail" = "Muestra opciones de cuenta, uso compartido y nube en la app. Cloud Compute solo se usa cuando eliges ejecutar una generación en los servidores administrados de Draw Things. Al desactivarlo, estas funciones se ocultan. Algunos cambios pueden requerir reiniciar la app.";
+
+"exceed_limit_error" = "Límite de solicitud excedido";
+
+"exceed_error_message" = "Es posible que hayas realizado demasiadas solicitudes en un corto período. Por favor, espera un momento e intenta nuevamente.";
+
+"control_inputs" = "Entradas de Control";
+
+"cloud_compute_unavailable" = "Cómputo en la Nube No Disponible";
+
+"cloud_compute_missing_files_message" = "Cloud Compute solo puede acceder a modelos de los canales Oficial o Comunitario. Tus modelos locales no pueden usarse para esta generación. ¿Deseas ejecutarlo localmente en su lugar?";
+
+"browse_dot" = "Explorar...";
+
+"official_upscalers" = "Escaladores Oficiales";
+
+"disable_upscaler_detail" = "Deshabilitar Escalador";
+
+"browse_detail" = "Explorar archivos locales.";
+
+"model_import_failed" = "Error en la Importación del Modelo";
+
+"upscaler_import_failed_message" = "Error al importar el escalador seleccionado. Actualmente, solo admitimos derivados de ESRGAN con escalado 2x y 4x.";
+
+"japanese" = "日本語";
+
+"korean" = "한국어";
+
+"control_inputs_detail" = "Las entradas de control gestionan una variedad de fuentes de entrada para módulos de control (como ControlNets, IP-Adapters y Redux). Las entradas específicas pueden cargarse individualmente para su uso con estos módulos.";
+
+"load_dot" = "Cargar...";
+
+"save_dot" = "Guardar...";
+
+"german" = "Deutsch";
+"vietnamese" = "Tiếng Việt";
+
+"french" = "Français";
+
+"community_configs" = "Configuraciones de la Comunidad";
+
+"remove_configuration" = "Eliminar configuración";
+
+"remove_configuration_message" = "¿Desea eliminar la configuración \"%@\"? Esta acción no se puede deshacer.";
+
+"tea_cache" = "TeaCache";
+
+"threshold" = "Umbral";
+
+"starting_dot" = "Iniciando...";
+
+"processing_dot" = "Procesando...";
+
+"sampling_dot" = "Muestreando...";
+
+"finishing_dot" = "Finalizando...";
+
+"tea_cache_detail" = "TeaCache (Caché Sensible a la Incrustación de Tiempos) es un método de caché sin entrenamiento que estima y aprovecha las diferencias fluctuantes entre las salidas del modelo en cada paso temporal, acelerando la inferencia. Start / End definen los pasos de reducción de ruido en los que se aplica TeaCache. Threshold establece el límite de tolerancia a los errores: valores más altos permiten una generación más rápida a costa de la calidad.";
+
+"duration_est" = "%02d:%02d:%02d / %02d:%02d:%02d est.";
+
+"upscaling_dot" = "Ampliando...";
+
+"x_est" = "%@ / %@ estimado.";
+
+"separate_t5_text" = "Texto T5 por separado";
+
+"separate_t5_text_detail" = "HiDream usa 4 codificadores de texto independientes. Puedes especificar una entrada separada para el codificador de texto T5, lo que ayuda a establecer el contexto global para la generación de imágenes.";
+
+"t5_text" = "Texto T5";
+
+"return_to_local_description" = "Volver a Local cerrará tu sesión en tu edición actual. Para seguir accediendo a las funciones de tu edición actual, mantente conectado.";
+
+"api_key" = "Clave API";
+
+"api_secret_key" = "Clave Secreta API";
+
+"api_key_section" = "Credenciales API";
+
+"api_key_section_detail" = "El modelo seleccionado usa un servicio remoto de terceros (por ej., Kling). Para generar imágenes, ingresa tu clave y secreto API de este proveedor.";
+
+"welcome_wave" = "¡Bienvenido! 👋";
+
+"browse_models_via_cloud_compute" = "Explorar modelos vía Cloud Compute";
+
+"browse_models_via_cloud_compute_detail" = "Cloud Compute te permite ejecutar tareas, como generación de imágenes, en los servidores de Draw Things; requiere iniciar sesión con Apple tras seleccionar un modelo.";
+
+"download_a_model_via_draw_things" = "Descargar un modelo vía Draw Things";
+
+"download_a_model_via_draw_things_detail" = "Puedes considerar FLUX.1, un potente modelo de generación de imágenes con amplia comunidad y herramientas versátiles.";
+
+"import_a_model_from_local_storage" = "Importar un modelo desde almacenamiento local";
+
+"import_a_model_from_local_storage_detail" = "Sube un modelo desde tu dispositivo local para adaptarlo mejor a tu flujo de trabajo de generación. Te pediremos algunos detalles para empezar.";
+
+"step_1_of_3" = "Paso 1 de 3";
+
+"step_2_of_3" = "Paso 2 de 3";
+
+"step_3_of_3" = "Paso 3 de 3 (opcional)";
+
+"enable_cloud_compute" = "Mostrar funciones de nube y uso compartido";
+
+"show_features" = "Mostrar funciones";
+
+"turn_on_cloud_compute_to_access_account_features" = "Activa las funciones de nube y uso compartido para abrir las opciones de cuenta. Esto mostrará funciones para iniciar sesión, sincronizar, compartir y elegir Cloud Compute cuando quieras ejecutar generación en los servidores administrados de Draw Things.";
+
+"enable_cloud_compute_detail" = "Cuando está desactivado, se ocultan las funciones de Cloud Compute, cuenta y uso compartido. Puedes volver a activarlas más tarde en Configuración de Máquina.";
+
+"select_a_model_via_cloud_compute_detail" = "Selecciona un modelo vía Cloud Compute para ejecutar la generación en los servidores de Draw Things. En el siguiente paso, se te pedirá iniciar sesión.";
+
+"select_a_model_via_draw_things_detail" = "Selecciona un modelo de los servidores de Draw Things para generarlo localmente. Luego elegirás dónde guardar tus imágenes generadas.";
+
+"pick_a_model_via_cloud_compute_title" = "Elige un modelo vía Cloud Compute ✨";
+
+"download_a_model_via_draw_things_title" = "Descarga un modelo vía Draw Things 🪐";
+
+"import_a_model_from_local_storage_title" = "Importa un modelo desde almacenamiento local 📂";
+
+"max_skip_steps" = "Máx. pasos omitidos";
+
+"sign_in_to_community" = "Iniciar sesión en la Edición Gratuita";
+
+"sign_in_is_required_to_use_cloud_compute_detail" = "Se requiere iniciar sesión para usar Cloud Compute en los servidores de Draw Things.";
+
+"i_understand" = "Entiendo";
+
+"local_import_may_not_be_suitable_for_all_users_detail" = "**Nota:** La importación local puede no ser adecuada para todos. Para modelos de última generación (p. ej., FLUX.1 o los modelos de video Hunyuan/Wan 2.1), la importación local carga el modelo completo. En cambio, los modelos oficiales se cuantizan para alto rendimiento y calidad en múltiples dispositivos.\n\nSi deseas continuar con la importación local, pulsa “**Entiendo**” para seguir.";
+
+"to_start_pick_a_model_source_detail" = "**Para comenzar, elige una fuente de modelo**. Siempre podrás cambiar la fuente más tarde.";
+
+"text_to_video" = "Texto a video";
+
+"image_to_video" = "Imagen a video";
+
+"video_to_video" = "Video a video";
+
+"weights_cache_size" = "Tamaño de caché de pesos";
+
+"weights_cache_size_detail" = "Para modelos grandes como FLUX.1, Wan v2.1, Hunyuan o HiDream-I1, los dispositivos con más de 48 GiB de RAM pueden aprovechar un nuevo mecanismo de caché que almacena múltiples copias de los pesos del modelo en la memoria para acelerar la recarga y la generación. Modelos que antes tardaban 7–8 segundos en cargarse, ahora pueden hacerlo en menos de medio segundo. Puedes ajustar el tamaño de la caché de pesos para reducir el uso de RAM según sea necesario.";
+
+"save_media_to" = "Guardar medios generados en";
+
+"save_media_detail" = "Las imágenes o videos generados pueden guardarse en la carpeta de tu elección. Esto facilita su organización con aplicaciones externas.";
+
+"save_video_as" = "Guardar video como";
+
+"save_video_as_movie" = "Película (.mov)";
+
+"save_video_as_images" = "Imágenes";
+
+"this_frame_dot" = "Este fotograma...";
+
+"video_export_format" = "Formato de exportación de video";
+
+"video_export_format_detail" = "Los videos guardados desde la app utilizan por defecto la mejor calidad disponible. Puedes elegir otro formato que se ajuste mejor a tus necesidades.";
+
+"remote_api_providers" = "Proveedores de API Remota";
+"on_device" = "En el dispositivo";
+"where_models_run" = "Dónde se ejecutan los modelos";
+"where_models_run_detail" = "Los modelos en el dispositivo se ejecutan directamente en este dispositivo. Los modelos en la nube se ejecutan mediante el servicio seleccionado.";
+
+"causal_inference" = "Inferencia Causal";
+
+"causal_inference_every_n_frames" = "Cada N fotogramas";
+
+"causal_inference_detail" = "La inferencia causal tiene en cuenta solo los fotogramas actuales y anteriores (no los futuros), un método conocido como CausVid. Esta opción solo está disponible para modelos de video específicamente ajustados para generación causal. La opción “Cada N fotogramas” controla la granularidad de la inferencia: en lugar de generar un fotograma a la vez, el modelo genera bloques de N fotogramas usando todos los anteriores como contexto. Por ejemplo, con N = 2, los fotogramas a y b se generan juntos usando a–b como contexto; luego c y d se generan usando a–d como contexto, y así sucesivamente.";
+
+"data_required_for_downloads" = "Datos necesarios para descargar";
+
+"estimated_time_to_generate" = "Tiempo estimado de generación";
+
+"return_to_local_description" = "Volver a Local cerrará tu sesión en tu edición actual. Para seguir accediendo a las funciones de tu edición actual, mantente conectado.";
+
+"exceed_lora_storage_limit_error" = "Límite de almacenamiento excedido";
+
+"exceed_lora_storage_limit_error_message" = "La solicitud de generación excede el límite máximo de almacenamiento para LoRAs.";
+
+"space_occupied" = "Espacio ocupado: %@";
+
+"byom_delete_view_title" = "Libera espacio para continuar la carga de LoRA";
+
+"byom_loras" = "Sube tus propios LoRAs";
+
+"byom_loras_detail" = "Estos LoRAs fueron subidos anteriormente al servidor remoto activo (Draw Things+).";
+
+"generic_r2_upload_error" = "Error de carga";
+
+"generic_r2_upload_error_message" = "Ocurrió un error durante la carga. Inténtalo de nuevo más tarde.";
+
+"lora_upload_subscription_verification_error_message" = "Nuestro servidor no pudo verificar una suscripción activa en esta cuenta. La carga de LoRA no está disponible. Vuelve a iniciar sesión y comprueba el estado de la suscripción.";
+
+"byom_upload_requires" = "Requiere para cargar: %@";
+
+"byom_free_space" = "Espacio libre: %@";
+
+"byom_required" = "Requerido: %@";
+
+"byom_using" = "Usando: %@";
+
+"byom_using_x_of_y" = "Usando %@ de %@ después de la carga";
+
+"you_may_continue" = "Puedes continuar.";
+
+"remove_some_loras" = "Elimina algunos LoRAs.";
+
+"byom_out_of_space" = "¡Sin espacio!";
+
+"byom_explanation_text" = "Libera espacio en el servidor conectado (Draw Things+) eliminando LoRAs previamente subidos para continuar generando imágenes.";
+"first_time_upload_lora_sha256_as_file" = "¿Subiendo LoRAs por primera vez?";
+
+"first_time_upload_lora_sha256_as_file_message" = "Cloud Compute de Draw Things puede guardar el nombre de archivo de cada LoRA que subas para facilitar su identificación después—por ejemplo, si deseas eliminarlo. De lo contrario, solo se guardará el hash del contenido. Toca \"Sí\" para guardar el nombre del archivo y facilitar su gestión.";
+
+"save_uploaded_lora_name" = "Guardar nombre del LoRA subido";
+
+"uncurated_community_models" = "No seleccionados";
+
+"dwnloading_to_cloud_compute_dot" = "Descargando a Cloud Compute...";
+
+"dwnloading_to_cloud_compute_quote_dot" = "Descargando a Cloud Compute (%@)...";
+
+"reset_to_recommended" = "Restablecer a lo recomendado";
+
+"lab_hours" = "Horas de laboratorio";
+
+"lab_hours_detail" = "Las Unidades de Cómputo miden los recursos del servidor necesarios para la generación de imágenes. Las unidades varían según la resolución, la cantidad de imágenes y otros ajustes. Durante las Horas de Laboratorio—cuando los servidores tienen capacidad adicional—aumentamos los límites habituales para darte más libertad para experimentar. Los usuarios gratuitos pueden usar hasta %@ unidades por solicitud, mientras que los usuarios de Draw Things+ obtienen %@ unidades. Ajusta tu configuración si excedes el límite de tu nivel.";
+"enter_a_prompt_dot" = "Ingresa un prompt...";
+
+"negative" = "Negativo";
+
+"edit_history_slider" = "Control de historial de edición";
+
+"image_interpreter" = "Intérprete de imagen";
+
+"image_interpreter_detail" = "Utiliza un LLM para analizar la imagen y generar un prompt descriptivo. Este prompt se puede refinar para ayudar a crear nuevas imágenes con un aspecto y estilo similar.";
+
+"project_dot" = "Proyecto...";
+
+"load_dot" = "Cargar...";
+
+"new_canvas" = "Nuevo lienzo";
+
+"share_dot" = "Compartir...";
+
+"save_dot" = "Guardar...";
+
+"tools" = "Herramientas";
+
+"prompt_editor" = "Editor de prompts";
+
+"canvas_tools" = "Herramientas de lienzo";
+
+"enter_a_negative_prompt_dot" = "Ingresa un prompt negativo...";
+
+"save_image_file" = "Guardar la imagen en Archivos.";
+
+"save_image_photo" = "Guardar la imagen en Fotos.";
+
+"save_image_clipboard" = "Guardar la imagen en el Portapapeles (Copiar al portapapeles).";
+
+"select_image_from_photos" = "Seleccionar una imagen de Fotos.";
+
+"select_image_from_files" = "Seleccionar una imagen de Archivos.";
+
+"select_image_from_clipboard" = "Pegar imagen desde el Portapapeles.";
+
+"token_count_detail" = "Mostrar tokens del texto.";
+
+"insert_invert_keyword" = "Insertar palabra clave de incrustación T.I.";
+
+"change_invert_keyword" = "Cambiar palabra clave de incrustación T.I.";
+
+"select_eraser_paintbrush" = "Aplicar borrador o pincel solo al área seleccionada.";
+
+"erase_for_inpainting" = "Borrador. Borra o enmascara un área para su restauración.";
+
+"guided_paintbrush" = "Pincel. Pinta un área con un color seleccionado.";
+
+"select_foreground" = "Seleccionar primer plano.";
+
+"select_background" = "Seleccionar fondo.";
+
+"tap_to_select" = "Toca para seleccionar.";
+
+"mask" = "Máscara";
+
+"unmask" = "Desenmascarar";
+
+"add_negative_prompt" = "Agregar prompt negativo.";
+
+"cfg_zero_star" = "CFG Zero*";
+"expand_prompt_to_json" = "Expandir a JSON";
+"expand_prompt_to_json_detail" = "Usa Magic Prompt para ampliar el prompt a una descripción JSON estructurada antes de la generación.";
+
+"cfg_zero_init_steps" = "Pasos iniciales CFG Zero";
+
+"duration_minutes_est" = "%02d:%02d / %02d:%02d est.";
+
+"show_history_slider" = "Mostrar control deslizante de historial.";
+
+"hide_history_slider" = "Ocultar control deslizante de historial.";
+
+"base" = "Base";
+
+"refiner" = "Refinador";
+
+"builtin_prompts_dot" = "Indicaciones integradas...";
+
+"privacy_pass" = "Privacy Pass";
+
+"privacy_pass_detail" = "Draw Things+ utiliza una función llamada Privacy Pass para proporcionar un anonimato mejorado. Esto permite que tu propio dispositivo, en lugar de nuestros servidores, genere el token anónimo utilizado para crear arte. Como resultado, la obra final no puede rastrearse hasta la solicitud original. Este método mejora nuestra función de privacidad existente.";
+
+"privacy_pass_is_enabled" = "Privacy Pass está habilitado.";
+
+"privacy_pass_is_temporarily_unavailable" = "Privacy Pass no está disponible temporalmente.";
+
+"enabled" = "Habilitado";
+
+"copy_to_settings" = "Copiar a Configuración";
+
+"try_recommended_settings" = "Probar configuración recomendada";
+
+"seconds_format" = "%@s";
+
+"show_generation_time" = "Mostrar tiempo de generación";
+
+"show_generation_time_detail" = "Muestra el tiempo que tardó en generarse cada imagen o video en el historial.";
+
+"Boost" = "Impulso";
+
+"Cash" = "Efectivo";
+
+"purchase_success_message" = "%@ añadido a tu billetera.";
+
+"purchase_failure_message" = "Compra fallida. No se te ha cobrado.";
+
+"record_purchase_failure_message" = "Compra exitosa. Tu saldo se actualizará en breve.";
+
+"adding_x_to_balance" = "Actualizando saldo de %@…";
+
+"add_more_funds" = "Agregar más fondos";
+
+"buy_more_boosts" = "Comprar más impulsos";
+
+"boost_description_0" = "Actualmente no tienes ningún impulso.";
+
+"boost_description" = "Impulsos cargados.";
+
+"cash_description" = "Tu saldo se muestra en dólares estadounidenses (USD).";
+
+"balance_title" = "Saldo de %@: %@";
+
+"consumption_request_consent" = "Acepto compartir mi información de compra con App Store para admitir solicitudes de reembolso si es necesario.";
+
+"wallet_title" = "Billetera";
+
+"transfer_funds" = "Transferir fondos";
+
+"view_wallet_menu" = "Ver billetera";
+
+"wallet_subtitle" = "Administra tus impulsos y saldo en tu billetera. Agrega fondos mediante proveedores externos y compra impulsos para potenciar tus creaciones. Disponible exclusivamente en Draw Things+.";
+
+"wallet" = "Billetera";
+
+"view_wallet" = "Ver billetera";
+
+"compute_units_boost_balance" = "Saldo: %@";
+
+"compute_units_boost_balance_needed" = "%@ necesario";
+
+"compute_units_boost_balance_to_spend" = "%@ para gastar";
+
+"bridge_mode" = "Modo puente";
+
+"bridge_mode_is_a_plus_feature" = "El modo puente permite que este dispositivo actúe como un enlace con servidores remotos, como nuestro backend de Cloud Compute. Para evitar abusos potenciales, esta función está disponible solo para suscriptores de Draw Things+.";
+
+"see_purchase_benefits" = "Ver beneficios de compra";
+
+"boost_detail" = "El impulso te permite superar los límites predeterminados de tareas. Cada impulso proporciona 60,000 Unidades de Cómputo — por ejemplo, 1 impulso = 60,000, 2 impulsos = 120,000. Los impulsos se venden por separado.";
+
+"create_quantized_dot" = "Crear modelo cuantizado...";
+
+"buy_boost_error_message" = "Se necesitan más Boosts para esta generación.";
+
+"generic_error_message" = "El servidor encontró un problema.";
+
+"upgrade_error_message" = "Las Unidades de Cómputo superan el umbral actual.";
+
+"enable_boost_error_message" = "Debes activar Boosts para esta generación.";
+
+"buy_boosts" = "Comprar Boosts";
+
+"enable_boosts" = "Activar Boosts";
+
+"upgrade_to_dt_plus" = "Actualizar a Draw Things+";
+
+"show_high_resolution_preview" = "Usar vista previa de alta resolución cuando sea posible";
+
+"show_high_resolution_preview_detail" = "TAESD es un decodificador de imágenes ligero. Cuando es posible, podemos usar el Neural Engine de Apple para decodificar vistas previas con TAESD (normalmente 20–150 ms). Como se ejecuta en un silicio separado de la GPU, normalmente no afecta la velocidad de generación.";
+
+"change_model_type" = "Cambiar tipo de modelo";
+
+"try_recommended_settings_confirmation" = "Cambiaste a un tipo de modelo diferente. Distintos tipos de modelos pueden funcionar mejor con distintas configuraciones. ¿Probar la configuración recomendada?";
+
+"not_this_time" = "Ahora no";
+
+"ask_try_recommended_settings_when_changing_model_type" = "Preguntar \"Probar ajustes recomendados\" al cambiar el tipo de modelo";
+
+"ask_try_recommended_settings_when_changing_model_type_detail" = "Cuando cambias el tipo de modelo, podemos preguntarte si deseas aplicar los ajustes recomendados para ese tipo de modelo. Desactiva esta opción para dejar de mostrar esta información.";
+
+"transparency_as_mask_title" = "¿Usar las áreas transparentes como máscara?";
+
+"transparency_as_mask_detail" = "Esta imagen tiene áreas transparentes. Puede importar esa transparencia como una máscara para inpainting o importar la imagen sin máscara.";
+
+"use_transparency_as_mask" = "Usar como máscara";
+
+"import_without_mask" = "Importar sin máscara";
+
+"history_generated_image" = "Imagen generada";
+
+"history_generated" = "Generado";
+
+"history_generated_video" = "Video generado";
+
+"history_loaded_image" = "Imagen cargada";
+
+"history_updated_canvas" = "Lienzo actualizado";
+
+"history_updated_mask_area" = "Área de máscara actualizada";
+
+"history_updated_scribble" = "Boceto actualizado";
+
+"history_updated_moodboard" = "Tablero creativo actualizado";
+
+"community_feature_1" = "Usa Cómputo en la Nube gratis";
+
+"community_feature_2" = "Accede a Horas de Laboratorio";
+
+"community_feature_3" = "Todo en Local";
+
+"plus_feature_1" = "Límites más altos de Cómputo en la Nube";
+
+"plus_feature_2" = "Usa tus propios LoRAs con Cómputo en la Nube";
+
+"plus_feature_3" = "Aumenta los límites de cómputo bajo demanda";
+
+"plus_feature_4" = "Privacy Pass";
+
+"plus_feature_5" = "Todo en la Edición Gratuita";
+
+"plus_edition_description" = "Disfruta de límites más altos de Cómputo en la Nube y accede a funciones premium en la nube, incluyendo subidas personalizadas de LoRA, mayor privacidad y más. Nuestros [Términos de Uso](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) y [Política de Privacidad](https://drawthings.ai/policy/).";
+
+"local_edition_description" = "Crea prompts y descarga modelos desde nuestros servidores para generar imágenes localmente y de forma privada en tu propio dispositivo.";
+
+"history_updated_depth_map" = "Mapa de profundidad actualizado";
+
+"history_cleared_canvas" = "Lienzo borrado";
+
+"lightning_draft" = "Borrador relámpago";
+"interactive_generation_available" = "Borrador relámpago";
+"interactive_generation_available_detail" = "\"Borrador relámpago\" te permite ejecutar la generación de imágenes de forma interactiva, viendo en segundos cómo lo que escribes en el prompt se refleja en el resultado, en lugar de esperar a que termine toda la generación.";
+"lightning_draft_requires_local_generation_message" = "\"Borrador relámpago\" requiere generación local. ¿Quieres cambiar al modo de generación local?";
+"switch_to_local" = "Cambiar a local";
+"auto" = "Auto";
+"generation" = "Generación";
+"gen_dot" = "Gen.";
+"edit" = "Edición";
+"generation_area" = "Área de generación";
+
+"project_empty_state_no_projects" = "You don't have any projects";
+"project_empty_state_select_or_create_project" = "Select a project from the Projects panel\nor create a new one";
+"project_empty_state_create_project_to_enter_prompt" = "Create a project to enter a prompt";
+"project_empty_state_select_or_create_project_to_enter_prompt" = "Select or create a project to enter a prompt";
+"create_new_project" = "Create a new project";
+"generation_region" = "Generation Region";
+"canvas_empty_state_add_or_paste_file_image" = "Add or paste an image";
+"canvas_empty_state_drag_or_paste_file_image" = "Drag or paste an image";
+"reading_dot" = "Leyendo...";
+"writing_dot" = "Escribiendo...";
+"cooling_down_dot" = "Enfriando...";
+"bringing_up_dot" = "Iniciando...";
+"thinking_dot" = "Pensando...";
+"working_dot" = "Trabajando...";
+"worked" = "Tiempo trabajado";
+"compacting_dot" = "Compactando...";
+"avg_speed" = "Vel. media";
+"view_more" = "Ver más";
+"model_speed" = "Velocidad del modelo";
+"x_on_y_with_z_gpu_cores" = "%@ en %@ con %d núcleos de GPU.";
+"x_on_y" = "%@ en %@.";
+"prompt_processing_detail" = "Tokens por segundo al leer un prompt de %@ tokens, según el contexto ya en uso.";
+"token_generation_detail" = "Tokens por segundo al escribir 128 tokens, según el contexto ya en uso.";
+"start_again" = "Iniciar de nuevo";
+"context_x_used" = "Contexto usado al %@";
+"prompt_processing" = "Procesamiento del prompt";
+"token_generation" = "Generación de tokens";
+"tool_bash_now" = "Bash";
+"tool_bash_past" = "Ejecutó";
+"tool_bash_status_now" = "Estado de Bash";
+"tool_bash_status_past" = "Estado de Bash";
+"tool_bash_wait_now" = "Esperar Bash";
+"tool_bash_wait_past" = "Esperar Bash";
+"tool_bash_stop_now" = "Detener Bash";
+"tool_bash_stop_past" = "Detuvo";
+"tool_read_now" = "Leer";
+"tool_read_past" = "Leyó";
+"tool_memory" = "Memoria";
+"tool_memory_read_now" = "Leer memoria";
+"tool_memory_read_past" = "Memoria leída";
+"tool_memory_append_now" = "Añadir a memoria";
+"tool_memory_append_past" = "Añadido a memoria";
+"tool_memory_replace_now" = "Reemplazar memoria";
+"tool_memory_replace_past" = "Memoria reemplazada";
+"tool_memory_remove_now" = "Eliminar memoria";
+"tool_memory_remove_past" = "Memoria eliminada";
+"tool_saved_response" = "Respuesta de herramienta guardada";
+"tool_more_now" = "Más";
+"tool_more_past" = "Más";
+"tool_write_now" = "Escribir";
+"tool_write_past" = "Escribió";
+"tool_edit_now" = "Editar";
+"tool_edit_past" = "Editó";
+"tool_search_now" = "Buscar";
+"tool_search_past" = "Buscó";
+"tool_list_now" = "Listar";
+"tool_list_past" = "Listar";
+"tool_datetime_now" = "Fecha y hora";
+"tool_datetime_past" = "Fecha y hora";
+"tool_check_smt_now" = "Resolver";
+"tool_check_smt_past" = "Resuelto";
+"low" = "Bajo";
+"medium" = "Medio";
+"high" = "Alto";
+"max" = "Máximo";
+"deterministic" = "Determinista";
+"creative" = "Creativo";
+"reasoning_effort" = "Esfuerzo de razonamiento";
+"reasoning_effort_detail" = "Controla con cuánta profundidad razona el asistente antes de actuar. Un esfuerzo mayor puede mejorar los resultados en tareas difíciles, pero consume más tiempo y tokens.";
+"work_attitude" = "Estilo de trabajo";
+"work_attitude_detail" = "Controla cómo aborda el asistente su trabajo. Determinista favorece respuestas centradas y coherentes; Creativo explora posibilidades más variadas.";
+"memory" = "Memoria";
+"memory_detail" = "Recuerda tus preferencias y detalles útiles de cada proyecto para que no tengas que repetirlos en futuras conversaciones.";
+"reviewing_memory_dot" = "Revisando la memoria...";
+"thinking_budget" = "Presupuesto de razonamiento";
+"thinking_budget_tokens" = "Tokens";
+"thinking_budget_detail" = "Tokens máximos de razonamiento oculto antes de que el asistente empiece a responder. Ponlo en 0 para desactivar el razonamiento.";
+"search_provider" = "Proveedor de búsqueda";
+"search_provider_detail" = "Selecciona el motor de búsqueda usado cuando el asistente necesita resultados web. Desactívalo para impedir la búsqueda web.";
+"search_provider_duckduckgo" = "DuckDuckGo";
+"search_provider_sogou" = "Sogou";
+"search_provider_kagi" = "Kagi";
+"search_provider_brave" = "Brave";
+"enter_your_api_key" = "Ingresa tu clave de API.";
+"tool_web_search_now" = "Búsqueda web";
+"tool_web_search_past" = "Buscó en la web";
+"tool_web_fetch_now" = "Obtener web";
+"tool_web_fetch_past" = "Obtuvo web";
+"new_directory" = "Nueva carpeta";
+"create" = "Crear";
+"untitled" = "Sin título";
+"cannot_create_directory" = "No se puede crear la carpeta";
+"cannot_create_directory_message" = "Elige un nombre válido que aún no exista.";
+"remote_api" = "API compatible con OpenAI";
+"remote_api_configuration_detail" = "Conecta con un servidor compatible con OpenAI.";
+"cloud_compute_configuration_detail" = "Inicia sesión para gestionar el crédito, las credenciales y los modelos alojados de Cloud Compute.";
+"remote_api_not_configured" = "Sin configurar";
+"sign_in_to_local_code" = "Iniciar sesión en Local Code";
+"remote_api_configured_model" = "Configurado · %@";
+"base_api_url" = "URL base de la API";
+"remote_api_key_placeholder" = "Clave de API (no se muestra)";
+"remove_api_key" = "Eliminar clave de API";
+"remote_api_error" = "Error de API remota";
+"remote_api_invalid_configuration" = "Introduce una URL de API HTTPS válida o una URL HTTP local.";
+"remote_api_key_required" = "Introduce una clave de API para esta URL base.";
+"remote_api_disclosure_title" = "¿Usar API remota?";
+"remote_api_disclosure_message" = "Los mensajes, contenidos de archivos y resultados de herramientas pueden enviarse al proveedor configurado. El modelo remoto puede usar las herramientas de Local Code en este dispositivo. Las políticas de datos y retención varían según el proveedor.";
+"remote_api_tool_call" = "Llamada de herramienta remota";
+"remote_context_used" = "Contexto usado (tokens)";
+"remote_context_free" = "Contexto libre (tokens)";
+"remote_compaction_trigger" = "Umbral de compactación";
+"claude_api" = "API de Claude";
+"claude_api_configuration_detail" = "Introduce el identificador del modelo Claude y la clave API de Anthropic. Deja la clave en blanco para conservar la guardada.";
+"claude_api_invalid_configuration" = "Introduce un identificador de modelo Claude.";
+"claude_api_key_required" = "Introduce una clave API de Anthropic.";
+"openrouter_api" = "OpenRouter";
+"openrouter_api_configuration_detail" = "Introduce un identificador de modelo de OpenRouter (por ejemplo, openai/gpt-4o) y una clave de API. Deja la clave en blanco para conservar la clave guardada.";
+"openrouter_api_invalid_configuration" = "Introduce un identificador de modelo de OpenRouter.";
+"openrouter_api_key_required" = "Introduce una clave de API de OpenRouter.";
+"remote_oauth_openai_action" = "Iniciar sesión con ChatGPT";
+"remote_oauth_anthropic_action" = "Iniciar sesión con Claude";
+"remote_oauth_openai_title" = "Iniciar sesión con ChatGPT";
+"remote_oauth_anthropic_title" = "Iniciar sesión con Claude";
+"remote_oauth_device_message" = "Se ha copiado el código %@. Completa el inicio de sesión en el navegador y vuelve a Local Code.";
+"remote_oauth_anthropic_message" = "Completa el inicio de sesión en el navegador y pega abajo el código de autorización o la URL de redirección.";
+"remote_oauth_code_placeholder" = "Código de autorización o URL de redirección";
+"remote_oauth_openai_official_endpoint" = "El inicio de sesión con ChatGPT requiere el endpoint oficial https://api.openai.com.";
+"cloud_compute_by_draw_things" = "Cloud Compute (de Draw Things)";
+"account_balance" = "Saldo de la cuenta";
+"add_funds" = "Añadir fondos";
+"account_id" = "ID de cuenta";
+"add_more_credit" = "Añadir más crédito";
+"credit_unavailable" = "Crédito no disponible";
+"show_api_key" = "Mostrar clave API";
+"hide_api_key" = "Ocultar clave API";
+"coming_soon" = "Próximamente";
+"new_project" = "Nuevo proyecto";
+"new_project_dot" = "Nuevo proyecto...";
+"new_from_template_dot" = "Nuevo a partir de plantilla...";
+"new_bot_dot" = "Nuevo bot...";
+"new_bot_from_template_dot" = "Nuevo bot a partir de plantilla...";
+"community_templates" = "Plantillas de la comunidad";
+"loading_templates" = "Cargando plantillas…";
+"no_templates_found" = "No se encontraron plantillas.";
+"cannot_load_templates" = "No se pudieron cargar las plantillas de la comunidad. Comprueba tu conexión e inténtalo de nuevo.";
+"cannot_download_template" = "No se puede descargar la plantilla";
+"cannot_download_template_message" = "El proyecto se creó, pero no se pudo descargar su plantilla.";
+"new_chat" = "Nuevo chat";
+"focus_chat" = "Enfocar chat";
+"stop_conversation" = "Detener conversación";
+
+"thread_completed_title" = "Trabajo terminado";
+
+"thread_completed_body" = "Terminado en %@. Abre para ver el resultado.";
+
+"kit" = "Kit";
+"draw_things_detail" = "Genera imágenes y vídeos en Local Code con la integración de Draw Things. Elige dónde guardar los modelos de Draw Things. También puedes usar una carpeta de modelos de Draw Things existente.";
+"model_folder" = "Carpeta de modelos";
+"in_local_code_app" = "En la app Local Code";
+"choose_a_models_folder" = "Elige una carpeta de modelos";
+"choose_a_models_folder_detail" = "draw-things-cli necesita acceder a una carpeta de modelos. Si tienes Draw Things instalado, puedes reutilizar su carpeta de modelos para ahorrar espacio en disco.\n\n¿Dónde quieres guardar tus modelos?";
+"use_local_code_storage" = "Guardar en Local Code";
+"choose_a_folder_on_disk_dot" = "Elegir una carpeta del disco…";
+
+// Idle model unloading
+"unload_models_when_idle" = "Descargar modelos de la memoria al estar inactivos";
+"unload_models_when_idle_detail" = "Libera memoria descargando los modelos locales y sus cachés de conversación tras un período de inactividad. Los modelos permanecen cargados durante los turnos activos, incluso al esperar herramientas o permisos. Se vuelven a cargar automáticamente cuando se necesitan. La siguiente respuesta puede tardar más en comenzar.";
+"after_10_seconds" = "Después de 10 segundos";
+"after_1_minute" = "Después de 1 minuto";
+"after_5_minutes" = "Después de 5 minutos";
+"after_10_minutes" = "Después de 10 minutos";
+
+"unlock_pdf" = "Desbloquear PDF";
+"pdf_password_detail" = "Se necesita una contraseña para abrir este PDF protegido:\n\n%@";
+"pdf_password_incorrect" = "La contraseña es incorrecta. Inténtalo de nuevo.";
+"password" = "Contraseña";
+"unlock" = "Desbloquear";
+"all_projects" = "Todos los proyectos";
+"all_bots" = "Todos los bots";
+"recent_threads" = "Hilos recientes";
+"no_recent_threads" = "Sin hilos recientes";
+"no_recent_threads_detail" = "Los hilos que inicies en cualquier proyecto aparecerán aquí, primero los más recientes.";
+"no_recent_threads_bot_detail" = "Los hilos que inicies con cualquier bot aparecerán aquí, primero los más recientes.";
+
+"insufficient_balance" = "Saldo insuficiente";
+"insufficient_balance_description" = "No se pudo completar tu solicitud por saldo insuficiente. Añade fondos a tu saldo para completarla y seguir creando.";
+"account_balance_topped_up" = "Saldo de la cuenta recargado";
+"ready_to_continue" = "Listo para continuar.";
+"free_request_rate_limit_reached" = "Se alcanzó el límite de solicitudes gratuitas";
+"free_request_rate_limit_description" = "Las solicitudes gratuitas tienen un límite más bajo. Añade 10 $ o más a tu saldo para desbloquear un límite mayor y seguir creando.";
+"remote_performance" = "Rendimiento remoto";
+"avg_time_to_first_token" = "Tiempo medio hasta el primer token";
+"observed_output" = "Salida observada";
+"shared_balance" = "Saldo compartido: %@";
+"top_up" = "Recargar";
+"top_up_description" = "Añade crédito para los modelos remotos de Local Code y la generación de imágenes en la nube de Draw Things.";
+"purchase_pending_approval" = "Compra pendiente de aprobación. El crédito se añadirá automáticamente.";
+"credit" = "crédito";
+"finishing_sign_in" = "Completando el inicio de sesión con %@…";
+"refreshing_cloud_compute" = "Actualizando Cómputo en la Nube…";
+"local_code_router_url_not_configured" = "La URL del Router de Local Code no está configurada.";
+"sign_in_callback_mismatch" = "La respuesta de inicio de sesión no coincide con la solicitud pendiente de Local Code.";
+"sign_in_no_token" = "El inicio de sesión con %@ no devolvió ningún token.";
+"no_cloud_compute_models_enabled" = "No hay modelos de Cómputo en la Nube habilitados.";
+"could_not_securely_start_sign_in" = "No se pudo iniciar sesión con %@ de forma segura.";
+"could_not_open_sign_in" = "No se pudo abrir el inicio de sesión con %@.";
+"sign_in_invalid_callback" = "El inicio de sesión con %@ devolvió una respuesta de Local Code no válida.";
+"could_not_complete_sign_in" = "No se pudo completar el inicio de sesión con %@.";
+"apple_sign_in_no_credential" = "El inicio de sesión con Apple no devolvió ninguna credencial.";
+"cloud_compute_invalid_response" = "El servicio de Cómputo en la Nube devolvió una respuesta no válida.";
+"cloud_compute_http_error" = "El servicio de Cómputo en la Nube devolvió HTTP %d. %@";
+"cloud_compute_decoding_failed" = "No se pudo decodificar la respuesta de Cómputo en la Nube.";
+"cloud_compute_missing_default_api_key" = "Cómputo en la Nube no devolvió una clave de API predeterminada.";
+"request_failed" = "La solicitud falló.";
+"tool_view_now" = "Viendo";
+"tool_view_past" = "Visto";
+"openai_compatible" = "Compatible con OpenAI";
+"could_not_run_tool" = "No se pudo ejecutar %@";
+"could_not_open_browser" = "No se pudo abrir el navegador.";
+"keychain_operation_failed" = "Falló la operación del llavero (%d).";
+"remote_credential_unreadable" = "No se pudo leer la credencial remota guardada.";
+"remote_credential_unavailable" = "La credencial remota guardada no está disponible.";
+"remote_credential_changed" = "La credencial remota cambió. Vuelve a abrir la conversación e inténtalo de nuevo.";
+"remote_credential_unsupported" = "Este proveedor no admite el método de autenticación guardado.";
+"remote_status_title" = "Estado de la nube";
+"remote_status_provider_not_configured" = "Proveedor: sin configurar.";
+"remote_status_provider" = "Proveedor: %@";
+"remote_status_context" = "Contexto: `%@ / %@` tokens (%d %%)";
+"remote_status_context_free" = "Contexto libre: `%@` tokens";
+"remote_status_configured_context" = "Contexto configurado: `%@` tokens";
+"remote_status_compaction_threshold" = "Umbral de compactación: `%@` tokens";
+"remote_status_compaction_reserve" = "Reserva de compactación: `%@` tokens";
+"remote_status_output_reserve" = "Reserva de salida: `%@` tokens";
+"remote_status_active_history" = "Historial activo: %@ mensajes";
+"remote_status_current_turn" = "Turno actual: ronda %d de %d";
+"remote_status_turn_limit" = "Límite por turno: %d rondas de modelo/herramienta";
+"remote_status_select_project" = "Contexto: selecciona un proyecto para iniciar una sesión.";
+"remote_status_account_quota_not_exposed" = "Cuota de la cuenta: la API de chat de este proveedor no la expone.";
+"remote_status_openrouter_account" = "Cuenta de OpenRouter";
+"remote_status_checking_key_usage" = "Comprobando el uso de la clave…";
+"remote_status_tier" = "Nivel: %@";
+"remote_status_tier_free" = "Gratis";
+"remote_status_tier_funded" = "Con saldo";
+"remote_status_usage" = "Uso: %@ en total";
+"remote_status_usage_with_today" = "Uso: %@ en total, %@ hoy";
+"remote_status_key_limit" = "Límite de la clave: %@";
+"remote_status_key_limit_remaining" = "Límite de la clave: %@, quedan %@";
+"remote_status_key_spending_limit_none" = "Límite de gasto de la clave: ninguno";
+"remote_status_free_model_requests_not_exposed" = "Solicitudes restantes a modelos gratuitos: la API de claves de OpenRouter no las expone.";
+"remote_status_unavailable" = "No disponible: %@";
+
+"openai_sign_in_provider" = "OpenAI";
+"openai_sign_in_configuration_detail" = "Inicia sesión con tu cuenta de OpenAI. No se necesita una clave API ni una URL personalizada.";
+"model_optional" = "Modelo (opcional)";
+"welcome_dot" = "Bienvenida...";
+"welcome_to_local_code" = "¡Bienvenido a Local Code!";
+
+"manage_account" = "Administrar cuenta";
+"get_started" = "Empezar";
+"connect_provider" = "Conectar proveedor";
+"choose_a_model" = "Elige un modelo";
+"choose_a_model_detail" = "Cambia de modelo o añade más cuando quieras en Configuraciones. Ya hay una opción predeterminada razonable seleccionada.";
+"other_providers" = "Otros proveedores";
+"other_models" = "Otros modelos";
+"getting_things_ready" = "Preparando todo…";
+"python_batteries_included" = "Python, con todo incluido";
+"node_js_packed_in" = "Node.js, integrado";
+"shell_tools_ready" = "Herramientas de shell, listas";
+"office_chores_under_control" = "office, tareas de oficina bajo control";
+"version_control_packed_in" = "Control de versiones, integrado";
+"video_creation_from_idea_to_final_cut" = "Creación de video, de la idea al montaje final";
+"formal_reasoning_on_tap" = "Razonamiento formal, a tu alcance";
+"draw_things_cli_hooked_up" = "draw-things-cli, conectado";
+"making_it_fast" = "Acelerando…";
+"apple_silicon_up_to_2x_faster" = "Apple Silicon, hasta 2× más rápido";
+"app_sandbox_locked_down" = "App Sandbox, bien cerrado";
+"private_execution_built_in" = "Ejecución privada, integrada";
+"awesomeness_110_percent" = "Genialidad, 110 %";
+"ready_to_work" = "Listo para trabajar.";
+"initializing" = "Inicializando…";
+"your_account_your_workspace" = "Tu cuenta, tu espacio de trabajo";
+"your_account_your_workspace_detail" = "Tus configuraciones y tu espacio de trabajo se mantienen sincronizados en todos tus dispositivos.";
+"you_are_all_set" = "¡Todo listo!";
+"you_are_all_set_detail" = "Aquí tienes un resumen rápido de cómo se organiza Local Code.";
+"threads" = "Hilos";
+"onboarding_workspace_detail" = "El espacio de trabajo es el directorio que Local Code puede leer y escribir. «Dentro de Documentos de la app» lo mantiene todo contenido; «Local» da acceso a todo tu Mac. Configúralo por proyecto.";
+"onboarding_workspace_bot_detail" = "El espacio de trabajo es el directorio que Local Code puede leer y escribir. «Dentro de Documentos de la app» lo mantiene todo contenido; «Local» da acceso a todo tu Mac. Configúralo por bot.";
+"onboarding_projects_detail" = "Un proyecto corresponde a un directorio de tu equipo. Agrupa conversaciones relacionadas por base de código, cliente o tema. Los proyectos recuerdan tu espacio de trabajo y la configuración del entorno.";
+"onboarding_bots_detail" = "Un bot corresponde a un directorio de tu equipo. Agrupa conversaciones relacionadas por base de código, cliente o tema. Los bots recuerdan tu espacio de trabajo y la configuración del entorno.";
+"onboarding_threads_detail" = "Cada conversación es un hilo dentro de un proyecto. Inicia un hilo para hacer una pregunta, ejecutar código o abordar una tarea de varios pasos. Los hilos conservan el contexto entre mensajes.";
+"onboarding_threads_bot_detail" = "Cada conversación es un hilo con un bot. Inicia un hilo para hacer una pregunta, ejecutar código o abordar una tarea de varios pasos. Los hilos conservan el contexto entre mensajes.";
+"here_are_some_project_ideas" = "¡Aquí tienes algunas ideas de proyectos!";
+"here_are_some_bot_ideas" = "¡Aquí tienes algunas ideas de bots!";
+"here_are_some_project_ideas_detail" = "Elige un proyecto para empezar o crea el tuyo desde cero más adelante.";
+"here_are_some_bot_ideas_detail" = "Elige un bot para empezar o crea el tuyo desde cero más adelante.";
+"file_organizer" = "Organizador de archivos";
+"file_organizer_detail" = "Ordena tu Escritorio y tus Descargas.";
+"house_chores" = "Tareas del hogar";
+"house_chores_detail" = "Controla tu casa inteligente y tus electrodomésticos.";
+"daily_brief" = "Boletín diario";
+"daily_brief_detail" = "Ponte al día con las noticias que te importan.";
+"tax_proofread" = "Revisión de impuestos";
+"tax_proofread_detail" = "Revisa tus documentos fiscales en busca de errores.";
+"graphic_novelist" = "Novelista gráfico";
+"graphic_novelist_detail" = "Escribe e ilustra novelas gráficas.";
+"explainer_videos" = "Vídeos explicativos";
+"explainer_videos_detail" = "Crea vídeos cortos que expliquen cosas.";
+"office_work" = "Trabajo de oficina";
+"office_work_detail" = "Edita tus documentos, hojas de cálculo y presentaciones.";
+"enable_bot_mode" = "Activar el modo bot";
+"bot_mode" = "Modo bot";
+"bot_mode_detail" = "Usa «Bot» y «Bots» en lugar de «Proyecto» y «Proyectos» en toda la app para que sus funciones resulten más familiares.";
+"bots" = "Bots";
+"x_of_y" = "%d de %d";
+"start" = "Iniciar";
+"start_new_thread" = "Iniciar una nueva conversación";
+"expanded" = "Expandido";
+"collapsed" = "Contraído";
+"setting_up_cloud_compute" = "Configurando Cloud Compute…";
+"manage_connection" = "Administrar conexión";
+"sign_in_to_use_cloud_compute_detail" = "Inicia sesión en tu cuenta de Local Code para usar Cloud Compute.";
+"local_code_account_optional_detail" = "Configura tu cuenta de Local Code para mantener sincronizados tus configuraciones y tu espacio de trabajo (opcional).";
+"signed_in_setting_up_cloud_compute" = "Sesión iniciada. Configurando Cloud Compute…";
+"you_are_signed_in_to_local_code" = "Has iniciado sesión en Local Code.";
+"loading_models" = "Cargando modelos…";
+"local_model" = "Modelo local";
+"onboarding_local_model_detail" = "Se ejecuta por completo en tu dispositivo con Apple Silicon. Totalmente privado, rápido y funciona sin conexión. El modelo predeterminado (%@) o el que elijas empezará a descargarse cuando continúes.";
+"recommended" = "Recomendado";
+"requires_sign_in" = "Requiere iniciar sesión";
+"setting_up" = "Configurando";
+"signed_in" = "Sesión iniciada";
+"not_connected" = "No conectado";
+"api_key_connected" = "Clave API conectada";
+"cloud_compute_by_draw_things_detail" = "Conéctate a modelos alojados en la nube con tu cuenta de Local Code. Requiere conexión a internet. Los datos salen de tu dispositivo.";
+"openai_compatible_api_detail" = "Usa tu propio endpoint y tu clave API para conectarte a un proveedor compatible con OpenAI.";
+"anthropic_detail" = "Conéctate a Claude con una clave API o inicia sesión con tu cuenta de Anthropic.";
+"connected_choose_a_model_detail" = "Conectado. Elige el modelo que quieras usar.";
+"connect_your_provider_to_continue" = "Conecta tu proveedor para continuar.";
+"no_models_returned_detail" = "No se devolvió ningún modelo. Usa «Administrar conexión» para introducir un modelo.";
+"could_not_load_models_detail" = "No se pudieron cargar los modelos: %@ Usa «Administrar conexión» para introducir un modelo o vuelve a intentarlo.";
+"attachments" = "Archivos adjuntos";
+"preview_some_item" = "Previsualizar %@";
+"remove_some_item" = "Eliminar %@";
+"attachment_copy_failed_detail" = "No se pudieron copiar los archivos adjuntos a la carpeta del proyecto. %@";
+
+"remote_api_fallback_context" = "Límite de contexto de respaldo (tokens)";
+
+"remote_api_fallback_output" = "Límite de salida de respaldo (tokens)";
+
+"remote_api_invalid_limits" = "El contexto debe tener entre 4096 y 10000000 tokens y la salida entre 512 y 10000000. Deja un campo vacío para usar su valor predeterminado.";
+
+"remote_api_disconnect" = "Desconectar";
+
+"remote_api_connected_without_key" = "Conectado sin clave API";
+
+"remote_api_without_key_title" = "¿Conectar sin clave API?";
+
+"remote_api_changed_url_without_key" = "La URL ha cambiado y no tiene una clave guardada. No se reutilizará la clave de la URL anterior. Cancela e introduce una clave, o confirma la conexión sin autenticación.";
+
+"remote_api_connect_without_key" = "Conectar sin clave";
+
+"remote_api_url_tip" = "Incluye la ruta de API, como /v1. Usa HTTPS, o HTTP sin cifrar en una red local de confianza.";
+
+"remote_api_model_tip" = "Opcional. Introduce un ID de modelo o elige uno después de conectar.";
+
+"remote_api_key_tip" = "Déjalo vacío para usar la clave guardada para esta URL exacta, o conectar sin clave si no hay ninguna guardada.";
+
+"remote_api_context_tip" = "Se usa cuando el servidor no indica su límite de contexto. Déjalo vacío para usar el valor predeterminado.";
+
+"remote_api_output_tip" = "Se usa cuando el servidor no indica su límite de salida. Déjalo vacío para usar el valor predeterminado.";
+
+"messages_permission" = "Permiso de Mensajes";
+"mail_permission" = "Permiso de Mail";
+"notes_permission" = "Permiso de Notas";
+"calendar_permission" = "Permiso de Calendario";
+"photos_permission" = "Permiso de Fotos";
+"authorized" = "Autorizado";
+"authorize" = "Autorizar";
+"denied" = "Denegado";
+"not_determined" = "No determinado";
+"messages_permission_detail" = "Controla si el comando imessage puede leer tu historial de Mensajes. «Autorizado» te pide seleccionar tu carpeta de Mensajes, y «Denegado» elimina ese acceso y bloquea el comando.";
+"mail_permission_detail" = "Controla si el comando mail puede leer el correo que la app Mail guarda en este Mac. «Autorizado» te pide seleccionar tu carpeta de Mail, y «Denegado» elimina ese acceso y bloquea el comando.";
+"notes_permission_detail" = "Controla si el comando notes puede leer las notas que la app Notas guarda en este Mac. «Autorizado» te pide seleccionar la carpeta de datos de Notas, y «Denegado» elimina ese acceso y bloquea el comando.";
+"calendar_permission_detail" = "Controla si el comando calendar puede leer y editar tus eventos. «Denegado» bloquea el comando; solo los Ajustes del sistema pueden revocar el acceso al Calendario.";
+"photos_permission_detail" = "Controla si el comando photos y la herramienta view pueden leer y cambiar tus fotos y videos. «Denegado» los bloquea; solo los Ajustes del sistema pueden revocar el acceso a Fotos.";
+"attach" = "Adjuntar";
+"take_photo_dot" = "Hacer foto...";
+"add_from_photos_dot" = "Añadir desde Fotos...";
+"add_files_dot" = "Añadir archivos...";
+"dictate" = "Dictar";
+"stop_dictation" = "Dejar de dictar";
+"dictation_not_authorized" = "Permite a Local Code el acceso al micrófono y al reconocimiento de voz en Ajustes para dictar.";
+"dictation_unavailable" = "El reconocimiento de voz no está disponible ahora. Vuelve a intentarlo en unos instantes.";
+"preview" = "Vista previa";
+"play" = "Reproducir";
+"pause" = "Pausa";
+"full_screen" = "Pantalla completa";
+"forward" = "Adelante";
+"reload" = "Volver a cargar";
+"no_open_tabs" = "No hay pestañas abiertas.";
+"activities" = "Actividades";
+"browser_tabs" = "Pestañas del navegador";
+"browser_tabs_detail" = "Pestañas que los agentes abren con web-browse-cli, primero las de este hilo. Abre una para verla y usarla. El botón de menos la cierra y detiene cualquier comando que aún la esté usando.";
+"processes" = "Procesos";
+"processes_detail" = "Comandos de shell que los agentes iniciaron y que siguen en ejecución, primero los de este hilo. El botón de menos detiene uno, y el agente ve que se detuvo.";
+"no_running_process" = "No hay procesos en ejecución.";
+"stop_process" = "Detener proceso";
+"stop_process_detail" = "El agente que inició este comando verá que se detuvo.";
+"lockdown_mode" = "Modo de aislamiento";
+"lockdown_mode_detail" = "Mantiene ilegibles los archivos de Local Code, incluidos los proyectos dentro de Documentos de la app, mientras este dispositivo esté bloqueado. Los agentes no pueden abrirlos hasta que lo desbloquees, así que las tareas que se ejecuten con el dispositivo bloqueado pueden fallar. Si está desactivado, siguen disponibles tras el primer desbloqueo después de reiniciar. Las carpetas fuera de la app conservan su propia protección.";
+"steer" = "Redirigir";
