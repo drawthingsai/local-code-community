@@ -51,6 +51,8 @@ table ProjectHistoryNode {
   // System snapshots contain both targets and are recorded when the prompt ingests memory.
   memory_context: MemoryContext;
   system_seen_memory_context: MemoryContext;
+  // Images sent with a user message, as paths relative to the project folder.
+  image_paths: [string];
 }
 
 root_type ProjectHistoryNode;

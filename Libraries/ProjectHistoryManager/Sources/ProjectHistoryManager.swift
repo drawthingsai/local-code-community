@@ -129,7 +129,7 @@ public final class ProjectHistoryManager {
   @discardableResult
   public func createThread(
     title: String, model: String, userTokens: [Int32], textEdits: Int, textLineage: Int64,
-    plaintext: String? = nil, lastMessage: String? = nil
+    plaintext: String? = nil, imagePaths: [String] = [], lastMessage: String? = nil
   ) -> ProjectThread {
     dispatchPrecondition(condition: .onQueue(.main))
     let id = newThreadId()
@@ -139,7 +139,8 @@ public final class ProjectHistoryManager {
       lastMessage: lastMessage ?? plaintext, lastMessageRole: .user)
     let node = ProjectHistoryNode(
       threadId: id, datetime: datetime, role: .user, tokens: userTokens,
-      textEdits: Int64(textEdits), textLineage: textLineage, plaintext: plaintext)
+      textEdits: Int64(textEdits), textLineage: textLineage, plaintext: plaintext,
+      imagePaths: imagePaths)
     let version = uniqueCacheVersion()
     threadCache[id] = (thread, version)
     let nodeIdentifier = NodeIdentifier(threadId: id, datetime: datetime)
@@ -164,13 +165,14 @@ public final class ProjectHistoryManager {
   @discardableResult
   public func appendUser(
     threadId: Int64, tokens: [Int32], textEdits: Int, textLineage: Int64,
-    plaintext: String? = nil, lastMessage: String? = nil
+    plaintext: String? = nil, imagePaths: [String] = [], lastMessage: String? = nil
   ) -> ProjectHistoryNode? {
     dispatchPrecondition(condition: .onQueue(.main))
     return append(
       threadId: threadId, role: .user, logTokens: [], tokens: tokens, toolCalls: [],
       textEdits: Int64(textEdits), textLineage: textLineage, plaintext: plaintext,
-      logPlaintext: nil, compacted: false, lastMessage: lastMessage ?? plaintext)
+      logPlaintext: nil, compacted: false, imagePaths: imagePaths,
+      lastMessage: lastMessage ?? plaintext)
   }
 
   @discardableResult
@@ -275,7 +277,7 @@ public final class ProjectHistoryManager {
   @discardableResult
   public func replaceUser(
     threadId: Int64, datetime: Int64, tokens: [Int32], textEdits: Int, textLineage: Int64,
-    plaintext: String? = nil, lastMessage: String? = nil
+    plaintext: String? = nil, imagePaths: [String] = [], lastMessage: String? = nil
   ) -> ProjectHistoryNode? {
     dispatchPrecondition(condition: .onQueue(.main))
     let oldIdentifier = NodeIdentifier(threadId: threadId, datetime: datetime)
@@ -295,7 +297,8 @@ public final class ProjectHistoryManager {
     let newDatetime = newDatetime()
     let node = ProjectHistoryNode(
       threadId: threadId, datetime: newDatetime, role: .user, tokens: tokens,
-      textEdits: Int64(textEdits), textLineage: textLineage, plaintext: plaintext)
+      textEdits: Int64(textEdits), textLineage: textLineage, plaintext: plaintext,
+      imagePaths: imagePaths)
     let lastMessage = lastMessage ?? plaintext
     var threadBuilder = ProjectThreadBuilder(from: thread)
     threadBuilder.updatedAt = newDatetime
@@ -328,6 +331,7 @@ public final class ProjectHistoryManager {
       nodeChangeRequest.logPlaintext = nil
       nodeChangeRequest.compacted = false
       nodeChangeRequest.duration = 0
+      nodeChangeRequest.imagePaths = imagePaths
       transactionContext.try(submit: threadChangeRequest)
       transactionContext.try(submit: nodeChangeRequest)
     } completionHandler: { [weak self] _ in
@@ -490,7 +494,8 @@ public final class ProjectHistoryManager {
     toolCalls: [ToolCall], textEdits: Int64, textLineage: Int64,
     plaintext: String?, logPlaintext: String?, compacted: Bool, duration: TimeInterval = 0,
     incrementTurnCountSinceLastReview: Bool = false, memoryContext: MemoryContext? = nil,
-    systemSeenMemoryContext: MemoryContext? = nil, lastMessage: String? = nil
+    systemSeenMemoryContext: MemoryContext? = nil, imagePaths: [String] = [],
+    lastMessage: String? = nil
   ) -> ProjectHistoryNode? {
     dispatchPrecondition(condition: .onQueue(.main))
     guard let thread = thread(id: threadId) else { return nil }
@@ -500,7 +505,7 @@ public final class ProjectHistoryManager {
       tokens: tokens, toolCalls: toolCalls, textEdits: textEdits, textLineage: textLineage,
       plaintext: plaintext, logPlaintext: logPlaintext, compacted: compacted,
       duration: duration, embedSpans: embedSpans, memoryContext: memoryContext,
-      systemSeenMemoryContext: systemSeenMemoryContext)
+      systemSeenMemoryContext: systemSeenMemoryContext, imagePaths: imagePaths)
     var threadBuilder = ProjectThreadBuilder(from: thread)
     if role != .memory {
       threadBuilder.updatedAt = datetime

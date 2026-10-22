@@ -114,6 +114,11 @@ extension ProjectHistoryNode: FlatBuffersEncodable {
     let __memoryContext = self.memoryContext.to(flatBufferBuilder: &flatBufferBuilder)
     let __systemSeenMemoryContext = self.systemSeenMemoryContext.to(
       flatBufferBuilder: &flatBufferBuilder)
+    var __imagePaths = [Offset]()
+    for i in imagePaths {
+      __imagePaths.append(flatBufferBuilder.create(string: i))
+    }
+    let __vector_imagePaths = flatBufferBuilder.createVector(ofOffsets: __imagePaths)
     let start = zzz_DflatGen_ProjectHistoryNode.startProjectHistoryNode(&flatBufferBuilder)
     zzz_DflatGen_ProjectHistoryNode.add(threadId: self.threadId, &flatBufferBuilder)
     zzz_DflatGen_ProjectHistoryNode.add(datetime: self.datetime, &flatBufferBuilder)
@@ -131,6 +136,7 @@ extension ProjectHistoryNode: FlatBuffersEncodable {
     zzz_DflatGen_ProjectHistoryNode.add(memoryContext: __memoryContext, &flatBufferBuilder)
     zzz_DflatGen_ProjectHistoryNode.add(
       systemSeenMemoryContext: __systemSeenMemoryContext, &flatBufferBuilder)
+    zzz_DflatGen_ProjectHistoryNode.addVectorOf(imagePaths: __vector_imagePaths, &flatBufferBuilder)
     return zzz_DflatGen_ProjectHistoryNode.endProjectHistoryNode(&flatBufferBuilder, start: start)
   }
 }
@@ -172,6 +178,7 @@ public final class ProjectHistoryNodeChangeRequest: Dflat.ChangeRequest {
   public var embedSpans: [EmbedSpan]
   public var memoryContext: MemoryContext?
   public var systemSeenMemoryContext: MemoryContext?
+  public var imagePaths: [String]
   private init(type _type: ChangeRequestType) {
     _o = nil
     self._type = _type
@@ -191,6 +198,7 @@ public final class ProjectHistoryNodeChangeRequest: Dflat.ChangeRequest {
     embedSpans = []
     memoryContext = nil
     systemSeenMemoryContext = nil
+    imagePaths = []
   }
   private init(type _type: ChangeRequestType, _ _o: ProjectHistoryNode) {
     self._o = _o
@@ -211,6 +219,7 @@ public final class ProjectHistoryNodeChangeRequest: Dflat.ChangeRequest {
     embedSpans = _o.embedSpans
     memoryContext = _o.memoryContext
     systemSeenMemoryContext = _o.systemSeenMemoryContext
+    imagePaths = _o.imagePaths
   }
   public static func changeRequest(_ o: ProjectHistoryNode) -> ProjectHistoryNodeChangeRequest? {
     let transactionContext = SQLiteTransactionContext.current!
@@ -256,7 +265,8 @@ public final class ProjectHistoryNodeChangeRequest: Dflat.ChangeRequest {
       threadId: threadId, datetime: datetime, role: role, logTokens: logTokens, tokens: tokens,
       toolCalls: toolCalls, textEdits: textEdits, textLineage: textLineage, plaintext: plaintext,
       logPlaintext: logPlaintext, compacted: compacted, duration: duration, embedSpans: embedSpans,
-      memoryContext: memoryContext, systemSeenMemoryContext: systemSeenMemoryContext)
+      memoryContext: memoryContext, systemSeenMemoryContext: systemSeenMemoryContext,
+      imagePaths: imagePaths)
     atom._rowid = _rowid
     return atom
   }

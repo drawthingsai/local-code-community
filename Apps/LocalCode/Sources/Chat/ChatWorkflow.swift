@@ -2433,7 +2433,11 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       projectHistoryManager: projectHistoryManager, startTime: startTime)
   }
 
-  func continueWithQueuedItems() {
+  /// A steer that stopped the turn before any output resends the stopped message, with the images
+  /// it was sent with, joined with the steered items in place of its node.
+  func continueWithQueuedItems(
+    resending stoppedMessage: (prompt: String, imagePaths: [String])? = nil
+  ) {
     // A turn the user stopped, by stop or steer, ends while stopping; one that finished on its
     // own is still sending.
     let isStopping = chatInputController.sendState == .stopping
@@ -2464,13 +2468,16 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         }
       }
     }
-    let isRestoringUserNode = restoredUserNode != nil
+    let isRestoringUserNode = restoredUserNode != nil && steeredItems.isEmpty
     // Stopping without a steer hands the queue back to the input instead of sending it.
     let isRestoringQueue = isStopping && steeredItems.isEmpty
     let draft = chatInputController.text
     var prompts = queuedItems.compactMap(\.text)
-    let imagePaths = queuedItems.flatMap(\.imagePaths)
-    if isRestoringUserNode {
+    var imagePaths = queuedItems.flatMap(\.imagePaths)
+    if let stoppedMessage, !steeredItems.isEmpty {
+      prompts.insert(stoppedMessage.prompt, at: 0)
+      imagePaths.insert(contentsOf: stoppedMessage.imagePaths, at: 0)
+    } else if isRestoringUserNode {
       let restoredPrompt = draft.trimmingCharacters(in: .whitespacesAndNewlines)
       if !restoredPrompt.isEmpty {
         prompts.insert(restoredPrompt, at: 0)
@@ -2704,7 +2711,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         }?.trimmingCharacters(in: .whitespacesAndNewlines) ?? prompt
       let thread = projectHistoryManager.createThread(
         title: title, model: file, userTokens: userTokens, textEdits: textEdits,
-        textLineage: textLineage, lastMessage: prompt)
+        textLineage: textLineage, imagePaths: imagePaths, lastMessage: prompt)
       projectHistoryManager.threadId = thread.id
       observeQueuedItems(threadId: thread.id)
       threadId = thread.id
@@ -2715,11 +2722,12 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       if let restoredUserNode, restoredUserNode.threadId == threadId {
         userNode = projectHistoryManager.replaceUser(
           threadId: threadId, datetime: restoredUserNode.datetime, tokens: userTokens,
-          textEdits: textEdits, textLineage: textLineage, lastMessage: prompt)
+          textEdits: textEdits, textLineage: textLineage, imagePaths: imagePaths,
+          lastMessage: prompt)
       } else {
         userNode = projectHistoryManager.appendUser(
           threadId: threadId, tokens: userTokens, textEdits: textEdits,
-          textLineage: textLineage, lastMessage: prompt)
+          textLineage: textLineage, imagePaths: imagePaths, lastMessage: prompt)
       }
       guard let userNode else {
         restoreSelectedThread()
@@ -2793,14 +2801,35 @@ extension ChatWorkflow: ChatInputControllerDelegate {
               codeAgent: codeAgent, scheduler: scheduler, projectPath: projectPath,
               threadId: threadId)
           {
-            self.restoreSelectedThread()
-            self.chatInputController.sendState = .idle
-            if let didStopHandler = self.didStopHandler {
-              self.didStopHandler = nil
-              didStopHandler()
+            if !self.steeringQueuedItems.isEmpty {
+              // A steer that stopped the turn before any output keeps the stopped message out of
+              // the input; it goes out again with the steered items.
+              var history = projectHistoryManager.history(threadId: threadId)
+              var stoppedMessage: (prompt: String, imagePaths: [String])?
+              if let index = history.lastIndex(where: { $0.role != .memory }),
+                case let node = history[index], node.role == .user
+              {
+                self.restoredUserNode = (threadId: node.threadId, datetime: node.datetime)
+                stoppedMessage = (
+                  prompt: node.plaintext ?? safeTokenizer.decode(node.tokens),
+                  imagePaths: node.imagePaths
+                )
+                history.remove(at: index)
+              }
+              self.viewController.setHistory(self.historyMessages(from: history))
+              self.continueWithQueuedItems(resending: stoppedMessage)
+            } else {
+              self.restoreSelectedThread()
+              self.chatInputController.sendState = .idle
+              if let didStopHandler = self.didStopHandler {
+                self.didStopHandler = nil
+                didStopHandler()
+              }
             }
           }
-          scheduler.markAsCompleted(codeAgent)
+          if !scheduler.hasActiveTurn(codeAgent) {
+            scheduler.markAsCompleted(codeAgent)
+          }
         }
         return
       }
@@ -3166,13 +3195,14 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         orderBy: [ProjectQueuedItem.datetime.ascending]))
     let prompt = queuedItems.compactMap(\.text).joined(separator: "\n\n")
     guard !prompt.isEmpty else { return false }
+    let imagePaths = queuedItems.flatMap(\.imagePaths)
     let (_, userTokens, _, _, _) = safeTokenizer.tokenize(
       text: prompt, truncation: false, maxLength: 0, paddingToken: nil,
       addSpecialTokens: false)
     guard
       projectHistoryManager.appendUser(
         threadId: threadId, tokens: userTokens, textEdits: -1, textLineage: -1,
-        lastMessage: prompt) != nil
+        imagePaths: imagePaths, lastMessage: prompt) != nil
     else { return false }
     projectWorkspace.performChanges([ProjectQueuedItem.self]) { transactionContext in
       for queuedItem in queuedItems {
@@ -3189,7 +3219,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         projectURL: projectURL, workspaceURL: settingsWorkflow.workspaceFolderURL))
     scheduleLocalTurn(
       codeAgent: codeAgent, safeTokenizer: safeTokenizer, prompt: catalog.prompt(for: prompt),
-      imagePaths: queuedItems.flatMap(\.imagePaths), threadId: threadId,
+      imagePaths: imagePaths, threadId: threadId,
       projectURL: projectURL, projectWorkspace: projectWorkspace,
       projectHistoryManager: projectHistoryManager, startTime: CACurrentMediaTime())
     return true

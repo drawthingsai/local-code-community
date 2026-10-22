@@ -41,7 +41,7 @@ extension ChatWorkflow {
               textLineage: node.textLineage, plaintext: nil, logPlaintext: nil,
               compacted: node.compacted, duration: node.duration,
               memoryContext: node.memoryContext,
-              systemSeenMemoryContext: node.systemSeenMemoryContext)
+              systemSeenMemoryContext: node.systemSeenMemoryContext, imagePaths: node.imagePaths)
           case .assistant:
             let logTokens: [Int32]
             if let logPlaintext = node.logPlaintext, !logPlaintext.isEmpty {
@@ -62,7 +62,7 @@ extension ChatWorkflow {
               textLineage: node.textLineage, plaintext: nil, logPlaintext: nil,
               compacted: node.compacted, duration: node.duration,
               memoryContext: node.memoryContext,
-              systemSeenMemoryContext: node.systemSeenMemoryContext)
+              systemSeenMemoryContext: node.systemSeenMemoryContext, imagePaths: node.imagePaths)
           }
         }
       } catch {
@@ -121,7 +121,8 @@ extension ChatWorkflow {
         toolCalls: node.toolCalls, textEdits: node.textEdits,
         textLineage: node.textLineage, plaintext: nil, logPlaintext: nil,
         compacted: node.compacted, duration: node.duration,
-        memoryContext: node.memoryContext, systemSeenMemoryContext: node.systemSeenMemoryContext)
+        memoryContext: node.memoryContext, systemSeenMemoryContext: node.systemSeenMemoryContext,
+        imagePaths: node.imagePaths)
     }
   }
 
@@ -179,7 +180,8 @@ extension ChatWorkflow {
           logTokens: [], tokens: [], toolCalls: node.toolCalls, textEdits: node.textEdits,
           textLineage: node.textLineage, plaintext: plaintext,
           logPlaintext: logPlaintext, compacted: node.compacted, duration: node.duration,
-          memoryContext: node.memoryContext, systemSeenMemoryContext: node.systemSeenMemoryContext)
+          memoryContext: node.memoryContext, systemSeenMemoryContext: node.systemSeenMemoryContext,
+          imagePaths: node.imagePaths)
       }
     } catch {
       return nil

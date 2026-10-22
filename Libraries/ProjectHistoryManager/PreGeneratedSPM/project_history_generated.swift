@@ -383,6 +383,7 @@ public struct zzz_DflatGen_ProjectHistoryNode: FlatBufferObject, Verifiable {
     case embedSpans = 28
     case memoryContext = 30
     case systemSeenMemoryContext = 32
+    case imagePaths = 34
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
@@ -500,8 +501,20 @@ public struct zzz_DflatGen_ProjectHistoryNode: FlatBufferObject, Verifiable {
     return o == 0
       ? nil : zzz_DflatGen_MemoryContext(_accessor.bb, o: _accessor.indirect(o + _accessor.postion))
   }
+  public var hasImagePaths: Bool {
+    let o = _accessor.offset(VTOFFSET.imagePaths.v)
+    return o == 0 ? false : true
+  }
+  public var imagePathsCount: Int32 {
+    let o = _accessor.offset(VTOFFSET.imagePaths.v)
+    return o == 0 ? 0 : _accessor.vector(count: o)
+  }
+  public func imagePaths(at index: Int32) -> String? {
+    let o = _accessor.offset(VTOFFSET.imagePaths.v)
+    return o == 0 ? nil : _accessor.directString(at: _accessor.vector(at: o) + index * 4)
+  }
   public static func startProjectHistoryNode(_ fbb: inout FlatBufferBuilder) -> UOffset {
-    fbb.startTable(with: 15)
+    fbb.startTable(with: 16)
   }
   public static func add(threadId: Int64, _ fbb: inout FlatBufferBuilder) {
     fbb.add(element: threadId, def: 0, at: VTOFFSET.threadId.p)
@@ -550,6 +563,9 @@ public struct zzz_DflatGen_ProjectHistoryNode: FlatBufferObject, Verifiable {
   public static func add(systemSeenMemoryContext: Offset, _ fbb: inout FlatBufferBuilder) {
     fbb.add(offset: systemSeenMemoryContext, at: VTOFFSET.systemSeenMemoryContext.p)
   }
+  public static func addVectorOf(imagePaths: Offset, _ fbb: inout FlatBufferBuilder) {
+    fbb.add(offset: imagePaths, at: VTOFFSET.imagePaths.p)
+  }
   public static func endProjectHistoryNode(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset
   {
     let end = Offset(offset: fbb.endTable(at: start))
@@ -571,7 +587,8 @@ public struct zzz_DflatGen_ProjectHistoryNode: FlatBufferObject, Verifiable {
     duration: Double = 0.0,
     embedSpansVectorOffset embedSpans: Offset = Offset(),
     memoryContextOffset memoryContext: Offset = Offset(),
-    systemSeenMemoryContextOffset systemSeenMemoryContext: Offset = Offset()
+    systemSeenMemoryContextOffset systemSeenMemoryContext: Offset = Offset(),
+    imagePathsVectorOffset imagePaths: Offset = Offset()
   ) -> Offset {
     let __start = zzz_DflatGen_ProjectHistoryNode.startProjectHistoryNode(&fbb)
     zzz_DflatGen_ProjectHistoryNode.add(threadId: threadId, &fbb)
@@ -589,6 +606,7 @@ public struct zzz_DflatGen_ProjectHistoryNode: FlatBufferObject, Verifiable {
     zzz_DflatGen_ProjectHistoryNode.addVectorOf(embedSpans: embedSpans, &fbb)
     zzz_DflatGen_ProjectHistoryNode.add(memoryContext: memoryContext, &fbb)
     zzz_DflatGen_ProjectHistoryNode.add(systemSeenMemoryContext: systemSeenMemoryContext, &fbb)
+    zzz_DflatGen_ProjectHistoryNode.addVectorOf(imagePaths: imagePaths, &fbb)
     return zzz_DflatGen_ProjectHistoryNode.endProjectHistoryNode(&fbb, start: __start)
   }
 
@@ -635,6 +653,9 @@ public struct zzz_DflatGen_ProjectHistoryNode: FlatBufferObject, Verifiable {
     try _v.visit(
       field: VTOFFSET.systemSeenMemoryContext.p, fieldName: "systemSeenMemoryContext",
       required: false, type: ForwardOffset<zzz_DflatGen_MemoryContext>.self)
+    try _v.visit(
+      field: VTOFFSET.imagePaths.p, fieldName: "imagePaths", required: false,
+      type: ForwardOffset<Vector<ForwardOffset<String>, String>>.self)
     _v.finish()
   }
 }

@@ -186,6 +186,7 @@ public final class ProjectHistoryNode: Dflat.Atom, SQLiteDflat.SQLiteAtom, FlatB
     guard lhs.embedSpans == rhs.embedSpans else { return false }
     guard lhs.memoryContext == rhs.memoryContext else { return false }
     guard lhs.systemSeenMemoryContext == rhs.systemSeenMemoryContext else { return false }
+    guard lhs.imagePaths == rhs.imagePaths else { return false }
     return true
   }
   public var _rowid: Int64 = -1
@@ -205,12 +206,14 @@ public final class ProjectHistoryNode: Dflat.Atom, SQLiteDflat.SQLiteAtom, FlatB
   public let embedSpans: [EmbedSpan]
   public let memoryContext: MemoryContext?
   public let systemSeenMemoryContext: MemoryContext?
+  public let imagePaths: [String]
   public init(
     threadId: Int64, datetime: Int64, role: ProjectHistoryRole? = .user, logTokens: [Int32]? = [],
     tokens: [Int32]? = [], toolCalls: [ToolCall]? = [], textEdits: Int64? = -1,
     textLineage: Int64? = -1, plaintext: String? = nil, logPlaintext: String? = nil,
     compacted: Bool? = false, duration: Double? = 0.0, embedSpans: [EmbedSpan]? = [],
-    memoryContext: MemoryContext? = nil, systemSeenMemoryContext: MemoryContext? = nil
+    memoryContext: MemoryContext? = nil, systemSeenMemoryContext: MemoryContext? = nil,
+    imagePaths: [String]? = []
   ) {
     self.threadId = threadId
     self.datetime = datetime
@@ -227,6 +230,7 @@ public final class ProjectHistoryNode: Dflat.Atom, SQLiteDflat.SQLiteAtom, FlatB
     self.embedSpans = embedSpans ?? []
     self.memoryContext = memoryContext ?? nil
     self.systemSeenMemoryContext = systemSeenMemoryContext ?? nil
+    self.imagePaths = imagePaths ?? []
   }
   public init(_ obj: zzz_DflatGen_ProjectHistoryNode) {
     self.threadId = obj.threadId
@@ -254,6 +258,12 @@ public final class ProjectHistoryNode: Dflat.Atom, SQLiteDflat.SQLiteAtom, FlatB
     self.embedSpans = __embedSpans
     self.memoryContext = obj.memoryContext.map { MemoryContext($0) }
     self.systemSeenMemoryContext = obj.systemSeenMemoryContext.map { MemoryContext($0) }
+    var __imagePaths = [String]()
+    for i: Int32 in 0..<obj.imagePathsCount {
+      guard let o = obj.imagePaths(at: i) else { break }
+      __imagePaths.append(String(o))
+    }
+    self.imagePaths = __imagePaths
   }
   public static func from(data: Data) -> Self {
     return data.withUnsafeBytes { buffer in
@@ -314,6 +324,7 @@ public struct ProjectHistoryNodeBuilder {
   public var embedSpans: [EmbedSpan]
   public var memoryContext: MemoryContext?
   public var systemSeenMemoryContext: MemoryContext?
+  public var imagePaths: [String]
   public init(from object: ProjectHistoryNode) {
     threadId = object.threadId
     datetime = object.datetime
@@ -330,13 +341,15 @@ public struct ProjectHistoryNodeBuilder {
     embedSpans = object.embedSpans
     memoryContext = object.memoryContext
     systemSeenMemoryContext = object.systemSeenMemoryContext
+    imagePaths = object.imagePaths
   }
   public func build() -> ProjectHistoryNode {
     ProjectHistoryNode(
       threadId: threadId, datetime: datetime, role: role, logTokens: logTokens, tokens: tokens,
       toolCalls: toolCalls, textEdits: textEdits, textLineage: textLineage, plaintext: plaintext,
       logPlaintext: logPlaintext, compacted: compacted, duration: duration, embedSpans: embedSpans,
-      memoryContext: memoryContext, systemSeenMemoryContext: systemSeenMemoryContext)
+      memoryContext: memoryContext, systemSeenMemoryContext: systemSeenMemoryContext,
+      imagePaths: imagePaths)
   }
 }
 

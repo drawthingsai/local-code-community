@@ -195,6 +195,29 @@ final class ProjectHistoryManagerTests: XCTestCase {
     XCTAssertEqual(restored.history(threadId: thread.id).first?.embedSpans, [])
   }
 
+  func testUserImagePathsPersistThroughReplace() throws {
+    let databaseURL = temporaryDirectory.appendingPathComponent("metadata.sqlite3")
+    let manager = ProjectHistoryManager(project: workspace)
+    let thread = manager.createThread(
+      title: "Images", model: "model.ckpt", userTokens: [1], textEdits: 1, textLineage: 0,
+      imagePaths: ["a.png"])
+    let first = try XCTUnwrap(manager.history(threadId: thread.id).first)
+    XCTAssertEqual(first.imagePaths, ["a.png"])
+    let replaced = try XCTUnwrap(
+      manager.replaceUser(
+        threadId: thread.id, datetime: first.datetime, tokens: [1, 2], textEdits: 2,
+        textLineage: 0, imagePaths: ["a.png", "b.png"]))
+    XCTAssertEqual(replaced.imagePaths, ["a.png", "b.png"])
+    _ = try XCTUnwrap(
+      manager.appendUser(
+        threadId: thread.id, tokens: [3], textEdits: 3, textLineage: 0, imagePaths: ["c.png"]))
+    workspace.shutdown(flags: [])
+    workspace = SQLiteWorkspace(filePath: databaseURL.path, fileProtectionLevel: .noProtection)
+    let restored = ProjectHistoryManager(project: workspace)
+    XCTAssertEqual(
+      restored.history(threadId: thread.id).map(\.imagePaths), [["a.png", "b.png"], ["c.png"]])
+  }
+
   func testCompactionReplacesSpansAndRewritePreservesThem() throws {
     let manager = ProjectHistoryManager(project: workspace)
     let thread = createThread(manager, title: "Images", model: "model.ckpt", tokens: [1])
