@@ -8,7 +8,9 @@ public final class VerticalScrollIndicatorController {
   private var longPressGestureRecognizer: UILongPressGestureRecognizer? = nil
   private var hoverGestureRecognizer: UIHoverGestureRecognizer? = nil
   private var hoverGestureCount: Int = 0
+  private var isHovering = false
   private var lastLocation: CGPoint? = nil
+  private var isDragging: Bool { lastLocation != nil }
   public final class ObjCResponder: NSObject {
     weak var controller: VerticalScrollIndicatorController? = nil
   }
@@ -50,9 +52,13 @@ public final class VerticalScrollIndicatorController {
   private func hover(_ gestureRecognizer: UIGestureRecognizer) {
     switch gestureRecognizer.state {
     case .began:
+      isHovering = true
       didHoverIn()
     case .ended, .cancelled:
-      didDelayedHoverOut()
+      isHovering = false
+      if !isDragging {
+        didDelayedHoverOut()
+      }
     case .failed, .changed, .possible:
       break
     @unknown default:
@@ -70,12 +76,17 @@ public final class VerticalScrollIndicatorController {
     switch gestureRecognizer.state {
     case .began:
       lastLocation = location
+      // Grabbing the indicator cancels a pending fade.
+      didHoverIn()
     case .changed:
       didMoveIndicator(location: location)
       lastLocation = location
     case .ended, .cancelled:
       didMoveIndicator(location: location)
       lastLocation = nil
+      if !isHovering {
+        didDelayedHoverOut()
+      }
     default:
       break
     }
@@ -191,7 +202,10 @@ extension VerticalScrollIndicatorController {
     if indicatorView.alpha == 0 {
       didHoverIn()
     }
-    didDelayedHoverOut()
+    // Stays up while hovered or dragged; leaving the strip or letting go hides it.
+    if !isHovering && !isDragging {
+      didDelayedHoverOut()
+    }
   }
 }
 
@@ -204,6 +218,13 @@ extension VerticalScrollIndicatorController.ObjCResponder: UICollectionViewDeleg
 extension VerticalScrollIndicatorController {
   private final class View: UIView {
     weak var delegate: VerticalScrollIndicatorController? = nil
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+      // Trackpad and wheel scrolling falls through to the scroll view underneath; hover and
+      // dragging the indicator still land here.
+      guard event?.type != .scroll else { return false }
+      return super.point(inside: point, with: event)
+    }
+
     override func layoutSubviews() {
       super.layoutSubviews()
       guard let delegate = delegate else { return }

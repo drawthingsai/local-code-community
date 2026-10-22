@@ -198,6 +198,26 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
     return super.preferredLayoutAttributesFitting(layoutAttributes)
   }
 
+  override func apply(_ layoutAttributes: UICollectionViewLayoutAttributes) {
+    super.apply(layoutAttributes)
+    // A margin change can move the row without resizing it, which skips layoutSubviews.
+    updateTableOverflowInsets()
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    updateTableOverflowInsets()
+  }
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    if let view = super.hitTest(point, with: event) {
+      return view
+    }
+    // Wide tables scroll out past the row's sides, where the row's own bounds check drops touches.
+    guard isUserInteractionEnabled, !isHidden, alpha > 0.01 else { return nil }
+    return markdownTextView.hitTest(convert(point, to: markdownTextView), with: event)
+  }
+
   override func prepareForReuse() {
     super.prepareForReuse()
     copyResetTimer?.invalidate()
@@ -213,6 +233,15 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
     if let remoteImageDidLoadObserver {
       NotificationCenter.default.removeObserver(remoteImageDidLoadObserver)
     }
+  }
+
+  // Wide tables rest on the text column but scroll out to the transcript's edges, like a document
+  // page. The row's side gaps are the margins the collection view lays it out in.
+  private func updateTableOverflowInsets() {
+    guard let superview else { return }
+    markdownTextView.tableOverflowInsets = UIEdgeInsets(
+      top: 0, left: frame.minX - superview.bounds.minX, bottom: 0,
+      right: superview.bounds.maxX - frame.maxX)
   }
 
   private func setCopyCompleted(_ completed: Bool, animated: Bool) {

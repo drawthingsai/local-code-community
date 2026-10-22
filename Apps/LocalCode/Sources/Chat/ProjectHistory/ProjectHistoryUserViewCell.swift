@@ -70,6 +70,8 @@ final class ProjectHistoryUserViewCell: UICollectionViewCell {
     textView.alwaysBounceVertical = false
     textView.isUserInteractionEnabled = true
     textView.usesNaturalWidthForIntrinsicContentSize = true
+    // Wide tables scroll out across the bubble's 16pt padding to its edges, which clip them.
+    textView.tableOverflowInsets = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
     textView.setContentHuggingPriority(UILayoutPriority(999), for: .horizontal)
     textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: textView) {

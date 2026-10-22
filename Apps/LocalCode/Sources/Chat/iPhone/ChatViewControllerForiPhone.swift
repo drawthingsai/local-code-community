@@ -293,8 +293,9 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
     }
     // The transcript runs under the project bar; its top inset tracks the bar in
     // viewDidLayoutSubviews.
+    // It spans the safe area so wide tables can scroll out to its edges; rows keep a 16pt margin.
     projectHistoryCollectionView.snp.makeConstraints { make in
-      make.leading.trailing.equalTo(chatContainerView.safeAreaLayoutGuide).inset(16)
+      make.leading.trailing.equalTo(chatContainerView.safeAreaLayoutGuide)
       make.top.equalToSuperview()
       make.bottom.equalTo(queuedItemsView.snp.top).offset(24)
     }
@@ -690,6 +691,7 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
       let group = NSCollectionLayoutGroup.vertical(layoutSize: itemSize, subitems: [item])
       let section = NSCollectionLayoutSection(group: group)
       section.interGroupSpacing = 16
+      section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
       return section
     }
   }

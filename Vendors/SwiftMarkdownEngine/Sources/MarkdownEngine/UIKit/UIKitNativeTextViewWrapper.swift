@@ -754,30 +754,30 @@
 
   public final class MarkdownTextView: UITextView {
     private final class RenderedTableScrollView: UIScrollView {
-      let sourceID: Int
+      let imageView = UIImageView(frame: .zero)
 
-      init(sourceID: Int) {
-        self.sourceID = sourceID
-        super.init(frame: .zero)
+      override init(frame: CGRect) {
+        super.init(frame: frame)
+        #if targetEnvironment(macCatalyst)
+          // A HorizontalScrollIndicatorController stands in: on the Mac, UIKit's scroller stays
+          // drawn over the table's last row while scroll bars are always shown. Turn it off before
+          // UIKit creates it; turned off later, the Mac keeps drawing it.
+          showsHorizontalScrollIndicator = false
+        #endif
+        showsVerticalScrollIndicator = false
+        alwaysBounceHorizontal = true
+        alwaysBounceVertical = false
+        backgroundColor = .clear
+        // The content insets come from tableOverflowInsets alone.
+        contentInsetAdjustmentBehavior = .never
+        imageView.contentMode = .scaleAspectFit
+        imageView.isUserInteractionEnabled = false
+        addSubview(imageView)
       }
 
       @available(*, unavailable)
       required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-      }
-    }
-
-    private final class RenderedTableScrollDelegate: NSObject, UIScrollViewDelegate {
-      weak var owner: MarkdownTextView?
-
-      init(owner: MarkdownTextView) {
-        self.owner = owner
-      }
-
-      func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        guard let tableScrollView = scrollView as? RenderedTableScrollView else { return }
-        owner?.tableHorizontalScrollOffsets[tableScrollView.sourceID] =
-          tableScrollView.contentOffset.x
       }
     }
 
@@ -809,7 +809,9 @@
     private var thematicBreakViews: [UIView] = []
     private var taskCheckboxButtons: [TaskCheckboxButton] = []
     private var tableImageViews: [UIImageView] = []
-    private var tableScrollViews: [RenderedTableScrollView] = []
+    private var tableScrollViews: [Int: RenderedTableScrollView] = [:]
+    private var tableScrollIndicatorControllers: [Int: HorizontalScrollIndicatorController] = [:]
+    /// How far each removed wide table was scrolled from its resting position, by source ID.
     private var tableHorizontalScrollOffsets: [Int: CGFloat] = [:]
     private let selectionHighlightView = UIView(frame: .zero)
     private let selectionHighlightLayer = CAShapeLayer()
@@ -824,7 +826,6 @@
       let occurrence: Int
     }
     private var htmlViews: [HTMLEmbedID: WKWebView] = [:]
-    private lazy var tableScrollDelegate = RenderedTableScrollDelegate(owner: self)
     private lazy var directCoordinator = NativeTextViewWrapper.Coordinator(
       text: Binding(
         get: { [weak self] in self?.storageString ?? "" },
@@ -897,6 +898,19 @@
       didSet {
         guard usesNaturalWidthForIntrinsicContentSize != oldValue else { return }
         invalidateIntrinsicContentSize()
+      }
+    }
+
+    /// How far a table wider than the text column may scroll out past this view's left and right
+    /// edges; top and bottom are ignored. At rest the table still starts on the text column, so a
+    /// host can let wide tables run to its own edges. While set, this view stops clipping its
+    /// subviews and takes touches on the tables there; the host must not clip that area and must
+    /// route its touches here.
+    public var tableOverflowInsets: UIEdgeInsets = .zero {
+      didSet {
+        guard tableOverflowInsets != oldValue else { return }
+        clipsToBounds = tableOverflowInsets.left <= 0 && tableOverflowInsets.right <= 0
+        setNeedsLayout()
       }
     }
 
@@ -1127,6 +1141,12 @@
 
     public override var canBecomeFirstResponder: Bool {
       super.canBecomeFirstResponder || (isSelectable && isUserInteractionEnabled)
+    }
+
+    public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+      // Wide tables reach past the bounds by tableOverflowInsets; they still scroll from there.
+      super.point(inside: point, with: event)
+        || tableScrollViews.values.contains { $0.frame.contains(point) }
     }
 
     public override var intrinsicContentSize: CGSize {
@@ -1400,14 +1420,19 @@
     }
 
     private func updateTableViews() {
-      for scrollView in tableScrollViews {
-        tableHorizontalScrollOffsets[scrollView.sourceID] = scrollView.contentOffset.x
-        scrollView.removeFromSuperview()
-      }
-      tableScrollViews.removeAll()
       tableImageViews.forEach { $0.removeFromSuperview() }
       tableImageViews.removeAll()
 
+      var retainedSourceIDs = Set<Int>()
+      defer {
+        for sourceID in Array(tableScrollViews.keys) where !retainedSourceIDs.contains(sourceID) {
+          guard let scrollView = tableScrollViews.removeValue(forKey: sourceID) else { continue }
+          tableHorizontalScrollOffsets[sourceID] =
+            scrollView.contentOffset.x + scrollView.contentInset.left
+          tableScrollIndicatorControllers.removeValue(forKey: sourceID)?.view.removeFromSuperview()
+          scrollView.removeFromSuperview()
+        }
+      }
       guard let renderedText = attributedText, renderedText.length > 0 else { return }
       layoutManager.ensureLayout(for: textContainer)
       let fullRange = NSRange(location: 0, length: renderedText.length)
@@ -1434,30 +1459,58 @@
           + max(0, (usedLineRect.height - imageBounds.height) / 2)
 
         if imageBounds.width > availableWidth + 0.5 {
-          let scrollView = RenderedTableScrollView(sourceID: sourceID)
-          scrollView.delegate = tableScrollDelegate
-          scrollView.showsHorizontalScrollIndicator = true
-          scrollView.showsVerticalScrollIndicator = false
-          scrollView.alwaysBounceHorizontal = true
-          scrollView.alwaysBounceVertical = false
-          scrollView.backgroundColor = .clear
-          scrollView.frame = CGRect(
-            x: x,
+          retainedSourceIDs.insert(sourceID)
+          // The scroll area reaches into the overflow on both sides; its content insets rest the
+          // table on the text column and let it scroll out to the overflow edges.
+          let overflowLeft = max(0, tableOverflowInsets.left)
+          let overflowRight = max(0, tableOverflowInsets.right)
+          let frame = CGRect(
+            x: x - overflowLeft,
             y: y,
-            width: displayWidth,
+            width: overflowLeft + displayWidth + overflowRight,
             height: imageBounds.height
           )
+          let contentInset = UIEdgeInsets(
+            top: 0, left: overflowLeft, bottom: 0, right: overflowRight)
+          let scrollView: RenderedTableScrollView
+          let restingOffset: CGFloat
+          // Streaming text and window resizes lay this view out repeatedly; keep the table's
+          // scroll view so a scroll in progress survives, and only re-place it when it moved.
+          if let existing = tableScrollViews[sourceID] {
+            existing.imageView.image = image
+            guard
+              existing.frame != frame || existing.contentInset != contentInset
+                || existing.contentSize != imageBounds.size
+            else { return }
+            scrollView = existing
+            restingOffset = existing.contentOffset.x + existing.contentInset.left
+          } else {
+            scrollView = RenderedTableScrollView(frame: .zero)
+            scrollView.imageView.image = image
+            addSubview(scrollView)
+            tableScrollViews[sourceID] = scrollView
+            #if targetEnvironment(macCatalyst)
+              let scrollIndicatorController = HorizontalScrollIndicatorController(
+                scrollView: scrollView)
+              addSubview(scrollIndicatorController.view)
+              tableScrollIndicatorControllers[sourceID] = scrollIndicatorController
+            #endif
+            restingOffset = tableHorizontalScrollOffsets[sourceID] ?? 0
+          }
+          let scrollIndicatorController = tableScrollIndicatorControllers[sourceID]
+          // Placing the table is not a scroll; keep its indicator from flashing.
+          scrollView.delegate = nil
+          scrollView.frame = frame
+          scrollView.contentInset = contentInset
+          scrollView.horizontalScrollIndicatorInsets = contentInset
+          scrollView.imageView.frame = CGRect(origin: .zero, size: imageBounds.size)
           scrollView.contentSize = imageBounds.size
-          let imageView = UIImageView(frame: CGRect(origin: .zero, size: imageBounds.size))
-          imageView.image = image
-          imageView.contentMode = .scaleAspectFit
-          imageView.isUserInteractionEnabled = false
-          scrollView.addSubview(imageView)
-          let savedOffset = tableHorizontalScrollOffsets[sourceID] ?? 0
           let maxOffset = max(0, imageBounds.width - displayWidth)
-          scrollView.contentOffset = CGPoint(x: min(max(savedOffset, 0), maxOffset), y: 0)
-          addSubview(scrollView)
-          tableScrollViews.append(scrollView)
+          scrollView.contentOffset = CGPoint(
+            x: min(max(restingOffset, 0), maxOffset) - overflowLeft, y: 0)
+          scrollView.delegate = scrollIndicatorController?.objCResponder
+          scrollIndicatorController?.view.frame = CGRect(
+            x: frame.minX, y: frame.maxY - 12, width: frame.width, height: 12)
         } else {
           let imageView = UIImageView(
             frame: CGRect(
