@@ -369,11 +369,11 @@ has to start from an unpublished port. Three active lines were compared:
 
 | Port | Node base | Finding |
 | --- | --- | --- |
-| [`gmaclennan/nodejs-mobile`](https://github.com/gmaclennan/nodejs-mobile), recipe commit `9eec30ebe09e4146bc557740da02baae88051721` | 24.19.0 | Patch-oriented mobile port with device/simulator CI and an explicit upstream-upgrade workflow. Its build-relevant patches are the basis of the checked-in Node 24.20.0 port. |
+| [`gmaclennan/nodejs-mobile`](https://github.com/gmaclennan/nodejs-mobile), recipe commit `9eec30ebe09e4146bc557740da02baae88051721` | 24.19.0 | Patch-oriented mobile port with device/simulator CI and an explicit upstream-upgrade workflow. Its build-relevant patches are the basis of the checked-in Node 24.22.1 port. |
 | [`origami-ltd/nodejs-mobile`](https://github.com/origami-ltd/nodejs-mobile), commit `6ea1971786a98e3a320e68ed254ecb88c12bdca6` | 24.18.0 | Earlier full-source port used to establish the original Node 24 baseline and retained as an independent audit cross-check. |
 | [`Acurast/nodejs-mobile`](https://github.com/Acurast/nodejs-mobile) | 24.5.0 | Useful independent evidence that Node 24 can be carried to iOS, but farther behind the selected LTS point release. |
 
-Local Code now pins the official Node 24.20.0 source archive and SHA-256 in
+Local Code now pins the official Node 24.22.1 source archive and SHA-256 in
 [`Vendors/NodeJS/build_nodejs_mobile.sh`](../../Vendors/NodeJS/build_nodejs_mobile.sh).
 The checked-in mobile patch is a reviewed rebase of the Gmaclennan recipe's
 build changes, while a separate Local Code patch owns the embedding host and
@@ -408,7 +408,7 @@ complete core-module fixture because missing registration objects often
 appear only at runtime.
 
 The original port was audited against pristine Node 24.18.0 before vendoring;
-the current mobile patch was rebased against pristine Node 24.20.0.
+the current mobile patch was rebased against pristine Node 24.22.1.
 The files that had carried unsafe stale-Node-18 changes in earlier ports are
 either upstream-identical (`deps/uv/src/unix/fs.c` and
 `deps/uvwasi/src/uvwasi.c`) or have a narrowly scoped mobile delta. The
@@ -653,7 +653,7 @@ queued-cancellation, and teardown tests.
 
 ### 3. npm and package execution
 
-Local Code now bundles npm `11.19.0` from the pinned Node source as a signed,
+Local Code now bundles npm `11.19.1` from the pinned Node source as a signed,
 checksum-validated app resource. The app extracts it transactionally into its
 Library directory, while packages remain in the project and npm's cache is
 stored under `<project>/.localc/node/cache`. Lifecycle scripts are disabled by
@@ -1098,7 +1098,7 @@ arguments based only on engine choice.
 
 Current baseline:
 
-- checksum-pinned Node.js 24.20.0 source plus reproducible mobile patches and
+- checksum-pinned Node.js 24.22.1 source plus reproducible mobile patches and
   a static XCFramework recipe;
 - clean arm64 device and arm64 simulator slices, imported through Bazel;
 - successful Bazel device and simulator link builds at the app's iOS 15.4
@@ -1107,15 +1107,15 @@ Current baseline:
   zlib, streams, temporary-file I/O, `node:sqlite`, small ICU, and loopback
   `node:http`;
 - measured runtime identity:
-  `{"node":"24.20.0","platform":"ios","arch":"arm64","intl":"78.3"}`;
+  `{"node":"24.22.1","platform":"ios","arch":"arm64","intl":"78.3"}`;
 - passing DrumBrake fixtures for function zero, a nonzero exported function,
   and an export whose index follows an imported callback;
 - a successful global `fetch` against the loopback `node:http` server;
 - passing environment-context and virtual-child tests, plus successful
-  reusable-host version probes for Node 24.20.0 and npm/npx 11.19.0;
-- the full reusable `ios_system` gate currently reaches a pre-existing OSH
-  fixture failure at the virtual `/home/project` alias, before its package
-  install and nested-npx cases;
+  reusable-host version probes for Node 24.22.1 and npm/npx 11.19.1;
+- the full reusable `ios_system` gate passes its package install and nested-npx
+  cases, then is killed at the `_npx`-cached tarball case, which fails the same
+  way with the previous 24.20.0 runtime;
 - successful full Local Code simulator and device builds with PythonIOS and
   NodeMobile linked into the same executable.
 

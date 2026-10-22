@@ -25,9 +25,9 @@ enum NodeMobileCommandResources {
     }
   }
 
-  private static let npmVersion = "11.19.0"
+  private static let npmVersion = "11.19.1"
   private static let archiveSHA256 =
-    "92219d817b53c22450270c0be543171a5a1795bbf84c24d3b8817c0a312eb701"
+    "23a3c442e6e165888dc455a0fea799579b19c1b80a8eb071afdc82438efaa18a"
 
   static func prepare(
     in libraryURL: URL, bundle: Bundle = .main, archiveURL: URL? = nil,

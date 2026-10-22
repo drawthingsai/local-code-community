@@ -29,7 +29,7 @@ static int StaticInlineNodeRunSuite(void) {
       "const resultPath = process.env.STATIC_INLINE_NODE_RESULT;"
       "const mark = (stage) => fs.writeFileSync(resultPath, `${stage}\\n`);"
       "mark('javascript-started');"
-      "assert.equal(process.versions.node, '24.20.0');"
+      "assert.equal(process.versions.node, '24.22.1');"
 #if TARGET_OS_IOS
       "assert.equal(process.platform, 'ios');"
 #else

@@ -16,7 +16,7 @@ apple_static_xcframework_import(
 
 filegroup(
     name = "NodeCommandArchive",
-    srcs = ["Resources/NodeMobile/Commands/npm-11.19.0.zip"],
+    srcs = ["Resources/NodeMobile/Commands/npm-11.19.1.zip"],
 )
 
 apple_resource_group(

@@ -95,7 +95,7 @@ native command host:
   than introducing another runtime or native command implementation. The
   configured `npx` JavaScript entry is also published to the child bridge so a
   Node program can launch nested `npx` without an OS executable.
-- `Vendors/NodeJS/Resources/NodeMobile/Commands/npm-11.19.0.zip` is a
+- `Vendors/NodeJS/Resources/NodeMobile/Commands/npm-11.19.1.zip` is a
   deterministic, checksum-pinned copy of the npm payload from the pinned Node
   source. Local Code validates and extracts it transactionally from the signed
   app bundle into the app Library directory.
@@ -139,12 +139,13 @@ pure-JavaScript install now uses bundled npm. The policy-enforcing project
 materializer remains to be implemented. A physical-device run is still
 required before declaring release support.
 
-The current packaged baseline is Node 24.20.0/npm 11.19.0. Its core macOS and
+The current packaged baseline is Node 24.22.1/npm 11.19.1. Its core macOS and
 iOS simulator runtime suites and virtual-child fixture pass. The reusable
-`ios_system` test confirms all three upgraded version commands, then hits a
-pre-existing OSH `/home/project` alias failure before the npm install and
-nested-npx cases; those rows remain evidence from the last fully passing
-pre-OSH baseline until that harness regression is repaired and rerun.
+`ios_system` test confirms all three upgraded version commands, the npm
+install, and top-level and nested npx, then is killed at the `_npx`-cached
+tarball case, which fails the same way with the previous 24.20.0 runtime; that
+row remains evidence from the last fully passing pre-OSH baseline until the
+harness regression is repaired and rerun.
 
 NodeMobile currently prints one unmanaged-file-descriptor warning during the
 macOS vanilla/React Vite runs and many during VitePress. The builds succeed

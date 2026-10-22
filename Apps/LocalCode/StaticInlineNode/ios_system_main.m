@@ -989,9 +989,9 @@ int main(int argc, char* argv[]) {
       @[ @"which node", @0, @[ @"/usr/bin/node" ], @[] ],
       @[ @"which npm", @0, @[ @"/usr/bin/npm" ], @[] ],
       @[ @"which npx", @0, @[ @"/usr/bin/npx" ], @[] ],
-      @[ @"node --version", @0, @[ @"v24.20.0" ], @[] ],
-      @[ @"npm --version", @0, @[ @"11.19.0" ], @[] ],
-      @[ @"npx --version", @0, @[ @"11.19.0" ], @[] ],
+      @[ @"node --version", @0, @[ @"v24.22.1" ], @[] ],
+      @[ @"npm --version", @0, @[ @"11.19.1" ], @[] ],
+      @[ @"npx --version", @0, @[ @"11.19.1" ], @[] ],
       @[
         @"node -e \"const path = require('node:path'); console.log('project cwd', path.basename(process.cwd()) === 'project'); console.log('workspace home', process.env.HOME === path.dirname(process.cwd()))\"",
         @0, @[ @"project cwd true", @"workspace home true" ], @[]

@@ -16,7 +16,7 @@ clean temporary tree, builds the complete native runtime, records provenance,
 and writes checksums for the committed result. The XCFramework is only a
 container for static `.a` libraries; it is not a dynamic framework.
 
-The script downloads the checksum-pinned official Node 24.20.0 source archive.
+The script downloads the checksum-pinned official Node 24.22.1 source archive.
 The checked-in `nodejs-mobile-ios.patch` carries the iOS, JITless V8, OpenSSL,
 Abseil, and host-tool build changes forward from `gmaclennan/nodejs-mobile`
 recipe commit `9eec30ebe09e4146bc557740da02baae88051721`, whose source base was Node
@@ -61,7 +61,7 @@ must be an input to this aggregate before encapsulation, with its registrar
 included there. It cannot be linked afterward against hidden N-API symbols.
 
 The vendor now includes the deterministic
-`Resources/NodeMobile/Commands/npm-11.19.0.zip` payload from the pinned Node
+`Resources/NodeMobile/Commands/npm-11.19.1.zip` payload from the pinned Node
 source. It supplies canonical npm/npx command code, but does not by itself
 grant general npm ecosystem compatibility:
 
@@ -175,16 +175,17 @@ the iOS app and macOS command-line probe should end with:
 [StaticInlineNode] suite passed
 ```
 
-The Node 24.20.0 baseline passes the iOS device and simulator Bazel link
+The Node 24.22.1 baseline passes the iOS device and simulator Bazel link
 builds, the runtime suite on an arm64 iOS 26.5 simulator, and the linked macOS
 arm64 runtime suite. The suite exercises Node startup, CommonJS, ESM,
 `Buffer`, crypto, zlib, streams, temporary-file I/O, `node:sqlite`, small ICU,
 loopback `node:http`, DrumBrake WebAssembly dispatch, and a successful global
-`fetch`. The environment-context and virtual-child tests also pass, and the
-reusable `ios_system` test confirms Node 24.20.0 plus npm/npx 11.19.0 startup.
-That test currently stops at a pre-existing OSH fixture that expects the
-virtual `/home/project` alias before it reaches the package-install cases; the
-full npm/npx portion must be rerun after that harness regression is repaired.
+`fetch`. The environment-context, virtual-child, and process-policy tests also
+pass, and the reusable `ios_system` test confirms Node 24.22.1 plus npm/npx
+11.19.1 startup, a local package install, and top-level and nested npx. That
+test is then killed at the `_npx`-cached tarball case, which fails the same way
+with the previous 24.20.0 runtime; that case must be rerun after the harness
+regression is repaired.
 The previous Node 24.18.0 pre-OSH baseline passed repeated
 CommonJS/ESM/eval/stdin commands, state isolation, cancellation, nested npx,
 and the combined PythonIOS/NodeMobile OpenSSL encapsulation check. The full

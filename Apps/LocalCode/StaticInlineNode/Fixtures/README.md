@@ -52,6 +52,12 @@ simulator runtime suites and the virtual-child fixture successfully. The full
 pre-existing OSH `/home/project` alias fixture before reaching its npm install
 and nested-npx cases.
 
+The 2026-10-22 Node 24.22.1/npm 11.19.1 upgrade reran the core macOS and iOS
+simulator runtime suites and the virtual-child fixture successfully. The full
+`ios_system` test now passes the npm install and nested-npx cases, then is
+killed at the `_npx`-cached tarball case; the previous 24.20.0 runtime fails
+there the same way.
+
 Host npm was used to create the temporary Vite package graphs. The
 `ios_system` fixture now separately validates bundled npm/npx, a local
 pure-JavaScript install with lifecycle scripts disabled, project `.bin`

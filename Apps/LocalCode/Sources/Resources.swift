@@ -54,6 +54,6 @@ enum Resources {
 
   static var nodeCommandArchiveURL: URL? {
     repositoryURL?.appendingPathComponent(
-      "Vendors/NodeJS/Resources/NodeMobile/Commands/npm-11.19.0.zip")
+      "Vendors/NodeJS/Resources/NodeMobile/Commands/npm-11.19.1.zip")
   }
 }

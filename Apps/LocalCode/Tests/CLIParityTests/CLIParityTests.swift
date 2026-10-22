@@ -746,7 +746,7 @@ final class CLIParityTests: XCTestCase {
       }
       XCTAssertTrue(output.contains("python_ok"), output)
       XCTAssertTrue(output.contains("node_ok"), output)
-      XCTAssertTrue(output.contains("11.19.0"), output)
+      XCTAssertTrue(output.contains("11.19.1"), output)
     }
     wait(for: [completed], timeout: 30)
   }

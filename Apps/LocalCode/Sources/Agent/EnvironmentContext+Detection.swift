@@ -16,7 +16,7 @@ extension EnvironmentContext {
       model: model, provider: provider, platform: Self.platformDescription(),
       python: python.version, pythonPackages: python.packages,
       // Keep these synchronized with Vendors/NodeJS/NODEJS_BUILD_INFO and the bundled npm archive.
-      nodeJS: "24.20.0", nodeJSPackages: ["npm 11.19.0"],
+      nodeJS: "24.22.1", nodeJSPackages: ["npm 11.19.1"],
       shellCommands: (commandsAsArray() as? [String]) ?? [])
   }
 

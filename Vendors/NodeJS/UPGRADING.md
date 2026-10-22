@@ -32,7 +32,10 @@ source for each behavior.
 5. Compare the target's generated `node` link inputs with the archive closure
    in `build_nodejs_mobile.sh`. Point releases can split a library (for
    example, Node 24.20.0 introduced `libnode_base.a`) without causing the
-   ordinary `node` executable build to fail.
+   ordinary `node` executable build to fail. Node 24.22.1 also made
+   `configure --enable-static` a deprecated no-op: `libnode.a` is always
+   produced, and `make node` now links the `node` target as an executable
+   instead of a static library.
 6. Read `deps/npm/package.json` from the pinned Node source. Update the npm
    version and deterministic archive checksum in the build script, verifier,
    Bazel resource, Local Code resource loader, runtime probes, and docs.

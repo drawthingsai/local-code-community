@@ -21,7 +21,7 @@ npm exec -- mcporter --version
 ```
 
 Require version `0.12.3`. It requires Node 24 or newer and is compatible with
-the bundled Node.js 24.20.0 runtime. Keep changes to `package.json` and the npm
+the bundled Node.js 24.22.1 runtime. Keep changes to `package.json` and the npm
 lockfile visible to the user.
 
 Do not install MCPorter globally, use `mcporter@latest`, or invoke MCPorter

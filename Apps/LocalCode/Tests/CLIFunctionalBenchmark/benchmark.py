@@ -230,8 +230,8 @@ if args.stage == 'remote':
         ('bash-shell', 'printf "alpha\\nbeta\\n" | sort > sorted.txt; cat sorted.txt', 'beta'),
         ('python', '''python3 -c 'import json; print(json.dumps({"value": 6 * 7}))' ''', '42'),
         ('node', '''node -e 'console.log(JSON.stringify({value: 6 * 7}))' ''', '42'),
-        ('npm', 'npm --version', '11.19.0'),
-        ('npx', 'npx --version', '11.19.0'),
+        ('npm', 'npm --version', '11.19.1'),
+        ('npx', 'npx --version', '11.19.1'),
         ('lean', "check_lean 'theorem bench_truth : True := by trivial'", 'status: valid'),
         ('z3', 'z3 --version', 'Z3 version'),
     ]

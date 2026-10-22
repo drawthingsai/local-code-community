@@ -56,23 +56,23 @@ grep -qx \
   fail "NODEJS_BUILD_INFO does not declare the exact public C API"
 grep -qx "NODEJS_SLICES=ios-arm64 ios-arm64-simulator macos-arm64" NODEJS_BUILD_INFO ||
   fail "NODEJS_BUILD_INFO does not declare the expected slices"
-grep -qx "NODEJS_VERSION=24.20.0" NODEJS_BUILD_INFO ||
+grep -qx "NODEJS_VERSION=24.22.1" NODEJS_BUILD_INFO ||
   fail "NODEJS_BUILD_INFO does not declare the expected Node.js version"
-grep -qx "NODEJS_SOURCE_URL=https://nodejs.org/dist/v24.20.0/node-v24.20.0.tar.gz" \
+grep -qx "NODEJS_SOURCE_URL=https://nodejs.org/dist/v24.22.1/node-v24.22.1.tar.gz" \
   NODEJS_BUILD_INFO ||
   fail "NODEJS_BUILD_INFO does not declare the expected Node.js source URL"
 grep -qx \
-  "NODEJS_SOURCE_SHA256=987113866ab9018998f09f74072afe7136f3da8b934e35d89531e1e49890062f" \
+  "NODEJS_SOURCE_SHA256=001773d9bd53fbd27a25efd42aa6a9693ebfe500998ca9bec635e9b6ee79bc91" \
   NODEJS_BUILD_INFO ||
   fail "NODEJS_BUILD_INFO does not declare the expected Node.js source checksum"
 grep -qx \
   "NODEJS_MOBILE_PORT_COMMIT=9eec30ebe09e4146bc557740da02baae88051721" \
   NODEJS_BUILD_INFO ||
   fail "NODEJS_BUILD_INFO does not declare the expected mobile port recipe"
-grep -qx "NPM_VERSION=11.19.0" NODEJS_BUILD_INFO ||
+grep -qx "NPM_VERSION=11.19.1" NODEJS_BUILD_INFO ||
   fail "NODEJS_BUILD_INFO does not declare the expected npm version"
 grep -qx \
-  "NPM_COMMAND_ARCHIVE_SHA256=92219d817b53c22450270c0be543171a5a1795bbf84c24d3b8817c0a312eb701" \
+  "NPM_COMMAND_ARCHIVE_SHA256=23a3c442e6e165888dc455a0fea799579b19c1b80a8eb071afdc82438efaa18a" \
   NODEJS_BUILD_INFO ||
   fail "NODEJS_BUILD_INFO does not declare the npm command archive checksum"
 mobile_patch_sha256=$(shasum -a 256 Patches/nodejs-mobile-ios.patch | awk '{ print $1 }')
@@ -87,7 +87,7 @@ if grep -q "apple_dynamic_xcframework_import(" BUILD; then
   fail "Bazel unexpectedly declares a dynamic XCFramework import"
 fi
 
-npm_archive="Resources/NodeMobile/Commands/npm-11.19.0.zip"
+npm_archive="Resources/NodeMobile/Commands/npm-11.19.1.zip"
 [[ -f "$npm_archive" ]] || fail "missing npm command archive"
 npm_archive_count=$(
   find Resources/NodeMobile/Commands -maxdepth 1 \( -type f -o -type l \) \
@@ -102,7 +102,7 @@ for entry in package.json bin/npm-cli.js bin/npx-cli.js; do
     fail "npm command archive is missing $entry"
 done
 unzip -p "$npm_archive" package.json > "$npm_package_file"
-grep -q '"version": "11.19.0"' "$npm_package_file" ||
+grep -q '"version": "11.19.1"' "$npm_package_file" ||
   fail "npm command archive has an unexpected package version"
 if grep -E "(^|/)test/" "$npm_entries_file" >/dev/null; then
   fail "npm command archive unexpectedly contains test payloads"

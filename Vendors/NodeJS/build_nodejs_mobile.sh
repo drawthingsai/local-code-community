@@ -7,18 +7,18 @@ export LC_ALL=C
 REPO_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 VENDOR_DIR="$REPO_ROOT/Vendors/NodeJS"
 
-NODEJS_VERSION=24.20.0
+NODEJS_VERSION=24.22.1
 NODEJS_SOURCE_REPO=https://github.com/nodejs/node
-NODEJS_SOURCE_URL=https://nodejs.org/dist/v24.20.0/node-v24.20.0.tar.gz
-NODEJS_SOURCE_SHA256=987113866ab9018998f09f74072afe7136f3da8b934e35d89531e1e49890062f
+NODEJS_SOURCE_URL=https://nodejs.org/dist/v24.22.1/node-v24.22.1.tar.gz
+NODEJS_SOURCE_SHA256=001773d9bd53fbd27a25efd42aa6a9693ebfe500998ca9bec635e9b6ee79bc91
 NODEJS_MOBILE_PORT_REPO=https://github.com/gmaclennan/nodejs-mobile
 NODEJS_MOBILE_PORT_COMMIT=9eec30ebe09e4146bc557740da02baae88051721
 NODEJS_MOBILE_PORT_BASE_VERSION=24.19.0
 NODEJS_AUDIT_CROSSCHECK_REPO=https://github.com/origami-ltd/nodejs-mobile
 NODEJS_AUDIT_CROSSCHECK_COMMIT=6ea1971786a98e3a320e68ed254ecb88c12bdca6
-NPM_VERSION=11.19.0
+NPM_VERSION=11.19.1
 NPM_COMMAND_ARCHIVE="$VENDOR_DIR/Resources/NodeMobile/Commands/npm-$NPM_VERSION.zip"
-NPM_COMMAND_ARCHIVE_SHA256=92219d817b53c22450270c0be543171a5a1795bbf84c24d3b8817c0a312eb701
+NPM_COMMAND_ARCHIVE_SHA256=23a3c442e6e165888dc455a0fea799579b19c1b80a8eb071afdc82438efaa18a
 
 IOS_MINIMUM_OS_VERSION=${IOS_MINIMUM_OS_VERSION:-15.4}
 MACOS_MINIMUM_OS_VERSION=13.5
@@ -127,9 +127,9 @@ prepare_source() {
 
   grep -q '#define NODE_MOBILE_MAJOR_VERSION 24' "$SOURCE_DIR/src/node_mobile_version.h" ||
     fail "source is not the expected Node.js Mobile major version"
-  grep -q '#define NODE_MOBILE_MINOR_VERSION 20' "$SOURCE_DIR/src/node_mobile_version.h" ||
+  grep -q '#define NODE_MOBILE_MINOR_VERSION 22' "$SOURCE_DIR/src/node_mobile_version.h" ||
     fail "source is not the expected Node.js Mobile minor version"
-  grep -q '#define NODE_MOBILE_PATCH_VERSION 0' "$SOURCE_DIR/src/node_mobile_version.h" ||
+  grep -q '#define NODE_MOBILE_PATCH_VERSION 1' "$SOURCE_DIR/src/node_mobile_version.h" ||
     fail "source is not the expected Node.js Mobile patch version"
 }
 

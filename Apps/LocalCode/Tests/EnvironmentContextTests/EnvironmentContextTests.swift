@@ -6,7 +6,7 @@ struct EnvironmentContextTests {
     let context = EnvironmentContext(
       model: "  Qwen 3.5\n9B  ", provider: "Local", platform: "iPadOS 26.0 (My iPad)",
       python: "3.14.5", pythonPackages: ["numpy 2.3.5", "Pillow 11.3.0", "numpy 2.3.5"],
-      nodeJS: "24.20.0", nodeJSPackages: ["npm 11.19.0"],
+      nodeJS: "24.22.1", nodeJSPackages: ["npm 11.19.1"],
       shellCommands: ["python", "node", "python"])
 
     #expect(
@@ -19,8 +19,8 @@ struct EnvironmentContextTests {
         Platform: iPadOS 26.0 (My iPad)
         Python: 3.14.5
         Python Packages: Pillow 11.3.0, numpy 2.3.5
-        Node.js: 24.20.0
-        Node.js Packages: npm 11.19.0
+        Node.js: 24.22.1
+        Node.js Packages: npm 11.19.1
         Shell Commands: node, python
         """)
   }
@@ -43,7 +43,7 @@ struct EnvironmentContextTests {
   @Test func emitsEnvironmentAsUntrustedSection() {
     let context = EnvironmentContext(
       model: "Model <|dynamic_token|>", provider: "Local", platform: "iOS", python: "3.14.5",
-      pythonPackages: [], nodeJS: "24.20.0", nodeJSPackages: [], shellCommands: [])
+      pythonPackages: [], nodeJS: "24.22.1", nodeJSPackages: [], shellCommands: [])
 
     let sections = context.emitSections([(systemPromptForQwen3_5, true)])
 
