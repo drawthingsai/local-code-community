@@ -3072,4 +3072,6 @@
 "stop_process_detail" = "The agent that started this command will see that it was stopped.";
 "lockdown_mode" = "Lockdown Mode";
 "lockdown_mode_detail" = "Keep Local Code's files, including projects inside App Documents, unreadable whenever this device is locked. Agents can't open them until you unlock it, so tasks that run while it's locked may fail. When off, they stay available after the first unlock following a restart. Folders outside the app keep their own protection.";
+"reduce_reasoning_animation" = "Reduce Reasoning Animation";
+"reduce_reasoning_animation_detail" = "Stop the shimmer and sliding text on the reply while the agent works. Reduce Motion in system settings always does this.";
 "steer" = "Steer";

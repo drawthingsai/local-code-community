@@ -10,6 +10,7 @@ enum ChatHistoryMessage {
 protocol ChatViewControllable: UIViewController {
   var delegate: ChatViewControllableDelegate? { get set }
   var isBotModeEnabled: Bool { get set }
+  var isReduceReasoningAnimationEnabled: Bool { get set }
   var localPathResolver: LocalPathResolver? { get }
   func setLocalPathResolver(_ resolver: LocalPathResolver?, refreshVisibleCells: Bool)
   func setOnboardingViewController(

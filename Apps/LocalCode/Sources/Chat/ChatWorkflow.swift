@@ -110,6 +110,7 @@ final class ChatWorkflow: Workflow {
   private var isProjectSecurityScopedResourceAccessing = false
   private var reasoningEffortSubscription: Workspace.Subscription?
   private var botModeSubscription: Workspace.Subscription?
+  private var reduceReasoningAnimationSubscription: Workspace.Subscription?
   private var workAttitudeSubscription: Workspace.Subscription?
   private var thinkingBudgetSubscription: Workspace.Subscription? = nil
   private var queuedItemSubscription: Workspace.Subscription?
@@ -364,6 +365,19 @@ final class ChatWorkflow: Workflow {
         isBotModeEnabled = value
       }
       self.viewController.isBotModeEnabled = isBotModeEnabled
+    }
+    reduceReasoningAnimationSubscription = workspace.dictionary.subscribe(
+      "reduce_reasoning_animation", of: Bool.self
+    ) { [weak self] value in
+      guard let self else { return }
+      switch value {
+      case .deleted:
+        self.viewController.isReduceReasoningAnimationEnabled = false
+      case .initial(let value):
+        self.viewController.isReduceReasoningAnimationEnabled = value ?? false
+      case .updated(let value):
+        self.viewController.isReduceReasoningAnimationEnabled = value
+      }
     }
     thinkingBudgetSubscription = workspace.dictionary.subscribe(
       "thinking_budget", of: Int.self

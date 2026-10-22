@@ -21,6 +21,7 @@ final class MachineSettingsWorkflow: Workflow {
   private var useSystemDownloaderSubscription: Workspace.Subscription?
   private var botModeSubscription: Workspace.Subscription?
   private var lockdownModeSubscription: Workspace.Subscription?
+  private var reduceReasoningAnimationSubscription: Workspace.Subscription?
 
   final class ObjCResponder: NSObject {
     weak var workflow: MachineSettingsWorkflow?
@@ -116,6 +117,19 @@ final class MachineSettingsWorkflow: Workflow {
         self.viewController.isLockdownModeEnabled = value ?? false
       case .updated(let value):
         self.viewController.isLockdownModeEnabled = value
+      }
+    }
+    reduceReasoningAnimationSubscription = workspace.dictionary.subscribe(
+      "reduce_reasoning_animation", of: Bool.self
+    ) { [weak self] value in
+      guard let self else { return }
+      switch value {
+      case .deleted:
+        self.viewController.isReduceReasoningAnimationEnabled = false
+      case .initial(let value):
+        self.viewController.isReduceReasoningAnimationEnabled = value ?? false
+      case .updated(let value):
+        self.viewController.isReduceReasoningAnimationEnabled = value
       }
     }
     weightsStreamingSubscription = workspace.dictionary.subscribe(
@@ -246,6 +260,11 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
     workspace.dictionary["lockdown_mode", Bool.self] = value
   }
 
+  func didReduceReasoningAnimationUpdated(_ value: Bool) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    workspace.dictionary["reduce_reasoning_animation", Bool.self] = value
+  }
+
   func didPrefillWarmupUpdated(_ value: Bool) {
     dispatchPrecondition(condition: .onQueue(.main))
     workspace.dictionary["prefill_warmup", Bool.self] = value
@@ -311,6 +330,7 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
     workspace.dictionary["prefill_warmup", Bool.self] = nil
     workspace.dictionary["bot_mode", Bool.self] = nil
     workspace.dictionary["lockdown_mode", Bool.self] = nil
+    workspace.dictionary["reduce_reasoning_animation", Bool.self] = nil
     workspace.dictionary["use_mfa_apple_neural_engine_v2", Int.self] = nil
     workspace.dictionary["use_system_downloader", Bool.self] = nil
     workspace.dictionary["weights_streaming", Int.self] = nil

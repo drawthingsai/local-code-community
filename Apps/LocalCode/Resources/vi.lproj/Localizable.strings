@@ -3072,4 +3072,6 @@
 "stop_process_detail" = "Tác tử đã khởi chạy lệnh này sẽ thấy lệnh đã bị dừng.";
 "lockdown_mode" = "Chế độ phong tỏa";
 "lockdown_mode_detail" = "Giữ các tệp của Local Code, bao gồm các dự án trong tài liệu của ứng dụng, ở trạng thái không thể đọc khi thiết bị này bị khóa. Tác tử không thể mở chúng cho đến khi bạn mở khóa, vì vậy các tác vụ chạy trong lúc thiết bị bị khóa có thể thất bại. Khi tắt, các tệp vẫn khả dụng sau lần mở khóa đầu tiên kể từ khi khởi động lại. Các thư mục bên ngoài ứng dụng vẫn giữ chế độ bảo vệ riêng.";
+"reduce_reasoning_animation" = "Giảm hoạt ảnh suy luận";
+"reduce_reasoning_animation_detail" = "Dừng hiệu ứng lấp lánh và văn bản trượt trên câu trả lời trong khi tác tử làm việc. Giảm chuyển động trong cài đặt hệ thống luôn làm điều này.";
 "steer" = "Điều hướng";

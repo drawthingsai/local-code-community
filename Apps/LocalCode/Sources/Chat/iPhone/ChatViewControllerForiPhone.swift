@@ -34,6 +34,16 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
 
   weak var delegate: ChatViewControllableDelegate?
   var isBotModeEnabled = false
+  var isReduceReasoningAnimationEnabled = false {
+    didSet {
+      guard isReduceReasoningAnimationEnabled != oldValue, isViewLoaded else { return }
+      for case let cell as ProjectHistoryAssistantThinkViewCell
+        in projectHistoryCollectionView.visibleCells
+      {
+        cell.isReduceReasoningAnimationEnabled = isReduceReasoningAnimationEnabled
+      }
+    }
+  }
   private(set) var localPathResolver: LocalPathResolver?
 
   private let chatInputController: ChatInputController
@@ -159,6 +169,7 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
             withReuseIdentifier: ProjectHistoryAssistantThinkViewCell.reusableIdentifier,
             for: indexPath) as! ProjectHistoryAssistantThinkViewCell
         cell.localPathResolver = localPathResolver
+        cell.isReduceReasoningAnimationEnabled = isReduceReasoningAnimationEnabled
         cell.viewModel = ProjectHistoryAssistantThinkViewCell.ViewModel(
           temporary: text, thinking: thinking, output: output, mode: mode)
         return cell

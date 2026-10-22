@@ -201,6 +201,7 @@ protocol MachineSettingsViewControllerDelegate: AnyObject {
   func didUseSystemDownloaderUpdated(_: Bool)
   func didBotModeUpdated(_: Bool)
   func didLockdownModeUpdated(_: Bool)
+  func didReduceReasoningAnimationUpdated(_: Bool)
   func didPrefillWarmupUpdated(_: Bool)
   func didSelectModelIdleTimeout(_: ModelIdleTimeout)
 }
@@ -216,6 +217,7 @@ private enum MachineSettingsSection: Equatable, Hashable {
   case lockdownMode
   case languageSettings
   case fontSize
+  case reduceReasoningAnimation
 }
 
 final class MachineSettingsViewController: UIViewController, EscapeKeyDismissible {
@@ -276,6 +278,12 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
   var isLockdownModeEnabled = false {
     didSet {
       guard isLockdownModeEnabled != oldValue else { return }
+      updateSettingsSections()
+    }
+  }
+  var isReduceReasoningAnimationEnabled = false {
+    didSet {
+      guard isReduceReasoningAnimationEnabled != oldValue else { return }
       updateSettingsSections()
     }
   }
@@ -508,6 +516,7 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       .lockdownMode: lockdownModeSection(),
       .languageSettings: languageSettingsSection(),
       .fontSize: fontSizeSection(),
+      .reduceReasoningAnimation: reduceReasoningAnimationSection(),
       .botMode: botModeSection(),
     ]
   }
@@ -578,6 +587,21 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       ], title: LocalizedString.forKey("lockdown_mode"),
       detail: LocalizedString.forKey("lockdown_mode_detail"),
       lookUpKey: "lockdown_mode_detail_hidden",
+      individualSectionStyle: false,
+      workspace: workspace)
+  }
+
+  private func reduceReasoningAnimationSection() -> SettingsSectionItem {
+    return SettingsSectionItem(
+      settingsItems: [
+        SettingsSwitchItem(
+          value: isReduceReasoningAnimationEnabled, title: LocalizedString.forKey("enable"),
+          handleValueChange: { [weak self] value in
+            self?.delegate?.didReduceReasoningAnimationUpdated(value)
+          })
+      ], title: LocalizedString.forKey("reduce_reasoning_animation"),
+      detail: LocalizedString.forKey("reduce_reasoning_animation_detail"),
+      lookUpKey: "reduce_reasoning_animation_detail_hidden",
       individualSectionStyle: false,
       workspace: workspace)
   }

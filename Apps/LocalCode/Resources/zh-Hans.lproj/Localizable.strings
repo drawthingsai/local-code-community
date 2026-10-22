@@ -2774,4 +2774,6 @@
 "stop_process_detail" = "启动此命令的代理会看到它已被停止。";
 "lockdown_mode" = "锁定模式";
 "lockdown_mode_detail" = "在此设备锁定期间，让 Local Code 的文件（包括应用文档内的项目）保持不可读取。在你解锁之前，代理无法打开这些文件，因此设备锁定时运行的任务可能会失败。关闭后，文件会从重启后首次解锁起保持可用。应用之外的文件夹会保留其自身的保护设置。";
+"reduce_reasoning_animation" = "减弱推理动画";
+"reduce_reasoning_animation_detail" = "在代理工作时，停止回复中的闪光和文字滑动效果。系统设置中的“减弱动态效果”始终会这样做。";
 "steer" = "引导";

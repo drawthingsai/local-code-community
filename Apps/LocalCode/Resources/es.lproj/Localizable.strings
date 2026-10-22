@@ -2758,4 +2758,6 @@
 "stop_process_detail" = "El agente que inició este comando verá que se detuvo.";
 "lockdown_mode" = "Modo de aislamiento";
 "lockdown_mode_detail" = "Mantiene ilegibles los archivos de Local Code, incluidos los proyectos dentro de Documentos de la app, mientras este dispositivo esté bloqueado. Los agentes no pueden abrirlos hasta que lo desbloquees, así que las tareas que se ejecuten con el dispositivo bloqueado pueden fallar. Si está desactivado, siguen disponibles tras el primer desbloqueo después de reiniciar. Las carpetas fuera de la app conservan su propia protección.";
+"reduce_reasoning_animation" = "Reducir animación del razonamiento";
+"reduce_reasoning_animation_detail" = "Detiene el destello y el texto que se desliza en la respuesta mientras el agente trabaja. Reducir movimiento en los ajustes del sistema siempre lo hace.";
 "steer" = "Redirigir";

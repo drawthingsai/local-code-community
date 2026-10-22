@@ -55,6 +55,13 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
       setNeedsLayout()
     }
   }
+  // The Reduce Reasoning Animation machine setting; Reduce Motion reduces it regardless.
+  var isReduceReasoningAnimationEnabled = false {
+    didSet {
+      guard isReduceReasoningAnimationEnabled != oldValue else { return }
+      updateShimmering()
+    }
+  }
 
   private static let thinkingLineLimit: CGFloat = 20
   // Matches the chat history's top fade in ChatViewControllerForiPad.
@@ -134,10 +141,14 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
   private var thinkingOverflow: CGFloat = 0
   private var isThinkingAppended = false
   private var elapsedTimeTimer: Timer?
+  private var reducesAnimation: Bool {
+    isReduceReasoningAnimationEnabled || UIAccessibility.isReduceMotionEnabled
+  }
   private var thinkingMaxHeight: CGFloat {
     ceil(thinkingTextView.baseFont.lineHeight * Self.thinkingLineLimit)
   }
   private var remoteImageDidLoadObserver: NSObjectProtocol?
+  private var reduceMotionObserver: NSObjectProtocol?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -200,6 +211,11 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
       self.setNeedsLayout()
       (self.superview as? UICollectionView)?.collectionViewLayout.invalidateLayout()
     }
+    reduceMotionObserver = NotificationCenter.default.addObserver(
+      forName: UIAccessibility.reduceMotionStatusDidChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      self?.updateShimmering()
+    }
   }
 
   @available(*, unavailable)
@@ -239,11 +255,14 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
     if let remoteImageDidLoadObserver {
       NotificationCenter.default.removeObserver(remoteImageDidLoadObserver)
     }
+    if let reduceMotionObserver {
+      NotificationCenter.default.removeObserver(reduceMotionObserver)
+    }
   }
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
-    shimmerView.isShimmering = window != nil
+    updateShimmering()
     elapsedTimeTimer?.invalidate()
     elapsedTimeTimer = nil
     if window != nil {
@@ -253,6 +272,10 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
       RunLoop.main.add(timer, forMode: .common)
       elapsedTimeTimer = timer
     }
+  }
+
+  private func updateShimmering() {
+    shimmerView.isShimmering = window != nil && !reducesAnimation
   }
 
   private func updateConfigurations() {
@@ -294,7 +317,7 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
     // can pull it down). Start it where it was and ease it into place. An explicit layer animation
     // still runs inside the data source's non-animated apply, and an additive one lets a change
     // that lands mid-move add to the move.
-    if overflow != thinkingOverflow, isThinkingAppended, !UIAccessibility.isReduceMotionEnabled {
+    if overflow != thinkingOverflow, isThinkingAppended, !reducesAnimation {
       let animation = CABasicAnimation(keyPath: "transform.translation.y")
       animation.isAdditive = true
       animation.fromValue = overflow - thinkingOverflow

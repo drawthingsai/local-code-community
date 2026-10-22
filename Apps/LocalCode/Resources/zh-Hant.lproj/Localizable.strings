@@ -2773,4 +2773,6 @@
 "stop_process_detail" = "啟動此指令的代理會看到它已被停止。";
 "lockdown_mode" = "鎖定模式";
 "lockdown_mode_detail" = "在此裝置鎖定期間，讓 Local Code 的檔案（包括 App 文件內的專案）保持無法讀取。在你解鎖之前，代理無法開啟這些檔案，因此裝置鎖定時執行的工作可能會失敗。關閉後，檔案會從重新開機後首次解鎖起保持可用。App 之外的資料夾會保留其本身的保護設定。";
+"reduce_reasoning_animation" = "減少推理動畫";
+"reduce_reasoning_animation_detail" = "在代理工作時，停止回覆中的閃光和文字滑動效果。系統設定中的「減少動態效果」一律會這樣做。";
 "steer" = "引導";

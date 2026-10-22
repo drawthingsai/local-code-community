@@ -2798,4 +2798,6 @@
 "stop_process_detail" = "Der Agent, der diesen Befehl gestartet hat, sieht, dass er beendet wurde.";
 "lockdown_mode" = "Blockierungsmodus";
 "lockdown_mode_detail" = "Hält die Dateien von Local Code, einschließlich der Projekte in den App-Dokumenten, unlesbar, solange dieses Gerät gesperrt ist. Agenten können sie erst nach dem Entsperren öffnen, daher können Aufgaben fehlschlagen, die bei gesperrtem Gerät laufen. Wenn deaktiviert, bleiben sie nach dem ersten Entsperren nach einem Neustart verfügbar. Ordner außerhalb der App behalten ihren eigenen Schutz.";
+"reduce_reasoning_animation" = "Denkanimation reduzieren";
+"reduce_reasoning_animation_detail" = "Stoppt den Schimmer und den gleitenden Text in der Antwort, während der Agent arbeitet. „Bewegung reduzieren“ in den Systemeinstellungen bewirkt dies immer.";
 "steer" = "Steuern";

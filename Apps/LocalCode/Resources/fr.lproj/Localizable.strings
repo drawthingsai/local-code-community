@@ -2798,4 +2798,6 @@
 "stop_process_detail" = "L’agent qui a lancé cette commande verra qu’elle a été arrêtée.";
 "lockdown_mode" = "Mode Isolement";
 "lockdown_mode_detail" = "Rend les fichiers de Local Code, y compris les projets dans les documents de l’app, illisibles tant que cet appareil est verrouillé. Les agents ne peuvent pas les ouvrir avant que vous le déverrouilliez, donc les tâches exécutées pendant le verrouillage peuvent échouer. Lorsque cette option est désactivée, ils restent disponibles après le premier déverrouillage qui suit un redémarrage. Les dossiers en dehors de l’app conservent leur propre protection.";
+"reduce_reasoning_animation" = "Réduire l’animation du raisonnement";
+"reduce_reasoning_animation_detail" = "Arrête le reflet et le défilement du texte dans la réponse pendant que l’agent travaille. Réduire les animations dans les réglages du système le fait toujours.";
 "steer" = "Réorienter";
