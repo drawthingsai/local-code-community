@@ -186,7 +186,26 @@ final class BrowserTab {
       "title": webView.title ?? "",
     ]
     if isTerminated { metadata["crashed"] = true }
+    #if canImport(UIKit)
+      // The person has the tab's window open; it stays open through goto and reload.
+      if webView.isPresented { metadata["shown"] = true }
+    #endif
     return metadata
+  }
+
+  /// WebKit stops painting the page and running its animation frames while the window that holds
+  /// the tab is in the background: on Mac, minimized, with the app hidden, or while the display
+  /// sleeps, though not when other windows cover it. Scripts still run, with timers about once a
+  /// second.
+  var isPaused: Bool {
+    #if canImport(UIKit)
+      switch webView.window?.windowScene?.activationState {
+      case .foregroundActive, .foregroundInactive: return false
+      default: return true
+      }
+    #else
+      return false
+    #endif
   }
 
   func navigate(
@@ -350,11 +369,24 @@ final class BrowserTab {
     guard fullPage else {
       // iOS lays out pages without a viewport tag wider than the view and scales them down,
       // so the image takes the CSS viewport size rather than the view's.
-      webView.evaluateJavaScript("[innerWidth, innerHeight]", in: nil, in: Self.world) {
-        [webView] result in
-        guard case .success(let value) = result, let size = value as? [NSNumber], size.count == 2
+      webView.evaluateJavaScript(
+        "[scrollX, scrollY, innerWidth, innerHeight]", in: nil, in: Self.world
+      ) { [self, webView] result in
+        guard case .success(let value) = result, let viewport = value as? [NSNumber],
+          viewport.count == 4
         else {
           completion(.failure(BrowserError.unavailable("The tab has no document to capture.")))
+          return
+        }
+        // takeSnapshot waits for the next paint, which never comes while the page is paused.
+        // PDF capture draws the visible part of the document as it stands.
+        guard !isPaused else {
+          Self.capturePDF(
+            of: webView,
+            rect: CGRect(
+              x: viewport[0].doubleValue, y: viewport[1].doubleValue,
+              width: viewport[2].doubleValue, height: viewport[3].doubleValue),
+            completion: completion)
           return
         }
         webView.takeSnapshot(with: nil) { image, error in
@@ -368,7 +400,8 @@ final class BrowserTab {
               .failure(error ?? BrowserError.unavailable("WebKit did not produce a screenshot.")))
             return
           }
-          completion(Self.png(cgImage, width: size[0].intValue, height: size[1].intValue))
+          completion(
+            Self.png(cgImage, width: viewport[2].intValue, height: viewport[3].intValue))
         }
       }
       return
@@ -389,30 +422,9 @@ final class BrowserTab {
       }
       // takeSnapshot only paints the visible WebKit surface. PDF capture also paints
       // content outside the viewport, then rasterizes it without resizing the live tab.
-      let configuration = WKPDFConfiguration()
-      configuration.rect = CGRect(x: 0, y: 0, width: width, height: height)
-      webView.createPDF(configuration: configuration) { result in
-        do {
-          let pdf = try result.get()
-          let rect = CGRect(x: 0, y: 0, width: ceil(width), height: ceil(height))
-          guard let provider = CGDataProvider(data: pdf as CFData),
-            let document = CGPDFDocument(provider), let page = document.page(at: 1),
-            let context = CGContext(
-              data: nil, width: Int(rect.width), height: Int(rect.height),
-              bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
-              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-          else { throw BrowserError.unavailable("Unable to render the full-page capture.") }
-          context.setFillColor(CGColor(gray: 1, alpha: 1))
-          context.fill(rect)
-          context.concatenate(
-            page.getDrawingTransform(.mediaBox, rect: rect, rotate: 0, preserveAspectRatio: true))
-          context.drawPDFPage(page)
-          guard let image = context.makeImage() else {
-            throw BrowserError.unavailable("Unable to render the full-page image.")
-          }
-          completion(Self.png(image, width: image.width, height: image.height))
-        } catch { completion(.failure(error)) }
-      }
+      Self.capturePDF(
+        of: webView, rect: CGRect(x: 0, y: 0, width: width, height: height),
+        completion: completion)
     }
   }
 
@@ -550,6 +562,36 @@ final class BrowserTab {
     }
     return BrowserError.script(
       error.userInfo["WKJavaScriptExceptionMessage"] as? String ?? error.localizedDescription)
+  }
+
+  /// Rasterizes `rect`, in the document's CSS pixels, at one pixel per CSS pixel.
+  private static func capturePDF(
+    of webView: WKWebView, rect: CGRect, completion: @escaping (Result<Data, Error>) -> Void
+  ) {
+    let configuration = WKPDFConfiguration()
+    configuration.rect = rect
+    webView.createPDF(configuration: configuration) { result in
+      do {
+        let pdf = try result.get()
+        let bounds = CGRect(x: 0, y: 0, width: ceil(rect.width), height: ceil(rect.height))
+        guard let provider = CGDataProvider(data: pdf as CFData),
+          let document = CGPDFDocument(provider), let page = document.page(at: 1),
+          let context = CGContext(
+            data: nil, width: Int(bounds.width), height: Int(bounds.height),
+            bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { throw BrowserError.unavailable("Unable to render the capture.") }
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.fill(bounds)
+        context.concatenate(
+          page.getDrawingTransform(.mediaBox, rect: bounds, rotate: 0, preserveAspectRatio: true))
+        context.drawPDFPage(page)
+        guard let image = context.makeImage() else {
+          throw BrowserError.unavailable("Unable to render the captured image.")
+        }
+        completion(Self.png(image, width: image.width, height: image.height))
+      } catch { completion(.failure(error)) }
+    }
   }
 
   /// Encodes one image pixel per CSS pixel, so image coordinates match snapshot boxes.

@@ -23,7 +23,8 @@ web-browse-cli show
 
 `show` presents the same live web view that the commands drive: in a window of its own on
 Mac, or a sheet on iPhone and iPad. A person can inspect it or interact manually, then close
-it and continue issuing commands against that tab.
+it and continue issuing commands against that tab. While the window or sheet is open, the tab's
+output from `open`, `goto`, `reload`, `show`, and `tabs` carries `shown: true`.
 `open` creates and selects a tab; `tabs` lists IDs and marks the selected one. `--tab <id>`
 addresses a tab on any other command and selects it for later commands; on `tabs` it only
 switches. `goto
@@ -221,6 +222,17 @@ the chat input, so the tab's web view refuses first responder until `show` prese
 still receive focus events and editor input. These behaviors were measured in the iOS
 simulator. `show` moves the tab's web view into a `UnifiedBrowserWindowWorkflow` and lays the page out
 at its size; closing it returns the web view to the hidden 1100 by 850 viewport.
+
+On Mac, measured on macOS 27 with a Catalyst app that hosts web views the same way, hidden tabs
+paint and run animation frames at full rate while the chat window is visible, inactive, or
+covered by other windows. When the window is minimized or the app hidden, its scene goes to the
+background, and when the displays sleep, Catalyst moves every scene of the app there. WebKit
+then pauses the page: it reports itself hidden, animation frames stop, timers
+run about once a second, and `takeSnapshot` waits until the window returns. Setting
+`inactiveSchedulingPolicy` to `.none` does not change this. PDF capture still works, so while a
+tab's window is in the background, `screenshot` and `snapshot --image` draw the viewport through
+it, showing the page as last drawn, and say so under `notes`. A canvas the page draws from
+animation frames stays as it was, or blank if the page loaded while paused.
 
 On Mac the window is a scene of its own, one per tab, with back, forward, and an address field
 beside the traffic lights, which are moved to the middle of that row. The rim glow stands in

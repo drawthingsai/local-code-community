@@ -37,10 +37,13 @@ fetches the page and its scripts, styles, and images from their servers instead 
 `clear-cache` empties the cache for every tab and keeps cookies and sign-ins; tabs that are
 already open show fresh content once they reload.
 
-`show` presents the live tab to the user. Use it when they need to sign in, solve a
-CAPTCHA, choose a file, or see what you found; the tab keeps their changes after they close
-it. Tabs belong to this chat and last while the app runs; cookies and the cache are shared by
-this project's chats and kept between launches.
+`show` opens the live tab in a window in front of the user, which takes their attention, so
+use it sparingly: when they need to sign in, solve a CAPTCHA, or choose a file, when a page
+must be on screen to run, or to show them what you found. Tabs work without it. A tab whose
+window is open has `shown: true` in the output and stays shown through `goto` and `reload`;
+call `show` again only to bring that window back when a capture notes the page is paused. The tab keeps the user's changes after they close it. Tabs
+belong to this chat and last while the app runs; cookies and the cache are shared by this
+project's chats and kept between launches.
 
 ## Observe
 
@@ -94,6 +97,10 @@ so `--boxes` coordinates map onto it; `--full-page` captures the whole document.
 job delivers the image through `bash_wait` or `bash_status`. `--file <path.png>` saves the
 PNG instead, and `--inline` with it also shows it. Models without image input receive text
 only.
+
+While the app is minimized or hidden, or the display sleeps, WebKit pauses its pages. Screenshots still work and
+say so under `notes`, but `requestAnimationFrame` callbacks, and anything they draw, wait
+until the window is visible again or `show` puts the tab on screen.
 
 ## When something does not work
 

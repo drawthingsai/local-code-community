@@ -288,6 +288,7 @@ final class BrowserSession {
           Result {
             let data = try result.get()
             var metadata: [String: Any] = ["tab": tab.id, "bytes": data.count]
+            if tab.isPaused { metadata["notes"] = [Self.pausedNote] }
             if let url {
               try data.write(to: url, options: .atomic)
               metadata["file"] = url.path
@@ -335,6 +336,7 @@ final class BrowserSession {
           return
         }
         tab.screenshot(fullPage: false) { image in
+          let text = tab.isPaused ? Self.adding(note: Self.pausedNote, to: text) : text
           finish(image.map { text + "\n" + Self.inlinePNG($0) })
         }
       }
@@ -349,6 +351,18 @@ final class BrowserSession {
         object.merging(["openedTabs": openedTabs.map(\.metadata)]) { $1 })
     else { return text }
     return annotated
+  }
+
+  /// Why a capture shows a still page, when the tab's window is in the background.
+  private static let pausedNote =
+    "WebKit has paused this page because the window that holds it (the app's, unless the tab is shown) is minimized or hidden, or the display is asleep. The image shows the page as last drawn; requestAnimationFrame callbacks, and anything they draw, wait until that window is visible again."
+
+  /// Appends a note to a JSON object result, after any notes it already has.
+  private static func adding(note: String, to text: String) -> String {
+    guard var object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+    else { return text }
+    object["notes"] = (object["notes"] as? [String] ?? []) + [note]
+    return (try? json(object)) ?? text
   }
 
   private func add(_ tab: BrowserTab) {
