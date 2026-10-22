@@ -712,12 +712,10 @@ extension ChatWorkflow {
     bashUserInteraction: BashUserInteraction?
   ) {
     settingsWorkflow.setRemoteMetrics(progress.metrics)
-    let partialResultRendered = CACurrentMediaTime()
-    guard partialResultRendered - lastPartialResultRendered >= Self.partialResultRenderInterval
+    guard CACurrentMediaTime() - lastPartialResultRendered >= Self.partialResultRenderInterval
     else {
       return
     }
-    lastPartialResultRendered = partialResultRendered
     let completedTools = progress.tools.filter(\.isCompleted).map(\.subtitle)
     let runningTools = progress.tools.filter { !$0.isCompleted }.map(\.subtitle)
     let streamingTools = progress.streamingToolCalls.map { call in
@@ -736,5 +734,8 @@ extension ChatWorkflow {
           progress.text.utf8.count, startTime: startTime, bashUserInteraction: bashUserInteraction)
         : .working(
           progress.tools.count, startTime: startTime, bashUserInteraction: bashUserInteraction))
+    // Measured after rendering, as updatePartialResult does: a render slower than the interval
+    // otherwise makes every queued progress render too, and the main queue never drains.
+    lastPartialResultRendered = CACurrentMediaTime()
   }
 }

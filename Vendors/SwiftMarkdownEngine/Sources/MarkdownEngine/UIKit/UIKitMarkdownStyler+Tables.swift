@@ -9,6 +9,30 @@
   }
 
   extension UIKitMarkdownStyler {
+    private final class WeakTableImage {
+      weak var image: UIImage?
+
+      init(_ image: UIImage) {
+        self.image = image
+      }
+    }
+
+    private struct TableImageKey: Hashable {
+      let fontDescriptor: UIFontDescriptor
+      let style: String
+      let source: String
+    }
+
+    /// Rendered table images, held weakly. Streaming restyles the whole text on every update; a
+    /// finished table reuses the image its text view still shows instead of rasterizing again,
+    /// and the same UIImage lets the attribute diff skip past it. A table still streaming in
+    /// renders once per update, so holding images strongly would pile up bitmaps nothing shows.
+    /// Tables with extension or LaTeX content are not cached: an extension's attributes and a
+    /// renderer's state are arbitrary, so no key can identify them.
+    private static let tableImageLock = NSLock()
+    private static var tableImages: [TableImageKey: WeakTableImage] = [:]
+    private static var tableImagePruneCount = 64
+
     static func styleTables(
       tokens: [MarkdownToken],
       activeTokenIndices: Set<Int>,
@@ -18,6 +42,10 @@
       baseFont: UIFont,
       configuration: MarkdownEditorConfiguration
     ) {
+      guard tokens.contains(where: { $0.kind == .table }) else { return }
+      let codeBackgroundColor = configuration.services.syntaxHighlighter.backgroundColor()
+      let style = tableImageStyle(
+        codeBackgroundColor: codeBackgroundColor, configuration: configuration)
       var occurrenceByContentHash: [Int: Int] = [:]
       for (idx, token) in tokens.enumerated() where token.kind == .table {
         let source = nsText.substring(with: token.range)
@@ -41,13 +69,13 @@
           continue
         }
 
-        let image = renderTable(
+        let image = tableImage(
           parsed,
+          source: source,
+          style: style,
           baseFont: baseFont,
-          theme: configuration.theme,
-          codeBackgroundColor: configuration.services.syntaxHighlighter.backgroundColor(),
-          latex: configuration.services.latex,
-          extensions: configuration.extensions
+          codeBackgroundColor: codeBackgroundColor,
+          configuration: configuration
         )
         guard let anchorLocation = firstVisibleContentLocation(in: token.contentRange, text: nsText)
         else { continue }
@@ -128,14 +156,83 @@
       return nil
     }
 
+    /// Everything besides the font and the table itself that renderTable draws a table without
+    /// extension or LaTeX content with. Dynamic colors resolve under the current trait collection
+    /// while the table draws, so the key holds the resolved values. The extension syntax decides
+    /// whether a cell has extension content at all.
+    private static func tableImageStyle(
+      codeBackgroundColor: UIColor,
+      configuration: MarkdownEditorConfiguration
+    ) -> String {
+      let traitCollection = UITraitCollection.current
+      func colorKey(_ color: UIColor) -> String {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        guard
+          color.resolvedColor(with: traitCollection).getRed(
+            &red, green: &green, blue: &blue, alpha: &alpha)
+        else { return "\(color)" }
+        return String(format: "%.4f,%.4f,%.4f,%.4f", red, green, blue, alpha)
+      }
+      let theme = configuration.theme
+      return [
+        "\(UIScreen.main.scale)",
+        colorKey(theme.bodyText),
+        colorKey(theme.mutedText),
+        colorKey(codeBackgroundColor),
+        configuration.extensionRegistry.fingerprint,
+      ].joined(separator: "|")
+    }
+
+    private static func tableImage(
+      _ table: MarkdownTable,
+      source: String,
+      style: String,
+      baseFont: UIFont,
+      codeBackgroundColor: UIColor,
+      configuration: MarkdownEditorConfiguration
+    ) -> UIImage {
+      // The full descriptor, not the font name and size: font features such as monospaced
+      // digits change the table's metrics.
+      let key = TableImageKey(fontDescriptor: baseFont.fontDescriptor, style: style, source: source)
+      tableImageLock.lock()
+      let cachedImage = tableImages[key]?.image
+      tableImageLock.unlock()
+      if let cachedImage {
+        return cachedImage
+      }
+      let (image, usesExtensionsOrLatex) = renderTable(
+        table,
+        baseFont: baseFont,
+        theme: configuration.theme,
+        codeBackgroundColor: codeBackgroundColor,
+        latex: configuration.services.latex,
+        extensions: configuration.extensions
+      )
+      guard !usesExtensionsOrLatex else { return image }
+      tableImageLock.lock()
+      tableImages[key] = WeakTableImage(image)
+      // Drop entries whose images are gone once they outnumber the live ones.
+      if tableImages.count > tableImagePruneCount {
+        tableImages = tableImages.filter { $0.value.image != nil }
+        tableImagePruneCount = max(64, tableImages.count * 2)
+      }
+      tableImageLock.unlock()
+      return image
+    }
+
     private static func formattedCellString(
       _ raw: String,
       baseFont: UIFont,
       header: Bool,
+      paragraphStyle: NSParagraphStyle,
       theme: MarkdownEditorTheme,
       codeBackgroundColor: UIColor,
       latex: any LatexRenderer,
-      extensions: [any MarkdownExtension]
+      extensions: [any MarkdownExtension],
+      usesExtensionsOrLatex: inout Bool
     ) -> NSAttributedString {
       let pointSize = baseFont.pointSize
       let codeFont = UIFont.monospacedSystemFont(ofSize: pointSize, weight: .regular)
@@ -167,7 +264,9 @@
         result.append(
           NSAttributedString(
             string: ns.substring(with: range),
-            attributes: [.font: font, .foregroundColor: theme.bodyText]))
+            attributes: [
+              .font: font, .foregroundColor: theme.bodyText, .paragraphStyle: paragraphStyle,
+            ]))
       }
 
       func append(_ nodes: [InlineNode], font: UIFont) {
@@ -180,6 +279,7 @@
           case .emphasis(let kind, _, _, let children):
             append(children, font: composeEmphasis(font, kind))
           case .ext(let node):
+            usesExtensionsOrLatex = true
             let start = result.length
             if node.children.isEmpty {
               appendPlain(node.contentRange, font: font)
@@ -199,8 +299,10 @@
                   .font: codeFont,
                   .backgroundColor: codeBackgroundColor,
                   .foregroundColor: theme.bodyText,
+                  .paragraphStyle: paragraphStyle,
                 ]))
           case .inlineLatex(let range, let content, _):
+            usesExtensionsOrLatex = true
             if let entry = latex.render(
               latex: ns.substring(with: content), fontSize: pointSize, theme: theme)
             {
@@ -209,7 +311,11 @@
               attachment.bounds = CGRect(
                 x: 0, y: entry.baselineOffset,
                 width: entry.size.width, height: entry.size.height)
-              result.append(NSAttributedString(attachment: attachment))
+              let attachmentString = NSMutableAttributedString(attachment: attachment)
+              attachmentString.addAttribute(
+                .paragraphStyle, value: paragraphStyle,
+                range: NSRange(location: 0, length: attachmentString.length))
+              result.append(attachmentString)
             } else {
               appendPlain(range, font: font)
             }
@@ -235,7 +341,7 @@
       codeBackgroundColor: UIColor,
       latex: any LatexRenderer,
       extensions: [any MarkdownExtension]
-    ) -> UIImage {
+    ) -> (image: UIImage, usesExtensionsOrLatex: Bool) {
       let columnCount = table.alignments.count
       let cellHPadding: CGFloat = 12
       let cellVPadding: CGFloat = 6
@@ -244,17 +350,32 @@
       let baseLineHeight = ceil(baseFont.lineHeight)
       let minColumnContentWidth: CGFloat = 16
 
-      let headerCells = table.header.map {
+      // Cells carry their column's paragraph style from the start. Copying each cell to add it
+      // while drawing spent most of a large table's render in Foundation's attribute interning.
+      let paragraphStyles = table.alignments.map { alignment in
+        let paragraph = NSMutableParagraphStyle()
+        switch alignment {
+        case .left: paragraph.alignment = .left
+        case .center: paragraph.alignment = .center
+        case .right: paragraph.alignment = .right
+        }
+        paragraph.lineBreakMode = .byClipping
+        return paragraph
+      }
+      var usesExtensionsOrLatex = false
+      let headerCells = table.header.prefix(columnCount).enumerated().map { col, raw in
         formattedCellString(
-          $0, baseFont: baseFont, header: true, theme: theme,
-          codeBackgroundColor: codeBackgroundColor, latex: latex, extensions: extensions
+          raw, baseFont: baseFont, header: true, paragraphStyle: paragraphStyles[col],
+          theme: theme, codeBackgroundColor: codeBackgroundColor, latex: latex,
+          extensions: extensions, usesExtensionsOrLatex: &usesExtensionsOrLatex
         )
       }
       let bodyCells = table.rows.map { row in
-        row.map {
+        row.prefix(columnCount).enumerated().map { col, raw in
           formattedCellString(
-            $0, baseFont: baseFont, header: false, theme: theme,
-            codeBackgroundColor: codeBackgroundColor, latex: latex, extensions: extensions
+            raw, baseFont: baseFont, header: false, paragraphStyle: paragraphStyles[col],
+            theme: theme, codeBackgroundColor: codeBackgroundColor, latex: latex,
+            extensions: extensions, usesExtensionsOrLatex: &usesExtensionsOrLatex
           )
         }
       }
@@ -299,7 +420,7 @@
       let format = UIGraphicsImageRendererFormat()
       format.opaque = false
       format.scale = UIScreen.main.scale
-      return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+      let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
         theme.mutedText.withAlphaComponent(0.08).setFill()
         UIBezierPath(
           rect: CGRect(
@@ -340,21 +461,8 @@
           let cellLeft = columnLeft[col] + cellHPadding
           let cellRight = columnLeft[col + 1] - borderWidth - cellHPadding
           let availableWidth = cellRight - cellLeft
-          let paragraph = NSMutableParagraphStyle()
-          switch table.alignments[col] {
-          case .left: paragraph.alignment = .left
-          case .center: paragraph.alignment = .center
-          case .right: paragraph.alignment = .right
-          }
-          paragraph.lineBreakMode = .byClipping
-          let aligned = NSMutableAttributedString(attributedString: cell)
-          aligned.addAttribute(
-            .paragraphStyle,
-            value: paragraph,
-            range: NSRange(location: 0, length: aligned.length)
-          )
           let cellInnerTop = rowTop[row] + max(0, (rowHeight - lineHeight) / 2)
-          aligned.draw(
+          cell.draw(
             with: CGRect(
               x: cellLeft,
               y: cellInnerTop,
@@ -375,6 +483,7 @@
           }
         }
       }
+      return (image, usesExtensionsOrLatex)
     }
   }
 #endif
