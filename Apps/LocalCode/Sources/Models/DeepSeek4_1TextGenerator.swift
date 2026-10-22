@@ -77,9 +77,9 @@ extension DeviceCapability.WeightsStreaming {
   }
 
   // Treat this tier as a ceiling: pick the largest tier at or below it whose resident weights
-  // fit in 80% of available memory, falling back to the smallest tier when none fits.
+  // fit in 72% of available memory, falling back to the smallest tier when none fits.
   func residentTierForDeepSeek4_1(availableMemory: UInt64) -> Self {
-    let budget = availableMemory / 5 * 4
+    let budget = availableMemory / 25 * 18
     // allCases ascends by resident size, ending with .disabled, which maps the whole checkpoint.
     let ceiling = Self.allCases.firstIndex(of: self)!
     return Self.allCases[...ceiling].last { tier in

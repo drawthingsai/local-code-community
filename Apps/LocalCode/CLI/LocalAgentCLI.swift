@@ -41,7 +41,7 @@ struct LocalAgentCLI: ParsableCommand {
 
   @Option(
     help:
-      "Maximum DeepSeek weight tier in GiB: 8, 16, 24, 32, 40, 48, 56, 64, 72, or 0 for no streaming. Loads the largest tier at or below it that fits in 80% of available memory; 0 always loads every weight. V4 uses 48 for 56 and 64, and is fully resident at 72."
+      "Maximum DeepSeek weight tier in GiB: 8, 16, 24, 32, 40, 48, 56, 64, 72, or 0 for no streaming. Loads the largest tier at or below it that fits in 72% of available memory; 0 always loads every weight. V4 uses 48 for 56 and 64, and is fully resident at 72."
   )
   var weightsStreaming: Int?
 
