@@ -192,6 +192,23 @@ final class BrowserTab {
   func navigate(
     to url: URL, readAccessURL: URL? = nil, completion: @escaping (Result<Void, Error>) -> Void
   ) {
+    load(completion: completion) { [webView] in
+      url.isFileURL
+        ? webView.loadFileURL(url, allowingReadAccessTo: readAccessURL ?? url)
+        : webView.load(URLRequest(url: url))
+    }
+  }
+
+  /// Reloads the current page; `fromOrigin` bypasses the cache for the page and its resources.
+  func reload(fromOrigin: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+    load(completion: completion) { [webView] in
+      fromOrigin ? webView.reloadFromOrigin() : webView.reload()
+    }
+  }
+
+  private func load(
+    completion: @escaping (Result<Void, Error>) -> Void, start: () -> WKNavigation?
+  ) {
     precondition(Thread.isMainThread)
     guard navigationCompletion == nil else {
       completion(.failure(BrowserError.unavailable("A navigation is already in progress.")))
@@ -201,12 +218,7 @@ final class BrowserTab {
     pageNavigation = nil
     declinedDownload = nil
     navigationCompletion = completion
-    let navigation: WKNavigation?
-    if url.isFileURL {
-      navigation = webView.loadFileURL(url, allowingReadAccessTo: readAccessURL ?? url)
-    } else {
-      navigation = webView.load(URLRequest(url: url))
-    }
+    let navigation = start()
     requestedNavigation = navigation
     if navigation == nil {
       finishNavigation(.failure(BrowserError.unavailable("Unable to start navigation.")))
@@ -591,7 +603,7 @@ final class BrowserTab {
         decisionHandler(.allow)
         return
       }
-      // goto reports its own navigation.
+      // goto and reload report their own navigations.
       guard frame.isMainFrame, tab.navigationCompletion == nil else {
         decisionHandler(.allow)
         return

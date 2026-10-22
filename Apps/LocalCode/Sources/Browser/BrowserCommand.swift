@@ -71,6 +71,7 @@ struct BrowserRequest: Equatable {
     case tabs
     case open(String)
     case goto(String)
+    case reload(fromOrigin: Bool)
     case close
     case show
     case snapshot(json: Bool, boxes: Bool, depth: Int?, maxChars: Int?, image: Bool)
@@ -79,6 +80,7 @@ struct BrowserRequest: Equatable {
     case run(Script)
     case console(clear: Bool)
     case screenshot(file: String?, inline: Bool, fullPage: Bool)
+    case clearCache
   }
 
   let command: Command
@@ -120,12 +122,12 @@ struct BrowserCommand: ParsableCommand {
 
       Results are JSON; snapshots and dom stop at 20000 characters unless --max-chars is \
       given. screenshot returns an inline PNG to bash unless --file is used; add --inline to \
-      also see it. WebKit input uses DOM events. Tabs last while the app runs; cookies and \
-      other site data are shared by this project's chats and kept between launches.
+      also see it. WebKit input uses DOM events. Tabs last while the app runs; cookies, the \
+      cache, and other site data are shared by this project's chats and kept between launches.
       """,
     subcommands: [
-      Open.self, Goto.self, Tabs.self, Snapshot.self, Dom.self, Inspect.self, Run.self,
-      Console.self, Screenshot.self, Show.self, Close.self,
+      Open.self, Goto.self, Reload.self, Tabs.self, Snapshot.self, Dom.self, Inspect.self,
+      Run.self, Console.self, Screenshot.self, Show.self, Close.self, ClearCache.self,
     ])
 
   struct Target: ParsableArguments {
@@ -152,6 +154,18 @@ struct BrowserCommand: ParsableCommand {
     @OptionGroup var target: Target
 
     var request: BrowserRequest { BrowserRequest(command: .goto(destination), tabId: target.tab) }
+  }
+
+  struct Reload: BrowserSubcommand {
+    static let configuration = CommandConfiguration(abstract: "Reload the selected tab.")
+
+    @Flag(help: "Load the page and its resources from their servers, bypassing the cache.")
+    var fromOrigin = false
+    @OptionGroup var target: Target
+
+    var request: BrowserRequest {
+      BrowserRequest(command: .reload(fromOrigin: fromOrigin), tabId: target.tab)
+    }
   }
 
   struct Tabs: BrowserSubcommand {
@@ -278,5 +292,12 @@ struct BrowserCommand: ParsableCommand {
     @OptionGroup var target: Target
 
     var request: BrowserRequest { BrowserRequest(command: .close, tabId: target.tab) }
+  }
+
+  struct ClearCache: BrowserSubcommand {
+    static let configuration = CommandConfiguration(
+      abstract: "Empty the cache this project's chats share; cookies and site storage stay.")
+
+    var request: BrowserRequest { BrowserRequest(command: .clearCache, tabId: nil) }
   }
 }

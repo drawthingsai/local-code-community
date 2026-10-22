@@ -32,9 +32,15 @@ them, and `close` closes the selected one. `--tab <id>` addresses another tab an
 it; `tabs --tab <id>` switches tabs without acting on a page. A window the page opens becomes the selected tab and is listed under `openedTabs`; when
 the page closes it, its opener is selected again.
 
+`reload` loads the selected tab again. When a page shows stale content, `reload --from-origin`
+fetches the page and its scripts, styles, and images from their servers instead of the cache.
+`clear-cache` empties the cache for every tab and keeps cookies and sign-ins; tabs that are
+already open show fresh content once they reload.
+
 `show` presents the live tab to the user. Use it when they need to sign in, solve a
 CAPTCHA, choose a file, or see what you found; the tab keeps their changes after they close
-it. Tabs and cookies belong to this chat and are never saved to disk.
+it. Tabs belong to this chat and last while the app runs; cookies and the cache are shared by
+this project's chats and kept between launches.
 
 ## Observe
 

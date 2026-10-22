@@ -231,6 +231,27 @@ final class BrowserSession {
       tab.navigate(to: destination.url, readAccessURL: destination.readAccessURL) { result in
         finish(result.flatMap { _ in Result { try Self.json(tab.metadata) } })
       }
+    case .reload(let fromOrigin):
+      let tab = try selected()
+      tab.reload(fromOrigin: fromOrigin) { result in
+        finish(result.flatMap { _ in Result { try Self.json(tab.metadata) } })
+      }
+    case .clearCache:
+      // The data store belongs to the project, so this reaches every tab of its chats.
+      let types: Set<String> = [
+        WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache, WKWebsiteDataTypeFetchCache,
+      ]
+      configuration.websiteDataStore.removeData(ofTypes: types, modifiedSince: .distantPast) {
+        finish(
+          Result {
+            try Self.json([
+              "cleared": types.sorted(),
+              "notes": [
+                "Open tabs keep the pages they loaded. Run web-browse-cli reload to load one again."
+              ],
+            ])
+          })
+      }
     case .close:
       let tab = try selected()
       remove(tab)

@@ -19,6 +19,7 @@ struct BrowserAPITests {
     print("Verified request parsing and destination resolution.")
     let session = BrowserSession(scripts: scripts, dataStore: .nonPersistent())
     let silentPort = try silentServerPort()
+    let cacheServer = try CacheServer()
     let resolvePath = { (path: String) -> (URL, URL)? in
       guard !path.hasPrefix("/forbidden/") else { return nil }
       let url = URL(fileURLWithPath: path).standardizedFileURL
@@ -673,6 +674,60 @@ struct BrowserAPITests {
         }
       ),
       (
+        "reload replaces the document",
+        {
+          session.tabs.first!.webView.evaluateJavaScript("document.body.dataset.marked = 'yes'")
+          return ["reload"]
+        },
+        { value in
+          try expect((try object(value)["url"] as? String)?.hasSuffix("fixture.html") == true)
+        }
+      ),
+      (
+        "the reloaded document starts over",
+        { run("async tab => document.body.dataset.marked ?? 'none'") },
+        { value in
+          try expect(try scriptResult(value) as? String == "none")
+        }
+      ),
+      (
+        "a page fetches its cacheable script", { ["goto", cacheServer.url("/?first")] },
+        { value in
+          _ = try value.get()
+          try expect(cacheServer.scriptResponses == 1)
+        }
+      ),
+      (
+        "another page takes the script from the cache", { ["goto", cacheServer.url("/?second")] },
+        { value in
+          _ = try value.get()
+          try expect(cacheServer.scriptResponses == 1)
+        }
+      ),
+      (
+        "reload --from-origin fetches the script again", { ["reload", "--from-origin"] },
+        { value in
+          _ = try value.get()
+          try expect(cacheServer.scriptResponses == 2)
+        }
+      ),
+      (
+        "clear-cache empties the cache", { ["clear-cache"] },
+        { value in
+          try expect(
+            (try object(value)["cleared"] as? [String])?.contains(WKWebsiteDataTypeDiskCache)
+              == true)
+        }
+      ),
+      (
+        "a page after clear-cache fetches the script again",
+        { ["goto", cacheServer.url("/?third")] },
+        { value in
+          _ = try value.get()
+          try expect(cacheServer.scriptResponses == 3)
+        }
+      ),
+      (
         "tabs persist between commands", { ["tabs"] },
         { value in
           let tabs =
@@ -739,6 +794,8 @@ struct BrowserAPITests {
     try expect(
       try parse(["screenshot", "--file", "a.png", "--inline"]).command
         == .screenshot(file: "a.png", inline: true, fullPage: false))
+    try expect(try parse(["reload", "--from-origin"]).command == .reload(fromOrigin: true))
+    try expect(try parse(["clear-cache"]).command == .clearCache)
     // Rejections and help leave ArgumentParser's message and exit status to web_browse_main.
     let rejection = { (arguments: [String]) throws -> (status: Int32, message: String) in
       do {
@@ -753,6 +810,7 @@ struct BrowserAPITests {
     for invalid in [
       ["snapshot", "--depth", "0"], ["open", "a", "--tab", "b"], ["run"], ["dom", "extra"],
       ["tabs", "--json"], ["navigate"], ["run", "--code", "1", "--file", "a.js"],
+      ["clear-cache", "--tab", "a"],
     ] {
       try expect(try rejection(invalid).status == 64)
     }
@@ -790,8 +848,59 @@ struct BrowserAPITests {
     }
   }
 
+  /// Serves pages that load a script WebKit may cache for an hour, and counts the script's
+  /// responses, which tells whether a load took it from the cache.
+  private final class CacheServer {
+    private let port: UInt16
+    private let lock = NSLock()
+    private var responses = 0
+
+    var scriptResponses: Int {
+      lock.lock()
+      defer { lock.unlock() }
+      return responses
+    }
+
+    init() throws {
+      let (listener, port) = try BrowserAPITests.listener()
+      self.port = port
+      Thread { [self] in
+        while true {
+          let connection = accept(listener, nil, nil)
+          guard connection >= 0 else { continue }
+          var request = [UInt8](repeating: 0, count: 4096)
+          let count = read(connection, &request, request.count)
+          let isScript = String(decoding: request.prefix(max(count, 0)), as: UTF8.self)
+            .hasPrefix("GET /count.js ")
+          let (type, cacheControl, body) =
+            isScript
+            ? ("text/javascript", "max-age=3600", "document.documentElement.dataset.script = 1;")
+            : (
+              "text/html", "no-store",
+              "<!doctype html><title>Cache</title><script src=\"/count.js\"></script>"
+            )
+          if isScript {
+            lock.lock()
+            responses += 1
+            lock.unlock()
+          }
+          let response =
+            "HTTP/1.1 200 OK\r\nContent-Type: \(type)\r\nCache-Control: \(cacheControl)\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
+          _ = response.withCString { write(connection, $0, strlen($0)) }
+          close(connection)
+        }
+      }.start()
+    }
+
+    func url(_ path: String) -> String { "http://127.0.0.1:\(port)\(path)" }
+  }
+
   /// Accepts connections and never answers, so a navigation to it stays in flight.
   private static func silentServerPort() throws -> UInt16 {
+    try listener().port
+  }
+
+  private static func listener() throws -> (descriptor: Int32, port: UInt16) {
     let listener = socket(AF_INET, SOCK_STREAM, 0)
     var address = sockaddr_in()
     address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -807,7 +916,7 @@ struct BrowserAPITests {
     guard listener >= 0, isListening else {
       throw BrowserError.script("Unable to listen on 127.0.0.1")
     }
-    return UInt16(bigEndian: address.sin_port)
+    return (listener, UInt16(bigEndian: address.sin_port))
   }
 
   private static func expect(

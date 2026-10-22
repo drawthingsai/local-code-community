@@ -27,12 +27,15 @@ it and continue issuing commands against that tab.
 `open` creates and selects a tab; `tabs` lists IDs and marks the selected one. `--tab <id>`
 addresses a tab on any other command and selects it for later commands; on `tabs` it only
 switches. `goto
-<url-or-html-file>` navigates the selected tab, and `close` removes it. A bare host such as
+<url-or-html-file>` navigates the selected tab, `reload` loads it again (`--from-origin` bypasses
+the cache for the page and its resources), and `close` removes it. A bare host such as
 `localhost:5173` (http) or `example.com` (https) is a web address unless a file by that name
 exists. Tabs belong to the owning chat's browser session and last while the app runs.
 Cookies and other website data belong to the project: its chats share one WebKit data store,
 kept across launches from iOS 17 under a UUID derived from the project's path, and in memory
-on earlier systems. Closing the presentation retains the session.
+on earlier systems. `clear-cache` removes that store's disk, memory, and fetch caches and keeps
+cookies and site storage; open tabs keep the pages they loaded until they reload. Closing the
+presentation retains the session.
 
 For a repeatable local task, open `Tests/BrowserAPITests/fixture.html` relative to this app
 directory, or its path relative to your project. Save this function expression as
@@ -151,7 +154,7 @@ driver. The method names and option names (`timeout`, `position`, `modifiers`, `
 | Page input | `tab.playwright.keyboard.press`, `type`, `insertText` |
 | Inspection | `tab.playwright.domSnapshot`, `snapshotJSON`, `elementInfo`, `evaluate` (isolated world); `tab.page.evaluate` (page world); locator `evaluate` / `evaluateAll` |
 | DOM node view | `tab.dom_cua.get_visible_dom({maxChars?})`, `click({node_id})`, `scroll({node_id?,x?,y?})` |
-| Native tab operations | CLI `open`, `goto`, `tabs`, `close`, `show`, `screenshot`, `console`; JS `tab.id`, `tab.url()`, `tab.title()` |
+| Native tab operations | CLI `open`, `goto`, `reload`, `tabs`, `close`, `show`, `screenshot`, `console`, `clear-cache`; JS `tab.id`, `tab.url()`, `tab.title()` |
 
 Reads/actions that require one element reject ambiguous locators. Attached/visible/enabled/
 editable checks wait up to five seconds by default, or `{timeout: ...}`; a command has a
@@ -269,7 +272,9 @@ controlled form state, the `timeout` option, shadow DOM, snapshots and refs, out
 pointer-down menus, hover, keyboard input and implicit submission, caret and selection keys,
 scrolling keys, rejected key defaults, legacy key codes, focus, page-world
 evaluation, console and dialogs, windows opened and closed by pages, tab selection, a click that
-loads a page, download links and `goto` to a download, navigation during a script, a killed web content process, document replacement, cancellation during
+loads a page, download links and `goto` to a download, navigation during a script, a killed web content process, document replacement, `reload`, a
+cacheable script that a later page takes from the cache and that `reload --from-origin` and
+`clear-cache` make WebKit fetch again from a local server, cancellation during
 client installation, a cancelled screenshot, a cancelled navigation with a command queued
 behind it, inspection, and PNG output. It also invokes the actual `web-browse-cli` shell entry through `BashTool`, consumes
 output through waits, and checks stored image digests, combined snapshot/image responses,
