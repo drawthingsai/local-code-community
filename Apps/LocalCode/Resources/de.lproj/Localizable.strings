@@ -2800,4 +2800,9 @@
 "lockdown_mode_detail" = "Hält die Dateien von Local Code, einschließlich der Projekte in den App-Dokumenten, unlesbar, solange dieses Gerät gesperrt ist. Agenten können sie erst nach dem Entsperren öffnen, daher können Aufgaben fehlschlagen, die bei gesperrtem Gerät laufen. Wenn deaktiviert, bleiben sie nach dem ersten Entsperren nach einem Neustart verfügbar. Ordner außerhalb der App behalten ihren eigenen Schutz.";
 "reduce_reasoning_animation" = "Denkanimation reduzieren";
 "reduce_reasoning_animation_detail" = "Stoppt den Schimmer und den gleitenden Text in der Antwort, während der Agent arbeitet. „Bewegung reduzieren“ in den Systemeinstellungen bewirkt dies immer.";
+"prevent_sleep_while_working" = "Ruhezustand während der Arbeit verhindern";
+"system_only" = "Nur System";
+"system_and_display" = "System und Bildschirm";
+"prevent_sleep_while_working_detail" = "Hält diesen Mac wach, während Agenten arbeiten oder Modelle heruntergeladen werden. Mit „Nur System“ kann sich der Bildschirm weiterhin wie gewohnt ausschalten und sperren. „System und Bildschirm“ hält auch den Bildschirm eingeschaltet.";
+"prevent_sleep_while_working_ios_detail" = "Hält den Bildschirm eingeschaltet, während Agenten arbeiten oder Modelle heruntergeladen werden, damit sich dieses Gerät nicht sperrt und sie unterbricht.";
 "steer" = "Steuern";

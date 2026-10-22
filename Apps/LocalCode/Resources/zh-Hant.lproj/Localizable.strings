@@ -2775,4 +2775,9 @@
 "lockdown_mode_detail" = "在此裝置鎖定期間，讓 Local Code 的檔案（包括 App 文件內的專案）保持無法讀取。在你解鎖之前，代理無法開啟這些檔案，因此裝置鎖定時執行的工作可能會失敗。關閉後，檔案會從重新開機後首次解鎖起保持可用。App 之外的資料夾會保留其本身的保護設定。";
 "reduce_reasoning_animation" = "減少推理動畫";
 "reduce_reasoning_animation_detail" = "在代理工作時，停止回覆中的閃光和文字滑動效果。系統設定中的「減少動態效果」一律會這樣做。";
+"prevent_sleep_while_working" = "工作時防止睡眠";
+"system_only" = "僅系統";
+"system_and_display" = "系統和顯示器";
+"prevent_sleep_while_working_detail" = "在代理工作或模型下載期間，讓這台 Mac 保持喚醒。選擇「僅系統」時，顯示器仍會照常關閉並鎖定。選擇「系統和顯示器」時，螢幕也會保持開啟。";
+"prevent_sleep_while_working_ios_detail" = "在代理工作或模型下載期間保持螢幕開啟，以免此裝置鎖定並暫停這些工作。";
 "steer" = "引導";

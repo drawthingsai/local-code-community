@@ -2760,4 +2760,9 @@
 "lockdown_mode_detail" = "Mantiene ilegibles los archivos de Local Code, incluidos los proyectos dentro de Documentos de la app, mientras este dispositivo esté bloqueado. Los agentes no pueden abrirlos hasta que lo desbloquees, así que las tareas que se ejecuten con el dispositivo bloqueado pueden fallar. Si está desactivado, siguen disponibles tras el primer desbloqueo después de reiniciar. Las carpetas fuera de la app conservan su propia protección.";
 "reduce_reasoning_animation" = "Reducir animación del razonamiento";
 "reduce_reasoning_animation_detail" = "Detiene el destello y el texto que se desliza en la respuesta mientras el agente trabaja. Reducir movimiento en los ajustes del sistema siempre lo hace.";
+"prevent_sleep_while_working" = "Evitar el reposo durante el trabajo";
+"system_only" = "Solo el sistema";
+"system_and_display" = "Sistema y pantalla";
+"prevent_sleep_while_working_detail" = "Mantiene este Mac activo mientras los agentes trabajan o se descargan modelos. Con Solo el sistema, la pantalla puede apagarse y bloquearse como de costumbre. Sistema y pantalla también mantiene la pantalla encendida.";
+"prevent_sleep_while_working_ios_detail" = "Mantiene la pantalla encendida mientras los agentes trabajan o se descargan modelos, para que este dispositivo no se bloquee ni los pause.";
 "steer" = "Redirigir";

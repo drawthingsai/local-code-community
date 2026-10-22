@@ -2800,4 +2800,9 @@
 "lockdown_mode_detail" = "Rend les fichiers de Local Code, y compris les projets dans les documents de l’app, illisibles tant que cet appareil est verrouillé. Les agents ne peuvent pas les ouvrir avant que vous le déverrouilliez, donc les tâches exécutées pendant le verrouillage peuvent échouer. Lorsque cette option est désactivée, ils restent disponibles après le premier déverrouillage qui suit un redémarrage. Les dossiers en dehors de l’app conservent leur propre protection.";
 "reduce_reasoning_animation" = "Réduire l’animation du raisonnement";
 "reduce_reasoning_animation_detail" = "Arrête le reflet et le défilement du texte dans la réponse pendant que l’agent travaille. Réduire les animations dans les réglages du système le fait toujours.";
+"prevent_sleep_while_working" = "Empêcher la suspension pendant le travail";
+"system_only" = "Système uniquement";
+"system_and_display" = "Système et écran";
+"prevent_sleep_while_working_detail" = "Garde ce Mac actif pendant que les agents travaillent ou que des modèles se téléchargent. Avec Système uniquement, l’écran peut toujours s’éteindre et se verrouiller comme d’habitude. Système et écran garde aussi l’écran allumé.";
+"prevent_sleep_while_working_ios_detail" = "Garde l’écran allumé pendant que les agents travaillent ou que des modèles se téléchargent, afin que cet appareil ne se verrouille pas et ne les interrompe pas.";
 "steer" = "Réorienter";

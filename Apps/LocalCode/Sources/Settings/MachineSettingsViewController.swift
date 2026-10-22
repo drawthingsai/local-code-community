@@ -18,6 +18,16 @@ extension ModelIdleTimeout {
   }
 }
 
+extension SleepPrevention {
+  fileprivate var title: String {
+    switch self {
+    case .disabled: return LocalizedString.forKey("disabled")
+    case .system: return LocalizedString.forKey("system_only")
+    case .systemAndDisplay: return LocalizedString.forKey("system_and_display")
+    }
+  }
+}
+
 enum UseAppleNeuralEngineOption {
   case automatic
   case yesPreferAppleNeuralEngineOnly
@@ -204,11 +214,13 @@ protocol MachineSettingsViewControllerDelegate: AnyObject {
   func didReduceReasoningAnimationUpdated(_: Bool)
   func didPrefillWarmupUpdated(_: Bool)
   func didSelectModelIdleTimeout(_: ModelIdleTimeout)
+  func didSelectSleepPrevention(_: SleepPrevention)
 }
 
 private enum MachineSettingsSection: Equatable, Hashable {
   case prefillWarmup
   case modelIdleTimeout
+  case sleepPrevention
   case botMode
   case systemDownloader
   case useAppleNeuralEngineFor8BitSModels
@@ -226,6 +238,13 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
   var modelIdleTimeout = ModelIdleTimeout.default {
     didSet {
       guard modelIdleTimeout != oldValue else { return }
+      updateSettingsSections()
+    }
+  }
+
+  var sleepPrevention = SleepPrevention.default {
+    didSet {
+      guard sleepPrevention != oldValue else { return }
       updateSettingsSections()
     }
   }
@@ -509,6 +528,7 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
     return [
       .prefillWarmup: prefillWarmupSection(),
       .modelIdleTimeout: modelIdleTimeoutSection(),
+      .sleepPrevention: sleepPreventionSection(),
       .systemDownloader: systemDownloaderSection(),
       .useAppleNeuralEngineFor8BitSModels: useAppleNeuralEngineFor8BitSModelsSection(),
       .weightsStreaming: weightsStreamingSection(),
@@ -542,6 +562,36 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       ], title: LocalizedString.forKey("unload_models_when_idle"),
       detail: LocalizedString.forKey("unload_models_when_idle_detail"),
       lookUpKey: "unload_models_when_idle_detail_hidden",
+      individualSectionStyle: false,
+      workspace: workspace)
+  }
+
+  private func sleepPreventionSection() -> SettingsSectionItem {
+    #if targetEnvironment(macCatalyst)
+      let detail = LocalizedString.forKey("prevent_sleep_while_working_detail")
+    #else
+      let detail = LocalizedString.forKey("prevent_sleep_while_working_ios_detail")
+    #endif
+    return SettingsSectionItem(
+      settingsItems: [
+        SettingsButtonItem(
+          value: sleepPrevention.title,
+          showsMenuAsPrimaryAction: true,
+          makeButtonsUI: { [weak self] _, button in
+            guard let self else { return }
+            button?.menu = UIMenu(
+              children: SleepPrevention.options.map { prevention in
+                UIAction(
+                  title: prevention.title, state: self.sleepPrevention == prevention ? .on : .off
+                ) { [weak self] _ in
+                  self?.delegate?.didSelectSleepPrevention(prevention)
+                }
+              })
+            button?.setTitle(self.sleepPrevention.title, for: .normal)
+          })
+      ], title: LocalizedString.forKey("prevent_sleep_while_working"),
+      detail: detail,
+      lookUpKey: "prevent_sleep_while_working_detail_hidden",
       individualSectionStyle: false,
       workspace: workspace)
   }

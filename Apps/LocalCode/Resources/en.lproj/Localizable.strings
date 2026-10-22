@@ -3074,4 +3074,9 @@
 "lockdown_mode_detail" = "Keep Local Code's files, including projects inside App Documents, unreadable whenever this device is locked. Agents can't open them until you unlock it, so tasks that run while it's locked may fail. When off, they stay available after the first unlock following a restart. Folders outside the app keep their own protection.";
 "reduce_reasoning_animation" = "Reduce Reasoning Animation";
 "reduce_reasoning_animation_detail" = "Stop the shimmer and sliding text on the reply while the agent works. Reduce Motion in system settings always does this.";
+"prevent_sleep_while_working" = "Prevent Sleep While Working";
+"system_only" = "System only";
+"system_and_display" = "System and display";
+"prevent_sleep_while_working_detail" = "Keep this Mac awake while agents work or models download. With System only, the display can still turn off and lock as usual. System and display keeps the screen on too.";
+"prevent_sleep_while_working_ios_detail" = "Keep the screen on while agents work or models download, so this device doesn't lock and pause them.";
 "steer" = "Steer";

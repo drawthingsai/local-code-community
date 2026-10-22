@@ -16,6 +16,7 @@ final class MachineSettingsWorkflow: Workflow {
   private let viewController: MachineSettingsViewController
   private var prefillWarmupSubscription: Workspace.Subscription?
   private var modelIdleTimeoutSubscription: Workspace.Subscription?
+  private var sleepPreventionSubscription: Workspace.Subscription?
   private var useAppleNeuralEngineFor8BitSModelsSubscription: Workspace.Subscription?
   private var weightsStreamingSubscription: Workspace.Subscription?
   private var useSystemDownloaderSubscription: Workspace.Subscription?
@@ -56,6 +57,18 @@ final class MachineSettingsWorkflow: Workflow {
       }
       self.viewController.modelIdleTimeout =
         rawValue.flatMap(ModelIdleTimeout.init(rawValue:)) ?? .default
+    }
+    sleepPreventionSubscription = workspace.dictionary.subscribe("prevent_sleep", of: Int.self) {
+      [weak self] value in
+      guard let self else { return }
+      let rawValue: Int?
+      switch value {
+      case .deleted: rawValue = nil
+      case .initial(let value): rawValue = value
+      case .updated(let value): rawValue = value
+      }
+      self.viewController.sleepPrevention =
+        rawValue.flatMap(SleepPrevention.init(rawValue:)) ?? .default
     }
     prefillWarmupSubscription = workspace.dictionary.subscribe("prefill_warmup", of: Bool.self) {
       [weak self] value in
@@ -275,6 +288,11 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
     workspace.dictionary["model_idle_timeout", Int.self] = timeout.rawValue
   }
 
+  func didSelectSleepPrevention(_ prevention: SleepPrevention) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    workspace.dictionary["prevent_sleep", Int.self] = prevention.rawValue
+  }
+
   func didUseSystemDownloaderUpdated(_ value: Bool) {
     dispatchPrecondition(condition: .onQueue(.main))
     workspace.dictionary["use_system_downloader", Bool.self] = value
@@ -327,6 +345,7 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
 
   func didTapResetToDefault() {
     workspace.dictionary["model_idle_timeout", Int.self] = nil
+    workspace.dictionary["prevent_sleep", Int.self] = nil
     workspace.dictionary["prefill_warmup", Bool.self] = nil
     workspace.dictionary["bot_mode", Bool.self] = nil
     workspace.dictionary["lockdown_mode", Bool.self] = nil

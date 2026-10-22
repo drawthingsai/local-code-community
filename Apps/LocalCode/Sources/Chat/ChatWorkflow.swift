@@ -35,6 +35,17 @@ final class ChatWorkflow: Workflow {
   private var retiringAgentSchedulers = [AgentScheduler]()
   private var modelIdleTimer: ModelIdleTimer?
   private var modelIdleTimeoutSubscription: Workspace.Subscription?
+  private var sleepPreventionSubscription: Workspace.Subscription?
+  private var sleepPrevention = SleepPrevention.default {
+    didSet {
+      guard sleepPrevention != oldValue else { return }
+      // updateModelIdleState takes a new assertion at this level while agents are busy.
+      sleepAssertion = nil
+      downloadController?.sleepPrevention = sleepPrevention
+      updateModelIdleState()
+    }
+  }
+  private var sleepAssertion: SleepPrevention.Assertion?
   private var useAppleNeuralEngineSubscription: Workspace.Subscription?
   private var pendingModelWarmups = 0
   private let userInterfaceIdiom: UIUserInterfaceIdiom
@@ -301,6 +312,17 @@ final class ChatWorkflow: Workflow {
       self.modelIdleTimer?.interval =
         (rawValue.flatMap(ModelIdleTimeout.init(rawValue:)) ?? .default).interval
       self.updateModelIdleState()
+    }
+    sleepPreventionSubscription = workspace.dictionary.subscribe("prevent_sleep", of: Int.self) {
+      [weak self] value in
+      guard let self else { return }
+      let rawValue: Int?
+      switch value {
+      case .deleted: rawValue = nil
+      case .initial(let value): rawValue = value
+      case .updated(let value): rawValue = value
+      }
+      self.sleepPrevention = rawValue.flatMap(SleepPrevention.init(rawValue:)) ?? .default
     }
     // Agents read this when they set DynamicGraph.flags for each generation.
     useAppleNeuralEngineSubscription = workspace.dictionary.subscribe(
@@ -962,8 +984,14 @@ final class ChatWorkflow: Workflow {
 
   private func updateModelIdleState() {
     dispatchPrecondition(condition: .onQueue(.main))
-    modelIdleTimer?.setIdle(
-      pendingModelWarmups == 0 && ([agentScheduler] + retiringAgentSchedulers).allSatisfy(\.isIdle))
+    let isAgentIdle = ([agentScheduler] + retiringAgentSchedulers).allSatisfy(\.isIdle)
+    modelIdleTimer?.setIdle(pendingModelWarmups == 0 && isAgentIdle)
+    // Only turns keep the device awake. Background jobs such as dev servers can run indefinitely.
+    if isAgentIdle {
+      sleepAssertion = nil
+    } else if sleepAssertion == nil {
+      sleepAssertion = sleepPrevention.assertion(reason: "Agent task in progress")
+    }
   }
 
   private func unloadIdleModels(request: ModelIdleTimer.UnloadRequest) {
@@ -1028,7 +1056,8 @@ final class ChatWorkflow: Workflow {
         )
       },
       embeddedDownloadController: embeddedDownloadController,
-      backend: ResumableDownloader.backend(from: workspace)
+      backend: ResumableDownloader.backend(from: workspace),
+      sleepPrevention: sleepPrevention
     ) { [weak self, weak embeddedDownloadController] success in
       if let self {
         self.downloadController = nil

@@ -13,11 +13,17 @@ final class DownloadController<Zoo: DownloadZoo>: EmbeddedDownloadControllerDele
   let models: [EmbeddedDownloadController.DownloadItem]
   let embeddedDownloadController: EmbeddedDownloadController
   private let backend: ResumableDownloader.Backend
+  var sleepPrevention: SleepPrevention {
+    didSet {
+      guard sleepPrevention != oldValue, downloader != nil else { return }
+      sleepAssertion = sleepPrevention.assertion(reason: "Model download in progress")
+    }
+  }
   private let progressAggregator = DownloadProgressAggregator()
   private var downloader: (any ModelDownloader)?
   private var generation: UInt64 = 0
   private var isFinished = false
-  private var previousIdleTimerDisabled: Bool?
+  private var sleepAssertion: SleepPrevention.Assertion?
   private var completionHandlers: [(Bool) -> Void]
   private var lastDownloadProgress:
     (written: Int64, transferred: Int64, expected: Int64, index: Int)?
@@ -26,6 +32,7 @@ final class DownloadController<Zoo: DownloadZoo>: EmbeddedDownloadControllerDele
     models: [EmbeddedDownloadController.DownloadItem],
     embeddedDownloadController: EmbeddedDownloadController,
     backend: ResumableDownloader.Backend,
+    sleepPrevention: SleepPrevention,
     completionHandler: @escaping (Bool) -> Void
   ) {
     self.models = EmbeddedDownloadController.finalizeDownoladItems(list: models).filter {
@@ -33,6 +40,7 @@ final class DownloadController<Zoo: DownloadZoo>: EmbeddedDownloadControllerDele
     }
     self.embeddedDownloadController = embeddedDownloadController
     self.backend = backend
+    self.sleepPrevention = sleepPrevention
     completionHandlers = [completionHandler]
     embeddedDownloadController.delegate = self
     progressAggregator.onExpectedLengthsChanged = { [weak self] in
@@ -44,9 +52,6 @@ final class DownloadController<Zoo: DownloadZoo>: EmbeddedDownloadControllerDele
 
   deinit {
     downloader?.cancel()
-    if let previousIdleTimerDisabled {
-      UIApplication.shared.isIdleTimerDisabled = previousIdleTimerDisabled
-    }
   }
 
   func addCompletionHandler(_ completionHandler: @escaping (Bool) -> Void) {
@@ -61,10 +66,9 @@ final class DownloadController<Zoo: DownloadZoo>: EmbeddedDownloadControllerDele
       finish(success: true)
       return
     }
-    if previousIdleTimerDisabled == nil {
-      previousIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
+    if sleepAssertion == nil {
+      sleepAssertion = sleepPrevention.assertion(reason: "Model download in progress")
     }
-    UIApplication.shared.isIdleTimerDisabled = true
     let model = models[index]
     var viewModel = embeddedDownloadController.viewModel
     viewModel.title = model.name
@@ -88,10 +92,7 @@ final class DownloadController<Zoo: DownloadZoo>: EmbeddedDownloadControllerDele
           self.generation += 1
           self.downloader?.cancel()
           self.downloader = nil
-          if let previousIdleTimerDisabled = self.previousIdleTimerDisabled {
-            UIApplication.shared.isIdleTimerDisabled = previousIdleTimerDisabled
-            self.previousIdleTimerDisabled = nil
-          }
+          self.sleepAssertion = nil
           var viewModel = self.embeddedDownloadController.viewModel
           viewModel.mode = .error
           viewModel.file = error.localizedDescription
@@ -146,10 +147,7 @@ final class DownloadController<Zoo: DownloadZoo>: EmbeddedDownloadControllerDele
     downloader = nil
     progressAggregator.cancel()
     lastDownloadProgress = nil
-    if let previousIdleTimerDisabled {
-      UIApplication.shared.isIdleTimerDisabled = previousIdleTimerDisabled
-      self.previousIdleTimerDisabled = nil
-    }
+    sleepAssertion = nil
     if embeddedDownloadController.delegate === self {
       embeddedDownloadController.delegate = nil
     }
