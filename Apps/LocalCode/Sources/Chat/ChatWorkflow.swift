@@ -116,8 +116,9 @@ final class ChatWorkflow: Workflow {
   private var queuedItemsThreadId: Int64?
   private var activeMemoryReviews = Set<ObjectIdentifier>()
   private(set) var queuedItems = [ProjectQueuedItem]()
-  /// Queued items to send on their own once the running turn stops.
-  private var steeringQueuedItems = [ProjectQueuedItem]()
+  /// Queued items to send on their own once each thread's running turn stops. They outlive a
+  /// thread switch, so a steered thread continues in the background.
+  private var steeringQueuedItems = [ProjectThreadIdentifier: [ProjectQueuedItem]]()
   var didStopHandler: (() -> Void)?
   var modelsDirectoryPickerResponder: ModelsDirectoryPickerResponder?
   var permitDirectoryPickerResponder: PermitDirectoryPickerResponder?
@@ -615,6 +616,9 @@ final class ChatWorkflow: Workflow {
       agentScheduler = AgentScheduler(queue: queue)
       agentScheduler.delegate = self
       settingsWorkflow.setActiveThreads([])
+      // Hibernation suspends the retired turns rather than stopping them, so their steers lapse.
+      steeringQueuedItems.removeAll()
+      viewController.setSteeringQueuedItems([])
     }
     agentScheduler.set(
       filePath: LLMZoo.filePathForModelDownloaded(file),
@@ -624,10 +628,14 @@ final class ChatWorkflow: Workflow {
   private func updateQueuedItems(_ queuedItems: [ProjectQueuedItem], animated: Bool) {
     dispatchPrecondition(condition: .onQueue(.main))
     self.queuedItems = queuedItems
-    // A steered item keeps its spinner until it leaves the queue.
-    steeringQueuedItems.removeAll { !queuedItems.contains($0) }
     viewController.setQueuedItems(
       queuedItems, animated: animated)
+    guard let projectURL, let queuedItemsThreadId else { return }
+    // A steered item keeps its spinner until it leaves the queue.
+    let threadIdentifier = ProjectThreadIdentifier(
+      projectURL: projectURL, threadId: queuedItemsThreadId)
+    steeringQueuedItems[threadIdentifier]?.removeAll { !queuedItems.contains($0) }
+    viewController.setSteeringQueuedItems(steeringQueuedItems[threadIdentifier] ?? [])
   }
 
   func observeQueuedItems(threadId: Int64) {
@@ -636,8 +644,12 @@ final class ChatWorkflow: Workflow {
     queuedItemsThreadId = threadId
     queuedItemSubscription?.cancel()
     queuedItemSubscription = nil
-    updateQueuedItems([], animated: false)
-    guard let projectWorkspace, threadId >= 0 else { return }
+    // Only the fetched queue may prune the thread's steered items, so a thread switched back to
+    // keeps them.
+    guard let projectWorkspace, threadId >= 0 else {
+      updateQueuedItems([], animated: false)
+      return
+    }
     let queuedItems = projectWorkspace.fetch(for: ProjectQueuedItem.self).where(
       ProjectQueuedItem.threadId == threadId,
       orderBy: [ProjectQueuedItem.datetime.ascending])
@@ -1540,7 +1552,9 @@ final class ChatWorkflow: Workflow {
           mode: .bringup(
             startTime: CACurrentMediaTime(),
             bashUserInteraction: residentCodeAgent.bashUserInteraction))
-        chatInputController.sendState = .sending
+        // A turn stopped, or steered, before the switch is still stopping.
+        chatInputController.sendState =
+          agentScheduler.isStopping(residentCodeAgent) ? .stopping : .sending
         if let (progress, statistics) = agentScheduler.latestProgress(
           projectPath: projectURL.path, threadId: threadId)
         {
@@ -2220,11 +2234,16 @@ extension ChatWorkflow: ChatViewControllableDelegate {
     _ viewController: UIViewController,
     didSteerQueuedItem queuedItem: ProjectQueuedItem
   ) {
-    guard queuedItems.contains(queuedItem), !steeringQueuedItems.contains(queuedItem) else {
+    guard let projectURL else { return }
+    let threadIdentifier = ProjectThreadIdentifier(
+      projectURL: projectURL, threadId: queuedItem.threadId)
+    guard queuedItems.contains(queuedItem),
+      steeringQueuedItems[threadIdentifier]?.contains(queuedItem) != true
+    else {
       return
     }
-    steeringQueuedItems.append(queuedItem)
-    self.viewController.setSteeringQueuedItems(steeringQueuedItems)
+    steeringQueuedItems[threadIdentifier, default: []].append(queuedItem)
+    self.viewController.setSteeringQueuedItems(steeringQueuedItems[threadIdentifier] ?? [])
     // While stopping, the stop under way sends this item along with the others steered.
     if chatInputController.sendState == .sending {
       chatInputControllerDidTapStop(chatInputController)
@@ -2453,6 +2472,11 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         ProjectQueuedItem.threadId == projectHistoryManager.threadId,
         orderBy: [ProjectQueuedItem.datetime.ascending]))
     // Steered items go out together in queue order; the rest stay queued behind them.
+    let steeringQueuedItems =
+      projectURL.flatMap {
+        self.steeringQueuedItems[
+          ProjectThreadIdentifier(projectURL: $0, threadId: projectHistoryManager.threadId)]
+      } ?? []
     let steeredItems = queuedItems.filter { steeringQueuedItems.contains($0) }
     if !steeredItems.isEmpty {
       queuedItems = steeredItems
@@ -2796,28 +2820,38 @@ extension ChatWorkflow: ChatInputControllerDelegate {
               self?.settingsWorkflow.setInactiveProjectThread(thread, projectPath: projectPath)
             }
           }
+          // A steer that stopped the turn before any output keeps the stopped message out of the
+          // input; it goes out again with the steered items, displayed or not.
+          let isSteering =
+            self?.steeringQueuedItems[
+              ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId)]?.isEmpty == false
+          var history = projectHistoryManager.history(threadId: threadId)
+          var stoppedNode: ProjectHistoryNode?
+          if isSteering, let index = history.lastIndex(where: { $0.role != .memory }),
+            case let node = history[index], node.role == .user
+          {
+            stoppedNode = node
+            history.remove(at: index)
+          }
           if let self,
             self.isDisplayed(
               codeAgent: codeAgent, scheduler: scheduler, projectPath: projectPath,
               threadId: threadId)
           {
-            if !self.steeringQueuedItems.isEmpty {
-              // A steer that stopped the turn before any output keeps the stopped message out of
-              // the input; it goes out again with the steered items.
-              var history = projectHistoryManager.history(threadId: threadId)
-              var stoppedMessage: (prompt: String, imagePaths: [String])?
-              if let index = history.lastIndex(where: { $0.role != .memory }),
-                case let node = history[index], node.role == .user
-              {
-                self.restoredUserNode = (threadId: node.threadId, datetime: node.datetime)
-                stoppedMessage = (
-                  prompt: node.plaintext ?? safeTokenizer.decode(node.tokens),
-                  imagePaths: node.imagePaths
+            if isSteering {
+              if let stoppedNode {
+                self.restoredUserNode = (
+                  threadId: stoppedNode.threadId, datetime: stoppedNode.datetime
                 )
-                history.remove(at: index)
               }
               self.viewController.setHistory(self.historyMessages(from: history))
-              self.continueWithQueuedItems(resending: stoppedMessage)
+              self.continueWithQueuedItems(
+                resending: stoppedNode.map {
+                  (
+                    prompt: $0.plaintext ?? safeTokenizer.decode($0.tokens),
+                    imagePaths: $0.imagePaths
+                  )
+                })
             } else {
               self.restoreSelectedThread()
               self.chatInputController.sendState = .idle
@@ -2826,6 +2860,11 @@ extension ChatWorkflow: ChatInputControllerDelegate {
                 didStopHandler()
               }
             }
+          } else if let self, isSteering, self.agentScheduler === scheduler {
+            _ = self.continueBackgroundQueuedItems(
+              codeAgent: codeAgent, safeTokenizer: safeTokenizer, threadId: threadId,
+              projectURL: projectURL, projectWorkspace: projectWorkspace,
+              projectHistoryManager: projectHistoryManager, resending: stoppedNode)
           }
           if !scheduler.hasActiveTurn(codeAgent) {
             scheduler.markAsCompleted(codeAgent)
@@ -2919,9 +2958,13 @@ extension ChatWorkflow: ChatInputControllerDelegate {
             scheduler.markAsCompleted(codeAgent)
           }
         } else {
-          // A stopped thread keeps its queue; reopening it restores the queue to the input.
+          // A stopped thread keeps its queue, unless the stop was a steer; reopening it restores
+          // the queue to the input.
+          let isSteering =
+            self.steeringQueuedItems[
+              ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId)]?.isEmpty == false
           let didScheduleQueuedItems =
-            self.agentScheduler === scheduler && reason == .finished
+            self.agentScheduler === scheduler && (reason == .finished || isSteering)
             && self.continueBackgroundQueuedItems(
               codeAgent: codeAgent, safeTokenizer: safeTokenizer,
               threadId: threadId, projectURL: projectURL,
@@ -3184,26 +3227,48 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       contextWindowTokens: statistics.contextWindowTokens)
   }
 
+  /// A steer that stopped the turn before any output resends the stopped node, with its images,
+  /// joined with the steered items in its place.
   private func continueBackgroundQueuedItems(
     codeAgent: any CodeAgent, safeTokenizer: TiktokenTokenizer, threadId: Int64,
     projectURL: URL, projectWorkspace: SQLiteWorkspace,
-    projectHistoryManager: ProjectHistoryManager
+    projectHistoryManager: ProjectHistoryManager, resending stoppedNode: ProjectHistoryNode? = nil
   ) -> Bool {
-    let queuedItems = Array(
+    var queuedItems = Array(
       projectWorkspace.fetch(for: ProjectQueuedItem.self).where(
         ProjectQueuedItem.threadId == threadId,
         orderBy: [ProjectQueuedItem.datetime.ascending]))
-    let prompt = queuedItems.compactMap(\.text).joined(separator: "\n\n")
+    // Steered items go out together in queue order; the rest stay queued behind them.
+    let threadIdentifier = ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId)
+    let steeringQueuedItems = self.steeringQueuedItems[threadIdentifier] ?? []
+    let steeredItems = queuedItems.filter { steeringQueuedItems.contains($0) }
+    if !steeredItems.isEmpty {
+      queuedItems = steeredItems
+    }
+    var prompts = queuedItems.compactMap(\.text)
+    var imagePaths = queuedItems.flatMap(\.imagePaths)
+    if let stoppedNode {
+      prompts.insert(stoppedNode.plaintext ?? safeTokenizer.decode(stoppedNode.tokens), at: 0)
+      imagePaths.insert(contentsOf: stoppedNode.imagePaths, at: 0)
+    }
+    let prompt = prompts.joined(separator: "\n\n")
     guard !prompt.isEmpty else { return false }
-    let imagePaths = queuedItems.flatMap(\.imagePaths)
     let (_, userTokens, _, _, _) = safeTokenizer.tokenize(
       text: prompt, truncation: false, maxLength: 0, paddingToken: nil,
       addSpecialTokens: false)
-    guard
-      projectHistoryManager.appendUser(
+    let userNode: ProjectHistoryNode?
+    if let stoppedNode {
+      userNode = projectHistoryManager.replaceUser(
+        threadId: threadId, datetime: stoppedNode.datetime, tokens: userTokens, textEdits: -1,
+        textLineage: -1, imagePaths: imagePaths, lastMessage: prompt)
+    } else {
+      userNode = projectHistoryManager.appendUser(
         threadId: threadId, tokens: userTokens, textEdits: -1, textLineage: -1,
-        imagePaths: imagePaths, lastMessage: prompt) != nil
-    else { return false }
+        imagePaths: imagePaths, lastMessage: prompt)
+    }
+    guard userNode != nil else { return false }
+    // No queue observer prunes a background thread's steered items; they are all sent.
+    self.steeringQueuedItems[threadIdentifier] = nil
     projectWorkspace.performChanges([ProjectQueuedItem.self]) { transactionContext in
       for queuedItem in queuedItems {
         guard let request = ProjectQueuedItemChangeRequest.deletionRequest(queuedItem) else {

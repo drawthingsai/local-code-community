@@ -369,6 +369,15 @@ final class AgentScheduler {
     return activeTurnIdentifiers.contains(identifier)
   }
 
+  /// A stop requested in the foreground holds until the turn ends, in the background too.
+  func isStopping(_ codeAgent: any CodeAgent) -> Bool {
+    dispatchPrecondition(condition: .onQueue(.main))
+    let identifier = ObjectIdentifier(codeAgent)
+    os_unfair_lock_lock(&lock)
+    defer { os_unfair_lock_unlock(&lock) }
+    return stopRequests.contains(identifier)
+  }
+
   // Safe on the main and generation queues. Completion processing may submit a queued turn or
   // memory review, so a turn remains busy until markAsCompleted acknowledges it.
   var isIdle: Bool {
