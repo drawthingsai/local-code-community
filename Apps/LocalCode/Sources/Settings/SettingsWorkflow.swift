@@ -24,6 +24,13 @@ protocol SettingsWorkflowDelegate: AnyObject {
     _ workflow: SettingsWorkflow, residentProjectWorkspace projectPath: String
   ) -> SQLiteWorkspace?
   func settingsWorkflow(_ workflow: SettingsWorkflow, didSelectProjectAt url: URL)
+  /// A project folder made in the projects list, once the list shows it.
+  func settingsWorkflow(_ workflow: SettingsWorkflow, didCreateProjectAt url: URL)
+  /// A new project's community template finished extracting into its folder.
+  func settingsWorkflow(_ workflow: SettingsWorkflow, didFillProjectAt url: URL)
+  /// The open project's folder leaves the workspace: moved outside the app, or about to go to the
+  /// Trash from the projects list.
+  func settingsWorkflowDidRemoveOpenProject(_ workflow: SettingsWorkflow)
   func settingsWorkflow(
     _ workflow: SettingsWorkflow, didSelectThread thread: ProjectController.Thread)
   func settingsWorkflow(
@@ -132,6 +139,8 @@ final class SettingsWorkflow: Workflow {
   private var projectHistoryProjectURL: URL?
   private var projectThreadSubscription: Workspace.Subscription?
   private var activeProjectThreads: [ProjectThread]?
+  /// The project folder just made here, revealed once the projects list shows it.
+  private var createdProjectURL: URL?
   private var inProgressThreadIdentifiers = Set<ThreadIdentifier>()
   /// Lists running shell commands in Activities again when one starts or finishes.
   private var runningJobsSubscription: AnyCancellable?
@@ -862,6 +871,14 @@ final class SettingsWorkflow: Workflow {
           self.isSameProjectURL($0, activeProjectURL)
         }
       }
+      // The open project is gone once it is neither the root nor an existing folder in it. This
+      // checks the folder rather than the listing, which comes back empty when listing fails.
+      let isActiveProjectRemoved =
+        activeProjectURL.map {
+          !self.isSameProjectURL($0, workspaceFolderURL)
+            && (!self.isSameProjectURL($0.deletingLastPathComponent(), workspaceFolderURL)
+              || !self.isExistingProjectFolder($0))
+        } ?? false
       var threadsByProject = projectURLs.map {
         [
           ProjectController.Thread(
@@ -913,6 +930,7 @@ final class SettingsWorkflow: Workflow {
         else { return }
         let threads = threadsByProject.flatMap { $0 }
         let selectedThread = selectedThread
+        let isLastProject = projectIndex == projectIndices.last
         DispatchQueue.main.async { [weak self] in
           guard let self,
             self.projectsUpdateVersion.load(ordering: .acquiring) == updateVersion
@@ -932,6 +950,26 @@ final class SettingsWorkflow: Workflow {
               }), animated: true)
           self.projectsController.selectedThread = selectedThread
           self.updateActiveProjectSelection()
+          // Acts once per update. Projects above a revealed one also still grow as their threads
+          // load, which would push it out of view.
+          guard isLastProject else { return }
+          if isActiveProjectRemoved, let activeProjectURL,
+            self.projectHistoryProjectURL.map({ self.isSameProjectURL($0, activeProjectURL) })
+              ?? false
+          {
+            self.delegate?.settingsWorkflowDidRemoveOpenProject(self)
+          }
+          guard let createdProjectURL = self.createdProjectURL else { return }
+          self.createdProjectURL = nil
+          guard
+            let projectPath = threads.first(where: {
+              self.isSameProjectURL(
+                URL(fileURLWithPath: $0.projectPath, isDirectory: true), createdProjectURL)
+            })?.projectPath
+          else { return }
+          self.projectsController.scrollToProjectOnNextRunLoop(at: projectPath)
+          self.delegate?.settingsWorkflow(
+            self, didCreateProjectAt: URL(fileURLWithPath: projectPath, isDirectory: true))
         }
       }
     }
@@ -1223,9 +1261,14 @@ final class SettingsWorkflow: Workflow {
     // The projects are usable right away, and stay empty if their templates can't be downloaded.
     for project in createdProjects {
       let didStartAccessing = workspaceURL.startAccessingSecurityScopedResource()
-      TemplateZoo.copy(templateNamed: project.templateName, to: project.url) { _ in
+      TemplateZoo.copy(templateNamed: project.templateName, to: project.url) { [weak self] error in
         if didStartAccessing {
           workspaceURL.stopAccessingSecurityScopedResource()
+        }
+        guard error == nil else { return }
+        DispatchQueue.main.async {
+          guard let self else { return }
+          self.delegate?.settingsWorkflow(self, didFillProjectAt: project.url)
         }
       }
     }
@@ -1260,6 +1303,9 @@ final class SettingsWorkflow: Workflow {
       presentCannotCreateDirectoryAlert()
       return
     }
+    // Recents lists no project without threads, so the new one is revealed among all projects.
+    workspace.dictionary["settings_recent_threads_selected", Bool.self] = false
+    createdProjectURL = newURL
     updateProjects()
     guard let templateName else { return }
     // The project is usable right away, and stays empty if its template can't be downloaded.
@@ -1268,9 +1314,12 @@ final class SettingsWorkflow: Workflow {
       if didStartAccessingTemplate {
         workspaceURL.stopAccessingSecurityScopedResource()
       }
-      guard error != nil else { return }
       DispatchQueue.main.async {
         guard let self else { return }
+        guard error != nil else {
+          self.delegate?.settingsWorkflow(self, didFillProjectAt: newURL)
+          return
+        }
         let alertController = UIAlertController(
           title: LocalizedString.forKey("cannot_download_template"),
           message: LocalizedString.forKey("cannot_download_template_message"),
@@ -1472,7 +1521,7 @@ extension SettingsWorkflow: ProjectControllerDelegate {
       if let activeProjectURL = self.projectHistoryProjectURL,
         self.isSameProjectURL(directoryURL, activeProjectURL)
       {
-        self.delegate?.settingsWorkflow(self, didSelectProjectAt: workspaceURL)
+        self.delegate?.settingsWorkflowDidRemoveOpenProject(self)
         guard
           self.projectHistoryProjectURL.map({ !self.isSameProjectURL(directoryURL, $0) }) ?? true
         else {

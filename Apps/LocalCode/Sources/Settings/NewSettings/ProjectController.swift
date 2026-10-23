@@ -520,6 +520,21 @@ final class ProjectController {
     }
   }
 
+  /// Scrolls the project's "Start a new thread" row to the top, under its header, as selecting a row
+  /// out of view does. Like selecting, it waits for the next run loop, when the snapshot just
+  /// applied has laid out.
+  func scrollToProjectOnNextRunLoop(at projectPath: String) {
+    guard isViewLoaded else { return }
+    DispatchQueue.main.async { [weak self] in
+      guard let self,
+        let indexPath = self.collectionViewDiffableDataSource.indexPath(
+          for: ProjectItem(
+            thread: Thread(projectPath: projectPath, threadId: -1), isRecent: false))
+      else { return }
+      self.collectionView.scrollToItem(at: indexPath, at: .top, animated: false)
+    }
+  }
+
   private func orderedProjectPaths() -> [String] {
     var projectPaths = [String]()
     var seenProjectPaths = Set<String>()

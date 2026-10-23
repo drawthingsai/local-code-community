@@ -347,14 +347,16 @@ final class ChatWorkflow: Workflow {
     chatInputController.setText(textHistoryManager.currentPositiveText)
     updateTextHistoryPointers()
     navigationController.isNavigationBarHidden = true
-    if let bookmarkData = workspace.dictionary["project", Data.self] {
-      if let projectURL = resolveProjectURL(from: bookmarkData) {
-        openProject(at: projectURL, threadId: nil)
-      }
+    let projectBookmarkData = workspace.dictionary["project", Data.self]
+    if let projectBookmarkData, let projectURL = resolveProjectURL(from: projectBookmarkData) {
+      openProject(at: projectURL, threadId: nil)
     }
     if projectWorkspace == nil {
       workspace.dictionary["project", Data.self] = nil
-      openProject(at: settingsWorkflow.workspaceFolderURL, threadId: nil)
+      // A last project that no longer opens, as when its folder moved, leaves the workspace root
+      // on a new thread rather than on the root's last thread.
+      openProject(
+        at: settingsWorkflow.workspaceFolderURL, threadId: projectBookmarkData == nil ? nil : -1)
     }
     // The walkthrough opens by itself only on a workspace that has never been used: it was not
     // completed before, the root project has no threads, and the workspace has no folders.
@@ -2001,6 +2003,36 @@ extension ChatWorkflow: SettingsWorkflowDelegate {
   func settingsWorkflow(_ workflow: SettingsWorkflow, didSelectProjectAt url: URL) {
     openProject(at: url, threadId: nil)
     dismissSettings()
+  }
+
+  func settingsWorkflow(_ workflow: SettingsWorkflow, didCreateProjectAt url: URL) {
+    // A new thread being composed moves to the new project. Any other open thread, the welcome
+    // thread, or Model Speed stays, and settings stays up either way.
+    guard onboardingWorkflow == nil, modelSpeedWorkflow == nil,
+      projectHistoryManager?.threadId == -1
+    else { return }
+    selectThread(ProjectController.Thread(projectPath: url.path, threadId: -1))
+  }
+
+  func settingsWorkflow(_ workflow: SettingsWorkflow, didFillProjectAt url: URL) {
+    // The project can open before its template lands, as a new thread moves into it on creation.
+    // The demo and starter prompt still wait for the project to open again.
+    guard let projectURL,
+      projectURL.standardizedFileURL.resolvingSymlinksInPath()
+        == url.standardizedFileURL.resolvingSymlinksInPath()
+    else { return }
+    skillCatalog = SkillCatalog.find(
+      roots: SkillCatalog.roots(
+        builtInSkillsURL: Bundle.main.resourceURL?.appendingPathComponent(
+          "Skills", isDirectory: true),
+        projectURL: projectURL, workspaceURL: workflow.workspaceFolderURL))
+    projectContext = ProjectContext.load(projectURL: projectURL)
+  }
+
+  func settingsWorkflowDidRemoveOpenProject(_ workflow: SettingsWorkflow) {
+    // Opens right away, so moving the project to the Trash can then check that it closed.
+    // Settings stays up to show the project leave the list.
+    openProject(at: workflow.workspaceFolderURL, threadId: -1)
   }
 
   func settingsWorkflowDidRequestModelSpeed(_ workflow: SettingsWorkflow) {
