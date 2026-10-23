@@ -1,4 +1,4 @@
-load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
+load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_framework")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_command_line_application")
 load("@build_bazel_rules_apple//apple:resources.bzl", "apple_resource_group")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_binary", "swift_library", "swift_test")
@@ -93,6 +93,36 @@ apple_resource_group(
     structured_resources = glob(["Resources/Browser/**"]),
 )
 
+# App Store Connect rejects an executable whose __TEXT exceeds 500 MB. The two
+# largest runtimes are sealed archives that import only system symbols, so they
+# link here while the ios_system commands that drive them stay in the app.
+# ios_framework bundles its deps' resources inside the framework, so deps here
+# must carry none: these runtimes read theirs from the main bundle.
+ios_framework(
+    name = "NativeRuntimes",
+    bundle_id = "com.liuliu.local-code.native-runtimes",
+    families = [
+        "iphone",
+        "ipad",
+    ],
+    infoplists = ["NativeRuntimes/Info.plist"],
+    # Only the app's office command calls the LibreOffice archive's export, so
+    # nothing in this link would load it otherwise.
+    linkopts = select({
+        "//Vendors/LibreOffice:ios_simulator": [],
+        "//conditions:default": [
+            "-u",
+            "_OfficeCommandRun",
+        ],
+    }),
+    minimum_os_version = "16.0",
+    deps = ["//Vendors/Lean:LeanBridge"] + select({
+        # The LibreOffice archive has no simulator slice.
+        "//Vendors/LibreOffice:ios_simulator": [],
+        "//conditions:default": ["//Vendors/LibreOffice"],
+    }),
+)
+
 ios_application(
     name = "LocalCode",
     additional_linker_inputs = ["@SwiftCrypto//:CCryptoBoringSSL"],
@@ -109,6 +139,7 @@ ios_application(
         "iphone",
         "ipad",
     ],
+    frameworks = [":NativeRuntimes"],
     include_symbols_in_bundle = True,
     infoplists = ["SupportingFiles/Info.plist"],
     launch_storyboard = "SupportingFiles/LaunchScreen.storyboard",
@@ -122,8 +153,9 @@ ios_application(
     provisioning_profile = "ProvisioningFiles/LocalCode_Development.mobileprovision",
     # LocalCode consumes the common committed iOS Python resources on device
     # and simulator; platform-specific native code stays in XCFramework slices.
-    # Native command runtimes are linked directly into the app executable.
-    # All slices use the same static stdlib extension-module policy.
+    # Native command runtimes are linked into the app executable, except those
+    # in NativeRuntimes. All slices use the same static stdlib extension-module
+    # policy.
     resources = glob(
         ["Resources/**"],
         exclude = [
