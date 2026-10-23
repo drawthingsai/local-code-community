@@ -2806,3 +2806,4 @@
 "prevent_sleep_while_working_detail" = "Hält diesen Mac wach, während Agenten arbeiten oder Modelle heruntergeladen werden. Mit „Nur System“ kann sich der Bildschirm weiterhin wie gewohnt ausschalten und sperren. „System und Bildschirm“ hält auch den Bildschirm eingeschaltet.";
 "prevent_sleep_while_working_ios_detail" = "Hält den Bildschirm eingeschaltet, während Agenten arbeiten oder Modelle heruntergeladen werden, damit sich dieses Gerät nicht sperrt und sie unterbricht.";
 "steer" = "Steuern";
+"check_for_updates_dot" = "Nach Updates suchen...";

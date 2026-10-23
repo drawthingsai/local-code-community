@@ -2782,3 +2782,4 @@
 "prevent_sleep_while_working_detail" = "在代理工作或模型下载期间，让这台 Mac 保持唤醒。选择“仅系统”时，显示器仍会照常关闭并锁定。选择“系统和显示器”时，屏幕也会保持开启。";
 "prevent_sleep_while_working_ios_detail" = "在代理工作或模型下载期间保持屏幕开启，以免此设备锁定并暂停这些任务。";
 "steer" = "引导";
+"check_for_updates_dot" = "检查更新...";

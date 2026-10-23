@@ -2806,3 +2806,4 @@
 "prevent_sleep_while_working_detail" = "Garde ce Mac actif pendant que les agents travaillent ou que des modèles se téléchargent. Avec Système uniquement, l’écran peut toujours s’éteindre et se verrouiller comme d’habitude. Système et écran garde aussi l’écran allumé.";
 "prevent_sleep_while_working_ios_detail" = "Garde l’écran allumé pendant que les agents travaillent ou que des modèles se téléchargent, afin que cet appareil ne se verrouille pas et ne les interrompe pas.";
 "steer" = "Réorienter";
+"check_for_updates_dot" = "Rechercher des mises à jour...";

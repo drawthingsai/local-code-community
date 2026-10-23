@@ -29,15 +29,58 @@ config_setting(
     ],
 )
 
+config_setting(
+    name = "catalyst_build",
+    constraint_values = [
+        "@platforms//os:osx",
+        "@platforms//cpu:arm64",
+        "@build_bazel_apple_support//constraints:catalyst",
+    ],
+)
+
 apple_static_xcframework_import(
     name = "private_archive",
     xcframework_imports = glob(["Frameworks/Office.xcframework/**"]),
+)
+
+genrule(
+    name = "LibreOfficeCatalystObject",
+    srcs = ["Frameworks/Office.xcframework/ios-arm64/libOffice.a"],
+    outs = ["LibreOfficeCatalyst.o"],
+    cmd = "$(location :replatform_office_for_catalyst.sh) " +
+          "$(location Frameworks/Office.xcframework/ios-arm64/libOffice.a) " +
+          "$@ 16.0 $(location //Vendors/PythonIOS:replatform_macho_for_catalyst.py)",
+    tools = [
+        ":replatform_office_for_catalyst.sh",
+        "//Vendors/PythonIOS:replatform_macho_for_catalyst.py",
+    ],
+)
+
+genrule(
+    name = "LibreOfficeCatalystBootstrap",
+    srcs = ["Resources/office/program/fundamentalrc"],
+    outs = ["ResourcesCatalyst/office/program/fundamentalrc"],
+    # The iOS engine makes fundamentalrc the base ini. Explicit file lookups
+    # prevent its extension-path aliases from recursively shadowing lounorc.
+    cmd = "/usr/bin/sed 's|{\\([^{}]*ORIGIN/lounorc:[^{}]*\\)}|{.override:\\1}|g' $< > $@",
+)
+
+objc_library(
+    name = "private_archive_catalyst",
+    srcs = [":LibreOfficeCatalystObject"],
+    hdrs = glob(["Frameworks/Office.xcframework/ios-arm64/Headers/**"]),
+    includes = ["Frameworks/Office.xcframework/ios-arm64/Headers"],
 )
 
 objc_library(
     name = "LibreOffice",
     hdrs = ["OfficeCommand.h"],
     sdk_dylibs = select({
+        ":catalyst_build": [
+            "c++",
+            "iconv",
+            "z",
+        ],
         ":ios_device_arm64": [
             "c++",
             "iconv",
@@ -53,6 +96,15 @@ objc_library(
         ],
     }),
     sdk_frameworks = select({
+        ":catalyst_build": [
+            "CoreFoundation",
+            "CoreGraphics",
+            "CoreText",
+            "Foundation",
+            "ImageIO",
+            "Security",
+            "UIKit",
+        ],
         ":ios_device_arm64": [
             "CoreFoundation",
             "CoreGraphics",
@@ -81,20 +133,30 @@ objc_library(
             "SystemConfiguration",
         ],
     }),
-    deps = [":private_archive"],
+    deps = select({
+        ":catalyst_build": [":private_archive_catalyst"],
+        "//conditions:default": [":private_archive"],
+    }),
 )
 
 apple_resource_group(
     name = "resources",
     strip_structured_resources_prefixes = [
+        "ResourcesCatalyst",
         "ResourcesMacOS",
         "Resources",
     ],
     structured_resources = select({
+        ":catalyst_build": glob(
+            ["Resources/**"],
+            exclude = ["Resources/office/program/fundamentalrc"],
+        ) + [":LibreOfficeCatalystBootstrap"],
         ":ios_device_arm64": glob(["Resources/**"]),
         ":macos_arm64": glob(["ResourcesMacOS/**"]),
     }),
 )
+
+exports_files(["replatform_office_for_catalyst.sh"])
 
 filegroup(
     name = "resources_macos_files",

@@ -2,6 +2,7 @@ import AppleUtilities
 import BashToolContext
 import HTML2VideoCommand
 import HyperFramesCommand
+import Localization
 import UIKit
 import UserNotifications
 import ios_system
@@ -26,6 +27,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
   }
 
   var workflow: Workflow? { sceneDelegate?.workflow }
+
+  #if targetEnvironment(macCatalyst) && DIRECT_DISTRIBUTION
+    private var softwareUpdater: SoftwareUpdater?
+  #endif
 
   /// The chat window's. Browser windows are scenes too; the chat's is the one with a
   /// SceneDelegate.
@@ -110,6 +115,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
     #endif
     #if targetEnvironment(macCatalyst)
       UnifiedBrowserWindowWorkflow.discardRestoredSessions(in: application)
+      #if DIRECT_DISTRIBUTION
+        softwareUpdater = SoftwareUpdater()
+        // The main menu may already be built without "Check for updates...".
+        UIMenuSystem.main.setNeedsRebuild()
+      #endif
     #endif
     return true
   }
@@ -154,7 +164,32 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
       with: builder,
       isBotModeEnabled: (workflow as? ChatWorkflow)?.workspace.dictionary["bot_mode", Bool.self]
         == true)
+    #if targetEnvironment(macCatalyst) && DIRECT_DISTRIBUTION
+      if softwareUpdater != nil {
+        builder.insertSibling(
+          UIMenu(
+            title: "", options: .displayInline,
+            children: [
+              UICommand(
+                title: LocalizedString.forKey("check_for_updates_dot"),
+                action: #selector(checkForUpdatesAction(_:)))
+            ]), afterMenu: .about)
+      }
+    #endif
   }
+
+  #if targetEnvironment(macCatalyst) && DIRECT_DISTRIBUTION
+    @objc private func checkForUpdatesAction(_ sender: UICommand) {
+      softwareUpdater?.checkForUpdates()
+    }
+
+    override func validate(_ command: UICommand) {
+      super.validate(command)
+      if command.action == #selector(checkForUpdatesAction(_:)) {
+        command.attributes = softwareUpdater?.canCheckForUpdates == true ? [] : .disabled
+      }
+    }
+  #endif
 
   func application(
     _ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession,

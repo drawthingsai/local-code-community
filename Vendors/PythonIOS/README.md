@@ -283,6 +283,11 @@ curl-impersonate v2.0.0 is a separate, size-optimized static
 The binding uses upstream compiled CFFI callbacks and the existing `_cffi_backend`;
 there is no new libffi or executable-memory callback trampoline.
 
+Mac Catalyst arm64 uses a generated object from the macOS CurlCFFI archive,
+following the Python Catalyst import. `replatform_curl_cffi_for_catalyst.sh`
+rewrites only its platform load command, preserving private native dependencies
+and compact unwind. Other platforms continue to select the XCFramework slices.
+
 The app already links prefixed BoringSSL through SwiftCrypto and SwiftNIOSSL.
 Those copies cannot directly satisfy curl-impersonate's patched TLS API, including
 `SSL_CTX_set_extension_order`. This build keeps the upstream fingerprint patches

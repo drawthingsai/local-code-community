@@ -39,6 +39,12 @@ macOS slices are about 89 MiB each. The three-slice XCFramework occupies about
 size target. The macOS slice targets macOS 13.5, matching the Node 24 build's
 deployment setting.
 
+Mac Catalyst arm64 uses a generated object from the macOS archive, following the
+PythonIOS Catalyst import. `replatform_node_for_catalyst.sh` changes only the
+platform load command with the shared Mach-O rewriter, preserving private symbols
+and compact unwind. It does not use a zippered macOS/Catalyst relocatable link,
+which Xcode 27.1 rejects for this archive.
+
 The build is the full Node configuration with small ICU, SQLite, inspector
 support, V8's JITless runtime setting, and DrumBrake selected by
 `--wasm-jitless`. Explicit interpreter bounds checks are enabled. Node startup

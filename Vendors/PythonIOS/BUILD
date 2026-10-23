@@ -13,6 +13,13 @@ config_setting(
 )
 
 config_setting(
+    name = "catalyst_build",
+    constraint_values = [
+        "@build_bazel_apple_support//constraints:catalyst",
+    ],
+)
+
+config_setting(
     name = "ios_simulator_arm64",
     # Apple rules can select Simulator without an explicit ios_multi_cpus flag.
     constraint_values = [
@@ -103,6 +110,99 @@ apple_static_xcframework_import(
     xcframework_imports = glob(["Frameworks/CurlCFFI.xcframework/**"]),
 )
 
+genrule(
+    name = "CurlCFFICatalystObject",
+    srcs = ["Frameworks/CurlCFFI.xcframework/macos-arm64/libCurlCFFI.a"],
+    outs = ["CurlCFFICatalyst.o"],
+    cmd = "$(location :replatform_curl_cffi_for_catalyst.sh) " +
+          "$(location Frameworks/CurlCFFI.xcframework/macos-arm64/libCurlCFFI.a) " +
+          "$@ 16.0 $(location :replatform_macho_for_catalyst.py)",
+    tools = [
+        ":replatform_curl_cffi_for_catalyst.sh",
+        ":replatform_macho_for_catalyst.py",
+    ],
+)
+
+objc_library(
+    name = "CurlCFFICatalyst",
+    srcs = [":CurlCFFICatalystObject"],
+    sdk_dylibs = [
+        "c++",
+        "icucore",
+        "z",
+    ],
+    sdk_frameworks = [
+        "Security",
+        "SystemConfiguration",
+    ],
+)
+
+genrule(
+    name = "PythonCatalystObject",
+    srcs = ["Frameworks/Python.xcframework/macos-arm64/libpython3.14-macos.a"],
+    outs = ["PythonCatalyst.o"],
+    cmd = "$(location :replatform_python_for_catalyst.sh) " +
+          "$(location Frameworks/Python.xcframework/macos-arm64/libpython3.14-macos.a) " +
+          "$@ 16.0 $(location :replatform_macho_for_catalyst.py)",
+    tools = [
+        ":replatform_macho_for_catalyst.py",
+        ":replatform_python_for_catalyst.sh",
+    ],
+)
+
+exports_files([
+    "replatform_curl_cffi_for_catalyst.sh",
+    "replatform_macho_for_catalyst.py",
+    "replatform_python_for_catalyst.sh",
+])
+
+objc_library(
+    name = "PythonCatalyst",
+    srcs = [":PythonCatalystObject"],
+    hdrs = glob(["Frameworks/Python.xcframework/macos-arm64/Headers/**"]),
+    includes = ["Frameworks/Python.xcframework/macos-arm64/Headers"],
+    linkopts = [
+        "-Wl,-u,_ios_python_register_numpy",
+        "-Wl,-u,_ios_python_register_pandas",
+        "-Wl,-u,_ios_python_register_pillow",
+        "-Wl,-u,_ios_python_register_cairosvg",
+        "-Wl,-u,_ios_python_register_lxml",
+        "-Wl,-u,_ios_python_register_matplotlib",
+        "-Wl,-u,_ios_python_register_psd_tools",
+        "-Wl,-u,_ios_python_register_hf_xet",
+        "-Wl,-u,_ios_python_register_safetensors",
+        "-Wl,-u,_ios_python_register_regex",
+        "-Wl,-u,_ios_python_register_tokenizers",
+        "-Wl,-u,_ios_python_register_sentencepiece",
+        "-Wl,-u,_ios_python_register_mlx",
+    ],
+    sdk_dylibs = [
+        "bz2",
+        "c++",
+        "edit",
+        "ffi",
+        "iconv",
+        "ncurses",
+        "panel",
+        "sqlite3",
+        "z",
+    ],
+    sdk_frameworks = [
+        "Accelerate",
+        "CoreFoundation",
+        "CoreGraphics",
+        "CoreText",
+        "Foundation",
+        "Metal",
+        "QuartzCore",
+        "Security",
+        "SystemConfiguration",
+    ],
+    deps = [
+        "@sentencepiece//:sentencepiece_train",
+    ],
+)
+
 objc_library(
     name = "PythonRuntimeAPI",
     hdrs = ["python_runtime.h"],
@@ -112,11 +212,16 @@ objc_library(
 objc_library(
     name = "PythonRuntime",
     srcs = ["python_runtime.c"],
-    deps = [
-        ":CurlCFFI",
-        ":PythonFramework",
-        ":PythonRuntimeAPI",
-    ],
+    deps = [":PythonRuntimeAPI"] + select({
+        ":catalyst_build": [
+            ":CurlCFFICatalyst",
+            ":PythonCatalyst",
+        ],
+        "//conditions:default": [
+            ":CurlCFFI",
+            ":PythonFramework",
+        ],
+    }),
     alwayslink = True,
 )
 

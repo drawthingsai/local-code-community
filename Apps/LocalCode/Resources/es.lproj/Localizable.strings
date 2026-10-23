@@ -2766,3 +2766,4 @@
 "prevent_sleep_while_working_detail" = "Mantiene este Mac activo mientras los agentes trabajan o se descargan modelos. Con Solo el sistema, la pantalla puede apagarse y bloquearse como de costumbre. Sistema y pantalla también mantiene la pantalla encendida.";
 "prevent_sleep_while_working_ios_detail" = "Mantiene la pantalla encendida mientras los agentes trabajan o se descargan modelos, para que este dispositivo no se bloquee ni los pause.";
 "steer" = "Redirigir";
+"check_for_updates_dot" = "Buscar actualizaciones...";

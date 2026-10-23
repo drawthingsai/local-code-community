@@ -734,6 +734,13 @@ extension AccountWorkflow: AccountViewControllerDelegate {
       webSignInAttempt = nil
       webAuthenticationSession?.cancel()
       webAuthenticationSession = nil
+      #if DIRECT_DISTRIBUTION
+        // Developer ID builds cannot carry the Sign in with Apple entitlement.
+        if let url = AccountRouterConfiguration.appleWebSignInURL() {
+          startWebSignIn(at: url, provider: .apple)
+          return
+        }
+      #endif
       let request = ASAuthorizationAppleIDProvider().createRequest()
       request.requestedScopes = [.email]
       let controller = ASAuthorizationController(authorizationRequests: [request])

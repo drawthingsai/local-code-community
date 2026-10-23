@@ -664,11 +664,21 @@ swift_test(
     ],
 )
 
+# Developer ID builds (`--config=direct`) embed Sparkle and leave out App Store-only paths.
+config_setting(
+    name = "direct_distribution",
+    define_values = {"distribution": "direct"},
+)
+
 swift_library(
     name = "LocalCodeLib",
     srcs = glob(
         ["Sources/**/*.swift"],
     ),
+    defines = select({
+        ":direct_distribution": ["DIRECT_DISTRIBUTION"],
+        "//conditions:default": [],
+    }),
     module_name = "LocalCode",
     deps = [
         "//Apps:DrawThingsCLICommand",

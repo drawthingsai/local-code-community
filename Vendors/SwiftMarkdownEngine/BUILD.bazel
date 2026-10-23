@@ -7,6 +7,13 @@ config_setting(
     ],
 )
 
+config_setting(
+    name = "catalyst_build",
+    constraint_values = [
+        "@build_bazel_apple_support//constraints:catalyst",
+    ],
+)
+
 _COMMON_SRCS = glob([
     "Sources/MarkdownEngine/Configuration/**/*.swift",
     "Sources/MarkdownEngine/Diagnostics/**/*.swift",
@@ -35,6 +42,7 @@ _APPKIT_SRCS = glob(
 swift_library(
     name = "MarkdownEngine",
     srcs = _COMMON_SRCS + select({
+        ":catalyst_build": [],
         ":ios_build": [],
         "//conditions:default": _APPKIT_SRCS,
     }),

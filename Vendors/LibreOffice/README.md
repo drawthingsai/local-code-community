@@ -40,6 +40,14 @@ bazel build //Apps/LocalCode:LocalCode --ios_multi_cpus=arm64
 bazel build //Apps/LocalCode:LocalCodeCLI
 ```
 
+Mac Catalyst arm64 uses a Bazel-generated object from the iOS archive, following
+the PythonIOS Catalyst import pattern. `replatform_office_for_catalyst.sh` uses
+the shared Mach-O rewriter to change the platform load command while preserving
+private symbols and compact unwind. Catalyst selects the iOS SDK dependencies
+and `Resources/office/` layout, including `office/program/`. Its generated
+`fundamentalrc` uses direct `lounorc` lookups to avoid recursive aliases when
+the iOS engine loads it as the base bootstrap configuration.
+
 To rebuild both payloads from source, use an Apple Silicon Mac and run the
 following from the repository root. The macOS step prepares the pinned kit,
 LibreOffice checkout, and verified download cache used by the iOS step; there

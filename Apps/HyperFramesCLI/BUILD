@@ -1,6 +1,13 @@
 load("@build_bazel_rules_apple//apple:resources.bzl", "apple_resource_group")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_binary", "swift_library")
 
+config_setting(
+    name = "catalyst_build",
+    constraint_values = [
+        "@build_bazel_apple_support//constraints:catalyst",
+    ],
+)
+
 apple_resource_group(
     name = "Resources",
     strip_structured_resources_prefixes = ["Resources"],
@@ -20,8 +27,10 @@ swift_library(
     visibility = ["//visibility:public"],
     deps = [
         "//Libraries/HTMLVideoExporter",
-        "//Vendors/NodeJS:NodeMobile",
-    ],
+    ] + select({
+        ":catalyst_build": ["//Vendors/NodeJS:NodeMobileCatalyst"],
+        "//conditions:default": ["//Vendors/NodeJS:NodeMobile"],
+    }),
 )
 
 swift_library(

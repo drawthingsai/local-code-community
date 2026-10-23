@@ -3080,3 +3080,4 @@
 "prevent_sleep_while_working_detail" = "Giữ máy Mac này hoạt động trong khi tác tử làm việc hoặc mô hình đang tải về. Với Chỉ hệ thống, màn hình vẫn có thể tắt và khóa như bình thường. Hệ thống và màn hình cũng giữ màn hình luôn bật.";
 "prevent_sleep_while_working_ios_detail" = "Giữ màn hình luôn bật trong khi tác tử làm việc hoặc mô hình đang tải về, để thiết bị này không bị khóa và tạm dừng chúng.";
 "steer" = "Điều hướng";
+"check_for_updates_dot" = "Kiểm tra cập nhật...";
