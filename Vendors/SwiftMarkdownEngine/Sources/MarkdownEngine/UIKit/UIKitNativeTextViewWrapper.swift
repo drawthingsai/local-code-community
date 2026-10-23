@@ -269,8 +269,14 @@
       public func textViewDidChangeSelection(_ textView: UITextView) {
         guard !isProgrammaticEdit else { return }
         guard textView.markedTextRange == nil else { return }
-        refreshInlineSelection(textView)
-        applyStylePreservingSelection(textView)
+        if textView.isEditable {
+          refreshInlineSelection(textView)
+          applyStylePreservingSelection(textView)
+        } else {
+          // Read-only text styles the same for every selection. Restyling would lay out the whole
+          // document again on each step of a drag or autoscroll selecting through it.
+          (textView as? MarkdownTextView)?.updateSelectionHighlightViews()
+        }
         forwardingDelegate?.textViewDidChangeSelection?(textView)
       }
 
@@ -815,6 +821,7 @@
     private var tableHorizontalScrollOffsets: [Int: CGFloat] = [:]
     private let selectionHighlightView = UIView(frame: .zero)
     private let selectionHighlightLayer = CAShapeLayer()
+    private var selectionAutoscrollController: SelectionAutoscrollController? = nil
     private var latexImageViews: [UIImageView] = []
     private struct VideoEmbedID: Hashable {
       let url: URL
@@ -1235,6 +1242,7 @@
       selectionHighlightView.layer.zPosition = 1
       selectionHighlightView.layer.addSublayer(selectionHighlightLayer)
       insertSubview(selectionHighlightView, at: 0)
+      selectionAutoscrollController = SelectionAutoscrollController(textView: self)
       applyMarkdownConfiguration()
     }
 
