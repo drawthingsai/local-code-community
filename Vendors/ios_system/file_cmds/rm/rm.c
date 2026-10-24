@@ -203,7 +203,8 @@ rm_tree(argv)
 		flags |= FTS_NOSTAT;
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
-	if (!(fts = fts_open(argv, flags, NULL))) {
+	// iOS: the working directory is process-wide, so the walk must not chdir.
+	if (!(fts = fts_open(argv, flags | FTS_NOCHDIR, NULL))) {
 		if (fflag && errno == ENOENT)
 			return;
         err(1, NULL);

@@ -654,8 +654,9 @@ traverse(int argc, char *argv[], int options)
 	FTSENT *p, *chp;
 	int ch_options, error;
 
+	// iOS: the working directory is process-wide, so the walk must not chdir.
 	if ((ftsp =
-         fts_open(argv, options, f_nosort ? NULL : mastercmp)) == NULL) {
+         fts_open(argv, options | FTS_NOCHDIR, f_nosort ? NULL : mastercmp)) == NULL) {
 		err(1, "fts_open");
     }
 
