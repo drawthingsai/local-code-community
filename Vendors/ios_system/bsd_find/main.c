@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fts.h>
 #include <locale.h>
+#include <pthread.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,29 +63,48 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "find.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-time_t now;			/* time find was run */
-int dotfd;			/* starting directory */
-int ftsoptions;			/* options for the ftsopen(3) call */
-int ignore_readdir_race;	/* ignore readdir race */
-int isdepth;			/* do directories on post-order visit */
-int isoutput;			/* user specified output operator */
-int issort;         		/* do hierarchies in lexicographical order */
-int isxargs;			/* don't permit xargs delimiting chars */
-int mindepth = -1, maxdepth = -1; /* minimum and maximum depth */
-int regexp_flags = REG_BASIC;	/* use the "basic" regexp by default*/
-int exitstatus;
+// iOS: concurrent shell sessions can overlap find invocations, so all
+// traversal state is per-thread.
+__thread time_t now;			/* time find was run */
+__thread int dotfd = -1;		/* starting directory */
+__thread int ftsoptions;		/* options for the ftsopen(3) call */
+__thread int ignore_readdir_race;	/* ignore readdir race */
+__thread int isdepth;			/* do directories on post-order visit */
+__thread int isoutput;			/* user specified output operator */
+__thread int issort;			/* do hierarchies in lexicographical order */
+__thread int isxargs;			/* don't permit xargs delimiting chars */
+__thread int mindepth = -1, maxdepth = -1; /* minimum and maximum depth */
+__thread int regexp_flags = REG_BASIC;	/* use the "basic" regexp by default*/
+__thread int exitstatus;
 
 static void usage(void);
+
+static void find_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (tree != NULL) {
+		fts_close(tree);
+		tree = NULL;
+	}
+	if (dotfd >= 0) {
+		close(dotfd);
+		dotfd = -1;
+	}
+	ios_system_support_cleanup(unused);
+}
 
 int
 find_main(int argc, char *argv[])
 {
+	pthread_cleanup_push(find_cleanup, NULL);
+	ios_system_support_init(argv);
+
 	char **p, **start;
 	int Hflag, Lflag, ch;
 
-	(void)setlocale(LC_ALL, "");
+	/* Locale is owned by ios_system_support. */
 
 	(void)time(&now);	/* initialize the time-of-day */
 
@@ -174,6 +194,9 @@ find_main(int argc, char *argv[])
     ftsoptions |= FTS_NOCHDIR;
     
 	exit(find_execute(find_formplan(argv), start));
+
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void

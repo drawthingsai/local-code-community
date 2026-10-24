@@ -90,9 +90,9 @@ static void
 printtime(time_t ftime)
 {
 	char longstring[80];
-	static time_t lnow;
+	static __thread time_t lnow;
 	const char *format;
-	static int d_first = -1;
+	static __thread int d_first = -1;
 
 #ifdef D_MD_ORDER
 	if (d_first < 0)

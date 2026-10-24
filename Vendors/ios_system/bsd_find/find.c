@@ -167,7 +167,7 @@ find_formplan(char *argv[])
 	return (plan);
 }
 
-FTS *tree;			/* pointer to top of FTS hierarchy */
+__thread FTS *tree;		/* pointer to top of FTS hierarchy */
 
 /*
  * find_execute --

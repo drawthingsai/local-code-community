@@ -454,7 +454,10 @@ objc_library(
         ".",
         "bsd_find",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(

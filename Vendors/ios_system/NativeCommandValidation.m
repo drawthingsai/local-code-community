@@ -157,6 +157,62 @@ static void validateEntryLifetime(void)
         }
     }
     check(descriptorCount() == initialDescriptors, @"concurrent entries release descriptors");
+}
+
+/* Concurrent OSH sessions can overlap find walks. Each walk owns its FTS
+ * traversal; absolute roots keep the results independent of the process cwd. */
+static void validateConcurrentFind(void)
+{
+    enum { Walks = 8, Directories = 32, Files = 24 };
+    NSMutableArray<NSString *> *trees = [NSMutableArray array];
+    NSMutableArray<NSData *> *outputs = [NSMutableArray array];
+    for (int index = 0; index < Walks; ++index) {
+        NSString *tree = path([NSString stringWithFormat:@"find-%d", index]);
+        NSMutableString *listing = [NSMutableString string];
+        for (int directory = 0; directory < Directories; ++directory) {
+            NSString *parent = [tree stringByAppendingPathComponent:
+                [NSString stringWithFormat:@"d%02d", directory]];
+            check([NSFileManager.defaultManager createDirectoryAtPath:parent
+                withIntermediateDirectories:YES attributes:nil error:nil], @"create concurrent find fixture");
+            for (int file = 0; file < Files; ++file) {
+                NSString *item = [parent stringByAppendingPathComponent:
+                    [NSString stringWithFormat:@"f%02d", file]];
+                check([NSData.data writeToFile:item atomically:NO], @"write concurrent find fixture");
+                [listing appendFormat:@"%@\n", item];
+            }
+        }
+        [trees addObject:tree];
+        [outputs addObject:bytes(listing)];
+    }
+    NSUInteger initialDescriptors = descriptorCount();
+    for (int round = 0; round < 12; ++round) {
+        struct direct_invocation invocations[Walks] = {0};
+        pthread_t threads[Walks];
+        // find moves its path operands to the front of argv; free the originals.
+        char *strings[Walks][5];
+        for (int index = 0; index < Walks; ++index) {
+            NSArray<NSString *> *arguments = @[@"find", @"-s", trees[index], @"-type", @"f"];
+            struct direct_invocation *invocation = &invocations[index];
+            invocation->command = ios_command_lookup("find");
+            invocation->argc = (int)arguments.count;
+            invocation->argv = calloc(arguments.count + 1, sizeof(char *));
+            for (NSUInteger arg = 0; arg < arguments.count; ++arg)
+                invocation->argv[arg] = strings[index][arg] = strdup(arguments[arg].UTF8String);
+            invocation->input = tmpfile(); invocation->output = tmpfile(); invocation->error = tmpfile();
+            if (pthread_create(&threads[index], NULL, invokeEntry, invocation) != 0) abort();
+        }
+        for (int index = 0; index < Walks; ++index) {
+            pthread_join(threads[index], NULL);
+            struct direct_invocation *invocation = &invocations[index];
+            check([readStream(invocation->output) isEqual:outputs[index]] &&
+                readStream(invocation->error).length == 0,
+                [NSString stringWithFormat:@"concurrent find walk %d round %d", index, round]);
+            fclose(invocation->input); fclose(invocation->output); fclose(invocation->error);
+            for (int arg = 0; arg < invocation->argc; ++arg) free(strings[index][arg]);
+            free(invocation->argv);
+        }
+    }
+    check(descriptorCount() == initialDescriptors, @"concurrent find walks release descriptors");
 
 }
 
@@ -881,6 +937,7 @@ int ios_validateNativeCommands(void)
         validateJQ();
         validateInfoZip();
         validateEntryLifetime();
+        validateConcurrentFind();
         validateConcurrentSessions();
         validateConcurrentSystemPaths();
         for (int i = 0; i < 5; ++i) {

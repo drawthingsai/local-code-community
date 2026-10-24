@@ -76,7 +76,7 @@ static char *nextarg(OPTION *, char ***);
 
 extern char **environ;
 
-static PLAN *lastexecplus = NULL;
+static __thread PLAN *lastexecplus = NULL;
 
 #define	COMPARE(a, b) do {						\
 	switch (plan->flags & F_ELG_MASK) {				\
@@ -898,11 +898,11 @@ c_follow(OPTION *option, char ***argvp __unused)
 int
 f_fstype(PLAN *plan, FTSENT *entry)
 {
-	static dev_t curdev;	/* need a guaranteed illegal dev value */
-	static int first = 1;
+	static __thread dev_t curdev;	/* need a guaranteed illegal dev value */
+	static __thread int first = 1;
 	struct statfs sb;
-	static int val_flags;
-	static char fstype[sizeof(sb.f_fstypename)];
+	static __thread int val_flags;
+	static __thread char fstype[sizeof(sb.f_fstypename)];
 	char *p, save[2] = {0,0};
 
 	if ((plan->flags & F_MTMASK) == F_MTUNKNOWN)
@@ -1510,7 +1510,7 @@ c_simple(OPTION *option, char ***argvp __unused)
  *      megabytes, gigabytes, terabytes or petabytes respectively.
  */
 #define	FIND_SIZE	512
-static int divsize = 1;
+static __thread int divsize = 1;
 
 int
 f_size(PLAN *plan, FTSENT *entry)

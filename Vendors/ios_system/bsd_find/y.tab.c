@@ -188,25 +188,25 @@ typedef enum _MERIDIAN {
 **  yacc had the %union construct.)  Maybe someday; right now we only use
 **  the %union very rarely.
 */
-static char	*yyInput;
-static DSTMODE	yyDSTmode;
-static time_t	yyDayOrdinal;
-static time_t	yyDayNumber;
-static int	yyHaveDate;
-static int	yyHaveDay;
-static int	yyHaveRel;
-static int	yyHaveTime;
-static int	yyHaveZone;
-static time_t	yyTimezone;
-static time_t	yyDay;
-static time_t	yyHour;
-static time_t	yyMinutes;
-static time_t	yyMonth;
-static time_t	yySeconds;
-static time_t	yyYear;
-static MERIDIAN	yyMeridian;
-static time_t	yyRelMonth;
-static time_t	yyRelSeconds;
+static __thread char	*yyInput;
+static __thread DSTMODE	yyDSTmode;
+static __thread time_t	yyDayOrdinal;
+static __thread time_t	yyDayNumber;
+static __thread int	yyHaveDate;
+static __thread int	yyHaveDay;
+static __thread int	yyHaveRel;
+static __thread int	yyHaveTime;
+static __thread int	yyHaveZone;
+static __thread time_t	yyTimezone;
+static __thread time_t	yyDay;
+static __thread time_t	yyHour;
+static __thread time_t	yyMinutes;
+static __thread time_t	yyMonth;
+static __thread time_t	yySeconds;
+static __thread time_t	yyYear;
+static __thread MERIDIAN	yyMeridian;
+static __thread time_t	yyRelMonth;
+static __thread time_t	yyRelSeconds;
 
 
 /* Enabling traces.  */
@@ -1204,13 +1204,13 @@ int yyparse ();
 
 
 /* The look-ahead symbol.  */
-int yychar;
+__thread int yychar;
 
 /* The semantic value of the look-ahead symbol.  */
-YYSTYPE yylval;
+__thread YYSTYPE yylval;
 
 /* Number of syntax errors so far.  */
-int yynerrs;
+__thread int yynerrs;
 
 
 
