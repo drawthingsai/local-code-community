@@ -206,8 +206,8 @@ final class AccountClient {
 }
 
 enum AccountRouterConfiguration {
-  // api.drawthings.ai routes /code/v1/* to the router; workers.dev is blocked in mainland China.
-  static let baseURL = URL(string: "https://api.drawthings.ai/code")!
+  // The router's own domain; workers.dev is blocked in mainland China.
+  static let baseURL = URL(string: "https://api.getlocalcode.app")!
 
   static func appleWebSignInURL(bundle: Bundle = .main) -> URL? {
     let configured =
