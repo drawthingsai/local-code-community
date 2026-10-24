@@ -307,9 +307,10 @@ int numRsyncCommands = MaxRsyncCommands; // Apps can overwrite this
 static bool rsyncIsRunning[MaxRsyncCommands];
 static int currentRsyncCommand = 0;
 // prevent the user from running multiple curl commands too:
-static bool curlIsRunning = false;
+// (sessions start commands concurrently, so the slot is claimed atomically)
+static atomic_bool curlIsRunning = false;
 // prevent the user from running multiple scp commands as well (one is fine):
-static bool scpIsRunning = false;
+static atomic_bool scpIsRunning = false;
 
 
 // replace system-provided exit() by our own:
@@ -1124,6 +1125,7 @@ static pthread_mutex_t commandPathMutex = PTHREAD_MUTEX_INITIALIZER;
 static NSString *nodeNPMCommandPath = nil;
 static NSString *nodeNPXCommandPath = nil;
 static int isRealCommand(const char* fileName);
+static void initializeCommandList(void);
 
 static NSString * const ios_pythonVersionDirectory = @"python3.14";
 
@@ -1543,6 +1545,10 @@ void initializeEnvironment(void) {
     // iOS already defines "HOME" as the home dir of the application
     for (int i = 0; i < MaxPythonInterpreters; i++) PythonIsRunning[i] = false;
     for (int i = 0; i < MaxPerlInterpreters; i++) PerlIsRunning[i] = false;
+    // Build the command table before any session can run a command, so
+    // concurrent first commands only read it. Commands registered later are
+    // found through ios_command_lookup.
+    initializeCommandList();
     // environment variables for Python:
     NSString *pythonHome = ios_pythonHomePath(mainBundlePath, libPath);
     setenv("PYTHONHOME", pythonHome.UTF8String, 0);  // Bundled Library when available, otherwise ~/Library.
@@ -6157,26 +6163,24 @@ static int ios_system_command_line(const char* inputCmd) {
                     }
                 }
             } else if ([commandName isEqualToString: @"curl"]) {
-                if (curlIsRunning) {
+                bool idle = false;
+                if (!atomic_compare_exchange_strong(&curlIsRunning, &idle, true)) {
                     display_alert(@"Only one curl command at a time", @"Please wait for the other one to end.");
                     NSLog(@"%@", @"Too many curl commands running simultaneously.\n");
                     function = &too_many_scripts;
                     functionName = @"notAValidCommand";
                     currentSession->global_errno = ENOENT;
                     argv[0][0] = 'x'; // prevent reinitialization in cleanup_function
-                } else {
-                    curlIsRunning = true;
                 }
             } else if ([commandName isEqualToString: @"scp"] || [commandName isEqualToString: @"sftp"]) {
-                if (scpIsRunning) {
+                bool idle = false;
+                if (!atomic_compare_exchange_strong(&scpIsRunning, &idle, true)) {
                     display_alert(@"Only one scp or sftp command at a time", @"Please wait for the other one to end.");
                     NSLog(@"%@", @"Too many scp/sftp commands running simultaneously.\n");
                     function = &too_many_scripts;
                     functionName = @"notAValidCommand";
                     currentSession->global_errno = ENOENT;
                     argv[0][0] = 'x'; // prevent reinitialization in cleanup_function
-                } else {
-                    scpIsRunning = true;
                 }
             } else if ([commandName isEqualToString: @"rsync"] || [commandName isEqualToString: @"openrsync"]) {
                 // It's a rsync command. rsync between local directories requires two different commands.
