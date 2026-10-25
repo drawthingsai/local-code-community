@@ -5,21 +5,36 @@
 
 import Foundation
 
-/// Shared handling for the CommonMark leading-space rules on backtick fences.
+/// Shared handling for the CommonMark rules on backtick fences.
 /// A fence may be indented by up to three spaces; tabs and four-space
 /// indentation remain ordinary text. When an opening fence is indented, its
 /// indentation also controls how much leading space is removed from each code
-/// line for rendering while the source ranges stay unchanged.
+/// line for rendering while the source ranges stay unchanged. A fence is a run
+/// of three or more backticks, and a block closes only on a run at least as
+/// long as its opener with nothing but whitespace after it, so a longer fence
+/// can wrap content that contains ``` lines of its own.
 enum BacktickFence {
 
   private static let backtick: unichar = 0x60
   private static let space: unichar = 0x20
+  private static let tab: unichar = 0x09
+  private static let lf: unichar = 0x0A
+  private static let cr: unichar = 0x0D
 
   struct Match: Equatable {
     /// Absolute UTF-16 location of the first backtick.
     let markerLocation: Int
     /// Literal spaces before the backticks (`0...3`).
     let indentation: Int
+    /// Backticks in the fence run (`3...`).
+    let length: Int
+    /// Whether anything other than whitespace follows the run, such as a language.
+    let hasInfoString: Bool
+
+    /// Whether this line closes a block opened by `opening`.
+    func closes(_ opening: Match) -> Bool {
+      !hasInfoString && length >= opening.length
+    }
   }
 
   /// Dedented code plus the information needed to apply normalized ranges
@@ -83,14 +98,23 @@ enum BacktickFence {
       marker += 1
     }
 
-    guard marker + 2 < lineEnd,
-      text.character(at: marker) == backtick,
-      text.character(at: marker + 1) == backtick,
-      text.character(at: marker + 2) == backtick
-    else { return nil }
+    var markerEnd = marker
+    while markerEnd < lineEnd, text.character(at: markerEnd) == backtick { markerEnd += 1 }
+    guard markerEnd - marker >= 3 else { return nil }
+
+    // Line ranges may include the terminator, which is not an info string.
+    var infoStart = markerEnd
+    while infoStart < lineEnd {
+      let character = text.character(at: infoStart)
+      guard character == space || character == tab || character == lf || character == cr
+      else { break }
+      infoStart += 1
+    }
     return Match(
       markerLocation: marker,
-      indentation: marker - lineRange.location
+      indentation: marker - lineRange.location,
+      length: markerEnd - marker,
+      hasInfoString: infoStart < lineEnd
     )
   }
 

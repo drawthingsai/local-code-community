@@ -464,4 +464,28 @@ struct InlineParserTests {
   func escapeInsideCodeIgnored() {
     #expect(InlineParser.parse(#"`\*`"#) == [.code(range: r(0, 4), content: r(1, 2))])
   }
+
+  @Test("example 338: a backslash before the closing backtick does not escape it")
+  func backslashBeforeCloserIsLiteral() {
+    #expect(
+      InlineParser.parse(#"`foo\`bar`"#) == [
+        .code(range: r(0, 6), content: r(1, 4)),
+        .text(r(6, 4)),
+      ])
+    #expect(
+      InlineParser.parse(#"x `ls \` y"#) == [
+        .text(r(0, 2)),
+        .code(range: r(2, 6), content: r(3, 4)),
+        .text(r(8, 2)),
+      ])
+  }
+
+  @Test("a backslash before the opening backtick still escapes it")
+  func escapedOpenerIsNotCode() {
+    #expect(
+      InlineParser.parse(#"\`foo`"#) == [
+        .escape(range: r(0, 2), character: r(1, 1), marker: r(0, 1)),
+        .text(r(2, 4)),
+      ])
+  }
 }

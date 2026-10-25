@@ -41,6 +41,9 @@ struct MarkdownHTMLRendererTests {
     #expect(
       html("   ```\n   aaa\n    aaa\n  aaa\n   ```")
         == "<pre><code>aaa\n aaa\naaa</code></pre>")
+    #expect(
+      html("````markdown\n```sh\nls\n```\n````")
+        == "<pre><code class=\"language-markdown\">```sh\nls\n```</code></pre>")
   }
 
   @Test("unordered and ordered lists")

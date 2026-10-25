@@ -165,33 +165,38 @@ enum BlockLevelTokenizer {
   private static func codeBlock(in s: NSString) -> [MarkdownToken] {
     let len = s.length
     guard len >= 3 else { return [] }
-    let afterOpenLine = line(in: s, from: 0).nextStart
+    let openLine = line(in: s, from: 0)
+    guard
+      let openingFence = BacktickFence.match(
+        in: s, lineRange: NSRange(location: 0, length: openLine.contentEnd))
+    else { return [] }
+    let afterOpenLine = openLine.nextStart
     var lineStart = afterOpenLine
     var closingLineStart = -1
-    var closingMarkerStart = -1
+    var closingMarkerEnd = -1
     while lineStart < len {
       let currentLine = line(in: s, from: lineStart)
       if let closingFence = BacktickFence.match(
         in: s,
         lineRange: NSRange(location: lineStart, length: currentLine.contentEnd - lineStart)
-      ) {
+      ), closingFence.closes(openingFence) {
         closingLineStart = lineStart
-        closingMarkerStart = closingFence.markerLocation
+        closingMarkerEnd = closingFence.markerLocation + closingFence.length
         break
       }
       let next = currentLine.nextStart
       if next <= lineStart { break }
       lineStart = next
     }
-    guard closingMarkerStart >= 0 else { return [] }  // no closing fence → legacy didn't match
+    guard closingMarkerEnd >= 0 else { return [] }  // no closing fence → legacy didn't match
     return [
       MarkdownToken(
         kind: .codeBlock,
-        range: NSRange(location: 0, length: closingMarkerStart + 3),
+        range: NSRange(location: 0, length: closingMarkerEnd),
         contentRange: NSRange(location: afterOpenLine, length: closingLineStart - afterOpenLine),
         markerRanges: [
           NSRange(location: 0, length: afterOpenLine),
-          NSRange(location: closingLineStart, length: closingMarkerStart + 3 - closingLineStart),
+          NSRange(location: closingLineStart, length: closingMarkerEnd - closingLineStart),
         ])
     ]
   }

@@ -162,11 +162,11 @@ public struct CheckSmtTool {
     let lines = program.components(separatedBy: .newlines)
     switch moment {
     case .now where lines.count > 1:
-      return "**\(title)**: \n```\n\(program)\n```"
+      return "**\(title)**: \n\(MarkdownCode.block(program))"
     case .past where lines.count > 1:
-      return "**\(title)**: `\(lines[0])...`"
+      return "**\(title)**: \(MarkdownCode.inline("\(lines[0])..."))"
     default:
-      return "**\(title)**: `\(program)`"
+      return "**\(title)**: \(MarkdownCode.inline(program))"
     }
   }
 

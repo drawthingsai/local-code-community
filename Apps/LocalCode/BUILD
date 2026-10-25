@@ -598,6 +598,7 @@ swift_test(
     name = "CheckSmtToolTests",
     srcs = [
         "Sources/Agent/CheckSmtTool.swift",
+        "Sources/Agent/MarkdownCode.swift",
         "Sources/Agent/ToolCallParser.swift",
         "Sources/Agent/ToolSubtitleMoment.swift",
     ] + glob(["Tests/CheckSmtToolTests/**/*.swift"]),
@@ -605,6 +606,12 @@ swift_test(
         "//Libraries/Localization",
         "//Vendors/Z3:Z3Bridge",
     ],
+)
+
+swift_test(
+    name = "MarkdownCodeTests",
+    srcs = ["Sources/Agent/MarkdownCode.swift"] + glob(["Tests/MarkdownCodeTests/**/*.swift"]),
+    deps = ["//Vendors/SwiftMarkdownEngine:MarkdownEngine"],
 )
 
 swift_test(
@@ -732,6 +739,7 @@ swift_binary(
     name = "BrowserAPIProbe",
     srcs = [
         "Sources/Agent/BashTools.swift",
+        "Sources/Agent/MarkdownCode.swift",
         "Sources/Agent/ShellCommandParser.swift",
         "Sources/Agent/ToolCallParser.swift",
         "Sources/Agent/ToolSubtitleMoment.swift",
@@ -791,6 +799,7 @@ swift_test(
     name = "BashUserInteractionTests",
     srcs = [
         "Sources/Agent/BashTools.swift",
+        "Sources/Agent/MarkdownCode.swift",
         "Sources/Agent/ShellCommandParser.swift",
         "Sources/Agent/ToolCallParser.swift",
         "Sources/Agent/ToolSubtitleMoment.swift",
@@ -828,6 +837,7 @@ swift_library(
         "Sources/Agent/EnvironmentContext.swift",
         "Sources/Agent/EnvironmentContext+Detection.swift",
         "Sources/Agent/FileTools.swift",
+        "Sources/Agent/MarkdownCode.swift",
         "Sources/Agent/MemoryContext.swift",
         "Sources/Agent/MemoryTool.swift",
         "Sources/Agent/ProjectContext.swift",
@@ -1174,6 +1184,7 @@ swift_binary(
         "Sources/Agent/DeepSeekTextGenerator.swift",
         "Sources/Agent/EnvironmentContext.swift",
         "Sources/Agent/FileTools.swift",
+        "Sources/Agent/MarkdownCode.swift",
         "Sources/Agent/MemoryContext.swift",
         "Sources/Agent/MemoryTool.swift",
         "Sources/Agent/ProjectContext.swift",

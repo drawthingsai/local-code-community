@@ -99,10 +99,17 @@
     var previousActiveTokenIndices: Set<Int> = []
     var wikiLinkMetadata: [WikiLinkService.RangeKey: WikiLinkService.LinkMetadata] = [:]
     var previousBacktickCount: Int = 0
+    /// `MarkdownDetection.fenceShapes` of the whole document, kept alongside
+    /// the ``` count: a fence can change length, gain an info string, or swap
+    /// places with another, and re-pair every fence below it, without
+    /// changing that count.
+    var previousFenceShapes: [MarkdownDetection.FenceShape] = []
     /// Backtick census baseline captured in shouldChangeTextIn: the pre-edit
-    /// window count around the proposed edit, so textDidChange can update the
-    /// census from the edited window alone instead of rescanning the document.
-    var pendingBacktickWindow: (location: Int, oldLength: Int, oldCount: Int)?
+    /// window count and fence shapes around the proposed edit, so textDidChange
+    /// can update both from the edited window alone instead of rescanning the
+    /// document.
+    var pendingBacktickWindow:
+      (location: Int, oldLength: Int, oldCount: Int, oldFences: [MarkdownDetection.FenceShape])?
     /// Whether the PRE-edit text around the pending edit touched a registered
     /// extension block fence — captured in shouldChangeTextIn so a DELETED
     /// fence still forces the full restyle in textDidChange.

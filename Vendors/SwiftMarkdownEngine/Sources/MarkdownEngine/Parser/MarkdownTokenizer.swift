@@ -27,7 +27,7 @@ enum MarkdownTokenizer {
     guard markerEnd <= nsText.length,
       let openingFence = BacktickFence.match(in: nsText, lineRange: openingMarker)
     else { return nil }
-    let languageStart = openingFence.markerLocation + 3
+    let languageStart = openingFence.markerLocation + openingFence.length
     let langRange = NSRange(location: languageStart, length: markerEnd - languageStart)
 
     let langString = nsText.substring(with: langRange).trimmingCharacters(

@@ -3418,13 +3418,21 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         max(chainOfThoughtLines.count - Self.chainOfThoughtLineLimit, 0)
         / Self.chainOfThoughtLineLimit * Self.chainOfThoughtLineLimit
       if droppedLines > 0 {
-        // Reopen a code block the cut lands inside, or the rest would parse inside out.
-        let isInsideCodeBlock =
-          chainOfThoughtLines.prefix(droppedLines).filter {
-            $0.trimmingCharacters(in: .whitespaces).hasPrefix("```")
-          }.count % 2 == 1
+        // Reopen a code block the cut lands inside with its own fence, or the rest would parse
+        // inside out. A block closes only on a bare backtick run at least as long as its opener.
+        var openFence: String?
+        for line in chainOfThoughtLines.prefix(droppedLines) {
+          let trimmed = line.trimmingCharacters(in: .whitespaces)
+          let fence = trimmed.prefix { $0 == "`" }
+          guard fence.count >= 3 else { continue }
+          if let opening = openFence {
+            if fence.count >= opening.count, fence.count == trimmed.count { openFence = nil }
+          } else {
+            openFence = String(fence)
+          }
+        }
         chainOfThought =
-          (["..."] + (isInsideCodeBlock ? ["```"] : [])
+          (["..."] + (openFence.map { [$0] } ?? [])
           + chainOfThoughtLines.dropFirst(droppedLines)).joined(separator: "\n")
       }
       viewController.setLastMessage(

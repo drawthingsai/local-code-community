@@ -67,6 +67,7 @@
       backtickCensusNeedsRescan = false
       previousBacktickCount = MarkdownDetection.tripleBacktickCount(in: nsDisplay)
       let fullRange = NSRange(location: 0, length: nsDisplay.length)
+      previousFenceShapes = MarkdownDetection.fenceShapes(in: nsDisplay, lines: fullRange)
 
       let (baseFont, paragraph) = TextStylingService.makeBaseFontAndStyle(
         fontName: fontName,

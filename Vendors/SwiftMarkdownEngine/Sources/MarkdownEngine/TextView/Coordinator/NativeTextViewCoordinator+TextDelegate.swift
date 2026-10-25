@@ -212,13 +212,13 @@ extension NativeTextViewCoordinator {
         nextParagraph,
       ] + editedParagraphs
 
-    let backtickCount = PerfTrace.measure("backtick") {
+    let census = PerfTrace.measure("backtick") {
       incrementalBacktickCensus(
         fullText: fullText, editedRange: editedRange,
         lengthDelta: lengthDelta, trusted: singleTrackedEdit)
     }
-    let codeBlockStructureChanged = backtickCount != previousBacktickCount
-    previousBacktickCount = backtickCount
+    let codeBlockStructureChanged = census.count != previousBacktickCount || census.fencesChanged
+    previousBacktickCount = census.count
 
     let parsed = PerfTrace.measure("parse") {
       parsedDocument(
@@ -766,12 +766,15 @@ extension NativeTextViewCoordinator {
   /// Σ floor(runLen/3) over maximal backtick runs, so an edit only changes
   /// the contribution of runs it touches. `previousBacktickCount` minus the
   /// pre-edit window count (captured in shouldChangeTextIn) plus the
-  /// post-edit window count is exact. Any doubt → full scan.
+  /// post-edit window count is exact. Any doubt → full scan. The fence shapes
+  /// compare the edited lines before and after the edit, and update
+  /// `previousFenceShapes` from a full scan only when they changed.
   private func incrementalBacktickCensus(
     fullText: NSString, editedRange: NSRange,
     lengthDelta: Int, trusted: Bool
-  ) -> Int {
+  ) -> (count: Int, fencesChanged: Bool) {
     defer { pendingBacktickWindow = nil }
+    let fullRange = NSRange(location: 0, length: fullText.length)
     guard trusted, !backtickCensusNeedsRescan,
       let base = pendingBacktickWindow,
       lengthDelta != Int.min,
@@ -781,10 +784,21 @@ extension NativeTextViewCoordinator {
       NSMaxRange(editedRange) <= fullText.length
     else {
       backtickCensusNeedsRescan = false
-      return MarkdownDetection.tripleBacktickCount(in: fullText)
+      let fences = MarkdownDetection.fenceShapes(in: fullText, lines: fullRange)
+      let fencesChanged = fences != previousFenceShapes
+      previousFenceShapes = fences
+      return (MarkdownDetection.tripleBacktickCount(in: fullText), fencesChanged)
     }
     let newWindow = MarkdownDetection.backtickWindowCount(in: fullText, around: editedRange)
     let count = previousBacktickCount - base.oldCount + newWindow
+    let fencesChanged =
+      MarkdownDetection.fenceShapes(
+        in: fullText, lines: MarkdownDetection.editedLines(in: fullText, around: editedRange))
+      != base.oldFences
+    if fencesChanged {
+      // The full restyle this triggers costs far more than rescanning the fences.
+      previousFenceShapes = MarkdownDetection.fenceShapes(in: fullText, lines: fullRange)
+    }
     #if DEBUG
       // Opt-in (MD_PERF_VERIFY=1): the full scan is the O(doc) cost this
       // census exists to avoid — as a default-on sample it skews the numbers.
@@ -793,9 +807,12 @@ extension NativeTextViewCoordinator {
         assert(
           count == MarkdownDetection.tripleBacktickCount(in: fullText),
           "incremental backtick census diverged from the full scan")
+        assert(
+          previousFenceShapes == MarkdownDetection.fenceShapes(in: fullText, lines: fullRange),
+          "incremental fence shapes diverged from the full scan")
       }
     #endif
-    return count
+    return (count, fencesChanged)
   }
 
   public func textView(
@@ -843,7 +860,9 @@ extension NativeTextViewCoordinator {
     if affectedCharRange.location >= 0, NSMaxRange(affectedCharRange) <= preNS.length {
       pendingBacktickWindow = (
         affectedCharRange.location, affectedCharRange.length,
-        MarkdownDetection.backtickWindowCount(in: preNS, around: affectedCharRange)
+        MarkdownDetection.backtickWindowCount(in: preNS, around: affectedCharRange),
+        MarkdownDetection.fenceShapes(
+          in: preNS, lines: MarkdownDetection.editedLines(in: preNS, around: affectedCharRange))
       )
       pendingExtFenceTouched = editWindowTouchesExtensionFence(in: preNS, around: affectedCharRange)
       // An ordered item is added/removed only when the edit inserts or

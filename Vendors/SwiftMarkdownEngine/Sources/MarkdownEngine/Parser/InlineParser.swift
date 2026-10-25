@@ -170,7 +170,8 @@ enum InlineParser {
   {
     var k = from
     while k < len {
-      guard ns.character(at: k) == backtick, !isEscaped(k, ns) else {
+      // Backslashes are literal inside a code span, so `\` before the closer does not escape it.
+      guard ns.character(at: k) == backtick else {
         k += 1
         continue
       }

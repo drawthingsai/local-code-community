@@ -126,6 +126,50 @@ enum MarkdownDetection {
     return count
   }
 
+  /// The lines an edit of `range` touches. It starts a line early when a CR
+  /// precedes the edit, since the edit can split or join that CRLF and move
+  /// the line start, and it runs through the line holding the edit's end,
+  /// which a deleted line break joins on. The text outside matches before and
+  /// after the edit, so the same edit's two windows cover the same lines.
+  static func editedLines(in text: NSString, around range: NSRange) -> NSRange {
+    let start =
+      range.location > 0 && text.character(at: range.location - 1) == 0x0D
+      ? range.location - 1 : range.location
+    return NSUnionRange(
+      text.lineRange(for: NSRange(location: start, length: NSMaxRange(range) - start)),
+      text.lineRange(for: NSRange(location: NSMaxRange(range), length: 0)))
+  }
+
+  /// What decides how a backtick fence line pairs and how its block renders:
+  /// the run length and whether text follows it decide pairing, and an
+  /// opener's indentation is removed from each of its code lines.
+  struct FenceShape: Equatable {
+    let length: Int
+    let indentation: Int
+    let hasInfoString: Bool
+  }
+
+  /// The backtick fence lines in `lines`, in document order. An edit
+  /// re-pairs fences without changing the ``` count when it lengthens a run,
+  /// adds an info string to a closer, or swaps two fences; comparing an edit's
+  /// two `editedLines` windows catches all of these, because pairing depends
+  /// only on this sequence and the lines outside the windows are unchanged.
+  static func fenceShapes(in text: NSString, lines: NSRange) -> [FenceShape] {
+    var shapes: [FenceShape] = []
+    var lineStart = lines.location
+    while lineStart < NSMaxRange(lines) {
+      let line = text.lineRange(for: NSRange(location: lineStart, length: 0))
+      if let fence = BacktickFence.match(in: text, lineRange: line) {
+        shapes.append(
+          FenceShape(
+            length: fence.length, indentation: fence.indentation,
+            hasInfoString: fence.hasInfoString))
+      }
+      lineStart = NSMaxRange(line)
+    }
+    return shapes
+  }
+
   /// The ``` count contributed by the backtick runs that intersect `range`.
   /// The window expands through adjacent backticks on both sides, so every
   /// run inside it is a MAXIMAL run of the whole text — and the greedy global

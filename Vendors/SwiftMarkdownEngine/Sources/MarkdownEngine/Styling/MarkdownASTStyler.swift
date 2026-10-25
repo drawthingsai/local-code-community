@@ -761,7 +761,8 @@ enum MarkdownASTStyler {
     let closeMarkerStart = closingFence?.markerLocation ?? lastLine.location
     let closeFence = NSRange(
       location: lastLine.location,
-      length: min(NSMaxRange(lastLine), closeMarkerStart + 3) - lastLine.location
+      length: min(NSMaxRange(lastLine), closeMarkerStart + (closingFence?.length ?? 3))
+        - lastLine.location
     )
     let codeRange = NSRange(location: start, length: NSMaxRange(closeFence) - start)
     let contentRange = NSRange(location: openEnd, length: max(0, lastLine.location - openEnd))
@@ -772,7 +773,7 @@ enum MarkdownASTStyler {
     )
 
     var language: String?
-    let languageStart = openMarkerStart + 3
+    let languageStart = openMarkerStart + (openingFence?.length ?? 3)
     if languageStart < openEnd {
       let raw = ns.substring(
         with: NSRange(location: languageStart, length: openEnd - languageStart)

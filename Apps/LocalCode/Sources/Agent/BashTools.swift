@@ -1005,9 +1005,9 @@ public struct BashTool {
     }
     let lines = command.components(separatedBy: .newlines)
     if lines.count <= 1 {
-      return "**\(title)**: `\(command)`"
+      return "**\(title)**: \(MarkdownCode.inline(command))"
     } else {
-      return "**\(title)**: \n```\n\(command)\n```"
+      return "**\(title)**: \n\(MarkdownCode.block(command))"
     }
   }
 
