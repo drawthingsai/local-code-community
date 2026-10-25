@@ -484,6 +484,17 @@ final class ChatWorkflow: Workflow {
     // background.
     settingsWorkflow.refreshProtectedResourcePermissions()
     openPendingNotificationThread()
+    // A turn that finished while the app was inactive marked the open thread unread; it is on
+    // screen again, so mark it read the way opening it does.
+    if let projectURL, let projectHistoryManager, projectHistoryManager.threadId >= 0 {
+      let projectPath = projectURL.standardizedFileURL.resolvingSymlinksInPath().path
+      if isViewingThread(projectPath: projectPath, threadId: projectHistoryManager.threadId) {
+        projectHistoryManager.setThreadHasUnreadResponse(
+          id: projectHistoryManager.threadId, hasUnreadResponse: false)
+        threadNotifications.clear(
+          projectPath: projectPath, threadId: projectHistoryManager.threadId)
+      }
+    }
     // The welcome thread opened at launch was not on screen yet, so its introduction starts here.
     onboardingWorkflow?.viewController.startIntroduction()
   }
