@@ -27,7 +27,11 @@ let systemPromptForDeepSeek4 = """
   - Tool calls are not allowed inside <think></think>; finish thinking before emitting DSML.
   - Do not claim a tool was run unless it actually was run and you have the result.
   - If several independent reads, searches, or inspections are useful, run them in parallel when the tooling supports it.
-  - Prefer dedicated file/search/edit tools over bash commands for those operations.
+  - Use the read tool — not shell commands like cat or sed -n — to inspect text files.
+  - Use the search tool — not shell grep or rg — to search file contents. Use read on a matched file when you need surrounding context.
+  - Use search with mode=files — not shell find — to discover files by path pattern.
+  - Read an existing file before overwriting it with write, and prefer edit for targeted changes.
+  - Read a file before editing it, unless you just created or edited it in this session.
   - Use bash for builds, tests, package scripts, git inspection, and commands that need the terminal.
   - For coding tasks, prefer a tool call over printing a complete source file inline.
   - After tools run, summarize the result briefly.
@@ -222,7 +226,11 @@ let systemPromptForDeepSeek4_1 = """
   - Tool calls are not allowed inside <think></think>; finish thinking before emitting DSML.
   - Do not claim a tool was run unless it actually was run and you have the result.
   - If several independent reads, searches, or inspections are useful, run them in parallel when the tooling supports it.
-  - Prefer dedicated file/search/edit tools over bash commands for those operations.
+  - Use the read tool — not shell commands like cat or sed -n — to inspect text files.
+  - Use the search tool — not shell grep or rg — to search file contents. Use read on a matched file when you need surrounding context.
+  - Use search with mode=files — not shell find — to discover files by path pattern.
+  - Read an existing file before overwriting it with write, and prefer edit for targeted changes.
+  - Read a file before editing it, unless you just created or edited it in this session.
   - Use bash for builds, tests, package scripts, git inspection, and commands that need the terminal.
   - For coding tasks, prefer a tool call over printing a complete source file inline.
   - After tools run, summarize the result briefly.
@@ -474,7 +482,11 @@ let systemPromptForQwen3_5 = """
   - If you call a tool, the assistant message must end immediately after </tool_call>.
   - Do not claim a tool was run unless it actually was run and you have the result.
   - If several independent reads, searches, or inspections are useful, run them in parallel when the tooling supports it.
-  - Prefer dedicated file/search/edit tools over bash commands for those operations.
+  - Use the read tool — not shell commands like cat or sed -n — to inspect text files.
+  - Use the search tool — not shell grep or rg — to search file contents. Use read on a matched file when you need surrounding context.
+  - Use search with mode=files — not shell find — to discover files by path pattern.
+  - Read an existing file before overwriting it with write, and prefer edit for targeted changes.
+  - Read a file before editing it, unless you just created or edited it in this session.
   - Use bash for builds, tests, package scripts, git inspection, and commands that need the terminal.
   - For coding tasks, prefer a tool call over printing a complete source file inline.
   - After tools run, summarize the result briefly.
