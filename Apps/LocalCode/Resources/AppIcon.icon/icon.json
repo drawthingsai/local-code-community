@@ -1,44 +1,22 @@
 {
-  "fill" : "automatic",
+  "fill" : {
+    "solid" : "display-p3:1.00000,0.36863,0.30196,1.00000"
+  },
   "groups" : [
     {
-      "blend-mode" : "normal",
-      "blur-material" : 0.5,
       "layers" : [
         {
-          "blend-mode" : "normal",
-          "fill" : "none",
-          "glass" : true,
-          "hidden" : false,
-          "image-name" : "monkey-type-keyboard-1024-fg.png",
-          "name" : "monkey-type-keyboard-1024-fg",
-          "opacity" : 1,
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              0,
-              0
-            ]
-          }
-        },
-        {
-          "fill" : "none",
-          "glass" : false,
-          "hidden" : false,
-          "image-name" : "monkey-type-keyboard-1024-bg.png",
-          "name" : "monkey-type-keyboard-1024-bg"
+          "image-name" : "monkey-astronaut-1024.png",
+          "name" : "monkey-astronaut-1024"
         }
       ],
-      "lighting" : "individual",
-      "opacity" : 1,
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
       },
-      "specular" : true,
       "translucency" : {
-        "enabled" : false,
-        "value" : 0.5
+        "enabled" : true,
+        "value" : 0.3
       }
     }
   ],
