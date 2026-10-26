@@ -995,6 +995,15 @@ swift_binary(
 )
 
 swift_binary(
+    name = "PerplexityDeciderFlashEvalCLI",
+    srcs = ["Eval/PerplexityDeciderFlashEvalCLI.swift"],
+    deps = [
+        "//Libraries/SwiftLLM",
+        "@SwiftArgumentParser//:ArgumentParser",
+    ],
+)
+
+swift_binary(
     name = "QwenLongBenchV2EvalCLI",
     srcs = [
         "Eval/QwenLongBenchV2EvalCLI.swift",

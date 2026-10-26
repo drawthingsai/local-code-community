@@ -196,6 +196,72 @@ final class ToolCallParserTests: XCTestCase {
     }
   }
 
+  func testQwenParameterValueCanContainEndTags() {
+    let output = """
+      I'll write the fixture.
+      <tool_call>
+      <function=write>
+      <parameter=content>
+      let end = "</tool_call>"
+      let close = "</function>"
+      </parameter>
+      </function>
+      </tool_call>
+      """
+    let content = """
+      let end = "</tool_call>"
+      let close = "</function>"
+      """
+    for split in output.indices {
+      var parser = Qwen3_5ToolCallParser()
+      parser.append(String(output[..<split]))
+      parser.append(String(output[split...]))
+      XCTAssertEqual(parser.toolCalls.count, 1)
+      XCTAssertEqual(parser.toolCalls.first?.request.parameters["content"]?.value, content)
+      XCTAssertFalse(parser.hasIncompleteToolCall)
+    }
+    XCTAssertEqual(Qwen3_5ToolCallParser.removeToolCalls(output), "I'll write the fixture.\n")
+    XCTAssertEqual(
+      Qwen3_5ToolCallParser.removeToolCalls(
+        "answer<tool_call>\n<function=write>\n<parameter=content>\n</tool_call>"), "answer")
+  }
+
+  func testQwenMalformedToolCallEndsAtFirstEndTag() {
+    let output = """
+      <tool_call>
+      <function=read>
+      <parameter=path>
+      a.txt
+      </function>
+      </tool_call>
+      between
+      <tool_call>
+      <function=read>
+      <parameter=path>
+      b.txt
+      </parameter>
+      </function>
+      </tool_call>
+      """
+    var parser = Qwen3_5ToolCallParser()
+    parser.append(output)
+    XCTAssertEqual(parser.toolCalls.map { $0.request.parameters["path"]?.value }, ["b.txt"])
+    XCTAssertEqual(Qwen3_5ToolCallParser.removeToolCalls(output), "\nbetween\n")
+  }
+
+  func testQwenToolCallMissingFunctionEndEndsAfterParametersClose() {
+    let output =
+      "before<tool_call><function=read><parameter=path>a.txt</parameter></tool_call>after"
+    for split in output.indices {
+      var parser = Qwen3_5ToolCallParser()
+      parser.append(String(output[..<split]))
+      parser.append(String(output[split...]))
+      XCTAssertTrue(parser.toolCalls.isEmpty)
+      XCTAssertFalse(parser.hasIncompleteToolCall)
+    }
+    XCTAssertEqual(Qwen3_5ToolCallParser.removeToolCalls(output), "beforeafter")
+  }
+
   func testQwenStreamedToolCallParametersOnlyGrow() {
     assertStreamedParametersOnlyGrow(
       """

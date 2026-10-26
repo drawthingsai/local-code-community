@@ -32,7 +32,7 @@ public struct Qwen3_5ToolCallParser {
 
     var emitted = [ToolCall]()
     while true {
-      guard let rawBlock = nextCompleteToolCallBlock() else {
+      guard let parsed = nextCompleteToolCallBlock() else {
         trimLeadingTextBeforePotentialToolCall()
         hasIncompleteToolCall = buffer.hasPrefix(Self.toolCallStart)
         if hasIncompleteToolCall {
@@ -45,14 +45,32 @@ public struct Qwen3_5ToolCallParser {
           toolCalls: emitted, incompleteToolCall: incompleteToolCall,
           hasIncompleteToolCall: hasIncompleteToolCall)
       }
-      do {
-        var parser = Parser(rawBlock)
-        let parsed = try parser.parseToolCallBlock(nextToolCallId: &nextToolCallId)
-        toolCalls.append(contentsOf: parsed)
-        emitted.append(contentsOf: parsed)
-      } catch {
-      }
+      toolCalls.append(contentsOf: parsed)
+      emitted.append(contentsOf: parsed)
     }
+  }
+
+  /// Removes each block up to where `append(_:)` ends it, so an end tag inside a parameter value
+  /// does not leak the rest of the block.
+  public static func removeToolCalls(_ string: String) -> String {
+    var output = ""
+    var nextToolCallId: Int32 = 0
+    var index = string.startIndex
+    while let startRange = string[index...].range(of: toolCallStart) {
+      output += String(string[index..<startRange.lowerBound])
+      guard
+        let block = toolCallBlock(
+          string[startRange.lowerBound...], nextToolCallId: &nextToolCallId)
+      else {
+        index = string.endIndex
+        break
+      }
+      index = block.endIndex
+    }
+    output += String(string[index...])
+    ToolCallParser.removeTrailingPartialDelimiter(
+      &output, toolCallStart: toolCallStart, toolCallEnd: toolCallEnd)
+    return output
   }
 
   public mutating func reset() {
@@ -63,19 +81,57 @@ public struct Qwen3_5ToolCallParser {
     hasIncompleteToolCall = false
   }
 
-  private mutating func nextCompleteToolCallBlock() -> String? {
+  private mutating func nextCompleteToolCallBlock() -> [ToolCall]? {
     guard let startRange = buffer.range(of: Self.toolCallStart) else {
       return nil
     }
     if startRange.lowerBound > buffer.startIndex {
       buffer.removeSubrange(buffer.startIndex..<startRange.lowerBound)
     }
-    guard let endRange = buffer.range(of: Self.toolCallEnd) else {
+    guard let block = Self.toolCallBlock(buffer[...], nextToolCallId: &nextToolCallId) else {
       return nil
     }
-    let rawBlock = String(buffer[buffer.startIndex..<endRange.upperBound])
-    buffer.removeSubrange(buffer.startIndex..<endRange.upperBound)
-    return rawBlock
+    buffer.removeSubrange(buffer.startIndex..<block.endIndex)
+    return block.toolCalls
+  }
+
+  // An end tag between a function's start and end tags belongs to a parameter value, so the block
+  // ends at the first end tag outside its functions. A block that does not parse to there ends at
+  // its first end tag, as before. Returns nil while the block is incomplete.
+  private static func toolCallBlock(
+    _ text: Substring, nextToolCallId: inout Int32
+  ) -> (endIndex: String.Index, toolCalls: [ToolCall])? {
+    var index = text.index(text.startIndex, offsetBy: toolCallStart.count)
+    var blockEnd: String.Index?
+    while let endRange = text[index...].range(of: toolCallEnd) {
+      guard
+        let functionRange = text[index..<endRange.lowerBound].range(of: Parser.functionStart)
+      else {
+        blockEnd = endRange.upperBound
+        break
+      }
+      guard
+        let functionEndRange = text[functionRange.upperBound...].range(of: Parser.functionEnd)
+      else {
+        // Without a function end tag, the end tag can only be part of a value still streaming in
+        // an open parameter. Once the parameters close, more text cannot make the block parse.
+        let arguments = text[functionRange.upperBound..<endRange.lowerBound]
+        if let parameterRange = arguments.range(of: Parser.parameterStart, options: .backwards),
+          arguments[parameterRange.upperBound...].range(of: Parser.parameterEnd) == nil
+        {
+          return nil
+        }
+        blockEnd = endRange.upperBound
+        break
+      }
+      index = functionEndRange.upperBound
+    }
+    guard let blockEnd else { return nil }
+    var parser = Parser(String(text[..<blockEnd]))
+    if let parsed = try? parser.parseToolCallBlock(nextToolCallId: &nextToolCallId) {
+      return (blockEnd, parsed)
+    }
+    return (text.range(of: toolCallEnd)?.upperBound ?? blockEnd, [])
   }
 
   private mutating func trimLeadingTextBeforePotentialToolCall() {
@@ -125,10 +181,10 @@ extension Qwen3_5ToolCallParser {
   fileprivate struct Parser {
     private static let toolCallStart = "<tool_call>"
     private static let toolCallEnd = "</tool_call>"
-    private static let functionStart = "<function="
-    private static let functionEnd = "</function>"
-    private static let parameterStart = "<parameter="
-    private static let parameterEnd = "</parameter>"
+    static let functionStart = "<function="
+    static let functionEnd = "</function>"
+    static let parameterStart = "<parameter="
+    static let parameterEnd = "</parameter>"
 
     private let text: String
     private var index: String.Index
