@@ -601,10 +601,9 @@ extension Qwen3_5CodeAgent {
         state.toolExecution = toolExecution
         saveCheckpoint(generation)
         var toolCalls = toolExecution.toolCalls
-        let visibleText = ToolCallParser.removeToolCalls(
+        let reason = ToolCallParser.removeToolCalls(
           latestParsed.output, toolCallStart: toolCallStart, toolCallEnd: toolCallEnd
         ).trimmingCharacters(in: .whitespacesAndNewlines)
-        let reason = visibleText.isEmpty ? nil : visibleText
         for index in toolCalls.indices {
           toolCalls[index].response = toolExecution.responses[toolCalls[index].id]
           toolCalls[index].reason = reason

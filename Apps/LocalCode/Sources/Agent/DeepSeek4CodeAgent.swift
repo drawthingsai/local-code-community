@@ -932,10 +932,9 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
             state.toolExecution = toolExecution
             saveCheckpoint(generation)
             var toolCalls = toolExecution.toolCalls
-            let visibleText = ToolCallParser.removeToolCalls(
+            let reason = ToolCallParser.removeToolCalls(
               latestParsed.output, format: Self.toolCallFormat
             ).trimmingCharacters(in: .whitespacesAndNewlines)
-            let reason = visibleText.isEmpty ? nil : visibleText
             for index in toolCalls.indices {
               toolCalls[index].response = toolExecution.responses[toolCalls[index].id]
               toolCalls[index].reason = reason

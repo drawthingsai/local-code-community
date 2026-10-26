@@ -70,6 +70,7 @@ public struct ToolCall: Codable, Sendable {
   public var request: Request
   public var response: ToolResponse?
   /// Visible assistant text accompanying this call, shared by calls in the same generation.
+  /// Empty when the generation had no text; nil only for calls recorded before this existed.
   public var reason: String?
 
   public init(
