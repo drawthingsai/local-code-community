@@ -16,9 +16,16 @@ public enum ToolCallParser {
       index = endRange.upperBound
     }
     output += String(string[index...])
+    removeTrailingPartialDelimiter(
+      &output, toolCallStart: toolCallStart, toolCallEnd: toolCallEnd)
+    return output
+  }
 
-    // A multi-token delimiter can be split at the end of the response while streaming.
-    // Only proper prefixes qualify; a complete orphan delimiter is malformed input.
+  // A multi-token delimiter can be split at the end of the response while streaming.
+  // Only proper prefixes qualify; a complete orphan delimiter is malformed input.
+  static func removeTrailingPartialDelimiter(
+    _ output: inout String, toolCallStart: String, toolCallEnd: String
+  ) {
     let maximumTrailingMatchLength = min(
       output.count, max(toolCallStart.count - 1, toolCallEnd.count - 1))
     if maximumTrailingMatchLength > 0 {
@@ -33,7 +40,6 @@ public enum ToolCallParser {
         }
       }
     }
-    return output
   }
 
 }
@@ -63,12 +69,18 @@ public struct ToolCall: Codable, Sendable {
   public var raw: String
   public var request: Request
   public var response: ToolResponse?
+  /// Visible assistant text accompanying this call, shared by calls in the same generation.
+  public var reason: String?
 
-  public init(id: Int32, raw: String = "", request: Request, response: ToolResponse? = nil) {
+  public init(
+    id: Int32, raw: String = "", request: Request, response: ToolResponse? = nil,
+    reason: String? = nil
+  ) {
     self.id = id
     self.raw = raw
     self.request = request
     self.response = response
+    self.reason = reason
   }
 }
 

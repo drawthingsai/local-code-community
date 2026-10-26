@@ -62,9 +62,11 @@ extension ToolCall: FlatBuffersEncodable {
       __parameters.append(i.to(flatBufferBuilder: &flatBufferBuilder))
     }
     let __vector_parameters = flatBufferBuilder.createVector(ofOffsets: __parameters)
+    let __reason = self.reason.map { flatBufferBuilder.create(string: $0) } ?? Offset()
     let start = zzz_DflatGen_ToolCall.startToolCall(&flatBufferBuilder)
     zzz_DflatGen_ToolCall.add(function: __function, &flatBufferBuilder)
     zzz_DflatGen_ToolCall.addVectorOf(parameters: __vector_parameters, &flatBufferBuilder)
+    zzz_DflatGen_ToolCall.add(reason: __reason, &flatBufferBuilder)
     return zzz_DflatGen_ToolCall.endToolCall(&flatBufferBuilder, start: start)
   }
 }

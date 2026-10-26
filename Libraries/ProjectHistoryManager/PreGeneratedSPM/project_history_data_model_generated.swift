@@ -91,9 +91,12 @@ public struct ToolCallParameter: Equatable, FlatBuffersDecodable {
 public struct ToolCall: Equatable, FlatBuffersDecodable {
   public var function: String?
   public var parameters: [ToolCallParameter]
-  public init(function: String? = nil, parameters: [ToolCallParameter]? = []) {
+  public var reason: String?
+  public init(function: String? = nil, parameters: [ToolCallParameter]? = [], reason: String? = nil)
+  {
     self.function = function ?? nil
     self.parameters = parameters ?? []
+    self.reason = reason ?? nil
   }
   public init(_ obj: zzz_DflatGen_ToolCall) {
     self.function = obj.function
@@ -103,6 +106,7 @@ public struct ToolCall: Equatable, FlatBuffersDecodable {
       __parameters.append(ToolCallParameter(o))
     }
     self.parameters = __parameters
+    self.reason = obj.reason
   }
 
   public static func from(byteBuffer bb: ByteBuffer) -> Self {

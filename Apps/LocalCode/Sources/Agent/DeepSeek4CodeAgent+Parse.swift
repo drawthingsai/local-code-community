@@ -76,8 +76,7 @@ extension DeepSeek4CodeAgent {
           })
       }
       let text = ToolCallParser.removeToolCalls(
-        output, toolCallStart: format.toolCallStart,
-        toolCallEnd: format.toolCallEnd
+        output, format: format
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       transcript.append(.assistant(text: text, thinking: thinking, toolCalls: toolCalls))
     }

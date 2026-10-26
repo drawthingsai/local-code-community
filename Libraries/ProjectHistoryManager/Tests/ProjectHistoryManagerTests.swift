@@ -574,7 +574,7 @@ final class ProjectHistoryManagerTests: XCTestCase {
     XCTAssertEqual(restoredManager.context(threadId: thread.id).tokens, [20, 21, 30, 31])
   }
 
-  func testAssistantToolCallsPersistInOrder() {
+  func testAssistantToolCallsPersistReasonsInOrder() {
     let databaseURL = temporaryDirectory.appendingPathComponent("metadata.sqlite3")
     let manager = ProjectHistoryManager(project: workspace)
     let thread = createThread(manager, title: "Thread", model: "model.ckpt", tokens: [1])
@@ -583,13 +583,18 @@ final class ProjectHistoryManagerTests: XCTestCase {
         function: "read",
         parameters: [
           ToolCallParameter(name: "path", value: "Sources/One.swift")
-        ]),
+        ], reason: "I'll inspect the source and search for references. 🔎"),
       ToolCall(
         function: "search",
         parameters: [
           ToolCallParameter(name: "query", value: "ProjectHistoryNode"),
           ToolCallParameter(name: "path", value: "Libraries"),
-        ]),
+        ], reason: "I'll inspect the source and search for references. 🔎"),
+      ToolCall(
+        function: "read",
+        parameters: [ToolCallParameter(name: "path", value: "Libraries/Two.swift")],
+        reason: "The search found a second implementation.\nI'll check it next."),
+      ToolCall(function: "read", parameters: []),
     ]
 
     _ = appendAssistant(
@@ -603,6 +608,7 @@ final class ProjectHistoryManagerTests: XCTestCase {
 
     let restoredAssistant = restoredManager.history(threadId: thread.id).last
     XCTAssertEqual(restoredAssistant?.toolCalls, toolCalls)
+    XCTAssertNil(restoredAssistant?.toolCalls.last?.reason)
     XCTAssertNil(restoredAssistant?.plaintext)
     XCTAssertNil(restoredAssistant?.logPlaintext)
   }

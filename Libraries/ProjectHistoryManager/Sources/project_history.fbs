@@ -18,6 +18,8 @@ table ToolCallParameter {
 table ToolCall {
   function: string;
   parameters: [ToolCallParameter];
+  // Visible assistant text accompanying this call, shared by calls in the same generation.
+  reason: string;
 }
 
 enum EmbedKind: ubyte {

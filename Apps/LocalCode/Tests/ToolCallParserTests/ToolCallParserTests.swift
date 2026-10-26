@@ -1,8 +1,34 @@
+import Foundation
 import XCTest
 
 final class ToolCallParserTests: XCTestCase {
   private let toolCallStart = "<｜DSML｜tool_calls>"
   private let toolCallEnd = "</｜DSML｜tool_calls>"
+
+  func testToolCallReasonSurvivesSuspensionEncoding() throws {
+    let call = ToolCall(
+      id: 1, raw: "tool call", request: .init(function: "read", parameters: [:]),
+      response: ToolResponse(text: "file contents"),
+      reason: "I'll inspect the implementation. 🔎\nThen check its callers.")
+    let restored = try JSONDecoder().decode(
+      ToolCall.self, from: JSONEncoder().encode(call))
+    XCTAssertEqual(restored.reason, call.reason)
+    XCTAssertEqual(restored.id, call.id)
+    XCTAssertEqual(restored.raw, call.raw)
+    XCTAssertEqual(restored.request.function, call.request.function)
+    XCTAssertEqual(restored.response, call.response)
+  }
+
+  func testToolCallSuspensionWithoutReasonStillDecodes() throws {
+    let data = Data(
+      #"{"id":1,"raw":"tool call","request":{"function":"read","parameters":{"path":{"string":true,"value":"file.swift"}}},"response":"file contents"}"#
+        .utf8)
+    let call = try JSONDecoder().decode(ToolCall.self, from: data)
+    XCTAssertNil(call.reason)
+    XCTAssertEqual(call.request.function, "read")
+    XCTAssertEqual(call.request.parameters["path"]?.value, "file.swift")
+    XCTAssertEqual(call.response, ToolResponse(text: "file contents"))
+  }
 
   // Fixture matches encoding.py's V4.1 encode_arguments_to_dsml / tool_calls_template.
   func testDeepSeek41StreamingAndBatchParsing() throws {
@@ -69,6 +95,27 @@ final class ToolCallParserTests: XCTestCase {
     XCTAssertTrue(parser.didCompleteToolCallBlock)
     XCTAssertEqual(
       parser.toolCalls.first?.request.parameters["content"]?.value, "</｜DSML｜ parameter>")
+  }
+
+  func testDeepSeekRemovesToolCallWithEndDelimiterInParameter() throws {
+    let format = DeepSeek4ToolCallParser.Format(version: .deepseek_4_flash)
+    let block = """
+      <｜DSML｜tool_calls>
+      <｜DSML｜invoke name="write">
+      <｜DSML｜parameter name="content" string="true">let end = "</｜DSML｜tool_calls>"</｜DSML｜parameter>
+      </｜DSML｜invoke>
+      </｜DSML｜tool_calls>
+      """
+    let output = "I'll write the fixture.\n\n" + block + "after"
+    let call = try XCTUnwrap(ToolCallParser.parse(output, format: format).first)
+    XCTAssertEqual(
+      call.request.parameters["content"]?.value, #"let end = "</｜DSML｜tool_calls>""#)
+    XCTAssertEqual(
+      ToolCallParser.removeToolCalls(output, format: format),
+      "I'll write the fixture.\n\nafter")
+    XCTAssertEqual(
+      ToolCallParser.removeToolCalls("answer<｜DSML｜tool_calls>call", format: format), "answer")
+    XCTAssertEqual(ToolCallParser.removeToolCalls("answer</｜DSML｜", format: format), "answer")
   }
 
   func testRemovesCompleteAndIncompleteToolCalls() {

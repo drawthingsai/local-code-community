@@ -186,6 +186,7 @@ public struct zzz_DflatGen_ToolCall: FlatBufferObject, Verifiable {
   private enum VTOFFSET: VOffset {
     case function = 4
     case parameters = 6
+    case reason = 8
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
@@ -210,14 +211,22 @@ public struct zzz_DflatGen_ToolCall: FlatBufferObject, Verifiable {
       : zzz_DflatGen_ToolCallParameter(
         _accessor.bb, o: _accessor.indirect(_accessor.vector(at: o) + index * 4))
   }
+  public var reason: String? {
+    let o = _accessor.offset(VTOFFSET.reason.v)
+    return o == 0 ? nil : _accessor.string(at: o)
+  }
+  public var reasonSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.reason.v) }
   public static func startToolCall(_ fbb: inout FlatBufferBuilder) -> UOffset {
-    fbb.startTable(with: 2)
+    fbb.startTable(with: 3)
   }
   public static func add(function: Offset, _ fbb: inout FlatBufferBuilder) {
     fbb.add(offset: function, at: VTOFFSET.function.p)
   }
   public static func addVectorOf(parameters: Offset, _ fbb: inout FlatBufferBuilder) {
     fbb.add(offset: parameters, at: VTOFFSET.parameters.p)
+  }
+  public static func add(reason: Offset, _ fbb: inout FlatBufferBuilder) {
+    fbb.add(offset: reason, at: VTOFFSET.reason.p)
   }
   public static func endToolCall(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset {
     let end = Offset(offset: fbb.endTable(at: start))
@@ -226,11 +235,13 @@ public struct zzz_DflatGen_ToolCall: FlatBufferObject, Verifiable {
   public static func createToolCall(
     _ fbb: inout FlatBufferBuilder,
     functionOffset function: Offset = Offset(),
-    parametersVectorOffset parameters: Offset = Offset()
+    parametersVectorOffset parameters: Offset = Offset(),
+    reasonOffset reason: Offset = Offset()
   ) -> Offset {
     let __start = zzz_DflatGen_ToolCall.startToolCall(&fbb)
     zzz_DflatGen_ToolCall.add(function: function, &fbb)
     zzz_DflatGen_ToolCall.addVectorOf(parameters: parameters, &fbb)
+    zzz_DflatGen_ToolCall.add(reason: reason, &fbb)
     return zzz_DflatGen_ToolCall.endToolCall(&fbb, start: __start)
   }
 
@@ -245,6 +256,9 @@ public struct zzz_DflatGen_ToolCall: FlatBufferObject, Verifiable {
       type: ForwardOffset<
         Vector<ForwardOffset<zzz_DflatGen_ToolCallParameter>, zzz_DflatGen_ToolCallParameter>
       >.self)
+    try _v.visit(
+      field: VTOFFSET.reason.p, fieldName: "reason", required: false,
+      type: ForwardOffset<String>.self)
     _v.finish()
   }
 }

@@ -136,35 +136,65 @@ extension ToolCallParser {
   public static func parse(
     _ string: String, format: DeepSeek4ToolCallParser.Format
   ) -> [ToolCall] {
-    let toolCallStart = format.toolCallStart
-    let toolCallEnd = format.toolCallEnd
     var toolCalls = [ToolCall]()
     var nextToolCallId: Int32 = 0
     var index = string.startIndex
-    while let startRange = string[index...].range(of: toolCallStart) {
-      var firstEndIndex: String.Index?
-      var endSearchIndex = startRange.upperBound
-      var didParseBlock = false
-      while let endRange = string[endSearchIndex...].range(of: toolCallEnd) {
-        firstEndIndex = firstEndIndex ?? endRange.upperBound
-        let block = String(string[startRange.lowerBound..<endRange.upperBound])
-        var parser = DeepSeek4ToolCallParser.Parser(
-          block, format: format)
-        var nextId = nextToolCallId
-        if let parsed = try? parser.parseToolCallBlock(nextToolCallId: &nextId) {
-          toolCalls.append(contentsOf: parsed)
-          nextToolCallId = nextId
-          index = endRange.upperBound
-          didParseBlock = true
-          break
-        }
-        endSearchIndex = endRange.upperBound
-      }
-      if didParseBlock { continue }
-      guard let firstEndIndex else { break }
-      index = firstEndIndex
+    while let startRange = string[index...].range(of: format.toolCallStart),
+      let block = toolCallBlock(
+        in: string, startRange: startRange, format: format, nextToolCallId: &nextToolCallId)
+    {
+      toolCalls.append(contentsOf: block.toolCalls)
+      index = block.endIndex
     }
     return toolCalls
+  }
+
+  /// Removes each block up to the end delimiter `parse(_:format:)` ends it at, so an end
+  /// delimiter inside a parameter value does not leak the rest of the block.
+  public static func removeToolCalls(
+    _ string: String, format: DeepSeek4ToolCallParser.Format
+  ) -> String {
+    var output = ""
+    var nextToolCallId: Int32 = 0
+    var index = string.startIndex
+    while let startRange = string[index...].range(of: format.toolCallStart) {
+      output += String(string[index..<startRange.lowerBound])
+      guard
+        let block = toolCallBlock(
+          in: string, startRange: startRange, format: format, nextToolCallId: &nextToolCallId)
+      else {
+        index = string.endIndex
+        break
+      }
+      index = block.endIndex
+    }
+    output += String(string[index...])
+    removeTrailingPartialDelimiter(
+      &output, toolCallStart: format.toolCallStart, toolCallEnd: format.toolCallEnd)
+    return output
+  }
+
+  // A block ends at the first end delimiter that closes a parsable block, or at the first end
+  // delimiter when none does. Returns nil when no end delimiter follows the start.
+  private static func toolCallBlock(
+    in string: String, startRange: Range<String.Index>,
+    format: DeepSeek4ToolCallParser.Format, nextToolCallId: inout Int32
+  ) -> (endIndex: String.Index, toolCalls: [ToolCall])? {
+    var firstEndIndex: String.Index?
+    var endSearchIndex = startRange.upperBound
+    while let endRange = string[endSearchIndex...].range(of: format.toolCallEnd) {
+      firstEndIndex = firstEndIndex ?? endRange.upperBound
+      let block = String(string[startRange.lowerBound..<endRange.upperBound])
+      var parser = DeepSeek4ToolCallParser.Parser(
+        block, format: format)
+      var nextId = nextToolCallId
+      if let parsed = try? parser.parseToolCallBlock(nextToolCallId: &nextId) {
+        nextToolCallId = nextId
+        return (endRange.upperBound, parsed)
+      }
+      endSearchIndex = endRange.upperBound
+    }
+    return firstEndIndex.map { ($0, []) }
   }
 }
 

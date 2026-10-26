@@ -2985,7 +2985,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
                 function: toolCall.request.function,
                 parameters: toolCall.request.parameters.sorted { $0.key < $1.key }.map {
                   ToolCallParameter(name: $0.key, value: $0.value.value)
-                })
+                }, reason: toolCall.reason)
             }, duration: duration, compacted: result.compacted,
             incrementTurnCountSinceLastReview: reason == .finished,
             memoryContext: result.memoryContext,
