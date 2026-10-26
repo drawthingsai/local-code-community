@@ -6,6 +6,7 @@ load("@rules_xcodeproj//xcodeproj:defs.bzl", "top_level_target", "xcodeproj")
 
 exports_files([
     "Sources/Agent/DeepSeekTextGenerator.swift",
+    "Sources/Agent/SystemPrompt.swift",
     "Sources/Agent/TextGenerator.swift",
     "Sources/Models/ContextCache.swift",
     "Sources/Models/DeepSeek4ContextCache.swift",
