@@ -16,11 +16,13 @@ Local Code downloads its own quantized checkpoints of each model:
 
 | Model | Quantizations | Input | Download size |
 | --- | --- | --- | --- |
-| DeepSeek 4.1 Flash 1017 | 2-bit S, 3-bit S | Text and images | TBD |
-| DeepSeek 4 Flash 0731 | 2-bit S | Text | TBD |
-| Qwen 3.8 27B | 2-bit S, 4-bit S, 8-bit S | Text and images | TBD, TBD, TBD |
+| DeepSeek 4.1 Flash 1017 | 2-bit S, 3-bit S | Text and images | 376 GB, 412 GB |
+| DeepSeek 4 Flash 0731 | 2-bit S | Text | 89.4 GB |
+| Qwen 3.8 27B | 2-bit S, 4-bit S, 8-bit S | Text and images | 9.6 GB, 21.3 GB, 29.2 GB |
 
-The DeepSeek models are mixtures of experts, and they are larger than the memory of most Macs. For example, the DeepSeek 4.1 Flash checkpoint is about 150 GiB. Local Code keeps as many of the most used experts in memory as there is room for, and streams the rest from disk. So these models run on Macs with less memory than the checkpoint, and run faster the more memory there is.
+The DeepSeek 4.1 Flash 1017 sizes include a 203 GB engram file, which both of its quantizations share.
+
+The DeepSeek models are mixtures of experts, and they are larger than the memory of most Macs. For example, the DeepSeek 4.1 Flash 1017 (2-bit S) checkpoint is about 173 GB. Local Code keeps as many of the most used experts in memory as there is room for, and streams the rest from disk. So these models run on Macs with less memory than the checkpoint, and run faster the more memory there is.
 
 During setup, Local Code suggests a model based on the device's memory:
 
@@ -52,11 +54,81 @@ bazel run -c opt //Apps/LocalCode:LocalCodeCLI -- speedometer \
 
 ### Benchmarks
 
-| Benchmark | DeepSeek 4.1 Flash 1017 (2-bit S) |
+| Benchmark | [DeepSeek 4.1 Flash 0910](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash) (as reported) | DeepSeek 4.1 Flash 0910 (2-bit S) | DeepSeek 4.1 Flash 1017 (2-bit S) |
+| --- | --- | --- | --- |
+| AIME 2026 | — | 30/30 (100%) | 30/30 (100%) |
+| MathArena Apex | 65.6% | 7/12 (58.3%) | 10.5/12 (87.5%) |
+| GPQA Diamond | 90.9% | 179/198 (90.4%) | 185/198 (93.4%) |
+
+Reported scores are from the model card, at maximum reasoning effort. The 2-bit S MathArena Apex scores average two runs of its 12 problems.
+
+### Quantization Quality
+
+KL divergence (KLD) measures how far a quantized model's predictions drift from the original model's. Lower is closer. This chart compares the KLD on Wiki10k of DeepSeek 4.1 Flash 1017 quantizations against the size of their weights:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/kld-vs-size-dark.svg">
+  <img alt="KL divergence against size for DeepSeek 4.1 Flash 1017 quantizations. The data is in the table below the chart." src=".github/images/kld-vs-size-light.svg">
+</picture>
+
+Sizes leave out the engram table and the MTP layers. The checkpoints store the engram table at different precisions, and only the MLX checkpoints include MTP layers.
+
+<details>
+<summary>Data</summary>
+
+| Checkpoint | Size of weights | KLD |
+| --- | --- | --- |
+| Local Code 2-bit S | 173.0 GB | 0.28516 |
+| Local Code 3-bit S | 209.6 GB | 0.18850 |
+| Unsloth UD-IQ2_XXS | 165.3 GB | 0.23621 |
+| Unsloth UD-Q2_K_XL | 199.6 GB | 0.14755 |
+| MLX-Serve iQ-MLX 3.0bpw | 213.9 GB | 0.20453 |
+| oMLX oQ3e | 248.6 GB | 0.13462 |
+
+</details>
+
+### Qwen 3.8 27B
+
+Qwen 3.8 27B is a small model that understands images, and it is strong at coding and long-horizon work. Local Code suggests it for devices with less than 48 GB of memory.
+
+#### Prefill Speed
+
+Before a model writes its first token, it has to read the whole prompt. For an agent, that means the conversation so far, the files it has opened and the output of its tools. This step is called prefill. Each tool call adds to the context, so in agent work, prefill is often what you wait for.
+
+The table compares prefill speed in Local Code and in [Splash](https://github.com/incoai/splash), an open-source inference engine for Apple silicon, on TBD. Splash runs the model's UD-Q4_K_XL GGUF checkpoint. Each reading prefills a 4,096-token chunk after the given amount of context is already in use. Speeds are in tokens per second:
+
+| Context in use | Local Code (4-bit S) | Splash (BF16 KV cache) | Splash (Int8 KV cache) |
+| --- | --- | --- | --- |
+| 0 | TBD | TBD | TBD |
+| 4K | TBD | TBD | TBD |
+| 8K | TBD | TBD | TBD |
+| 16K | TBD | TBD | TBD |
+| 32K | TBD | TBD | TBD |
+| 64K | TBD | TBD | TBD |
+| 128K | TBD | TBD | TBD |
+
+#### Why Local Code Prefills Faster
+
+As the context grows, the extra prefill time goes to attention. For each new token, attention does two large matrix multiplications against every earlier token:
+
+- **QK:** the new token's query (Q) is multiplied with the key (K) of each earlier token, which scores how relevant that token is.
+- **PV:** those scores (P) are used to take a weighted sum of the earlier tokens' values (V).
+
+Both grow with the length of the context, so at 64K or 128K tokens they take a large share of the prefill time.
+
+The GPUs in Apple's M5 chips and later multiply two Int8 matrices faster than they multiply floating-point ones. Local Code converts both Q and K to Int8, so QK runs at that faster rate. It computes PV in floating point.
+
+Splash's default Int8 KV cache also stores K and V in Int8, but it multiplies them with BF16 numbers in both QK and PV. Because one side of each multiplication is BF16, Splash can't use the faster Int8 × Int8 path. The Int8 cache saves memory, but it doesn't make attention faster.
+
+#### Accuracy
+
+The faster attention doesn't cost accuracy on long inputs. On a 150-question subset of LongBench v2, Local Code's 4-bit S checkpoint scores within one question of Splash, with either KV cache:
+
+| Engine | LongBench v2 (150-question subset) |
 | --- | --- |
-| AIME 2026 | TBD |
-| MathArena Apex | TBD |
-| GPQA Diamond | TBD |
+| Local Code, 4-bit S | 106/150 (70.7%) |
+| Splash, BF16 KV cache | 107/150 (71.3%) |
+| Splash, Int8 KV cache | 107/150 (71.3%) |
 
 ### The In-App Sandbox
 
