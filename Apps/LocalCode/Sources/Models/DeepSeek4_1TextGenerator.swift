@@ -929,6 +929,11 @@ extension DeepSeek4_1TextGenerator {
           let engram = Self.readEngram(
             tokens: ids, history: kvCache.history,
             rowCaches: &kvCache.rowCaches, reader: engramReader, configuration: config.engram)
+          // Copy inside the stream: a standalone toGPU commits pending work and waits for its blit.
+          // The CPU sources must outlive the copies, so they stay alive until this step's join.
+          let tokenSource = Tensor<Int32>(ids, kind: .CPU, format: .NHWC, shape: [1])
+          let inputTokens = graph.variable(tokenSource).toGPU(0)
+          let engramInputs = engram.embeddings.map { graph.variable($0).toGPU(0) }
           let replayTokens = boundedReplay ? 1 : nil
           Self.compactCachesIfNeeded(
             &kvCache, tokenLength: 1, boundedReplayTokens: replayTokens, configuration: config)
@@ -937,9 +942,6 @@ extension DeepSeek4_1TextGenerator {
             cachedTokenLength: position, cachedRawTokenLengths: rawCacheLengths,
             tokenLength: 1, boundedReplayTokens: replayTokens
           )
-          let inputTokens = graph.variable(
-            Tensor<Int32>(ids, kind: .CPU, format: .NHWC, shape: [1]).toGPU(0))
-          let engramInputs = engram.embeddings.map { graph.variable($0.toGPU(0)) }
           var inputs: [DynamicGraph.AnyTensor]
           if let modelInputs = nextInputs, modelInputs.cachedRawTokenLengths == rawCacheLengths {
             // Prepared during the previous step with its Engram rows; swap in this step's.
@@ -957,6 +959,22 @@ extension DeepSeek4_1TextGenerator {
           let logits = decoder(
             lengths, inputs: inputTokens, [emptyEmbeddings] + inputs)[0].as(
               of: Float16.self)
+          // Sample in the same submission as this step, so one join covers both. The fed token
+          // decides the sampling mode, as it did when sampling followed the bookkeeping below.
+          let samplingThinkingEnded = thinkingEnded || nextToken == 128_822
+          let selected: DynamicGraph.Tensor<Int32>
+          if deterministic && (thinkingBudget == 0 || samplingThinkingEnded) {
+            selected = Functional.argmax(logits, axis: 1).reshaped(format: .NHWC, shape: [1])
+          } else {
+            let thinking = thinkingBudget > 0 && !samplingThinkingEnded
+            let scale: Float = thinking ? 1 : 0.7
+            let minPLogitRange: Float = thinking ? 4.605_170_2 : 2.097_012_5
+            let zmax = logits.reduced(.max, axis: [1])
+            logits.fill(-Float.infinity, if: logits < (zmax - minPLogitRange))
+            selected = Functional.gumbelArgmax(logits, axis: 1, scale: scale)
+              .reshaped(format: .NHWC, shape: [1])
+          }
+          let cpu = selected.toCPU()
           for layer in 0..<config.layers {
             kvCache.layers[layer].rawTokenLength += 1
           }
@@ -995,13 +1013,18 @@ extension DeepSeek4_1TextGenerator {
               preparedInputs
             )
           }
-          graph.joined()
+          // The sampled token's fast fence signals after every op that reads this step's uploads,
+          // so waiting on it releases them without waiting for the whole command buffer.
+          withExtendedLifetime((tokenSource, engram.embeddings)) {
+            cpu.joined()
+          }
           kvCache.tokenLength = position + 1
           kvCache.history = engram.history
           thisContextTokens.append(nextToken)
           if !kvCache.hasPaddedImages,
             kvCache.tokenLength.isMultiple(of: contextCache.checkpointStride)
           {
+            graph.joined()
             contextCache.save(
               graph: graph, tokens: thisContextTokens, checkpointLength: kvCache.tokenLength,
               configuration: config, boundedReplay: boundedReplay, kvCache: kvCache,
@@ -1027,20 +1050,6 @@ extension DeepSeek4_1TextGenerator {
               return
             }
           }
-          let selected: DynamicGraph.Tensor<Int32>
-          if deterministic && (thinkingBudget == 0 || thinkingEnded) {
-            selected = Functional.argmax(logits, axis: 1).reshaped(format: .NHWC, shape: [1])
-          } else {
-            let thinking = thinkingBudget > 0 && !thinkingEnded
-            let scale: Float = thinking ? 1 : 0.7
-            let minPLogitRange: Float = thinking ? 4.605_170_2 : 2.097_012_5
-            let zmax = logits.reduced(.max, axis: [1])
-            logits.fill(-Float.infinity, if: logits < (zmax - minPLogitRange))
-            selected = Functional.gumbelArgmax(logits, axis: 1, scale: scale)
-              .reshaped(format: .NHWC, shape: [1])
-          }
-          let cpu = selected.toCPU()
-          graph.joined()
           nextToken = cpu.rawValue[0]
           precondition(nextToken >= 0 && nextToken < config.vocabularySize)
         }
