@@ -107,7 +107,7 @@ Qwen 3.8 27B is a small model that understands images, and it is strong at codin
 
 Before a model writes its first token, it has to read the whole prompt. For an agent, that means the conversation so far, the files it has opened and the output of its tools. This step is called prefill. Each tool call adds to the context, so in agent work, prefill is often what you wait for.
 
-The chart compares prefill speed in Local Code and in [Splash](https://github.com/incoai/splash), an open-source inference engine for Apple silicon, on an M5 Ultra with 256 GB of memory. Splash runs the model's UD-Q4_K_XL GGUF checkpoint. Each reading prefills an 8,192-token chunk after the given amount of context is already in use. The label above each group is how much faster Local Code is than the faster of the two Splash settings.
+The chart compares prefill speed in Local Code and in [Splash](https://github.com/incoai/splash), an open-source inference engine for Apple silicon, on an M5 Ultra with 256 GB of memory. Splash runs the model's UD-Q4_K_XL GGUF checkpoint. Each reading prefills an 8,192-token chunk after the given amount of context is already in use. The label above each Local Code point is how much faster it is than the faster of the two Splash settings.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/images/prefill-vs-splash-dark.svg">
