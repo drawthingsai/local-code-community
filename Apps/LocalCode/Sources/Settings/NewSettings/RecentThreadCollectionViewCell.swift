@@ -85,8 +85,8 @@ final class RecentThreadCollectionViewCell: UICollectionViewCell {
     view.shimmeringOpacity = 0
     view.shimmeringAnimationOpacity = 1
     // Same sweep timing as the 24pt icon in ProjectThreadCollectionViewCell (speed 36), scaled to
-    // the 28pt square.
-    view.shimmeringSpeed = 42
+    // the 30pt square.
+    view.shimmeringSpeed = 45
     view.shimmeringPauseDuration = 0.05
     view.isUserInteractionEnabled = false
     return view
@@ -217,15 +217,16 @@ final class RecentThreadCollectionViewCell: UICollectionViewCell {
       make.top.leading.equalToSuperview().inset(4)
       make.size.equalTo(48)
     }
+    // Spans the thumbnail width so wide initials such as "OW" are not truncated.
     thumbnailLabel.snp.makeConstraints { make in
-      make.center.equalToSuperview()
-      make.width.lessThanOrEqualTo(28)
+      make.centerY.equalToSuperview()
+      make.leading.trailing.equalToSuperview()
     }
-    // The abbreviation lives in a 28pt square at the center of the thumbnail, the shimmer only
-    // sweeps across that square.
+    // The shimmer band is sized by a 30pt square at the center of the thumbnail. The band travels
+    // past the square's edges, so glyphs that overhang the square still light up.
     shimmerView.snp.makeConstraints { make in
       make.center.equalToSuperview()
-      make.size.equalTo(28)
+      make.size.equalTo(30)
     }
     highlightThumbnailLabel.snp.makeConstraints { make in
       make.edges.equalTo(thumbnailLabel)
