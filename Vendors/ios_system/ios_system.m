@@ -3700,6 +3700,11 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
         "    _ios_saved_stdout = _ios_sys.stdout\n"
         "    _ios_saved_stderr = _ios_sys.stderr\n"
         "    _ios_saved_modules = _ios_sys.modules\n"
+        "    _ios_saved_module_entries = _ios_dict(_ios_sys.modules)\n"
+        "    _ios_runtime_roots = (\n"
+        "        _ios_os.path.join(_ios_os.path.normpath(_ios_sys.base_prefix), ''),\n"
+        "        _ios_os.path.join(_ios_os.path.realpath(_ios_sys.base_prefix), ''),\n"
+        "    )\n"
         "    _ios_saved_dont_write_bytecode = _ios_sys.dont_write_bytecode\n"
         "    _ios_saved_system = _ios_getattr(_ios_os, 'system', None)\n"
         "    def _ios_decode(value):\n"
@@ -3709,6 +3714,39 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
         "            if key not in saved:\n"
         "                del target[key]\n"
         "        target.update(saved)\n"
+        // The bundled runtime cannot change while the app runs, so its modules stay
+        // loaded across commands. Built-in, frozen, and synthetic modules have no
+        // source location and stay as well.
+        "    def _ios_is_runtime_module(module):\n"
+        "        spec = _ios_getattr(module, '__spec__', None)\n"
+        "        origin = _ios_getattr(spec, 'origin', None) or _ios_getattr(module, '__file__', None)\n"
+        "        locations = _ios_list(_ios_getattr(spec, 'submodule_search_locations', None) or ())\n"
+        "        if origin not in ('built-in', 'frozen'):\n"
+        "            locations.append(origin)\n"
+        "        for location in locations:\n"
+        "            if not _ios_isinstance(location, _ios_str):\n"
+        "                continue\n"
+        "            if not _ios_os.path.normpath(location).startswith(_ios_runtime_roots) and not _ios_os.path.realpath(location).startswith(_ios_runtime_roots):\n"
+        "                return False\n"
+        "        return True\n"
+        // Every other module this command imported or replaced is dropped, so the
+        // next command imports it again from its current source, as a new process would.
+        // Classify every module before changing sys.modules: a namespace package's
+        // search locations look up its parent package there.
+        "    def _ios_unload_command_modules():\n"
+        "        unloaded_modules = []\n"
+        "        for module_name, module in _ios_list(_ios_saved_modules.items()):\n"
+        "            saved_module = _ios_saved_module_entries.get(module_name)\n"
+        "            if module_name == '__main__' or module is saved_module or _ios_is_runtime_module(module):\n"
+        "                continue\n"
+        "            if saved_module is not None and not _ios_is_runtime_module(saved_module):\n"
+        "                saved_module = None\n"
+        "            unloaded_modules.append((module_name, saved_module))\n"
+        "        for module_name, saved_module in unloaded_modules:\n"
+        "            if saved_module is not None:\n"
+        "                _ios_saved_modules[module_name] = saved_module\n"
+        "            else:\n"
+        "                _ios_saved_modules.pop(module_name, None)\n"
         "    def _ios_reopen(fd, mode, fallback):\n"
         "        if fd < 0:\n"
         "            return fallback\n"
@@ -3752,8 +3790,14 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
         "        for entry in reversed(entries):\n"
         "            while entry in _ios_sys.path:\n"
         "                _ios_sys.path.remove(entry)\n"
+        "            if _ios_os.path.normpath(entry) in current_managed_paths:\n"
+        "                continue\n"
         "            insert_at = 1 if _ios_sys.path else 0\n"
         "            _ios_sys.path.insert(insert_at, entry)\n"
+        // The project's site-packages follows the bundled site-packages. Bundled
+        // modules stay loaded across commands, so a project copy of one would only
+        // take effect until another command loaded the bundled copy.
+        "        _ios_sys.path.extend(entry for entry in entries if _ios_os.path.normpath(entry) in current_managed_paths)\n"
         "        _ios_importlib.invalidate_caches()\n"
         "    def _ios_apply_embedded_runtime_policy():\n"
         "        try:\n"
@@ -3821,6 +3865,7 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
         "    def _ios_install_pip_pure_python_guard(module_name):\n"
         "        if not _ios_pip_install_requested(module_name):\n"
         "            return\n"
+        "        import pip._internal.commands.install as install_command\n"
         "        import pip._internal.index.package_finder as package_finder\n"
         "        import pip._internal.resolution.resolvelib.candidates as candidates\n"
         "        import pip._internal.resolution.resolvelib.factory as factory\n"
@@ -3876,6 +3921,10 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
         "        package_finder.PackageFinder.find_requirement = guarded_find_requirement\n"
         "        candidates.LinkCandidate._prepare_distribution = guarded_prepare_distribution\n"
         "        factory.Factory.get_dist_to_uninstall = guarded_get_dist_to_uninstall\n"
+        // pip install adds an audit hook that warns on later imports. Audit hooks
+        // cannot be removed, and this interpreter runs every later Python command,
+        // so the hook would fire on their imports of project modules.
+        "        install_command._prevent_further_imports = lambda: None\n"
         "        package_finder._ios_pure_python_guard_installed = True\n"
         "    def _ios_install_system_bridge():\n"
         "        try:\n"
@@ -4032,6 +4081,10 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
         "            except _ios_base_exception:\n"
         "                pass\n"
         "        _ios_sys.modules = _ios_saved_modules\n"
+        "        try:\n"
+        "            _ios_unload_command_modules()\n"
+        "        except _ios_base_exception:\n"
+        "            pass\n"
         "        if _ios_main_module is not None:\n"
         "            _ios_saved_modules['__main__'] = _ios_main_module\n"
         "        _ios_sys.dont_write_bytecode = _ios_saved_dont_write_bytecode\n"

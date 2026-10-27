@@ -540,6 +540,46 @@ static int StaticInlinePythonRunSuite(void) {
     }
     index++;
 
+    // Commands share one interpreter: a project module imported by one command
+    // must not hide later edits, bundled modules stay loaded, and the project's
+    // site-packages cannot shadow a bundled package.
+    NSString *editModulePath = [projectAPath stringByAppendingPathComponent:@"edit_module.py"];
+    NSString *editTestsPath = [projectAPath stringByAppendingPathComponent:@"tests"];
+    NSString *editTestPath = [editTestsPath stringByAppendingPathComponent:@"test_edit_loop.py"];
+    NSString *editTestTemplate = @"import unittest\nimport edit_module\n\n\nclass EditLoopTest(unittest.TestCase):\n    def test_value(self):\n        self.assertEqual(edit_module.VALUE, %@)\n";
+    NSString *editModuleCommand = @"python -c \"import edit_module; print('edit module', edit_module.VALUE)\"";
+    NSString *editTestCommand = @"python -m unittest discover -s tests";
+    NSString *editNamespacePath = [projectAPath stringByAppendingPathComponent:@"edit_ns/child"];
+    NSString *editNamespaceModulePath = [editNamespacePath stringByAppendingPathComponent:@"mod.py"];
+    NSString *editNamespaceCommand = @"python -c \"import edit_ns.child.mod; print('namespace module', edit_ns.child.mod.VALUE)\"";
+    if (StaticInlinePythonCreateDirectory(editTestsPath) != 0 || StaticInlinePythonCreateDirectory(editNamespacePath) != 0) {
+        return 1;
+    }
+    NSArray<NSArray *> *editRunSteps = @[
+        @[editModulePath, @"VALUE = 'first'\n", editModuleCommand, @0, @[@"edit module first"], @[]],
+        @[editTestPath, [NSString stringWithFormat:editTestTemplate, @"'first'"], editTestCommand, @0, @[], @[@"OK"]],
+        @[editModulePath, @"VALUE = 'second edit'\n", editModuleCommand, @0, @[@"edit module second edit"], @[]],
+        @[NSNull.null, NSNull.null, editTestCommand, @1, @[], @[@"AssertionError: 'second edit' != 'first'"]],
+        @[editTestPath, [NSString stringWithFormat:editTestTemplate, @"'second edit'"], editTestCommand, @0, @[], @[@"OK"]],
+        @[editNamespaceModulePath, @"VALUE = 'first'\n", editNamespaceCommand, @0, @[@"namespace module first"], @[]],
+        @[editNamespaceModulePath, @"VALUE = 'second edit'\n", editNamespaceCommand, @0, @[@"namespace module second edit"], @[]],
+        @[NSNull.null, NSNull.null, @"python -c \"import sys; print('project modules cached', [name for name in ('edit_module', 'test_edit_loop', 'edit_ns', 'edit_ns.child', 'edit_ns.child.mod') if name in sys.modules])\"", @0, @[@"project modules cached []"], @[]],
+        @[NSNull.null, NSNull.null, @"python -c \"import sys; print('numpy cached', 'numpy' in sys.modules)\"", @0, @[@"numpy cached True"], @[]],
+        @[NSNull.null, NSNull.null, @"python -c \"import sys; print('pip import hook installed', sys.modules['pip._internal.commands.install']._IMPORT_AUDIT_HOOK_INSTALLED)\"", @0, @[@"pip import hook installed False"], @[]],
+        @[[projectASitePackagesPath stringByAppendingPathComponent:@"six.py"], @"VALUE = 'project six'\n",
+          @"python -c \"import importlib.machinery, os, sys; origin = importlib.machinery.PathFinder.find_spec('six').origin; print('six resolves to bundle', origin.startswith(os.path.join(sys.prefix, ''))); print('project site-packages last', sys.path[-1].endswith('/project-a/.localc/python/lib/python3.14/site-packages'))\"",
+          @0, @[@"six resolves to bundle True", @"project site-packages last True"], @[]],
+    ];
+    for (NSArray *step in editRunSteps) {
+        if (step[0] != NSNull.null && StaticInlinePythonWriteFile(step[0], step[1]) != 0) {
+            return 1;
+        }
+        if (StaticInlinePythonRunCommand(step[2], [step[3] intValue], step[4], step[5], directory, index) != 0) {
+            return 1;
+        }
+        index++;
+    }
+
     NSString *projectACommand = [NSString stringWithFormat:@"python -c %@",
         StaticInlinePythonShellQuote(@"import os, local_marker; print('project marker', local_marker.VALUE); print('workspace home', os.path.dirname(os.getcwd()) == os.environ.get('HOME')); print('project pwd cwd', os.environ.get('PWD') == os.getcwd()); print('pip prefix ok', os.environ.get('PIP_PREFIX', '').endswith('/project-a/.localc/python')); print('pip target unset', 'PIP_TARGET' not in os.environ)")];
     if (StaticInlinePythonRunCommand(projectACommand, 0, @[@"project marker project-a", @"workspace home True", @"project pwd cwd True", @"pip prefix ok True", @"pip target unset True"], @[], directory, index) != 0) {
