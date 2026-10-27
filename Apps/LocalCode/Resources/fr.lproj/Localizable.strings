@@ -2807,3 +2807,7 @@
 "prevent_sleep_while_working_ios_detail" = "Garde l’écran allumé pendant que les agents travaillent ou que des modèles se téléchargent, afin que cet appareil ne se verrouille pas et ne les interrompe pas.";
 "steer" = "Réorienter";
 "check_for_updates_dot" = "Rechercher des mises à jour...";
+"remove_download_dot" = "Supprimer le téléchargement...";
+"remove_download" = "Supprimer le téléchargement";
+"remove_download_detail" = "%1$@ sera supprimé de cet appareil, ce qui libérera %2$@. Vous pourrez le télécharger à nouveau à tout moment.";
+"remove" = "Supprimer";

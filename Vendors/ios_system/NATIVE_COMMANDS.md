@@ -36,9 +36,14 @@ Each registry invocation runs on a fresh pthread. Mutable command statics and
 the text/file commands' option parser state are thread-local, including for pipeline
 stages. The following entries use `IOS_COMMAND_ISOLATION_THREAD_SAFE`:
 `basename`, `dirname`, `realpath`, `mktemp`, `cut`, `comm`, `paste`, `join`,
-`split`, `cmp`, `diff`, `xxd`, `base64`, `sha256sum`, and `jq`. Virtual `/usr/bin`
-paths receive the same classification. Starting these commands does not reset
-the legacy parser's process-wide getopt variables.
+`split`, `cmp`, `diff`, `xxd`, `base64`, `sha256sum`, and `jq`, and the legacy
+commands moved onto `ios_system_support`: `awk`, `cat`, `chmod`, `cp`, `date`, `df`,
+`du`, `env`, `find`, `grep` (`egrep`, `fgrep`), `head`, `id` (`whoami`), `ln`
+(`link`), `ls`, `mkdir`, `mv`, `printenv`, `pwd`, `rm` (`unlink`), `rmdir`, `sed`,
+`sort`, `stat` (`readlink`), `tail`, `touch`, `tr`, `uname`, `uniq`, `w`
+(`uptime`), `wc`, and `xargs`. Virtual `/usr/bin` paths receive the same
+classification. Starting these commands does not reset the legacy parser's
+process-wide getopt variables.
 
 FFmpeg and FFprobe share `IOS_COMMAND_ISOLATION_EXCLUSIVE_FFMPEG` and use their
 original option parsers. Their command library serializes initialization through
@@ -53,26 +58,168 @@ forcibly timed out in-process. Private engine symbols prevent link collisions,
 but do not isolate process-global state or crashes. Runtime files live under
 `office/`; the dedicated notices group ships `Notices/LibreOffice/`.
 
-Relative filesystem operations in the native adapter resolve against a snapshot
-of the session's directory. Operands and displayed filenames remain unchanged;
-`..` is resolved by the filesystem, preserving symlink semantics. Session setup
-records the requested directory without re-reading the shared process cwd.
-This does not replace the runtime's process-wide cwd/environment model for
-legacy commands or provide filesystem conflict protection when two commands
-intentionally write the same file.
+Relative filesystem operations resolve against a snapshot of the session's
+directory. Operands and displayed filenames remain unchanged; `..` is resolved
+by the filesystem, preserving symlink semantics. Session setup records the
+requested directory without re-reading the shared process cwd. FTS walks
+(`ls`, `rm -r`, `cp -R`, `find`, `du`, `chmod -R`) open their roots through
+`ios_system_fts_open`, which walks absolute paths and reports entries as the
+operands were written. It opens a relative operand as `<directory>/./<operand>`,
+adding `./` while another operand or root has that spelling, so that `dir`,
+`./dir` and `"$PWD/dir"` stay separate roots, each shown as given. This does
+not provide filesystem conflict protection when two commands intentionally
+write the same file.
 
-Four entries remain `IOS_COMMAND_ISOLATION_EXCLUSIVE_BASH` pending further work:
-
-| Commands | Remaining isolation work |
-| --- | --- |
-| `readlink` | Shares the existing stat implementation's mutable globals and legacy getopt. |
-| `df` | libc `getmntinfo` returns a shared mount buffer. Session paths and command option/formatting state are isolated. |
-| `du` | libc `getbsize` writes a static buffer; its FTS traversal still depends on process cwd. |
-| `chmod` | libc `setmode` temporarily changes the process umask; FTS/ACL path operations still depend on process cwd. |
-
-Apple's checked libc sources confirm the helper issues in
+libc helpers with process-wide state have private replacements:
+`ios_system_getbsize` (libc
 [`getbsize`](https://github.com/apple-oss-distributions/Libc/blob/main/gen/FreeBSD/getbsize.c)
-and [`setmode`](https://github.com/apple-oss-distributions/Libc/blob/main/gen/FreeBSD/setmode.c).
+writes a static buffer and reads the process environment),
+`ios_system_setmode`/`ios_system_getmode` in `setmode.c` (libc
+[`setmode`](https://github.com/apple-oss-distributions/Libc/blob/main/gen/FreeBSD/setmode.c)
+sets the process umask to read it; `ios_system_umask` reads it without
+changing it), `ios_system_user_from_uid`/`ios_system_group_from_gid` (libc's
+name cache), and `ios_system_random` (per-invocation `random(3)` state). `df`
+uses `getmntinfo_r_np`. `w` reads the utmpx file through its own stream
+instead of libc's single process-wide `getutxent` cursor. `env`, `printenv`,
+`xargs`, `find`, and `awk`'s `ENVIRON` use the session environment on every
+platform; `xargs` gives its utility `/dev/null` by swapping the invocation's
+stdin stream instead of `dup2` onto descriptor 0.
+
+Some libc calls keep their results where every thread shares them, and the
+support header routes them to per-thread versions: `getpwuid`, `getpwnam`,
+`getgrgid`, and `getgrnam` (libc's entries are shared and freed under other
+threads; `id` and `find -user`/`-group` read them), `getlogin`, `basename`
+(one static buffer), and `mbtowc`, `mblen`, `wctomb`, and the restartable
+conversions given no state, whose state otherwise lives in the locale object
+that invocations share. A shared locale fills its `localeconv` table before
+it is published, since `localeconv` builds it lazily inside the object.
+
+The alias table that `alias`, `unalias`, and command-line parsing share across
+sessions is guarded by a mutex held only while reading or replacing an entry.
+A session's commands can run on several threads at once (pipeline stages, a
+command and what it starts with `popen`), so the session fields they share are
+atomic: the root, last, and main thread ids and the last status. Each command
+thread records itself as the session's main thread, since a short command can
+end before its launcher could store it. The stack of running command names is
+guarded by a mutex held only to push, pop, or copy a name. The WebAssembly
+command queue counters and runner lookup that every `waitpid` goes through are
+atomic, and libgit2 initializes each filter once, although commands load
+filters holding only the registry's read lock.
+
+OpenSSH (its option and host globals), libcaca (`img2txt`) and the Draw Things
+engine (`draw-things-cli`) keep process-wide state, so each of these classes
+runs one job at a time: a command and the commands it starts (`scp` and `sftp`
+running `ssh`, `sshpass` running any of them), which go through. A command of
+another session waits, and `ios_kill` can stop it. Another job of the same
+session, such as a second stage of the same pipeline, waits a second and then
+fails ("OpenSSH is in use by another command of this session"), since it may be
+the stage that drains the running job's output. Within a job, one `ssh` and one
+`scp` or `sftp` run at a time, as before.
+
+The auxiliary thread kept joinable in a session's `lastThreadId` is joined by
+whichever takes it first: the launcher after the root command, or the thread
+itself at exit, which then detaches so it does not leak. A command name longer
+than a slot of the name stack is truncated instead of overflowing it. `echo`
+frees its output vector, and `zip` frees each run's entry names, split paths,
+and file arguments, and closes the input archive on error.
+
+A session is freed when its last reference goes: the session list's (dropped by
+`ios_closeSession`), each command's from its launch to its end, and each
+thread's whose current session it is (dropped when it switches or exits), so a
+command still running after its job closed the session keeps it. A pipeline's
+stage sessions are freed with the pipeline.
+
+`date` never sets the process-wide `TZ`. When the session's `TZ` differs from
+the process's (or with `-u`), `shell_cmds/date/zone.c` loads that zone from
+the same TZif files and POSIX TZ strings tzset(3) reads, and converts with it;
+its `mktime` follows Darwin's tzcode search, so results match libc's for the
+same `TZ`, including skipped and repeated wall-clock times.
+
+A command started by another command (`env`, `xargs`, `find -exec`, and OSH's
+external commands) records the session's directory, not the process cwd, as the
+directory to restore when it ends, and directory changes record the requested
+path instead of re-reading the process cwd. OSH takes its directory from the
+session through `osh_ios_config.current_directory`: its redirections, globs
+(`GLOB_ALTDIRFUNC`), `test` operators, `source`, `cd`, the `rm` builtin, and
+`getcwd` resolve relative paths against it, and a subshell restores both the
+session directory and OSH's own `pwd` when it exits, so concurrent shells in
+different directories do not see each other's `cd`. A streamed pipeline likewise
+returns its shell to the shell's directory, not to the process cwd it started
+in. OSH reports "Command not found" only when ios_system found no such command
+(`osh_ios_note_command_not_found`), not for every exit status 127.
+
+A command that a command starts in the background (`popen`'s) belongs to it: it
+runs detached, so it is reclaimed as soon as it ends, and the starting command
+waits for the ones still running when it ends, before closing its own streams. A
+later launch in the session does not join it, as it would join the session's
+`lastThreadId` (which now keeps only the background commands the host starts),
+and with an asynchronous host (`joinMainThread` off) it does not wait for the
+session's root command, which may be the command waiting for it. A command
+`execv` starts is detached and waited for with `waitpid`. A shell that such a
+background command starts (`system()` in a `popen` command) runs in a session of
+its own, which a stop of the starting session reaches, also when the stop comes
+before or while that shell starts. `pclose` closes the stream and then waits for
+the commands its `popen` started (each stage of a pipeline), as pclose(3) does,
+so what they wrote is complete when it returns; as `fclose` it returned at once,
+and `sort --compress-program` merged temporary files still being written.
+
+A forked pid slot stays with the command that forked it until that command
+reaps it (`waitpid`) or releases it (`ios_releaseThreadId`); the child's exit
+only marks it finished. So another session cannot take the slot, replacing its
+environment, directory, and parent pid, while the forking command still runs
+as that pid, and `waitpid` returns the caller to its own pid. A command thread
+that ends hands back the slots it never reaped. Reusing a slot frees the
+environment copy its last command left, which used to leak; that is safe only
+because no parent can still be reading it. When every slot runs or is held,
+`fork` waits up to about two seconds for one, then fails with `EAGAIN` like
+fork(2) at the process limit, rather than taking a held slot.
+
+OpenSSH (through `OpenSSHPort.h`, which maps its getopt globals to the
+invocation's, the way errno is) and `img2txt` parse with the invocation's
+getopt as well, and `which` parses its own options, so no command resets the
+process-wide getopt state; only the Lean bridge uses it, under its own lock.
+
+Apart from those globals, OpenSSH leaves process-wide state alone: no process
+title (`compat_init_setproctitle` replaced the process environment on every
+run), `ssh_signal` reports dispositions without changing them, `ssh` keeps the
+app's umask, `msetlocale` sets only its thread's character type
+(`ios_system_ctype_locale`), `SSH_HOME` replaces the home directory in OpenSSH's
+own copy of the user entry, not in the entry libc shares (which made the app's
+own home directory lookups return `/`), and `sanitise_stdfd` and `stdfd_devnull`
+leave descriptors alone. In-process, `STDERR_FILENO` is the invocation's stderr
+descriptor, so `sanitise_stdfd` used to point every free number between its own
+`/dev/null` descriptor and that one at `/dev/null`, closing descriptors other
+sessions had just opened under those numbers and leaking the copies. `ios_dup2`
+onto a descriptor other than the invocation's streams is a single `dup2`.
+
+OpenSSH resolves relative paths against the invocation's directory, not the
+process cwd: its `includes.h` maps the path calls (`open`, `fopen`, `stat`,
+`lstat`, `access`, `unlink`, `rename`, `link`, `symlink`, `readlink`, `mkdir`,
+`rmdir`, `chmod`, `utimes`, `opendir`, `realpath`, `mkstemp`, `mkdtemp`,
+`chdir`, `getcwd`) to `ios_system_support`'s, and each program's `main` starts
+with `ios_system_support_init_directory`. `sftp`'s `lcd` changes only that
+directory (and `PWD` for the commands it starts), and `mkstemp` skips
+openbsd-compat's wrapper, whose `umask` is process-wide. Paths of Unix-domain
+sockets (`ControlPath`, forwarded sockets) still resolve against the process
+cwd.
+
+`git` (lg2 over libgit2) and `rg` resolve relative paths against the session's
+directory as well: libgit2's POSIX layer does so under `GIT_IOS_SYSTEM_SESSION`,
+and ripgrep searches a relative path under the session directory, shows it as
+typed, and maps the paths in its error messages back.
+
+Other threads read a session's environment strings (pipeline stages, forks
+copying it, and every command whose session has no environment of its own
+reads the process's), so commands split them from copies: `awk` builds
+`ENVIRON` from copies of the entries, where upstream's in-place split at `=`
+handed the other readers strings with no terminator, and `grep` splits
+`GREP_OPTIONS` from a copy. `echo` writes each argument with its length, so
+`\c` ends the output where it appears. `w` leaves the process-wide resolver
+state (`_res`) alone. After `close("/dev/stdout")` (or `/dev/stderr`), `awk`
+discards later output to it through its own `/dev/null` stream, as upstream
+does by reopening the stream, which here belongs to the caller. `df` also takes
+`--si` and reports option errors the way macOS's `df` does, and `false` is a
+command as well as an OSH builtin.
 
 Each command has an ordinary entry function, declared and registered like the
 existing commands. `ios_system_support.h` routes standard streams and getopt to

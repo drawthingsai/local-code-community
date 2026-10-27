@@ -2,7 +2,7 @@
 
 - Status: Implemented
 - Scope: BashTool commands launched through `ios_system` and agent file tools
-- Last updated: 2026-09-18
+- Last updated: 2026-10-25
 
 ## Contract
 
@@ -30,35 +30,55 @@ The settings workflow keeps the configured workspace authorized while it is
 selected. Bash jobs therefore need only the workspace path and can access
 sibling projects through `HOME`.
 
-## Directory aliases
+## Home and temporary directories
 
-The direct `ios_system` `cd` command recognizes these conveniences:
+`~` is the one name for the workspace. OSH expands an unquoted `~` from
+`HOME`, as other shells do, and Python, Node, and git read `HOME` directly.
+OSH leaves a quoted `~` literal, so `"~/a b"` names a directory called `~`;
+write `~/"a b"` instead. There is no `/home` alias.
+
+`$TMPDIR` is the one name for temporary files. There is no `/tmp` alias: in
+the app sandbox `/tmp` is not writable, and on a Mac host it is a different
+directory from `$TMPDIR`.
+
+The file tools accept `~`, `$HOME`, and `$TMPDIR` at the start of a path, so a
+path copied from a Bash command resolves to the same file. They report
+workspace paths outside the active project as `~/<path>` and temporary paths
+as `$TMPDIR/<path>`, which work unchanged in Bash. A `/tmp/<path>` request
+fails with a message that names `$TMPDIR/<path>`, and Bash output that mentions
+`/tmp` gets a hint with the real `$TMPDIR` path.
+
+SSH and curl keep per-project state: `SSH_HOME` and `CURL_HOME` are
+`<project>/.localc`, so keys, `known_hosts`, the SSH config, `.curlrc`, and
+`.netrc` are not shared between projects. In Bash, refer to them through
+`$SSH_HOME/.ssh` rather than `~/.ssh`, which is the workspace's.
+
+## App bundle alias
+
+The direct `ios_system` `cd` command recognizes one convenience:
 
 | `cd` input | Real destination |
 | --- | --- |
-| `cd /home` | `$HOME` |
-| `cd /home/<path>` | `$HOME/<path>` |
-| `cd /tmp` | `$TMPDIR` |
-| `cd /tmp/<path>` | `$TMPDIR/<path>` |
 | `cd /app_bundle` | Application resource directory |
 | `cd /app_bundle/<path>` | Application resource directory `<path>` |
 
-Alias matching observes component boundaries: `/homepage` and `/tmpfile` are
-ordinary absolute paths.
+Alias matching observes component boundaries: `/app_bundleish` is an ordinary
+absolute path.
 
 The alias is expanded before `ios_system` updates its logical current directory.
-Consequently, `pwd` reports the real destination path rather than `/home`,
-`/tmp`, or `/app_bundle`. `cd`, `cd ~`, and `cd "$HOME"` all go to the real
-workspace.
+Consequently, `pwd` reports the real destination path rather than
+`/app_bundle`. `cd`, `cd ~`, and `cd "$HOME"` all go to the real workspace.
 
 The application bundle is read-only. A successful `cd` through `/app_bundle`
 prints `Warning: this directory is read-only.` to stdout.
 
-These are `cd` aliases only. They do not rewrite ordinary arguments,
-redirections, glob patterns, or paths interpreted inside Node and Python. Use
-`$HOME/path` or `$TMPDIR/path` when a real absolute pathname is required.
-After changing into an alias, relative filesystem operations naturally use the
-real destination.
+Apart from `cd`, only the commands that resolve path arguments themselves
+accept the alias: `office`, `ffmpeg`, `ffprobe`, `hyperframes`, `html2video`,
+`draw-things-cli`, `z3`, `lean`, and `check_lean`. The shell does not rewrite
+ordinary arguments, redirections, glob patterns, or paths interpreted inside
+Node and Python. Use `$APP_BUNDLE/path` when a real absolute pathname is
+required. After changing into the alias, relative filesystem operations
+naturally use the real destination.
 
 ## Runtime behavior
 
@@ -89,8 +109,8 @@ saving access. Stopping the Bash job dismisses its pending picker.
 The app saves a security-scoped bookmark and restores access on subsequent
 launches. Grants apply to Bash and every file tool (`read`, `more`, `write`,
 `edit`, `search`, and `list`), across projects and turns. The command prints the
-canonical absolute path to use with these tools. File tools keep their existing
-`/home`, `/tmp`, `/app_bundle`, and `~` aliases; other absolute paths must fall
+canonical absolute path to use with these tools. File tools keep their `~`,
+`$HOME`, `$TMPDIR`, and `/app_bundle` prefixes; other absolute paths must fall
 inside a known or permitted directory. Unknown absolute paths fail rather than
 being interpreted relative to the project.
 

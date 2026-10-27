@@ -31,5 +31,8 @@ cc_library(
         "CompatInclude/sys/tree.h",
     ],
     includes = ["CompatInclude"],
-    deps = ["//Vendors/ios_system:api"],
+    deps = [
+        "//Vendors/ios_system:api",
+        "//Vendors/ios_system:ios_system_support",
+    ],
 )

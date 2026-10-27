@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "awk.h"
 #include "awkgram.tab.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static const char * const printname[98] = {
 	"FIRSTTOKEN",	/* 258 */
@@ -105,7 +105,7 @@ static const char * const printname[98] = {
 };
 
 
-Cell *(*proctab[98])(Node **, int) = {
+Cell *(*const proctab[98])(Node **, int) = {
 	nullproc,	/* FIRSTTOKEN */
 	program,	/* PROGRAM */
 	pastat,	/* PASTAT */

@@ -129,16 +129,16 @@ struct sort_list_item
  */
 typedef int (*listcoll_t)(struct sort_list_item **ss1, struct sort_list_item **ss2);
 
-extern struct key_specs *keys;
-extern size_t keys_num;
+extern __thread struct key_specs *keys;
+extern __thread size_t keys_num;
 
 /*
  * Main localised symbols. These must be wint_t as they may hold WEOF.
  */
-extern wint_t symbol_decimal_point;
-extern wint_t symbol_thousands_sep;
-extern wint_t symbol_negative_sign;
-extern wint_t symbol_positive_sign;
+extern __thread wint_t symbol_decimal_point;
+extern __thread wint_t symbol_thousands_sep;
+extern __thread wint_t symbol_negative_sign;
+extern __thread wint_t symbol_positive_sign;
 
 /* funcs */
 

@@ -830,6 +830,78 @@ final class ChatWorkflow: Workflow {
     }
   }
 
+  /// Whether a turn, warmup, or download is reading or writing the model's files.
+  private func isLocalModelInUse(_ specification: LLMZoo.Specification) -> Bool {
+    return pendingModelWarmups > 0
+      || ([agentScheduler] + retiringAgentSchedulers).contains {
+        $0.file == specification.file && !$0.isIdle
+      }
+      || downloadController?.models.contains(where: {
+        $0.file == specification.file || $0.file == specification.engram
+      }) == true
+  }
+
+  private func confirmRemovingDownload(
+    of specification: LLMZoo.Specification, fileURLs: [URL], workflow: ItemSelectWorkflow
+  ) {
+    // A checkpoint can keep its tensor data in an external store beside it.
+    let removingURLs = fileURLs.flatMap {
+      [$0, URL(fileURLWithPath: TensorData.externalStore(filePath: $0.path))]
+    }.filter { FileManager.default.fileExists(atPath: $0.path) }
+    let fileSize = removingURLs.reduce(0) {
+      $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+    }
+    let alertController = UIAlertController(
+      title: LocalizedString.forKey("remove_download"),
+      message: String(
+        format: LocalizedString.forKey("remove_download_detail"), specification.name,
+        ByteCountFormatter.string(fromByteCount: Int64(fileSize), countStyle: .file)),
+      preferredStyle: .alert)
+    let removeAction = UIAlertAction(
+      title: LocalizedString.forKey("remove"), style: .destructive
+    ) { [weak self] _ in
+      // A turn can start on the model while the alert is up. Its row then still shows the model
+      // as downloaded.
+      guard let self, !self.isLocalModelInUse(specification) else { return }
+      // Warm the model up again once it is downloaded again.
+      Self.warmedUpModels.remove(LLMZoo.filePathForModelDownloaded(specification.file))
+      // Remove the files first, so a turn started before the unload below runs downloads the
+      // model again rather than loading files about to go.
+      for url in removingURLs {
+        try? FileManager.default.removeItem(at: url)
+      }
+      // Loaded weights and the Engram file handle keep the files' space in use until unloaded.
+      let schedulers = ([self.agentScheduler] + self.retiringAgentSchedulers).filter {
+        $0.file == specification.file
+      }
+      var generators = schedulers.compactMap(\.textGenerator)
+      var codeAgent: (any CodeAgent)? = nil
+      if case .some(.local(let generator, let agent)) = self.codeAgentWrapper,
+        URL(fileURLWithPath: generator.filePath).lastPathComponent == specification.file
+      {
+        generators.append(generator)
+        codeAgent = agent
+      }
+      self.queue.async { [graph = self.graph, streamContext = self.streamContext] in
+        autoreleasepool {
+          streamContext.joined()
+          for scheduler in schedulers { scheduler.unloadIdleCaches() }
+          codeAgent?.unloadCaches()
+          for generator in generators { generator.unload() }
+          graph.garbageCollect()
+        }
+      }
+      guard self.modelSelectWorkflow === workflow else { return }
+      workflow.setViewModels(
+        [Self.localModelSection(selectedModel: self.selectedLLM, workspace: self.workspace)],
+        flag: nil)
+    }
+    alertController.addAction(removeAction)
+    alertController.addAction(
+      UIAlertAction(title: LocalizedString.forKey("cancel"), style: .cancel))
+    workflow.viewControllable.present(alertController, animated: true)
+  }
+
   func textGenerator(for model: String) -> (any TextGenerator)? {
     dispatchPrecondition(condition: .onQueue(.main))
     // Retiring schedulers can still own loaded storage until hibernation completes.
@@ -2144,6 +2216,44 @@ extension ChatWorkflow: ItemSelectWorkflowDelegate {
   func didTapTrash(item: ItemViewModel.ItemIdentifier, workflow: ItemSelectWorkflow) {
   }
 
+  func contextMenu(item: ItemViewModel.ItemIdentifier, workflow: ItemSelectWorkflow) -> UIMenu? {
+    guard workflow === modelSelectWorkflow, case .identifier(let file as String) = item,
+      let specification = LLMZoo.specificationForModel(file)
+    else { return nil }
+    // A download that stopped between a model's files leaves only some of them.
+    let fileURLs = ([specification.file] + [specification.engram].compactMap { $0 }).map {
+      URL(fileURLWithPath: LLMZoo.filePathForModelDownloaded($0))
+    }.filter { FileManager.default.fileExists(atPath: $0.path) }
+    guard !fileURLs.isEmpty else { return nil }
+    let revealAction = UIAction(title: ProjectController.revealTitle) { _ in
+      #if targetEnvironment(macCatalyst)
+        // Opening a checkpoint would hand it to another app, so select the files in Finder.
+        if let sharedWorkspace = (NSClassFromString("NSWorkspace") as? NSObject.Type)?.value(
+          forKey: "sharedWorkspace") as? NSObject
+        {
+          sharedWorkspace.perform(
+            NSSelectorFromString("activateFileViewerSelectingURLs:"), with: fileURLs)
+          return
+        }
+      #endif
+      UIApplication.shared.open(fileURLs[0].deletingLastPathComponent())
+    }
+    // Keep files another downloaded model still needs, such as an engram its variants share.
+    let filesRequired = LLMZoo.availableFiles(excluding: LLMZoo.self).union(
+      LLMZoo.availableFiles(excluding: specification.file))
+    let removingFileURLs = fileURLs.filter { !filesRequired.contains($0.lastPathComponent) }
+    guard !removingFileURLs.isEmpty else { return UIMenu(children: [revealAction]) }
+    let removeDownloadAction = UIAction(
+      title: LocalizedString.forKey("remove_download_dot"),
+      attributes: isLocalModelInUse(specification) ? [.destructive, .disabled] : .destructive
+    ) { [weak self, weak workflow] _ in
+      guard let self, let workflow else { return }
+      self.confirmRemovingDownload(
+        of: specification, fileURLs: removingFileURLs, workflow: workflow)
+    }
+    return UIMenu(children: [revealAction, removeDownloadAction])
+  }
+
   func didSelectShowAll(showAll: Bool, workflow: ItemSelectWorkflow) {
   }
 
@@ -2519,6 +2629,19 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       let suspendedResult = codeAgent.suspendedResult
     else { return }
     let file = URL(fileURLWithPath: textGenerator.filePath).lastPathComponent
+    // Like a new turn, continuing downloads a model whose files were removed.
+    if let specification = LLMZoo.specificationForModel(file),
+      !LLMZoo.isModelDownloaded(specification)
+    {
+      let threadId = thread.id
+      downloadLLMModel(specification) { [weak self] success in
+        guard let self, success, self.projectHistoryManager === projectHistoryManager,
+          self.projectHistoryManager?.threadId == threadId
+        else { return }
+        self.continueIncompleteResponse()
+      }
+      return
+    }
     agentSchedulerActivation(for: file)
     guard agentScheduler.file == file else { return }
     if agentScheduler.textGenerator == nil {

@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <TargetConditionals.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static void	usage(void);
 extern char **environ;
@@ -66,7 +66,9 @@ printenv_main(int argc, char *argv[])
 	char *cp, **ep;
 	size_t len;
 	int ch;
-    optind = 1; opterr = 1; optreset = 1;
+
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
@@ -78,21 +80,13 @@ printenv_main(int argc, char *argv[])
 	argv += optind;
 
 	if (argc == 0) {
-#if !TARGET_OS_IPHONE
-        for (ep = environ; *ep != NULL; ep++)
-#else
         for (ep = environmentVariables(ios_currentPid()); *ep != NULL; ep++)
-#endif
 			(void)fprintf(thread_stdout, "%s\n", *ep);
 		exit(0);
 	}
 	len = strlen(*argv);
-#if !TARGET_OS_IPHONE
-    for (ep = environ; *ep != NULL; ep++)
-#else
     for (ep = environmentVariables(ios_currentPid()); *ep != NULL; ep++)
-#endif
-		if (!memcmp(*ep, *argv, len)) {
+		if (!strncmp(*ep, *argv, len)) {	/* entries can be shorter than len */
 			cp = *ep + len;
 			if (!*cp || *cp == '=') {
 				(void)fprintf(thread_stdout, "%s\n", *cp ? cp + 1 : cp);
@@ -100,6 +94,8 @@ printenv_main(int argc, char *argv[])
 			}
 		}
 	exit(1);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void

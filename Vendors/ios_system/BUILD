@@ -29,6 +29,16 @@ COMMON_COPTS = [
     "-fcommon",
 ]
 
+# Commands on ios_system_support use a per-thread locale (uselocale). Without
+# this, <stdlib.h> defines MB_CUR_MAX as the process-wide __mb_cur_max until
+# <xlocale.h> is included, so code before that reads the "C" locale's value.
+# The extended headers need locale_t, so <xlocale.h> comes first.
+SUPPORT_COPTS = COMMON_COPTS + [
+    "-D_USE_EXTENDED_LOCALES_",
+    "-include",
+    "xlocale.h",
+]
+
 objc_library(
     name = "api",
     hdrs = [
@@ -121,7 +131,7 @@ objc_library(
     name = "cmd_ls",
     srcs = glob(["file_cmds/ls/*.c"]) + ["libutil/humanize_number.c"],
     hdrs = glob(["file_cmds/ls/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_ls_usage",
         "-DCOLORLS",
     ],
@@ -131,6 +141,7 @@ objc_library(
     ],
     deps = [
         ":api",
+        ":ios_system_support",
         ":registry_api",
     ],
 )
@@ -139,19 +150,22 @@ objc_library(
     name = "cmd_cp",
     srcs = glob(["file_cmds/cp/*.c"]),
     hdrs = glob(["file_cmds/cp/*.h"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_cp_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_cp_usage"],
     includes = [
         ".",
         "file_cmds/cp",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_mv",
     srcs = glob(["file_cmds/mv/*.c"]),
     hdrs = glob(["file_cmds/mv/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_mv_usage",
         "-Ddo_move=mv_do_move",
         "-Dfastcopy=mv_fastcopy",
@@ -160,13 +174,16 @@ objc_library(
         ".",
         "file_cmds/mv",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_rm",
     srcs = glob(["file_cmds/rm/*.c"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_rm_usage",
         "-Dcheck=rm_check",
         "-Dcheckdir=rm_checkdir",
@@ -179,62 +196,80 @@ objc_library(
         ".",
         "file_cmds/rm",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_mkdir",
     srcs = glob(["file_cmds/mkdir/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_mkdir_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_mkdir_usage"],
     includes = [
         ".",
         "file_cmds/mkdir",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_rmdir",
     srcs = glob(["file_cmds/rmdir/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_rmdir_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_rmdir_usage"],
     includes = [
         ".",
         "file_cmds/rmdir",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_ln",
     srcs = glob(["file_cmds/ln/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_ln_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_ln_usage"],
     includes = [
         ".",
         "file_cmds/ln",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_stat",
     srcs = glob(["file_cmds/stat/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_stat_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_stat_usage"],
     includes = [
         ".",
         "file_cmds/stat",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_touch",
     srcs = glob(["file_cmds/touch/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_touch_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_touch_usage"],
     includes = [
         ".",
         "file_cmds/touch",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
@@ -255,7 +290,7 @@ objc_library(
 objc_library(
     name = "cmd_cat",
     srcs = glob(["text_cmds/cat/*.c"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_cat_usage",
         "-Dfilename=cat_filename",
     ],
@@ -263,14 +298,17 @@ objc_library(
         ".",
         "text_cmds/cat",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_grep",
     srcs = glob(["text_cmds/grep/*.c"]),
     hdrs = glob(["text_cmds/grep/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_grep_usage",
         "-DWITHOUT_BZIP2",
         "-DWITHOUT_FASTMATCH",
@@ -281,14 +319,17 @@ objc_library(
         ".",
         "text_cmds/grep",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_sed",
     srcs = glob(["text_cmds/sed/*.c"]),
     hdrs = glob(["text_cmds/sed/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_sed_usage",
         "-Dinfile=sed_infile",
         "-Dmatch=sed_match",
@@ -297,25 +338,31 @@ objc_library(
         ".",
         "text_cmds/sed",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_head",
     srcs = glob(["text_cmds/head/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_head_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_head_usage"],
     includes = [
         ".",
         "text_cmds/head",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_tail",
     srcs = glob(["text_cmds/tail/*.c"]),
     hdrs = glob(["text_cmds/tail/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_tail_usage",
         "-Dfollow=tail_follow",
     ],
@@ -323,25 +370,31 @@ objc_library(
         ".",
         "text_cmds/tail",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_wc",
     srcs = glob(["text_cmds/wc/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_wc_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_wc_usage"],
     includes = [
         ".",
         "text_cmds/wc",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_sort",
     srcs = glob(["text_cmds/sort/*.c"]),
     hdrs = glob(["text_cmds/sort/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_sort_usage",
         "-Dcheck=sort_check",
         "-Dclosefile=sort_closefile",
@@ -352,30 +405,39 @@ objc_library(
         ".",
         "text_cmds/sort",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_uniq",
     srcs = glob(["text_cmds/uniq/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_uniq_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_uniq_usage"],
     includes = [
         ".",
         "text_cmds/uniq",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_tr",
     srcs = glob(["text_cmds/tr/*.c"]),
     hdrs = glob(["text_cmds/tr/*.h"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_tr_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_tr_usage"],
     includes = [
         ".",
         "text_cmds/tr",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
@@ -398,14 +460,18 @@ objc_library(
     srcs = [
         "shell_cmds/date/date.c",
         "shell_cmds/date/vary.c",
+        "shell_cmds/date/zone.c",
     ],
     hdrs = glob(["shell_cmds/date/*.h"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_date_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_date_usage"],
     includes = [
         ".",
         "shell_cmds/date",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
@@ -423,19 +489,22 @@ objc_library(
     name = "cmd_env",
     srcs = glob(["shell_cmds/env/*.c"]),
     hdrs = glob(["shell_cmds/env/*.h"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_env_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_env_usage"],
     includes = [
         ".",
         "shell_cmds/env",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_find",
     srcs = glob(["bsd_find/*.c"]),
     hdrs = glob(["bsd_find/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Df_flags=find_f_flags",
         "-Df_group=find_f_group",
         "-Df_size=find_f_size",
@@ -463,29 +532,35 @@ objc_library(
 objc_library(
     name = "cmd_printenv",
     srcs = glob(["shell_cmds/printenv/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_printenv_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_printenv_usage"],
     includes = [
         ".",
         "shell_cmds/printenv",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_pwd",
     srcs = glob(["shell_cmds/pwd/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_pwd_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_pwd_usage"],
     includes = [
         ".",
         "shell_cmds/pwd",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_tee",
     srcs = glob(["shell_cmds/tee/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_tee_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_tee_usage"],
     includes = [
         ".",
         "shell_cmds/tee",
@@ -496,12 +571,15 @@ objc_library(
 objc_library(
     name = "cmd_uname",
     srcs = glob(["shell_cmds/uname/*.c"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_uname_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_uname_usage"],
     includes = [
         ".",
         "shell_cmds/uname",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
@@ -513,7 +591,7 @@ objc_library(
         "shell_cmds/w/w.c",
     ],
     hdrs = glob(["shell_cmds/w/*.h"]) + ["libutil.h"],
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dusage=cmd_w_usage",
         "-DHAVE_UTMPX=1",
     ],
@@ -525,30 +603,39 @@ objc_library(
         ":macos_build": ["-lresolv"],
         "//conditions:default": [],
     }),
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_id",
     srcs = ["shell_cmds/id/id.c"],
-    copts = COMMON_COPTS + ["-Dusage=cmd_id_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_id_usage"],
     includes = [
         ".",
         "shell_cmds/id",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
     name = "cmd_xargs",
     srcs = glob(["shell_cmds/xargs/*.c"]),
     hdrs = glob(["shell_cmds/xargs/*.h"]),
-    copts = COMMON_COPTS + ["-Dusage=cmd_xargs_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=cmd_xargs_usage"],
     includes = [
         ".",
         "shell_cmds/xargs",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
@@ -582,12 +669,15 @@ objc_library(
         "awk-awk-35/src/tran.c",
     ],
     hdrs = glob(["awk-awk-35/src/*.h"]),
-    copts = COMMON_COPTS + ["-Dusage=awk_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=awk_usage"],
     includes = [
         ".",
         "awk-awk-35/src",
     ],
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
@@ -724,7 +814,10 @@ objc_library(
     name = "cmd_sshpass",
     srcs = ["sshpass.c"],
     copts = COMMON_COPTS,
-    deps = [":api"],
+    deps = [
+        ":api",
+        ":ios_system_support",
+    ],
 )
 
 objc_library(
@@ -732,6 +825,7 @@ objc_library(
     srcs = [
         "getopt_long.c",
         "ios_system_support.c",
+        "setmode.c",
     ],
     hdrs = ["ios_system_support.h"],
     copts = COMMON_COPTS + ["-DIOS_SYSTEM_GETOPT"],
@@ -743,7 +837,7 @@ objc_library(
     name = "cmd_basename",
     srcs = ["shell_cmds/basename/basename.c"],
     hdrs = glob(["shell_cmds/basename/*.h"]),
-    copts = COMMON_COPTS,
+    copts = SUPPORT_COPTS,
     includes = ["shell_cmds/basename"],
     deps = [":ios_system_support"],
 )
@@ -752,7 +846,7 @@ objc_library(
     name = "cmd_dirname",
     srcs = ["shell_cmds/dirname/dirname.c"],
     hdrs = glob(["shell_cmds/dirname/*.h"]),
-    copts = COMMON_COPTS,
+    copts = SUPPORT_COPTS,
     includes = ["shell_cmds/dirname"],
     deps = [":ios_system_support"],
 )
@@ -761,7 +855,7 @@ objc_library(
     name = "cmd_realpath",
     srcs = ["shell_cmds/realpath/realpath.c"],
     hdrs = glob(["shell_cmds/realpath/*.h"]),
-    copts = COMMON_COPTS,
+    copts = SUPPORT_COPTS,
     includes = ["shell_cmds/realpath"],
     deps = [":ios_system_support"],
 )
@@ -770,7 +864,7 @@ objc_library(
     name = "cmd_mktemp",
     srcs = ["shell_cmds/mktemp/mktemp.c"],
     hdrs = glob(["shell_cmds/mktemp/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=mktemp_main",
         "-Dusage=mktemp_usage",
     ],
@@ -782,7 +876,7 @@ objc_library(
     name = "cmd_cut",
     srcs = ["text_cmds/cut/cut.c"],
     hdrs = glob(["text_cmds/cut/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=cut_main",
         "-Dusage=cut_usage",
     ],
@@ -794,7 +888,7 @@ objc_library(
     name = "cmd_comm",
     srcs = ["text_cmds/comm/comm.c"],
     hdrs = glob(["text_cmds/comm/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=comm_main",
         "-Dusage=comm_usage",
     ],
@@ -806,7 +900,7 @@ objc_library(
     name = "cmd_paste",
     srcs = ["text_cmds/paste/paste.c"],
     hdrs = glob(["text_cmds/paste/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=paste_main",
         "-Dusage=paste_usage",
     ],
@@ -818,7 +912,7 @@ objc_library(
     name = "cmd_join",
     srcs = ["text_cmds/join/join.c"],
     hdrs = glob(["text_cmds/join/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=join_main",
         "-Dusage=join_usage",
     ],
@@ -830,7 +924,7 @@ objc_library(
     name = "cmd_split",
     srcs = ["text_cmds/split/split.c"],
     hdrs = glob(["text_cmds/split/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=split_main",
         "-Dusage=split_usage",
     ],
@@ -844,7 +938,7 @@ objc_library(
         "file_cmds/df/df.c",
         "file_cmds/df/vfslist.c",
     ],
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dcheckvfsname=df_checkvfsname",
         "-Dmakevfslist=df_makevfslist",
     ],
@@ -855,7 +949,7 @@ objc_library(
     name = "cmd_du",
     srcs = ["file_cmds/du/du.c"],
     hdrs = glob(["file_cmds/du/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=du_main",
         "-Dusage=du_usage",
     ],
@@ -873,7 +967,7 @@ objc_library(
         "file_cmds/chmod/chmod_acl.c",
     ],
     hdrs = glob(["file_cmds/chmod/*.h"]),
-    copts = COMMON_COPTS,
+    copts = SUPPORT_COPTS,
     includes = ["file_cmds/chmod"],
     deps = [":ios_system_support"],
 )
@@ -887,7 +981,7 @@ objc_library(
         "text_cmds/cmp/special.c",
     ],
     hdrs = glob(["text_cmds/cmp/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=cmp_main",
         "-Dlflag=cmp_lflag",
         "-Dsflag=cmp_sflag",
@@ -904,7 +998,7 @@ objc_library(
 objc_library(
     name = "cmd_diff",
     srcs = ["text_cmds/diff/diff.c"],
-    copts = COMMON_COPTS + ["-DLIBGIT2_NO_FEATURES_H"],
+    copts = SUPPORT_COPTS + ["-DLIBGIT2_NO_FEATURES_H"],
     deps = [
         ":ios_system_support",
         "//Vendors/libgit2",
@@ -915,7 +1009,7 @@ objc_library(
     name = "cmd_xxd",
     srcs = ["text_cmds/xxd/xxd.c"],
     hdrs = glob(["text_cmds/xxd/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=xxd_main",
         "-Dversion=xxd_version",
         "-Dosver=xxd_osver",
@@ -929,7 +1023,7 @@ objc_library(
     name = "cmd_sha256sum",
     srcs = ["text_cmds/md5/md5.c"],
     hdrs = glob(["text_cmds/md5/*.h"]),
-    copts = COMMON_COPTS + [
+    copts = SUPPORT_COPTS + [
         "-Dmain=sha256sum_main",
         "-Dusage=sha256sum_usage",
     ],
@@ -941,7 +1035,7 @@ objc_library(
     name = "cmd_base64",
     srcs = ["file_cmds/base64/base64.c"],
     hdrs = glob(["file_cmds/base64/*.h"]),
-    copts = COMMON_COPTS + ["-Dusage=base64_usage"],
+    copts = SUPPORT_COPTS + ["-Dusage=base64_usage"],
     includes = ["file_cmds/base64"],
     linkopts = ["-lresolv"],
     deps = [":ios_system_support"],

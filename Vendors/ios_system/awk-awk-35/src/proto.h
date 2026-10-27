@@ -92,7 +92,9 @@ extern	Node	*linkum(Node *, Node *);
 extern	void	defn(Cell *, Node *, Node *);
 extern	int	isarg(const char *);
 extern	const char *tokname(int);
-extern	Cell	*(*proctab[])(Node **, int);
+extern	Cell	*(*const proctab[])(Node **, int);
+extern	void	lex_init(void);		/* iOS */
+extern	void	awk_close_files(void);	/* iOS: close what the program opened */
 extern	int	ptoi(void *);
 extern	Node	*itonp(int);
 

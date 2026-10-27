@@ -65,7 +65,7 @@ static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #include "defs.h"
 #include "extern.h"
 // iOS changes:
-#include "ios_error.h"
+#include "ios_system_support.h"
 #include <pthread.h>
 
 /*
@@ -75,13 +75,15 @@ struct s_compunit {
 	struct s_compunit *next;
 	enum e_cut {CU_FILE, CU_STRING} type;
 	char *s;			/* Pointer to string or fname */
+	int owned;			/* s was allocated for this unit */
 };
 
 /*
  * Linked list pointer to compilation units and pointer to current
- * next pointer.
+ * next pointer.  iOS: script keeps the head for cleanup; cu_fgets reads
+ * through current_unit.
  */
-static struct s_compunit *script, **cu_nextp = &script;
+static __thread struct s_compunit *script, **cu_nextp, *current_unit;
 
 /*
  * Linked list of files to be processed
@@ -95,14 +97,14 @@ struct s_flist {
  * Linked list pointer to files and pointer to current
  * next pointer.
  */
-static struct s_flist *files = NULL, **fl_nextp = &files;
+static __thread struct s_flist *files, **fl_nextp, *file_list;
 
 __thread FILE *infile;			/* Current input file */
 __thread FILE *outfile;			/* Current output file */
 
 __thread int aflag, eflag, sed_nflag;
 __thread int rflags = 0;
-static int rval;		/* Exit status */
+static __thread int rval;	/* Exit status */
 
 /*
  * Current file and line number; line numbers restart across compilation
@@ -110,15 +112,49 @@ static int rval;		/* Exit status */
  */
 const __thread char *fname;		/* File name. */
 const __thread char *outfname;		/* Output file name */
-static char oldfname[PATH_MAX];	/* Old file name (for in-place editing) */
-static char tmpfname[PATH_MAX];	/* Temporary file name (for in-place editing) */
+static __thread char oldfname[PATH_MAX];	/* Old file name (for in-place editing) */
+static __thread char tmpfname[PATH_MAX];	/* Temporary file name (for in-place editing) */
 const __thread char *inplace;		/* Inplace edit file extension. */
 __thread u_long linenum;
 
-static void add_compunit(enum e_cut, char *);
+static __thread FILE *script_file;	/* Current -f file in cu_fgets */
+
+static void add_compunit(enum e_cut, char *, int);
 static void add_file(char *);
 static int inplace_edit(char **);
 static void usage(void);
+
+static void sed_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (infile != NULL && infile != thread_stdin)
+		fclose(infile);
+	if (outfile != NULL && outfile != thread_stdout)
+		fclose(outfile);
+	infile = outfile = NULL;
+	// An in-place edit that did not finish leaves the original in place.
+	if (*tmpfname != '\0')
+		ios_system_unlink(tmpfname);
+	if (script_file != NULL)
+		fclose(script_file);
+	script_file = NULL;
+	while (script != NULL) {
+		struct s_compunit *next = script->next;
+		if (script->owned)
+			free(script->s);
+		free(script);
+		script = next;
+	}
+	while (file_list != NULL) {
+		struct s_flist *next = file_list->next;
+		free(file_list);
+		file_list = next;
+	}
+	compile_release();
+	process_release();
+	misc_release();
+	ios_system_support_cleanup(unused);
+}
 
 int
 sed_main(int argc, char *argv[])
@@ -126,21 +162,12 @@ sed_main(int argc, char *argv[])
 	int c, fflag;
 	char *temp_arg;
 
-    // init all flags:
-    aflag = eflag = sed_nflag = rflags = 0;
-    infile = NULL;
-    outfile = NULL;
-    fl_nextp = &files;
-    if (files != NULL) {
-        while (files != NULL) { struct s_flist *next = files->next; free(files); files = next; }
-    }
-    cu_nextp = &script;
-    if (script != NULL) {
-        while (script != NULL) { struct s_compunit *next = script->next; free(script); script = next; }
-    }
-    rval = 0;        /* Exit status */
+	pthread_cleanup_push(sed_cleanup, NULL);
+	ios_system_support_init(argv);
+	fl_nextp = &files;
+	cu_nextp = &script;
 
-	(void) setlocale(LC_ALL, "");
+	/* Locale is owned by ios_system_support. */
 
 	fflag = 0;
 	inplace = NULL;
@@ -160,11 +187,11 @@ sed_main(int argc, char *argv[])
             }
 			strcpy(temp_arg, optarg);
 			strcat(temp_arg, "\n");
-			add_compunit(CU_STRING, temp_arg);
+			add_compunit(CU_STRING, temp_arg, 1);
 			break;
 		case 'f':
 			fflag = 1;
-			add_compunit(CU_FILE, optarg);
+			add_compunit(CU_FILE, optarg, 0);
 			break;
 		case 'i':
 			inplace = optarg;
@@ -185,10 +212,11 @@ sed_main(int argc, char *argv[])
 
 	/* First usage case; script is the first arg */
 	if (!eflag && !fflag && *argv) {
-		add_compunit(CU_STRING, *argv);
+		add_compunit(CU_STRING, *argv, 0);
 		argv++;
 	}
 
+	current_unit = script;
 	compile();
 
 	/* Continue with first and start second usage */
@@ -201,9 +229,9 @@ sed_main(int argc, char *argv[])
 	cfclose(prog, NULL);
 	// if (fclose(stdout))
 	//	err(1, "stdout");
-    if ((infile != NULL) && (infile != thread_stdin)) fclose(infile);
-    if ((outfile != NULL) && (outfile != thread_stdout)) fclose(outfile);
-    exit(rval);
+	exit(rval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void
@@ -223,36 +251,36 @@ char *
 cu_fgets(char *buf, int n, int *more)
 {
 	static __thread enum {ST_EOF, ST_FILE, ST_STRING} state = ST_EOF;
-	static FILE *f;		/* Current open file */
-	static char *s;		/* Current pointer inside string */
-	static char string_ident[30];
+#define	f script_file		/* Current open file */
+	static __thread char *s;	/* Current pointer inside string */
+	static __thread char string_ident[30];
 	char *p;
 
 again:
 	switch (state) {
 	case ST_EOF:
-		if (script == NULL) {
+		if (current_unit == NULL) {
 			if (more != NULL)
 				*more = 0;
 			return (NULL);
 		}
 		linenum = 0;
-		switch (script->type) {
+		switch (current_unit->type) {
 		case CU_FILE:
-            if ((f = fopen(script->s, "r")) == NULL) {
-                err(1, "%s", script->s);
+            if ((f = ios_system_fopen(current_unit->s, "r")) == NULL) {
+                err(1, "%s", current_unit->s);
             }
-			fname = script->s;
+			fname = current_unit->s;
 			state = ST_FILE;
 			goto again;
 		case CU_STRING:
 			if ((snprintf(string_ident,
-			    sizeof(string_ident), "\"%s\"", script->s)) >=
+			    sizeof(string_ident), "\"%s\"", current_unit->s)) >=
 			    sizeof(string_ident) - 1)
 				(void)strcpy(string_ident +
 				    sizeof(string_ident) - 6, " ...\"");
 			fname = string_ident;
-			s = script->s;
+			s = current_unit->s;
 			state = ST_STRING;
 			goto again;
 		}
@@ -265,8 +293,9 @@ again:
 				*more = !feof(f);
 			return (p);
 		}
-		script = script->next;
+		current_unit = current_unit->next;
 		(void)fclose(f);
+		f = NULL;
 		state = ST_EOF;
 		goto again;
 	case ST_STRING:
@@ -284,11 +313,11 @@ again:
 			switch (*s) {
 			case '\0':
 				state = ST_EOF;
-				if (s == script->s) {
-					script = script->next;
+				if (s == current_unit->s) {
+					current_unit = current_unit->next;
 					goto again;
 				} else {
-					script = script->next;
+					current_unit = current_unit->next;
 					*p = '\0';
 					linenum++;
 					if (more != NULL)
@@ -310,6 +339,7 @@ again:
 	}
 	/* NOTREACHED */
 	return (NULL);
+#undef f
 }
 
 /*
@@ -323,7 +353,9 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 	size_t len;
 	char *p;
 	int c;
-	static int firstfile;
+	static __thread int firstfile;
+	char directory[PATH_MAX], base[PATH_MAX];
+	uint64_t thread;
 
 	if (infile == NULL) {
 		/* stdin? */
@@ -355,9 +387,10 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
                     infile = NULL;
             }
 			if (*oldfname != '\0') {
-				if (rename(fname, oldfname) != 0) {
+				if (ios_system_rename(fname, oldfname) != 0) {
                     warn("rename()");
-					unlink(tmpfname);
+					ios_system_unlink(tmpfname);
+					*tmpfname = '\0';
                     exit(1);
 				}
 				*oldfname = '\0';
@@ -366,7 +399,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 				if (outfile != NULL && outfile != thread_stdout)
 					fclose(outfile);
 				outfile = NULL;
-				rename(tmpfname, fname);
+				ios_system_rename(tmpfname, fname);
 				*tmpfname = '\0';
 			}
 			outfname = NULL;
@@ -381,7 +414,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 		}
 		fname = files->fname;
 		if (inplace != NULL) {
-            if (lstat(fname, &sb) != 0) {
+            if (ios_system_lstat(fname, &sb) != 0) {
                 err(1, "%s", fname);
             }
             if (!(sb.st_mode & S_IFREG)) {
@@ -398,14 +431,21 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
                     errx(1, "%s: name too long", fname);
                 }
 			}
+			// iOS: sessions share one process, so the name also carries
+			// the thread; dirname(3) and basename(3) share storage.
+			pthread_threadid_np(NULL, &thread);
+			if (dirname_r(fname, directory) == NULL || basename_r(fname, base) == NULL)
+				err(1, "%s", fname);
 			len = snprintf(tmpfname, sizeof(tmpfname),
-			    "%s/.!%ld!%s", dirname(fname), (long)getpid(),
-			    basename(fname));
+			    "%s/.!%ld.%llu!%s", directory, (long)getpid(),
+			    (unsigned long long)thread, base);
             if (len >= sizeof(tmpfname)) {
+				*tmpfname = '\0';
                 errx(1, "%s: name too long", fname);
             }
-			unlink(tmpfname);
-            if ((outfile = fopen(tmpfname, "w")) == NULL) {
+			ios_system_unlink(tmpfname);
+            if ((outfile = ios_system_fopen(tmpfname, "w")) == NULL) {
+				*tmpfname = '\0';
                 err(1, "%s", fname);
             }
 			fchown(fileno(outfile), sb.st_uid, sb.st_gid);
@@ -415,7 +455,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 			outfile = thread_stdout;
 			outfname = "stdout";
 		}
-		if ((infile = fopen(fname, "r")) == NULL) {
+		if ((infile = ios_system_fopen(fname, "r")) == NULL) {
             warn("%s", fname);
 			rval = 1;
 			continue;
@@ -446,15 +486,18 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
  * Add a compilation unit to the linked list
  */
 static void
-add_compunit(enum e_cut type, char *s)
+add_compunit(enum e_cut type, char *s, int owned)
 {
 	struct s_compunit *cu;
 
     if ((cu = malloc(sizeof(struct s_compunit))) == NULL) {
+		if (owned)
+			free(s);
         err(1, "malloc");
     }
 	cu->type = type;
 	cu->s = s;
+	cu->owned = owned;
 	cu->next = NULL;
 	*cu_nextp = cu;
 	cu_nextp = &cu->next;
@@ -472,6 +515,8 @@ add_file(char *s)
         err(1, "malloc");
     }
 	fp->next = NULL;
+	if (file_list == NULL)
+		file_list = fp;
     // That's the stuff:
 	*fl_nextp = fp;
 	fp->fname = s;

@@ -3081,3 +3081,6 @@
 "prevent_sleep_while_working_ios_detail" = "Keep the screen on while agents work or models download, so this device doesn't lock and pause them.";
 "steer" = "Steer";
 "check_for_updates_dot" = "Check for updates...";
+"remove_download_dot" = "Remove download...";
+"remove_download" = "Remove download";
+"remove_download_detail" = "%1$@ will be deleted from this device, freeing %2$@. You can download it again anytime.";

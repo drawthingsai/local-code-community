@@ -60,9 +60,10 @@ int	 prn_printable(const char *);
 void	 parsecolors(const char *cs);
 void     colorquit(int);
 
-extern  char    *ansi_fgcol;
-extern  char    *ansi_bgcol;
-extern  char    *ansi_coloff;
-extern  char    *attrs_off;
-extern  char    *enter_bold;
+void	 printcol_release(void);	/* iOS */
+extern  __thread const char *ansi_fgcol;
+extern  __thread const char *ansi_bgcol;
+extern  __thread const char *ansi_coloff;
+extern  __thread const char *attrs_off;
+extern  __thread const char *enter_bold;
 #endif

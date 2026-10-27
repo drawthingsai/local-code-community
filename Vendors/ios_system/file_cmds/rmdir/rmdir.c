@@ -52,7 +52,7 @@ __RCSID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.13 2002/06/30 05:15:03 obrien Exp $
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static int rm_path(char *);
 static void usage(void);
@@ -63,9 +63,9 @@ rmdir_main(int argc, char *argv[])
 	int ch, errors;
 	int pflag;
 
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
 	pflag = 0;
-    optind = 1; opterr = 1; optreset = 1;
-    
 	while ((ch = getopt(argc, argv, "p")) != -1)
 		switch(ch) {
 		case 'p':
@@ -82,7 +82,7 @@ rmdir_main(int argc, char *argv[])
 		usage();
 
 	for (errors = 0; *argv; argv++) {
-		if (rmdir(*argv) < 0) {
+		if (ios_system_rmdir(*argv) < 0) {
             warn("%s", *argv);
 			errors = 1;
 		} else if (pflag)
@@ -90,6 +90,8 @@ rmdir_main(int argc, char *argv[])
 	}
 
 	exit(errors);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 int
@@ -107,7 +109,7 @@ rm_path(char *path)
 			;
 		*++p = '\0';
 
-		if (rmdir(path) < 0) {
+		if (ios_system_rmdir(path) < 0) {
             warn("%s", path);
 			return (1);
 		}

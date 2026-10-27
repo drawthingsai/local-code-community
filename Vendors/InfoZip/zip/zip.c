@@ -446,6 +446,14 @@ ZCONST char *h;         /* message about how it happened */
     free((zvoid *)zipfile);
     zipfile = NULL;
   }
+  if (in_file != NULL) {
+    fclose(in_file);
+    in_file = NULL;
+  }
+  if (in_path != NULL) {
+    free((zvoid *)in_path);
+    in_path = NULL;
+  }
   if (out_path != NULL) {
     free((zvoid *)out_path);
     out_path = NULL;
@@ -3240,6 +3248,7 @@ char **argv;            /* command line tokens */
               }
               /* add name to list for later processing */
               add_name(value);
+              free(value);
               /*
               if ((r = PROCNAME(value)) != ZE_OK) {
                 if (r == ZE_MISS)
@@ -5088,11 +5097,15 @@ char **argv;            /* command line tokens */
         if (r != ZE_OK && fix == 1) {
           /* remove bad entry from list */
           v = z->nxt;                     /* delete entry from list */
+          if (z->name != z->zname && z->name != z->iname)
+            free((zvoid *)(z->name));
           free((zvoid *)(z->iname));
           free((zvoid *)(z->zname));
           free(z->oname);
 #ifdef UNICODE_SUPPORT
           if (z->uname) free(z->uname);
+          if (z->zuname) free(z->zuname);
+          if (z->ouname) free(z->ouname);
 #endif /* def UNICODE_SUPPORT */
           if (z->ext)
             /* don't have local extra until zipcopy reads it */
@@ -5195,11 +5208,15 @@ char **argv;            /* command line tokens */
 #endif /* WINDLL */
 
         v = z->nxt;                     /* delete entry from list */
+        if (z->name != z->zname && z->name != z->iname)
+          free((zvoid *)(z->name));
         free((zvoid *)(z->iname));
         free((zvoid *)(z->zname));
         free(z->oname);
 #ifdef UNICODE_SUPPORT
         if (z->uname) free(z->uname);
+        if (z->zuname) free(z->zuname);
+        if (z->ouname) free(z->ouname);
 #endif /* def UNICODE_SUPPORT */
         if (z->ext)
           /* don't have local extra until zipcopy reads it */
@@ -5217,11 +5234,15 @@ char **argv;            /* command line tokens */
     {
       if (action == ARCHIVE) {
         v = z->nxt;                     /* delete entry from list */
+        if (z->name != z->zname && z->name != z->iname)
+          free((zvoid *)(z->name));
         free((zvoid *)(z->iname));
         free((zvoid *)(z->zname));
         free(z->oname);
 #ifdef UNICODE_SUPPORT
         if (z->uname) free(z->uname);
+        if (z->zuname) free(z->zuname);
+        if (z->ouname) free(z->ouname);
 #endif /* def UNICODE_SUPPORT */
         if (z->ext)
           /* don't have local extra until zipcopy reads it */

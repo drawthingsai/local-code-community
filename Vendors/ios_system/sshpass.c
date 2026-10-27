@@ -1,4 +1,8 @@
-#include "ios_error.h"
+// Only the invocation-local option parser: libc getopt's state is shared by
+// every session. (Its system headers, <wchar.h> among them, precede
+// ios_error.h's stream macros.)
+#define IOS_SYSTEM_SUPPORT_IMPLEMENTATION
+#include "ios_system_support.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -117,6 +121,11 @@ static int sshpass_run_command(
     int argc, char **argv, sshpass_cleanup_context *context)
 {
     context->childPid = ios_fork();
+    if (context->childPid < 0) {
+        fprintf(thread_stderr, "sshpass: fork: %s\n", strerror(errno));
+        context->childPid = 0;
+        return 3;
+    }
     int status = ios_system(argc, (const char *const *)argv);
     pthread_t childThread = ios_getThreadId(context->childPid);
     if (childThread == (pthread_t)-1) {
@@ -140,7 +149,7 @@ int sshpass_main(int argc, char **argv) {
     bool explicitPasswordSource = false;
     int option;
 
-    while ((option = getopt(argc, argv, "+f:d:p:P:heVv")) != -1) {
+    while ((option = ios_system_getopt(argc, argv, "+f:d:p:P:heVv")) != -1) {
         switch (option) {
         case 'f':
         case 'd':
@@ -154,28 +163,28 @@ int sshpass_main(int argc, char **argv) {
             explicitPasswordSource = true;
             if (option == 'f') {
                 passwordSource = SSHPASS_PASSWORD_FILE;
-                passwordFilename = optarg;
+                passwordFilename = ios_system_optarg;
             } else if (option == 'd') {
                 char *end = NULL;
                 errno = 0;
-                long value = strtol(optarg, &end, 10);
-                if (errno != 0 || end == optarg || *end != '\0' || value < 0 ||
+                long value = strtol(ios_system_optarg, &end, 10);
+                if (errno != 0 || end == ios_system_optarg || *end != '\0' || value < 0 ||
                     value > INT_MAX) {
                     fprintf(thread_stderr,
-                        "sshpass: invalid file descriptor: %s\n", optarg);
+                        "sshpass: invalid file descriptor: %s\n", ios_system_optarg);
                     return 1;
                 }
                 passwordSource = SSHPASS_PASSWORD_FD;
                 passwordFD = (int)value;
             } else if (option == 'p') {
                 passwordSource = SSHPASS_PASSWORD_ARGUMENT;
-                passwordArgument = optarg;
+                passwordArgument = ios_system_optarg;
             } else {
                 passwordSource = SSHPASS_PASSWORD_ENVIRONMENT;
             }
             break;
         case 'P':
-            prompt = optarg;
+            prompt = ios_system_optarg;
             break;
         case 'v':
             verbose++;
@@ -195,15 +204,15 @@ int sshpass_main(int argc, char **argv) {
         }
     }
 
-    if (optind >= argc) {
+    if (ios_system_optind >= argc) {
         sshpass_usage();
         return 0;
     }
-    const char *commandName = sshpass_command_name(argv[optind]);
+    const char *commandName = sshpass_command_name(argv[ios_system_optind]);
     if (strcmp(commandName, "ssh") != 0 && strcmp(commandName, "scp") != 0 &&
         strcmp(commandName, "sftp") != 0) {
         fprintf(thread_stderr,
-            "sshpass: unsupported embedded command: %s\n", argv[optind]);
+            "sshpass: unsupported embedded command: %s\n", argv[ios_system_optind]);
         return 1;
     }
 
@@ -277,7 +286,7 @@ int sshpass_main(int argc, char **argv) {
     int sshpassResult;
     pthread_cleanup_push(sshpass_cleanup, &cleanupContext);
     status = sshpass_run_command(
-        argc - optind, argv + optind, &cleanupContext);
+        argc - ios_system_optind, argv + ios_system_optind, &cleanupContext);
     sshpassResult = ios_sshpass_end();
     pthread_cleanup_pop(0);
     return sshpassResult != IOS_SSHPASS_INACTIVE ? sshpassResult : status;

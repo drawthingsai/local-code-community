@@ -62,11 +62,40 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <wchar.h>
 #include <wctype.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-static int cflag, dflag, uflag, iflag;
-static long numchars, numfields;
-static int repeats;
+static __thread int cflag, dflag, uflag, iflag;
+static __thread long numchars, numfields;
+static __thread int repeats;
+
+/* iOS: what one invocation holds, released however it ends. */
+static __thread FILE *ifp, *ofp;
+static __thread char *prevline, *thisline;
+static __thread wchar_t *tprev, *tthis;
+static __thread char **rewritten;	/* obsolete "-N"/"+N" operands */
+static __thread int rewritten_count;
+
+static void uniq_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (ifp != NULL && ifp != thread_stdin)
+		fclose(ifp);
+	if (ofp != NULL && ofp != thread_stdout)
+		fclose(ofp);
+	ifp = ofp = NULL;
+	free(prevline);
+	free(thisline);
+	free(tprev);
+	free(tthis);
+	prevline = thisline = NULL;
+	tprev = tthis = NULL;
+	for (int i = 0; i < rewritten_count; ++i)
+		free(rewritten[i]);
+	free(rewritten);
+	rewritten = NULL;
+	rewritten_count = 0;
+	ios_system_support_cleanup(unused);
+}
 
 static FILE	*file(const char *, const char *);
 static wchar_t	*convert(const char *);
@@ -76,6 +105,7 @@ static wchar_t	*skip(wchar_t *);
 static void	 obsolete(char *[]);
 static void	 usage(void);
 
+#ifndef __APPLE__
 static void
 strerror_init(void)
 {
@@ -86,29 +116,22 @@ strerror_init(void)
 	 */
 	(void)catopen("libc", NL_CAT_LOCALE);
 }
+#endif
 
 int
 uniq_main (int argc, char *argv[])
 {
-	wchar_t *tprev, *tthis;
-	FILE *ifp, *ofp;
 	int ch, comp;
 	size_t prevbuflen, thisbuflen, b1;
-	char *prevline, *thisline, *p;
+	char *p;
 	const char *ifn;
 #ifndef __APPLE__
 	cap_rights_t rights;
 #endif
 
-    cflag = 0;
-    dflag = 0;
-    uflag = 0;
-    iflag = 0;
-    numchars = 0;
-    numfields = 0;
-    repeats = 0;
-    
-	(void) setlocale(LC_ALL, "");
+	pthread_cleanup_push(uniq_cleanup, NULL);
+	ios_system_support_init(argv);
+	/* Locale is owned by ios_system_support. */
 
 	obsolete(argv);
 	while ((ch = getopt(argc, argv, "cdif:s:u")) != -1)
@@ -187,9 +210,9 @@ uniq_main (int argc, char *argv[])
 	if (cap_enter() < 0 && errno != ENOSYS)
 		err(1, "unable to enter capability mode");
 #else
+	// iOS: no capability mode, so no catalog to cache (it was never closed).
 	if (argc > 1)
 		ofp = file(argv[1], "w");
-	strerror_init();
 #endif
 
 	prevbuflen = thisbuflen = 0;
@@ -243,6 +266,8 @@ uniq_main (int argc, char *argv[])
 	if (cflag || !dflag || !uflag)
 		show(ofp, prevline);
 	exit(0);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static wchar_t *
@@ -310,6 +335,7 @@ show(FILE *ofp, const char *str)
 		(void)fprintf(ofp, "%4d %s", repeats + 1, str);
 	if ((dflag && repeats) || (uflag && !repeats))
 		(void)fprintf(ofp, "%s", str);
+	ios_system_stop_on_broken_pipe(ofp);
 }
 
 static wchar_t *
@@ -333,7 +359,7 @@ file(const char *name, const char *mode)
 {
 	FILE *fp;
 
-	if ((fp = fopen(name, mode)) == NULL)
+	if ((fp = ios_system_fopen(name, mode)) == NULL)
 		err(1, "%s", name);
 	return(fp);
 }
@@ -358,8 +384,11 @@ obsolete(char *argv[])
 		 * new option and argument.
 		 */
 		len = strlen(ap);
-		if ((start = p = malloc(len + 3)) == NULL)
+		char **grown = realloc(rewritten, (rewritten_count + 1) * sizeof(*rewritten));
+		if (grown == NULL || (start = p = malloc(len + 3)) == NULL)
 			err(1, "malloc");
+		rewritten = grown;
+		rewritten[rewritten_count++] = start;
 		*p++ = '-';
 		*p++ = ap[0] == '+' ? 's' : 'f';
 		(void)strcpy(p, ap + 1);

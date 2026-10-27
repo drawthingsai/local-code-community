@@ -2767,3 +2767,7 @@
 "prevent_sleep_while_working_ios_detail" = "Mantiene la pantalla encendida mientras los agentes trabajan o se descargan modelos, para que este dispositivo no se bloquee ni los pause.";
 "steer" = "Redirigir";
 "check_for_updates_dot" = "Buscar actualizaciones...";
+"remove_download_dot" = "Eliminar descarga...";
+"remove_download" = "Eliminar descarga";
+"remove_download_detail" = "%1$@ se eliminará de este dispositivo y se liberarán %2$@. Puedes volver a descargarlo cuando quieras.";
+"remove" = "Eliminar";

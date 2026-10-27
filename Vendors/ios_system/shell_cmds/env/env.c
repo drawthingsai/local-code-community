@@ -52,29 +52,37 @@ __FBSDID("$FreeBSD$");
 
 #include "envopts.h"
 #include <TargetConditionals.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 extern char **environ;
 
 __thread int	 env_verbosity;
+static __thread char *altpath;
+
+static void
+env_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	free(altpath);
+	altpath = NULL;
+	env_release();
+	ios_system_support_cleanup(unused);
+}
 
 static void usage(void);
 
-#if TARGET_OS_IPHONE
 extern void clearEnvironment(pid_t pid);
-#endif
 
 int
 env_main(int argc, char **argv)
 {
-	char *altpath, **ep, *p, **parg;
-	char *cleanenv[1];
+	char **ep, *p, **parg;
 	int ch, want_clear;
 	int rtrn;
 
-	altpath = NULL;
+	pthread_cleanup_push(env_cleanup, NULL);
+	ios_system_support_init(argv);
 	want_clear = 0;
-    optind = 1; opterr = 1; optreset = 1;
 	while ((ch = getopt(argc, argv, "-iP:S:u:v")) != -1)
 		switch(ch) {
 		case '-':
@@ -82,6 +90,7 @@ env_main(int argc, char **argv)
 			want_clear = 1;
 			break;
 		case 'P':
+			free(altpath);
 			altpath = strdup(optarg);
 			break;
 		case 'S':
@@ -110,12 +119,9 @@ env_main(int argc, char **argv)
 			usage();
 		}
 	if (want_clear) {
-#if TARGET_OS_IPHONE
-        clearEnvironment(ios_currentPid());
-#else
-		environ = cleanenv;
-		cleanenv[0] = NULL;
-#endif
+		// ios_system (on every platform): clear the session environment;
+		// replacing environ would change it for the whole process.
+		clearEnvironment(ios_currentPid());
 		if (env_verbosity)
 			fprintf(thread_stderr, "#env clearing environ\n");
 	}
@@ -144,17 +150,17 @@ env_main(int argc, char **argv)
         // runs the command and returns on every platform, including macOS.
         // waitpid reports a wait status, not an exit code.
         int pid = ios_fork();
+        if (pid < 0)
+            err(126, "fork");
         int childerr = execvp(*argv, argv);
         waitpid(pid, &childerr, 0);
         ios_exit(WEXITSTATUS(childerr));
 	}
-#if !TARGET_OS_IPHONE
-        for (ep = environ; *ep != NULL; ep++)
-#else
         for (ep = environmentVariables(ios_currentPid()); *ep != NULL; ep++)
-#endif
 		(void)fprintf(thread_stdout, "%s\n", *ep);
 	exit(0);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void
@@ -201,6 +207,7 @@ int export_main(int argc, char** argv) {
     char* position = strstr(argument,"=");
     if (position == NULL) {
         fprintf(thread_stderr, "export: can't find '='. Usage: export variable=value\n"); fflush(thread_stderr);
+        free(argument);
         return 0;
     }
     *position = 0;

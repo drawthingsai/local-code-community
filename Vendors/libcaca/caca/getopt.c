@@ -27,20 +27,26 @@
 #include "caca.h"
 #include "caca_internals.h"
 
-int   caca_optind = 1;
-char *caca_optarg = NULL;
+/* iOS: commands run concurrently in one process, so this parses with the
+ * invocation's getopt, not libc's process-wide state, and keeps its own
+ * state per thread. */
+#define IOS_SYSTEM_SUPPORT_IMPLEMENTATION
+#include "ios_system_support.h"
+
+__thread int   caca_optind = 1;
+__thread char *caca_optarg = NULL;
 
 int caca_getopt(int argc, char * const _argv[], char const *optstring,
                 struct caca_option const *longopts, int *longindex)
 {
 #if defined HAVE_GETOPT_LONG
     int ret;
-    optind = caca_optind;
-    optarg = caca_optarg;
-    ret = getopt_long(argc, _argv, optstring,
+    ios_system_optind = caca_optind;
+    ios_system_optarg = caca_optarg;
+    ret = ios_system_getopt_long(argc, _argv, optstring,
                       (struct option const *)longopts, longindex);
-    caca_optind = optind;
-    caca_optarg = optarg;
+    caca_optind = ios_system_optind;
+    caca_optarg = ios_system_optarg;
     return ret;
 
 #else

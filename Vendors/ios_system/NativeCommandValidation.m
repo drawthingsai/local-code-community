@@ -636,13 +636,15 @@ int ios_validateNativeCommands(void)
         for (int i = 0; i < 5; ++i) sigaction(signals[i], NULL, &before[i]);
         NSArray<NSString *> *commands = @[@"readlink", @"basename", @"dirname", @"realpath",
             @"mktemp", @"cut", @"comm", @"paste", @"join", @"split", @"df", @"du", @"chmod",
-            @"cmp", @"diff", @"xxd", @"base64", @"sha256sum", @"jq", @"zip", @"unzip"];
+            @"cmp", @"diff", @"xxd", @"base64", @"sha256sum", @"jq", @"zip", @"unzip",
+            @"awk", @"cat", @"cp", @"egrep", @"env", @"fgrep", @"find", @"grep", @"head", @"id",
+            @"link", @"ln", @"ls", @"mkdir", @"mv", @"printenv", @"pwd", @"rm", @"rmdir", @"sed",
+            @"sort", @"stat", @"tail", @"touch", @"tr", @"uname", @"uniq", @"unlink", @"uptime",
+            @"w", @"wc", @"whoami", @"xargs", @"date"];
         for (NSString *command in commands) {
             check(ios_command_lookup(command.UTF8String) != NULL && ios_executable(command.UTF8String),
                 [@"registered " stringByAppendingString:command]);
-            BOOL exclusive = [@[@"readlink", @"df", @"du", @"chmod"] containsObject:command];
-            ios_command_isolation_policy policy = exclusive ? IOS_COMMAND_ISOLATION_EXCLUSIVE_BASH :
-                IOS_COMMAND_ISOLATION_THREAD_SAFE;
+            ios_command_isolation_policy policy = IOS_COMMAND_ISOLATION_THREAD_SAFE;
             check(ios_commandIsExclusiveOrThreadSafe(command.UTF8String) == policy,
                 [@"isolation " stringByAppendingString:command]);
             check(ios_commandIsExclusiveOrThreadSafe([@"/usr/bin/" stringByAppendingString:command].UTF8String) == policy,

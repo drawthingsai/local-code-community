@@ -57,11 +57,11 @@ __RCSID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.26 2002/06/30 05:13:54 obrien Exp $
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static void	usage(void);
 
-static int vflag;
+static __thread int vflag;
 
 int
 mkdir_main(int argc, char *argv[])
@@ -69,10 +69,9 @@ mkdir_main(int argc, char *argv[])
 	int ch, exitval, success, pflag;
 	mode_t omode, *set = (mode_t *)NULL;
 	char *mode;
-    // initialize flag
-    vflag = 0;
-    optind = 1; opterr = 1; optreset = 1;
-    
+
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
 	pflag = 0;
 	mode = NULL;
 	while ((ch = getopt(argc, argv, "m:pv")) != -1)
@@ -99,25 +98,28 @@ mkdir_main(int argc, char *argv[])
 	if (mode == NULL) {
 		omode = S_IRWXU | S_IRWXG | S_IRWXO;
 	} else {
-        if ((set = setmode(mode)) == NULL) {
+        if ((set = ios_system_setmode(mode)) == NULL) {
 			errx(1, "invalid file mode: %s", mode);
         }
-		omode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
+		omode = ios_system_getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
 		free(set);
 	}
 
 	for (exitval = 0; *argv != NULL; ++argv) {
 		success = 1;
 		if (pflag) {
-			int status = mkpath_np(*argv, omode);
+			char resolved[PATH_MAX];
+			const char *path = ios_system_session_path(*argv, resolved);
+			int status = path != NULL ? mkpath_np(path, omode) : errno;
 			if (status && status != EEXIST) {
                 fprintf(thread_stderr, "mkdir: %s: %s\n", *argv, strerror(status));
                 // warnc(status, "%s", *argv);
 				success = 0;
 			}
-		} else if (mkdir(*argv, omode) < 0) {
+		} else if (ios_system_mkdir(*argv, omode) < 0) {
+			char parent[PATH_MAX];
 			if (errno == ENOTDIR || errno == ENOENT)
-                warn("%s", dirname(*argv));
+                warn("%s", dirname_r(*argv, parent));
 			else
                 warn("%s", *argv);
 			success = 0;
@@ -133,12 +135,14 @@ mkdir_main(int argc, char *argv[])
 		 * this unless the user has specifically requested a mode,
 		 * as chmod will (obviously) ignore the umask.
 		 */
-		if (success && mode != NULL && chmod(*argv, omode) == -1) {
+		if (success && mode != NULL && ios_system_chmod(*argv, omode) == -1) {
             warn("%s", *argv);
 			exitval = 1;
 		}
 	}
-    exit(exitval); // don't exit from main thread
+    exit(exitval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 void

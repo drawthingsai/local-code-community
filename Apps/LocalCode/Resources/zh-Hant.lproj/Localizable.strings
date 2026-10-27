@@ -2782,3 +2782,7 @@
 "prevent_sleep_while_working_ios_detail" = "在代理工作或模型下載期間保持螢幕開啟，以免此裝置鎖定並暫停這些工作。";
 "steer" = "引導";
 "check_for_updates_dot" = "檢查更新...";
+"remove_download_dot" = "移除下載...";
+"remove_download" = "移除下載";
+"remove_download_detail" = "%1$@ 將從此裝置中刪除，釋放 %2$@ 空間。可隨時重新下載。";
+"remove" = "移除";

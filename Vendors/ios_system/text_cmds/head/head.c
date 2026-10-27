@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD: src/usr.bin/head/head.c,v 1.20 2007/01/11 20:23:01 brooks Ex
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 /*
  * head - give the first few lines of a stream or of each of a set of files
@@ -67,6 +67,25 @@ static void head_bytes(FILE *, off_t);
 static void obsolete(char *[]);
 static void usage(void);
 
+/* iOS: what an early exit must release. */
+static __thread FILE *open_fp;
+static __thread char **rewritten;	/* "-N" operands rewritten to "-nN" */
+static __thread int rewritten_count;
+
+static void head_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (open_fp != NULL)
+		fclose(open_fp);
+	open_fp = NULL;
+	for (int i = 0; i < rewritten_count; ++i)
+		free(rewritten[i]);
+	free(rewritten);
+	rewritten = NULL;
+	rewritten_count = 0;
+	ios_system_support_cleanup(unused);
+}
+
 int
 head_main(int argc, char *argv[])
 {
@@ -76,10 +95,8 @@ head_main(int argc, char *argv[])
 	off_t bytecnt = -1;
 	char *ep;
 
-    linecnt = -1;
-    bytecnt = -1;
-    eval = 0;
-    //
+	pthread_cleanup_push(head_cleanup, NULL);
+	ios_system_support_init(argv);
 	obsolete(argv);
 	while ((ch = getopt(argc, argv, "n:c:")) != -1)
 		switch(ch) {
@@ -106,7 +123,7 @@ head_main(int argc, char *argv[])
 		linecnt = 10;
 	if (*argv) {
 		for (first = 1; *argv; ++argv) {
-			if ((fp = fopen(*argv, "r")) == NULL) {
+			if ((fp = open_fp = ios_system_fopen(*argv, "r")) == NULL) {
 				warn("%s", *argv);
 				eval = 1;
 				continue;
@@ -125,6 +142,7 @@ head_main(int argc, char *argv[])
 				eval = 1;
 			}
 			(void)fclose(fp);
+			open_fp = NULL;
 		}
 	} else {
 		if (bytecnt == -1) {
@@ -139,6 +157,8 @@ head_main(int argc, char *argv[])
 	}
 
 	exit(eval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void
@@ -149,8 +169,10 @@ head(FILE *fp, int cnt)
 
 	while (cnt && (cp = fgetln(fp, &readlen)) != NULL) {
 		error = fwrite(cp, sizeof(char), readlen, stdout);
-		if (error != readlen)
+		if (error != readlen) {
+			ios_system_stop_on_broken_pipe(stdout);
 			err(1, "stdout");
+		}
 		cnt--;
 	}
 }
@@ -169,8 +191,10 @@ head_bytes(FILE *fp, off_t cnt)
 		readlen = fread(buf, sizeof(char), readlen, fp);
 		if (readlen == 0)
 			break;
-		if (fwrite(buf, sizeof(char), readlen, stdout) != readlen)
+		if (fwrite(buf, sizeof(char), readlen, stdout) != readlen) {
+			ios_system_stop_on_broken_pipe(stdout);
 			err(1, "stdout");
+		}
 		cnt -= readlen;
 	}
 }
@@ -184,8 +208,11 @@ obsolete(char *argv[])
 		/* Return if "--" or not "-[0-9]*". */
 		if (ap[0] != '-' || ap[1] == '-' || !isdigit(ap[1]))
 			return;
-		if ((ap = malloc(strlen(*argv) + 2)) == NULL)
+		char **grown = realloc(rewritten, (rewritten_count + 1) * sizeof(*rewritten));
+		if (grown == NULL || (ap = malloc(strlen(*argv) + 2)) == NULL)
 			err(1, NULL);
+		rewritten = grown;
+		rewritten[rewritten_count++] = ap;
 		ap[0] = '-';
 		ap[1] = 'n';
 		(void)strcpy(ap + 2, *argv + 1);

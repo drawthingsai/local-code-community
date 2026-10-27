@@ -51,7 +51,7 @@ __RCSID("$NetBSD: uname.c,v 1.10 1998/11/09 13:24:05 kleink Exp $");
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <errno.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #ifdef __APPLE__
 // #include <get_compat.h>
@@ -84,9 +84,10 @@ uname_main(argc, argv)
 	int c;
 	int space = 0;
 	int print_mask = 0;
-    optind = 1; opterr = 1; optreset = 1;
-    
-	(void)setlocale(LC_ALL, "");
+
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
+	/* Locale is owned by ios_system_support. */
 
 	while ((c = getopt(argc,argv,"amnprsv")) != -1) {
 		switch (c) {
@@ -207,7 +208,8 @@ uname_main(argc, argv)
 	putchar('\n');
 
 	exit(EXIT_SUCCESS);
-	/* NOTREACHED */
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void

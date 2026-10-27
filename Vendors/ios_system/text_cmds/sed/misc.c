@@ -51,17 +51,18 @@ static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 // iOS
 #include <errno.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 /*
  * Return a string for a regular expression error passed.  This is overkill,
  * because of the silly semantics of regerror (we can never know the size of
  * the buffer).
  */
+static __thread char *oe;
+
 char *
 strregerror(int errcode, regex_t *preg)
 {
-	static char *oe;
 	size_t s;
 
 	if (oe != NULL)
@@ -72,4 +73,12 @@ strregerror(int errcode, regex_t *preg)
     }
 	(void)regerror(errcode, preg, oe, s);
 	return (oe);
+}
+
+/* iOS: strregerror keeps its message until the next call. */
+void
+misc_release(void)
+{
+	free(oe);
+	oe = NULL;
 }

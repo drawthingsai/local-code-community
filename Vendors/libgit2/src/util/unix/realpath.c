@@ -17,6 +17,12 @@
 char *p_realpath(const char *pathname, char *resolved)
 {
 	char *result;
+#ifdef GIT_IOS_SYSTEM_SESSION
+	char session_path[PATH_MAX];
+
+	if ((pathname = git__session_path(pathname, session_path)) == NULL)
+		return NULL;
+#endif
 
 	if ((result = realpath(pathname, resolved)) == NULL)
 		return NULL;

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD: head/usr.bin/sort/radixsort.c 281133 2015-04-06 03:02:20Z pf
 
 #include "coll.h"
 #include "radixsort.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #define DEFAULT_SORT_FUNC_RADIXSORT mergesort
 
@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD: head/usr.bin/sort/radixsort.c 281133 2015-04-06 03:02:20Z pf
 #define SMALL_NODE(sl) ((sl)->tosort_num < 5)
 
 /* are we sorting in reverse order ? */
-static bool reverse_sort;
+static __thread bool reverse_sort;
 
 /* sort sub-levels array size */
 static const size_t slsz = 256 * sizeof(struct sort_level*);
@@ -80,7 +80,7 @@ struct level_stack {
 	struct sort_level	 *sl;
 };
 
-static struct level_stack *g_ls;
+static __thread struct level_stack *g_ls;
 
 #if defined(SORT_THREADS)
 /* stack guarding mutex */

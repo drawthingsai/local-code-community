@@ -88,6 +88,7 @@ static void find_cleanup(void *unused)
 		fts_close(tree);
 		tree = NULL;
 	}
+	find_release_plans();
 	if (dotfd >= 0) {
 		close(dotfd);
 		dotfd = -1;

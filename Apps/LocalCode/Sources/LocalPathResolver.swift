@@ -4,7 +4,6 @@ struct LocalPathResolver: Equatable, Sendable {
   enum Namespace: Equatable, Sendable {
     case project
     case home
-    case tilde
     case temporary
     case appBundle
     case permitted
@@ -33,11 +32,9 @@ struct LocalPathResolver: Equatable, Sendable {
       case .project:
         return relativePath.isEmpty ? "." : relativePath
       case .home:
-        return relativePath.isEmpty ? "/home" : "/home/\(relativePath)"
-      case .tilde:
         return relativePath.isEmpty ? "~" : "~/\(relativePath)"
       case .temporary:
-        return relativePath.isEmpty ? "/tmp" : "/tmp/\(relativePath)"
+        return relativePath.isEmpty ? "$TMPDIR" : "$TMPDIR/\(relativePath)"
       case .appBundle:
         return relativePath.isEmpty ? "/app_bundle" : "/app_bundle/\(relativePath)"
       case .permitted:
@@ -96,21 +93,18 @@ struct LocalPathResolver: Equatable, Sendable {
       let filePath = String(path[pathStart...])
       return resolve(filePath.removingPercentEncoding ?? filePath)
     }
-    if path == "/home" || path.hasPrefix("/home/") {
-      let relativePath = String(path.dropFirst("/home".count)).dropLeadingSlashes()
-      return resolve(relativePath, from: workspaceURL, namespace: .home)
-    }
-    if path == "/tmp" || path.hasPrefix("/tmp/") {
-      let relativePath = String(path.dropFirst("/tmp".count)).dropLeadingSlashes()
+    // $TMPDIR and $HOME are the shell's spellings, so paths copied from Bash resolve the same.
+    if path == "$TMPDIR" || path.hasPrefix("$TMPDIR/") {
+      let relativePath = String(path.dropFirst("$TMPDIR".count)).dropLeadingSlashes()
       return resolve(relativePath, from: temporaryURL, namespace: .temporary)
     }
     if path == "/app_bundle" || path.hasPrefix("/app_bundle/") {
       let relativePath = String(path.dropFirst("/app_bundle".count)).dropLeadingSlashes()
       return resolve(relativePath, from: appBundleURL, namespace: .appBundle)
     }
-    if path == "~" || path.hasPrefix("~/") {
-      let relativePath = String(path.dropFirst()).dropLeadingSlashes()
-      return resolve(relativePath, from: workspaceURL, namespace: .tilde)
+    for prefix in ["~", "$HOME"] where path == prefix || path.hasPrefix(prefix + "/") {
+      let relativePath = String(path.dropFirst(prefix.count)).dropLeadingSlashes()
+      return resolve(relativePath, from: workspaceURL, namespace: .home)
     }
     if path.hasPrefix("/") {
       guard let absoluteURL = Self.canonicalURL(URL(fileURLWithPath: path)) else { return nil }

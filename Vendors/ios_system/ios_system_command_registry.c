@@ -83,6 +83,7 @@ extern int tee_main(int, char **);
 extern int touch_main(int, char **);
 extern int tr_main(int, char **);
 extern int true_main(int, char **);
+extern int false_main(int, char **);
 extern int type_main(int, char **);
 extern int unalias_main(int, char **);
 extern int uname_main(int, char **);
@@ -117,6 +118,7 @@ static const ios_command_entry kStaticCommands[] = {
     {"egrep", grep_main, "grep_main", "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXy", "file"},
     {"env", env_main, "env_main", "-iP:S:u:v", "no"},
     {"export", export_main, "export_main", "", "no"},
+    {"false", false_main, "false_main", "", "no"},
     {"ffmpeg", ffmpeg_main, "ffmpeg_main", "", "file"},
     {"ffprobe", ffprobe_main, "ffprobe_main", "", "file"},
     {"fgrep", grep_main, "grep_main", "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXy", "file"},
@@ -349,6 +351,7 @@ ios_command_isolation_policy ios_commandIsExclusiveOrThreadSafe(const char *comm
       entry->function == pbpaste ||
       entry->function == sleep_main ||
       entry->function == true_main ||
+      entry->function == false_main ||
       entry->function == type_main ||
       entry->function == basename_main ||
       entry->function == dirname_main ||
@@ -366,7 +369,40 @@ ios_command_isolation_policy ios_commandIsExclusiveOrThreadSafe(const char *comm
       entry->function == diff_main ||
       entry->function == xxd_main ||
       entry->function == base64_main ||
-      entry->function == sha256sum_main) {
+      entry->function == sha256sum_main ||
+      // Legacy commands on ios_system_support: invocation-local state,
+      // session-relative paths and no process-wide handlers or locale.
+      entry->function == awk_main ||
+      entry->function == cat_main ||
+      entry->function == chmod_main ||
+      entry->function == cp_main ||
+      entry->function == date_main ||
+      entry->function == df_main ||
+      entry->function == du_main ||
+      entry->function == env_main ||
+      entry->function == find_main ||
+      entry->function == grep_main ||
+      entry->function == head_main ||
+      entry->function == id_main ||
+      entry->function == ln_main ||
+      entry->function == ls_main ||
+      entry->function == mkdir_main ||
+      entry->function == mv_main ||
+      entry->function == printenv_main ||
+      entry->function == pwd_main ||
+      entry->function == rm_main ||
+      entry->function == rmdir_main ||
+      entry->function == sed_main ||
+      entry->function == sort_main ||
+      entry->function == stat_main ||
+      entry->function == tail_main ||
+      entry->function == touch_main ||
+      entry->function == tr_main ||
+      entry->function == uname_main ||
+      entry->function == uniq_main ||
+      entry->function == w_main ||
+      entry->function == wc_main ||
+      entry->function == xargs_main) {
     return IOS_COMMAND_ISOLATION_THREAD_SAFE;
   }
   if (entry->function == ios_python_main || entry->function == ios_pip_main ||

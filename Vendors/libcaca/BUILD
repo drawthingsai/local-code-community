@@ -57,6 +57,7 @@ objc_library(
         ".",
         "caca",
     ],
+    deps = ["//Vendors/ios_system:ios_system_support"],
 )
 
 objc_library(

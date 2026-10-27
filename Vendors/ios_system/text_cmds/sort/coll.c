@@ -45,16 +45,16 @@ __FBSDID("$FreeBSD: head/usr.bin/sort/coll.c 298089 2016-04-15 22:31:22Z pfg $")
 
 #include "coll.h"
 #include "vsort.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-struct key_specs *keys;
-size_t keys_num = 0;
+__thread struct key_specs *keys;
+__thread size_t keys_num = 0;
 
-wint_t symbol_decimal_point = L'.';
+__thread wint_t symbol_decimal_point = L'.';
 /* there is no default thousands separator in collate rules: */
-wint_t symbol_thousands_sep = 0;
-wint_t symbol_negative_sign = L'-';
-wint_t symbol_positive_sign = L'+';
+__thread wint_t symbol_thousands_sep = 0;
+__thread wint_t symbol_negative_sign = L'-';
+__thread wint_t symbol_positive_sign = L'+';
 
 static int wstrcoll(struct key_value *kv1, struct key_value *kv2, size_t offset);
 static int gnumcoll(struct key_value*, struct key_value *, size_t offset);

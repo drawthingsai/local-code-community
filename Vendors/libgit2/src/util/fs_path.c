@@ -1178,7 +1178,13 @@ int git_fs_path_direach(
 
 	wd_len = git_str_len(path);
 
+#ifdef GIT_IOS_SYSTEM_SESSION
+	char session_path[PATH_MAX];
+	const char *name = git__session_path(path->ptr, session_path);
+	if ((dir = name != NULL ? opendir(name) : NULL) == NULL) {
+#else
 	if ((dir = opendir(path->ptr)) == NULL) {
+#endif
 		git_error_set(GIT_ERROR_OS, "failed to open directory '%s'", path->ptr);
 		if (errno == ENOENT)
 			return GIT_ENOTFOUND;
@@ -1419,7 +1425,13 @@ int git_fs_path_diriter_init(
 		return -1;
 	}
 
+#ifdef GIT_IOS_SYSTEM_SESSION
+	char session_path[PATH_MAX];
+	const char *name = git__session_path(diriter->path.ptr, session_path);
+	if ((diriter->dir = name != NULL ? opendir(name) : NULL) == NULL) {
+#else
 	if ((diriter->dir = opendir(diriter->path.ptr)) == NULL) {
+#endif
 		git_str_dispose(&diriter->path);
 
 		git_error_set(GIT_ERROR_OS, "failed to open directory '%s'", path);

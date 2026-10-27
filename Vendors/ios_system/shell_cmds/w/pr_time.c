@@ -53,7 +53,7 @@ static const char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
 void
 pr_attime(time_t *started, time_t *now)
 {
-	static char buf[256];
+	char buf[256];
 	struct tm tp, tm;
 	time_t diff;
 	char fmt[20];

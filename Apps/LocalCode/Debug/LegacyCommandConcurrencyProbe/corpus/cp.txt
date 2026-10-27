@@ -1,0 +1,71 @@
+# cp parity corpus (the tree comparison checks the copies)
+cp lines.txt copy.txt
+cp lines.txt words.txt other
+cp lines.txt other/
+cp lines.txt other/renamed.txt
+cp missing.txt copy.txt
+cp lines.txt
+cp
+cp lines.txt missing-dir/
+cp lines.txt missing-dir/x.txt
+cp lines.txt words.txt not-a-dir.txt
+cp lines.txt lines.txt
+cp lines.txt link.txt
+cp dir newdir
+cp -R dir newdir
+cp -R dir other
+cp -R dir/ newdir
+cp -R dir/ other
+cp -r dir newdir
+cp -R . ../escaped; ls ../escaped | wc -l
+cp -R ../fx/dir copied
+cp -R dirlink copied
+cp -RP dirlink copied
+cp -RL dirlink copied
+cp -RH dirlink copied
+cp link.txt copied-link
+cp -P link.txt copied-link
+cp -R link.txt copied-link
+cp broken copied-broken
+cp -R broken copied-broken
+cp -p lines.txt preserved.txt
+cp -p ro.txt ro-copy.txt
+cp ro.txt ro-copy.txt
+cp -pR dir preserved-dir
+cp -a dir archived
+cp -a link.txt archived-link
+cp -n lines.txt words.txt
+cp -n -v lines.txt words.txt
+cp -f lines.txt ro.txt
+cp lines.txt ro.txt
+cp -i lines.txt words.txt < /dev/null
+printf 'y\n' | cp -i lines.txt words.txt
+printf 'n\n' | cp -i lines.txt words.txt
+cp -v lines.txt words.txt other
+cp -Rv dir copied
+cp -X lines.txt noxattr.txt
+cp -c lines.txt cloned.txt
+cp -c -R dir cloned-dir
+cp -c -X lines.txt x.txt
+cp -R -r dir x
+cp -r -H dir x
+cp -z lines.txt x
+cp 'spaces in name.txt' 'copy with spaces.txt'
+cp -- -dash.txt dash-copy.txt
+cp ./-dash.txt other
+cp empty.txt emptydir
+cp -R emptydir newempty
+cp exec.sh exec-copy.sh
+cp binary.bin binary-copy.bin
+cp long.txt dir/sub/deep/
+cp dir/a.txt dir/b.log ../fx/other
+cp -R other dir/../copied-other
+cp lines.txt /dev/null
+cp /dev/null devnull-copy
+cp -R missing newdir
+cp -R dir missing-dir/new
+cp lines.txt words.txt dir/sub/c.txt
+cp -R dir lines.txt
+cp -Rp dir dir2 && cp -R dir2 dir3
+cp -R dir/.hidden hidden-copy
+cp -R dir/sub/up.txt up-copy

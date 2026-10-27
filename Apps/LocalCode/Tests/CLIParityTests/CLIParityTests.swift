@@ -761,7 +761,7 @@ final class CLIParityTests: XCTestCase {
         "command": .init(
           string: true,
           value:
-            #"python3 -c 'from docx import Document; d=Document(); d.add_paragraph("Office CLI resources"); d.save("input.docx")' && office convert --input input.docx --output output.pdf && office convert --input input.docx --output output.odt && office render --input /home/input.docx --output-dir /home/pages"#
+            #"python3 -c 'from docx import Document; d=Document(); d.add_paragraph("Office CLI resources"); d.save("input.docx")' && office convert --input input.docx --output output.pdf && office convert --input input.docx --output output.odt && office render --input input.docx --output-dir pages"#
         ),
       ])
     let invocation = try XCTUnwrap(
@@ -773,7 +773,7 @@ final class CLIParityTests: XCTestCase {
         return XCTFail("Expected a text response")
       }
       XCTAssertTrue(output.contains(#""ok":true"#), output)
-      XCTAssertTrue(output.contains("/home/pages/page-0001.png"), output)
+      XCTAssertTrue(output.contains("pages/page-0001.png"), output)
       XCTAssertFalse(output.contains(self.directory.path), output)
     }
     wait(for: [completed], timeout: 40)
@@ -891,7 +891,7 @@ final class CLIParityTests: XCTestCase {
       description: "HyperFrames scaffold, lint, and capture through the embedded shell")
     let tool = BashTool(
       command:
-        "hyperframes init /home/movie --non-interactive && hyperframes lint /home/movie --json && hyperframes snapshot /home/movie --at 1 --zoom '0,0,64,64' --zoom-scale 2",
+        "hyperframes init ~/movie --non-interactive && hyperframes lint ~/movie --json && hyperframes snapshot ~/movie --at 1 --zoom '0,0,64,64' --zoom-scale 2",
       timeout: 30, refresh: 30, projectPath: directory.path, workspacePath: directory.path)
     tool.invoke { response in
       let output = response.text
@@ -999,7 +999,7 @@ final class CLIParityTests: XCTestCase {
     </script></html>
     """.write(to: directory.appendingPathComponent("index.html"), atomically: true, encoding: .utf8)
     let completed = expectation(description: "native export through the embedded shell")
-    let command = "html2video . --output /home/export.mp4 --json"
+    let command = "html2video . --output ~/export.mp4 --json"
     let tool = BashTool(
       command: command, timeout: 20, refresh: 20,
       projectPath: directory.path, workspacePath: directory.path)
@@ -1017,20 +1017,51 @@ final class CLIParityTests: XCTestCase {
     XCTAssertEqual(track.naturalSize, CGSize(width: 64, height: 64))
   }
 
+  func testDirectAndShellRedirectionsOpenTheSameFiles() throws {
+    _ = try configureEmbeddedCommandEnvironment()
+    let outside = directory.deletingLastPathComponent().appendingPathComponent(
+      "redirect-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: outside) }
+    // A plain echo takes the direct argv path; the variable sends the same redirect through OSH.
+    for (command, name) in [
+      ("echo direct > '\(outside.path)/direct.txt'", "direct.txt"),
+      ("word=shell; echo $word > '\(outside.path)/shell.txt'", "shell.txt"),
+    ] {
+      let completed = expectation(description: command)
+      BashTool(
+        command: command, timeout: 10, refresh: 5,
+        projectPath: directory.path, workspacePath: directory.path
+      ).invoke { response in
+        XCTAssertTrue(response.text.contains("exit=0"), response.text)
+        completed.fulfill()
+      }
+      wait(for: [completed], timeout: 15)
+      XCTAssertTrue(
+        FileManager.default.fileExists(atPath: outside.appendingPathComponent(name).path), command)
+    }
+  }
+
   func testBashVirtualDirectoryErrorHints() throws {
     _ = try configureEmbeddedCommandEnvironment()
     let resolver = LocalPathResolver(projectPath: directory.path, workspacePath: directory.path)
+    let hints = [
+      "/tmp": "Path hint: /tmp is not available; use $TMPDIR (\(resolver.temporaryURL.path)).",
+      "/app_bundle":
+        "Path hint: /app_bundle is a cd alias; elsewhere use $APP_BUNDLE (\(resolver.appBundleURL.path)).",
+    ]
     let cases: [(command: String, aliases: [String])] = [
       ("cd /app_bundle && echo \"$PWD\"", ["/app_bundle"]),
       (
         "printf 'cannot open /home/missing /tmp/missing /app_bundle/missing\\n' >&2; false",
-        ["/home", "/tmp", "/app_bundle"]
+        ["/tmp", "/app_bundle"]
       ),
       ("printf 'cannot open /tmp/missing\\n'; false", ["/tmp"]),
-      ("printf 'cannot open /home/missing\\n' >&2; true", ["/home"]),
+      ("printf 'cannot open /tmp/missing\\n' >&2; true", ["/tmp"]),
+      ("printf 'cannot open /home/missing\\n' >&2; false", []),
       (
         #"printf '%s\n' 'open("/home"): path=/tmp, [/app_bundle]' >&2; false"#,
-        ["/home", "/tmp", "/app_bundle"]
+        ["/tmp", "/app_bundle"]
       ),
       ("printf '/home /tmp /app_bundle\\n'", []),
       (
@@ -1048,7 +1079,7 @@ final class CLIParityTests: XCTestCase {
         let output = response.text
         XCTAssertEqual(output.contains("Path hint:"), !aliases.isEmpty, output)
         for alias in aliases {
-          XCTAssertTrue(output.contains("\(alias) -> \(resolver.resolve(alias)!.url.path)"), output)
+          XCTAssertTrue(output.contains(hints[alias]!), output)
         }
         completed.fulfill()
       }

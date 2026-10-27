@@ -1,0 +1,67 @@
+# ripgrep parity corpus (paths as typed, globs, ignore files, errors)
+rg -n error </dev/null | sort
+rg -n error . | sort
+rg -n error ./ | sort
+rg -n error dir | sort
+rg -n error dir/ | sort
+rg -n error ./dir | sort
+rg -n error ././dir | sort
+rg -n error dir/sub/../sub | sort
+cd dir/sub && rg -n x ../../other
+cd dir && rg -n error . ../other | sort
+rg -c error dir lines.txt | sort
+rg -l error | sort
+rg --files | sort
+rg --files dir | sort
+rg --files ./dir | sort
+rg --files -g 'dir/sub/**' | sort
+rg --files -g 'sub/*.txt' dir | sort
+rg --files -g '!dir/sub/**' dir | sort
+rg --files -g '*.log' | sort
+rg --files -g '/dir/*.txt' | sort
+cd dir && rg --files -g 'sub/**' | sort
+rg --files --hidden dir | sort
+rg -n error --sort path
+rg -n error --sort path dir
+rg -n error --sortr path
+rg -n error --sort modified dir
+rg error nosuch.txt; echo rc=$?
+rg error nosuch/ dir; echo rc=$?
+rg error ./nosuch; echo rc=$?
+rg -f nosuch.pat dir; echo rc=$?
+printf 'error\ndeep\n' > p.pat && rg -n -f p.pat dir | sort
+printf 'error\n' > p.pat && cd dir && rg -c -f ../p.pat sub
+printf 'sub/\n' > ig && rg --files --ignore-file ig dir | sort
+printf 'sub/\n' > ig && cd dir && rg --files --ignore-file ../ig | sort
+printf '[\n' > ig && rg --files --ignore-file ig dir | sort
+rg --ignore-file nosuch-ig --files dir | sort
+mkdir -p g && cd g && git init -q && printf 'skip.txt\n' > .gitignore && echo hit > keep.txt && echo hit > skip.txt && rg -l hit | sort
+mkdir -p g/w && cd g && git init -q && printf 'w/skip.txt\n' > .gitignore && echo hit > w/keep.txt && echo hit > w/skip.txt && cd w && rg -l hit | sort
+mkdir -p g/w && cd g && git init -q && printf 'w/skip.txt\n' > .gitignore && echo hit > w/keep.txt && echo hit > w/skip.txt && rg -l hit w | sort
+printf 'dir/b.log\n' > .ignore && rg -l error | sort
+printf 'x\n' > .rgignore && rg --files other dir/sub | sort
+rg --json error dir/b.log | grep -o '"path":{"text":"[^"]*"}' | sort -u
+rg --json error ./dir/sub | grep -o '"path":{"text":"[^"]*"}' | sort -u
+rg -H error dir/b.log
+rg --no-filename error dir/b.log
+rg error dir/b.log
+rg --vimgrep error dir/sub
+rg -n error "$PWD/dir" | sed "s|$PWD|PWD|" | sort
+rg --files "$PWD/dir/sub" | sed "s|$PWD|PWD|" | sort
+rg -n error dir "$PWD/other" | sed "s|$PWD|PWD|" | sort
+cat lines.txt | rg -c line | sort
+cat lines.txt | rg -c line -
+rg -c line - < lines.txt
+rg -z -c error dir/b.log
+ln -s dir lnk && rg -L --files lnk | sort
+ln -s ../dir dir/sub/loop && rg -L --files dir 2>err | sort; sed "s|$PWD|PWD|" err
+rg -j1 --files 'spaces in name.txt' ./-dash.txt
+rg --null --files dir/sub | tr '\0' '|'
+rg --path-separator '\' --files dir/sub | sort
+rg -t txt --files dir | sort
+rg --max-depth 1 --files dir | sort
+rg --type-list | head -2
+rg --stats -c error dir | grep -v seconds | sort
+rg error dir/nosuch
+rg error "$PWD/nosuch" 2>&1 | sed "s|$PWD|PWD|"
+cd dir && rg error ../nosuch

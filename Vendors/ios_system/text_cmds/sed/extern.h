@@ -53,3 +53,7 @@ int	 mf_fgets(SPACE *, enum e_spflag);
 int	 lastline(void);
 void	 process(void);
 char	*strregerror(int, regex_t *);
+/* iOS: release what one invocation allocated. */
+void	 compile_release(void);
+void	 process_release(void);
+void	 misc_release(void);

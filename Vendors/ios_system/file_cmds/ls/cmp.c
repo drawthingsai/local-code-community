@@ -51,6 +51,7 @@ __RCSID("$FreeBSD: src/bin/ls/cmp.c,v 1.12 2002/06/30 05:13:54 obrien Exp $");
 
 #include "ls.h"
 #include "extern.h"
+#include "ios_system_support.h"
 
 #if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) || \
     defined(_XOPEN_SOURCE) || defined(__NetBSD__)
@@ -72,13 +73,13 @@ __RCSID("$FreeBSD: src/bin/ls/cmp.c,v 1.12 2002/06/30 05:13:54 obrien Exp $");
 int
 namecmp(const FTSENT *a, const FTSENT *b)
 {
-	return (strcoll(a->fts_name, b->fts_name));
+	return (strcoll(ios_system_fts_name(a), ios_system_fts_name(b)));
 }
 
 int
 revnamecmp(const FTSENT *a, const FTSENT *b)
 {
-	return (strcoll(b->fts_name, a->fts_name));
+	return (strcoll(ios_system_fts_name(b), ios_system_fts_name(a)));
 }
 
 int

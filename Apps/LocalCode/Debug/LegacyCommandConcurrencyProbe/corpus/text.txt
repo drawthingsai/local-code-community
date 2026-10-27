@@ -1,0 +1,136 @@
+# cat head tail wc uniq tr parity corpus
+cat lines.txt
+cat words.txt dups.txt
+cat -n words.txt
+cat -b blank.txt
+cat -s blank.txt
+cat -e crlf.txt
+cat -t tabs.txt
+cat -v mixed.bin
+cat -etv binary.bin | head -c 300
+cat -u noeol.txt
+cat missing.txt
+cat dir
+cat lines.txt missing.txt words.txt
+cat - < words.txt
+cat words.txt - < dups.txt
+cat < words.txt
+cat empty.txt
+cat long.txt | wc -c
+cat binary.bin | od -c | tail -2
+cat -n unicode.txt
+cat -x words.txt
+cat 'spaces in name.txt' -- -dash.txt
+head lines.txt
+head -n 3 lines.txt
+head -3 words.txt
+head -c 20 lines.txt
+head -n 2 lines.txt words.txt
+head -n 2 missing.txt words.txt
+head -n 0 words.txt
+head -n -1 words.txt
+head -c 0 words.txt
+head -n 2 -c 5 words.txt
+head -n abc words.txt
+head < words.txt
+head -n 1 - < dups.txt
+head -c 100 binary.bin | od -c | head -3
+head noeol.txt
+head -n 1 empty.txt
+head dir
+head -z words.txt
+tail lines.txt
+tail -n 3 lines.txt
+tail -3 words.txt
+tail -n +35 lines.txt
+tail -c 20 lines.txt
+tail -c +100 lines.txt
+tail -r words.txt
+tail -r -n 2 words.txt
+tail -n 2 lines.txt words.txt
+tail -q -n 1 lines.txt words.txt
+tail -n 2 missing.txt words.txt
+tail missing.txt
+tail dir
+tail < words.txt
+tail -n 1 - < dups.txt
+tail -b 1 long.txt | wc -c
+tail noeol.txt
+tail -c 5 noeol.txt
+tail -n 1 empty.txt
+tail -r empty.txt
+tail -f -r words.txt
+tail -n x words.txt
+tail +3 words.txt
+tail -1c words.txt
+tail -c 1000000 binary.bin | wc -c
+wc lines.txt
+wc -l lines.txt
+wc -w words.txt
+wc -c lines.txt
+wc -m unicode.txt
+wc -c unicode.txt
+wc -lwc unicode.txt
+wc lines.txt words.txt missing.txt
+wc < words.txt
+wc - < words.txt
+wc empty.txt noeol.txt
+wc binary.bin
+wc -m mixed.bin
+wc dir
+wc -z words.txt
+wc crlf.txt
+wc long.txt blank.txt
+uniq dups.txt
+uniq -c dups.txt
+uniq -d dups.txt
+uniq -u dups.txt
+uniq -i dups.txt
+uniq -ci dups.txt
+uniq -f 1 lines.txt | head -3
+uniq -s 2 dups.txt
+uniq +1 dups.txt
+uniq -1 lines.txt | head -2
+uniq dups.txt out.txt; cat out.txt
+uniq missing.txt
+uniq dups.txt words.txt extra
+uniq -c -d dups.txt
+uniq < dups.txt
+uniq - < dups.txt
+uniq unicode.txt
+uniq empty.txt
+uniq noeol.txt
+uniq -f x dups.txt
+uniq -x dups.txt
+tr a-z A-Z < words.txt
+tr -d aeiou < words.txt
+tr -s a-z < dups.txt
+tr -c a-z '\n' < words.txt
+tr -cd '0-9\n' < lines.txt
+tr -ds a-z '\n' < blank.txt
+tr '[:lower:]' '[:upper:]' < unicode.txt
+tr '[:upper:]' '[:lower:]' < unicode.txt
+tr -d '[:space:]' < words.txt
+tr -s '[:space:]' < blank.txt
+tr 'é' 'E' < unicode.txt
+tr -C 'a-z\n' '_' < unicode.txt
+tr '\t' ',' < tabs.txt
+tr -d '\r' < crlf.txt
+tr '\000' '?' < mixed.bin
+tr -d '\000-\037' < mixed.bin
+tr 'abc' 'x' < words.txt
+tr 'a' 'xyz' < words.txt
+tr '[a*3]' '[b*]' < words.txt
+tr '[=a=]' 'A' < words.txt
+tr a-z < words.txt
+tr
+tr -d
+tr -x a b < words.txt
+tr z-a a-z < words.txt
+tr '[:bogus:]' x < words.txt
+tr -s ' ' < lines.txt | head -2
+tr -u a A < words.txt
+tr -cs '[:alnum:]' '\n' < lines.txt | sort | uniq -c | sort -rn | head -3
+printf 'aaabbb\n' | tr -s ab
+printf 'hello\n' | tr -d ''
+EOF

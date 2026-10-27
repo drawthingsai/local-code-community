@@ -93,6 +93,17 @@ GETOPT_STORAGE int	optreset;	/* reset getopt */
 GETOPT_STORAGE char	*optarg;	/* argument associated with option */
 #endif
 
+#ifdef IOS_SYSTEM_GETOPT
+/* iOS: the state's addresses, for code that cannot include
+ * ios_system_support.h (OpenSSH): its globals become lvalues of this
+ * thread's state, the way errno is. */
+int *ios_system_optind_location(void) { return &optind; }
+int *ios_system_opterr_location(void) { return &opterr; }
+int *ios_system_optopt_location(void) { return &optopt; }
+int *ios_system_optreset_location(void) { return &optreset; }
+char **ios_system_optarg_location(void) { return &optarg; }
+#endif
+
 #define PRINT_ERROR	((opterr) && (*options != ':'))
 
 #define FLAG_PERMUTE	0x01	/* permute non-options to the end of argv */
@@ -376,28 +387,36 @@ getopt_internal(int nargc, char * const *nargv, const char *options,
 	char *oli;				/* option letter list index */
 	int optchar, short_too;
 	int posixly_correct;	/* no static, can be changed on the fly */
+	int bsd_getopt = 0;
 
 	if (options == NULL)
 		return (-1);
+#ifdef IOS_SYSTEM_GETOPT
+	/* iOS: plain getopt() reads options literally like BSD getopt(3): a
+	 * leading '-' is the "-" option (env), not GNU's in-order mode. */
+	bsd_getopt = long_options == NULL;
+#endif
 
 	/*
 	 * Disable GNU extensions if POSIXLY_CORRECT is set or options
 	 * string begins with a '+'.
 	 */
 	posixly_correct = (getenv("POSIXLY_CORRECT") != NULL);
+	if (!bsd_getopt) {
 #ifdef GNU_COMPATIBLE
-	if (*options == '-')
-		flags |= FLAG_ALLARGS;
-	else if (posixly_correct || *options == '+')
-		flags &= ~FLAG_PERMUTE;
+		if (*options == '-')
+			flags |= FLAG_ALLARGS;
+		else if (posixly_correct || *options == '+')
+			flags &= ~FLAG_PERMUTE;
 #else
-	if (posixly_correct || *options == '+')
-		flags &= ~FLAG_PERMUTE;
-	else if (*options == '-')
-		flags |= FLAG_ALLARGS;
+		if (posixly_correct || *options == '+')
+			flags &= ~FLAG_PERMUTE;
+		else if (*options == '-')
+			flags |= FLAG_ALLARGS;
 #endif
-	if (*options == '+' || *options == '-')
-		options++;
+		if (*options == '+' || *options == '-')
+			options++;
+	}
 
 	/*
 	 * XXX Some GNU programs (like cvs) set optind to 0 instead of
@@ -432,7 +451,7 @@ start:
 		}
 		if (*(place = nargv[optind]) != '-' ||
 #ifdef GNU_COMPATIBLE
-		    place[1] == '\0') {
+		    (place[1] == '\0' && (!bsd_getopt || strchr(options, '-') == NULL))) {
 #else
 		    (place[1] == '\0' && strchr(options, '-') == NULL)) {
 #endif
@@ -530,9 +549,10 @@ start:
 		if (!*place)
 			++optind;
 #ifdef GNU_COMPATIBLE
+		/* iOS: plain getopt() keeps the BSD getopt(3) wording. */
 		if (PRINT_ERROR)
-			warnx(posixly_correct ? illoptchar : gnuoptchar,
-			      optchar);
+			warnx(posixly_correct || long_options == NULL ?
+			      illoptchar : gnuoptchar, optchar);
 #else
 		if (PRINT_ERROR)
 			warnx(illoptchar, optchar);

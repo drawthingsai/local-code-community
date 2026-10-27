@@ -30,6 +30,7 @@
  * $FreeBSD$
  */
 
+void		 env_release(void);	/* iOS */
 void		 search_paths(char *path, char **argv);
 void		 split_spaces(const char *str, int *origind, int *origc,
 		    char ***origv);

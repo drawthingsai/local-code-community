@@ -36,7 +36,7 @@ typedef struct {
 	char	p_path[PATH_MAX];	/* pointer to the start of a path */
 } PATH_T;
 
-extern PATH_T to;
+extern __thread PATH_T to;
 extern __thread int cp_fflag, cp_iflag, cp_nflag, cp_pflag, cp_vflag;
 #ifdef __APPLE__
 extern __thread int Xflag;

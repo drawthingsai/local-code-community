@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
 
 	for (p=proc; p->token!=0; p++)
 		table[p->token-FIRSTTOKEN] = p->name;
-	printf("\nCell *(*proctab[%d])(Node **, int) = {\n", SIZE);
+	printf("\nCell *(*const proctab[%d])(Node **, int) = {\n", SIZE);
 	for (i=0; i<SIZE; i++)
 		printf("\t%s,\t/* %s */\n",
 		    table[i] ? table[i] : "nullproc", names[i] ? names[i] : "");

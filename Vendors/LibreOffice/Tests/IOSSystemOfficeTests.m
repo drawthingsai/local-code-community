@@ -41,26 +41,28 @@ int main(int argc, const char **argv)
         ios_setStreams(stdin, stdout, stderr);
         CHECK(ios_setSystemPaths(root, root, root, root, root, bundle));
         ios_setDirectoryURL(root);
-        // Registry dispatch, session path aliases, output redirection, failure
+        // Registry dispatch, real temporary paths, output redirection, failure
         // recovery, and a second invocation on a different command pthread.
         CHECK(ios_system_osh("office --help > help.txt") == 0);
         CHECK(ios_system_osh("office convert --input missing.docx --output missing.pdf 2> early-failure.json") != 0);
-        CHECK(ios_system_osh("office convert --input '/home/input document.docx' "
-            "--output /tmp/result.pdf > result.json") == 0);
-        NSData *pdf = [NSData dataWithContentsOfURL:[root URLByAppendingPathComponent:@"tmp/result.pdf"]];
+        NSString *temporary = @(ios_getenv("TMPDIR"));
+        CHECK(ios_system_osh("office convert --input 'input document.docx' "
+            "--output \"$TMPDIR/result.pdf\" > result.json") == 0);
+        NSData *pdf = [NSData dataWithContentsOfFile:[temporary stringByAppendingPathComponent:@"result.pdf"]];
         CHECK(pdf.length > 5 && !memcmp(pdf.bytes, "%PDF-", 5));
         NSDictionary *result = [NSJSONSerialization JSONObjectWithData:
             [NSData dataWithContentsOfURL:[root URLByAppendingPathComponent:@"result.json"]]
             options:0 error:nil];
         CHECK([result[@"ok"] boolValue]);
-        CHECK([result[@"outputPath"] isEqualToString:@"/tmp/result.pdf"]);
-        CHECK(ios_system_osh("office render --input '/home/input document.docx' --output-dir /tmp/pages --pages 2,1 > rendered.json") == 0);
+        CHECK([result[@"outputPath"] isEqualToString:[temporary stringByAppendingPathComponent:@"result.pdf"]]);
+        CHECK(ios_system_osh("office render --input 'input document.docx' --output-dir \"$TMPDIR/pages\" --pages 2,1 > rendered.json") == 0);
         NSDictionary *rendered = [NSJSONSerialization JSONObjectWithData:
             [NSData dataWithContentsOfURL:[root URLByAppendingPathComponent:@"rendered.json"]] options:0 error:nil];
-        CHECK([rendered[@"inputPath"] isEqualToString:@"/home/input document.docx"]);
-        CHECK([rendered[@"images"][0][@"path"] isEqualToString:@"/tmp/pages/page-0001.png"]);
+        CHECK([rendered[@"inputPath"] isEqualToString:@"input document.docx"]);
+        CHECK([rendered[@"images"][0][@"path"] isEqualToString:
+            [temporary stringByAppendingPathComponent:@"pages/page-0001.png"]]);
         CHECK([rendered[@"images"][0][@"page"] intValue] == 2);
-        NSData *png = [NSData dataWithContentsOfURL:[root URLByAppendingPathComponent:@"tmp/pages/page-0001.png"]];
+        NSData *png = [NSData dataWithContentsOfFile:[temporary stringByAppendingPathComponent:@"pages/page-0001.png"]];
         CHECK(png.length > 8 && !memcmp(png.bytes, "\211PNG\r\n\032\n", 8));
         CHECK(ios_system_osh("office convert --input missing.docx --output missing.pdf 2> failure.json") != 0);
         CHECK(ios_system_osh("office convert --input 'input document.docx' --output second.pdf > second.json") == 0);
@@ -72,7 +74,7 @@ int main(int argc, const char **argv)
             CHECK(data.length > 5 && !memcmp(data.bytes, "%PDF-", 5));
         }
         CHECK([fm removeItemAtURL:root error:nil]);
-        fprintf(stderr, "Office static registry, path aliases, redirection and repeated calls passed.\n");
+        fprintf(stderr, "Office static registry, temporary paths, redirection and repeated calls passed.\n");
         fflush(NULL);
         _Exit(0); // The engine is process-owned; the test host terminates here.
     }

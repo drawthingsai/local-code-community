@@ -30,7 +30,7 @@ THIS SOFTWARE.
 #include <string.h>
 #include <stdlib.h>
 #include "awk.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #define	FULLTAB	2	/* rehash when table gets this x full */
 #define	GROWTAB 4	/* grow table by this factor */
@@ -143,7 +143,7 @@ void arginit(int ac, char **av)	/* set up ARGV and ARGC */
 void envinit(char **envp)	/* set up ENVIRON variable */
 {
 	Cell *cp;
-	char *p;
+	char *p, *name;
 
 	cp = setsymtab("ENVIRON", "", 0.0, ARR, symtab);
 	ENVtab = makesymtab(NSYMTAB);
@@ -154,12 +154,15 @@ void envinit(char **envp)	/* set up ENVIRON variable */
 			continue;
 		if( p == *envp ) /* no left hand side name in env string */
 			continue;
+		/* iOS: other threads read the session's strings; split a copy, not in place. */
+		name = tostring(*envp);
+		p = name + (p - *envp);
 		*p++ = 0;	/* split into two strings at = */
 		if (is_number(p))
-			setsymtab(*envp, p, atof(p), STR|NUM, ENVtab);
+			setsymtab(name, p, atof(p), STR|NUM, ENVtab);
 		else
-			setsymtab(*envp, p, 0.0, STR, ENVtab);
-		p[-1] = '=';	/* restore in case env is passed down to a shell */
+			setsymtab(name, p, 0.0, STR, ENVtab);
+		free(name);
 	}
 }
 
@@ -684,7 +687,7 @@ const char *flags2str(int flags)
 		{ "CONVO", CONVO },
 		{ NULL, 0 }
 	};
-	static char buf[100];
+	static __thread char buf[100];
 	int i;
 	char *cp = buf;
 

@@ -86,7 +86,7 @@ extension DeviceCapability.WeightsStreaming {
       // The 8 GiB tier shares the 16 GiB allocation.
       let size =
         tier == .disabled
-        ? 161_433_198_592  // deepseek_4.1_flash_1017_i2x.ckpt, about 150.35 GiB.
+        ? 172_970_156_032  // deepseek_4.1_flash_1017_i2x.ckpt, about 161.09 GiB.
         : UInt64(max(16, tier.rawValue)) * 1_024 * 1_024 * 1_024
       return size <= budget
     } ?? ._8GiB

@@ -64,8 +64,9 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 #include "vary.h"
+#include "zone.h"
 #include <errno.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #ifndef	TM_YEAR_BASE
 #define	TM_YEAR_BASE	1900
@@ -75,22 +76,81 @@ __FBSDID("$FreeBSD$");
 #define st_mtim st_mtimespec
 #endif
 
-static time_t tval;
+static __thread time_t tval;
 __thread int retval;
-static int unix2003_std;	/* to determine legacy vs std mode */
+static __thread int unix2003_std;	/* to determine legacy vs std mode */
 
 static void setthetime(const char *, const char *, int, int);
 static void badformat(void);
 static void usage(void);
 
-static const char *rfc2822_format = "%a, %d %b %Y %T %z";
+static const char rfc2822_format[] = "%a, %d %b %Y %T %z";
 
-// iOS: store the previous value of TZ, and restore it at the end
-#undef setenv
-#undef unsetenv
+// iOS: libc's localtime and mktime read TZ from the process environment,
+// which every session shares. When this session's TZ differs, convert with
+// the session's zone instead of setting the process-wide TZ.
 #undef getenv
-char* local_TZ;
-char* global_TZ;
+static __thread struct date_zone *zone;	/* NULL: the process TZ applies */
+static __thread struct vary *v;
+
+static void
+date_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	date_zone_free(zone);
+	zone = NULL;
+	vary_destroy(v);
+	v = NULL;
+	ios_system_support_cleanup(unused);
+}
+
+struct tm *
+zone_localtime(const time_t *clock, struct tm *result)
+{
+	return (zone != NULL ? date_localtime(zone, clock, result) : localtime_r(clock, result));
+}
+
+time_t
+zone_mktime(struct tm *tm)
+{
+	return (zone != NULL ? date_mktime(zone, tm) : mktime(tm));
+}
+
+/*
+ * strftime computes %s with mktime(3) and %z from the process TZ's
+ * timezone/altzone; with the session's zone, write them into the format.
+ */
+static void
+zone_strftime(char *buf, size_t size, const char *format, struct tm *lt)
+{
+	char expanded[1024];
+	size_t n = 0;
+
+	if (zone == NULL || (strstr(format, "%s") == NULL && strstr(format, "%z") == NULL)) {
+		(void)strftime(buf, size, format, lt);
+		return;
+	}
+	struct tm copy = *lt;
+	time_t seconds = date_mktime(zone, &copy);
+	long offset = date_zone_offset(zone, lt->tm_isdst > 0) / 60;
+	for (const char *p = format; *p != '\0' && n + 32 < sizeof(expanded); p++) {
+		if (p[0] == '%' && p[1] == 's') {
+			n += snprintf(expanded + n, sizeof(expanded) - n, "%lld", (long long)seconds);
+			p++;
+		} else if (p[0] == '%' && p[1] == 'z') {
+			n += snprintf(expanded + n, sizeof(expanded) - n, "%c%02ld%02ld",
+			    offset < 0 ? '-' : '+', labs(offset) / 60, labs(offset) % 60);
+			p++;
+		} else if (p[0] == '%' && p[1] != '\0') {
+			expanded[n++] = *p++;
+			expanded[n++] = *p;
+		} else {
+			expanded[n++] = *p;
+		}
+	}
+	expanded[n] = '\0';
+	(void)strftime(buf, size, expanded, lt);
+}
 
 int
 date_main(int argc, char *argv[])
@@ -101,30 +161,29 @@ date_main(int argc, char *argv[])
 	const char *format;
 	char buf[1024];
 	char *endptr, *fmt;
-	char *tmp;
+	char *local_TZ, *tmp;
 	int set_timezone;
-	struct vary *v;
 	const struct vary *badv;
 	struct tm lt;
 	struct stat sb;
 
+	pthread_cleanup_push(date_cleanup, NULL);
+	ios_system_support_init(argv);
 	unix2003_std = COMPAT_MODE("bin/date", "unix2003");	/* Determine the STD */
 
-	v = NULL;
 	fmt = NULL;
-	(void) setlocale(LC_TIME, "");
+	/* Locale is owned by ios_system_support. */
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
 	jflag = nflag = Rflag = 0;
-    optind = 1; opterr = 1; optreset = 1;
 	set_timezone = 0;
-    // iOS: strftime uses TZ from the real environment, not from ours:
-    global_TZ = getenv("TZ"); // so we can restore it later
-    local_TZ = ios_getenv("TZ");
-    if (local_TZ)
-        setenv("TZ", local_TZ, 1);
-    else
-        unsetenv("TZ");
+	tmp = getenv("TZ");
+	local_TZ = ios_getenv("TZ");
+	// Usually the process already has this session's TZ: libc applies then.
+	if (local_TZ == NULL ? tmp != NULL : tmp == NULL || strcmp(local_TZ, tmp) != 0) {
+		if ((zone = date_zone_load(local_TZ)) == NULL)
+			err(1, NULL);
+	}
 	while ((ch = getopt(argc, argv, "d:f:jnRr:t:uv:")) != -1)
 		switch((char)ch) {
 		case 'd':		/* daylight savings time */
@@ -149,7 +208,7 @@ date_main(int argc, char *argv[])
 			rflag = 1;
 			tval = strtoq(optarg, &tmp, 0);
 			if (*tmp != 0) {
-				if (stat(optarg, &sb) == 0)
+				if (ios_system_stat(optarg, &sb) == 0)
 					tval = sb.st_mtim.tv_sec;
 				else
 					usage();
@@ -163,7 +222,9 @@ date_main(int argc, char *argv[])
 			set_timezone = 1;
 			break;
 		case 'u':		/* do everything in UTC */
-			(void)setenv("TZ", "UTC0", 1);
+			date_zone_free(zone);
+			if ((zone = date_zone_load("UTC0")) == NULL)
+				err(1, NULL);
 			break;
 		case 'v':
 			v = vary_append(v, optarg);
@@ -208,36 +269,29 @@ date_main(int argc, char *argv[])
 
 #ifdef __APPLE__
 	/* 7999711 */
-	struct tm *ltp = localtime(&tval);
+	struct tm *ltp = zone_localtime(&tval, &lt);
 	if (ltp == NULL) {
 		err(1, "localtime");
 	}
-	lt = *ltp;
 #else
-	lt = *localtime(&tval);
+	zone_localtime(&tval, &lt);
 #endif
 	badv = vary_apply(v, &lt);
 	if (badv) {
 		fprintf(thread_stderr, "%s: Cannot apply date adjustment\n",
 			badv->arg);
-		vary_destroy(v);
 		usage();
 	}
-	vary_destroy(v);
 
 	if (format == rfc2822_format)
 		/*
 		 * When using RFC 2822 datetime format, don't honor the
 		 * locale.
 		 */
-		setlocale(LC_TIME, "C");
+		uselocale(ios_system_locale_with(LC_TIME_MASK, "C"));
 
-	(void)strftime(buf, sizeof(buf), format, &lt);
+	zone_strftime(buf, sizeof(buf), format, &lt);
 	(void)fprintf(thread_stdout, "%s\n", buf);
-    if (global_TZ)
-        setenv("TZ", global_TZ, 1); // restore global value of TZ
-    else
-        unsetenv("TZ");
     if (fflush(thread_stdout)) {
 		err(1, "stdout");
     }
@@ -249,6 +303,8 @@ date_main(int argc, char *argv[])
 	if (unix2003_std)
 		exit(0);
 	exit(retval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 #define	ATOI2(s)	((s) += 2, ((s)[-2] - '0') * 10 + ((s)[-1] - '0'))
@@ -258,17 +314,23 @@ static void
 setthetime(const char *fmt, const char *p, int jflag, int nflag)
 {
 	struct utmpx utx;
-	struct tm *lt;
+	struct tm *lt, ltbuf;
 	struct timeval tv;
 	const char *dot, *t;
 	int century;
 	size_t length;
 
-	lt = localtime(&tval);
+	if ((lt = zone_localtime(&tval, &ltbuf)) == NULL)
+		err(1, "localtime");
 	lt->tm_isdst = -1;		/* divine correct DST */
 
 	if (fmt != NULL) {
 		t = strptime(p, fmt, lt);
+		/* strptime's %s fills lt in the process TZ: move it to the session's. */
+		if (t != NULL && zone != NULL && strstr(fmt, "%s") != NULL) {
+			time_t seconds = mktime(lt);
+			zone_localtime(&seconds, lt);
+		}
 		if (t == NULL) {
 			fprintf(thread_stderr, "Failed conversion of ``%s''"
 				" using format ``%s''\n", p, fmt);
@@ -343,7 +405,7 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 	}
 
 	/* convert broken-down time to GMT clock time */
-    if ((tval = mktime(lt)) == -1) {
+    if ((tval = zone_mktime(lt)) == -1) {
 		errx(1, "nonexistent time");
     }
 
@@ -387,9 +449,5 @@ usage(void)
 	    "[-f fmt date | [[[mm]dd]HH]MM[[cc]yy][.ss]] [+format]" :
 	    "            "
 	    "[-f fmt date | [[[[[cc]yy]mm]dd]HH]MM[.ss]] [+format]");
-    if (global_TZ)
-        setenv("TZ", global_TZ, 1); // restore global value of TZ
-    else
-        unsetenv("TZ");
 	exit(1);
 }

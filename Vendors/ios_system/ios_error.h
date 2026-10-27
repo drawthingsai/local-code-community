@@ -61,7 +61,7 @@ extern __thread FILE* thread_stderr;
 #define _kill ios_killpid
 #define killpg ios_killpid
 #define popen ios_popen
-#define pclose fclose
+#define pclose ios_pclose
 #define system ios_system_osh
 #define execv ios_execv
 #define execvp ios_execv
@@ -78,6 +78,7 @@ extern int ios_executable(const char* cmd); // is this command part of the "shel
 extern int ios_system(int argc, const char* const argv[]); // execute an already-tokenized command
 extern int ios_system_osh(const char* inputCmd); // execute shell text through OSH
 extern FILE *ios_popen(const char *command, const char *type); // Execute this command and pipe the result
+extern int ios_pclose(FILE *stream); // close a stream ios_popen returned and wait for its commands
 extern int ios_kill(void); // kill the current running command
 extern int ios_killpid(pid_t pid, int sig); // kill the current running command
 
@@ -127,8 +128,8 @@ extern void ios_closetty(void);
 extern void ios_stopInteractive(void);
 extern void ios_startInteractive(void);
 extern int ios_storeInteractive(void);
-// Returns 0 for no alias, 1 for a writable alias, 2 for a read-only alias,
-// and -1 on error.
+// Resolves the read-only /app_bundle alias. Returns 0 for no alias, 2 for
+// /app_bundle, and -1 on error.
 extern int ios_resolveDirectoryAlias(
     const char *path, char *resolvedPath, size_t resolvedPathSize);
 extern const char* ios_getBookmarkedVersion(const char* p);

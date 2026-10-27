@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "find.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 
 static int find_compare(const FTSENT **s1, const FTSENT **s2);
@@ -69,7 +69,7 @@ static int
 find_compare(const FTSENT **s1, const FTSENT **s2)
 {
 
-	return (strcoll((*s1)->fts_name, (*s2)->fts_name));
+	return (strcoll(ios_system_fts_name(*s1), ios_system_fts_name(*s2)));
 }
 
 /*
@@ -181,7 +181,7 @@ find_execute(PLAN *plan, char *paths[])
 	PLAN *p;
 	int e;
 
-	tree = fts_open(paths, ftsoptions, (issort ? find_compare : NULL));
+	tree = ios_system_fts_open(paths, ftsoptions, (issort ? find_compare : NULL));
 	if (tree == NULL)
 		err(1, "ftsopen");
 
@@ -189,7 +189,7 @@ find_execute(PLAN *plan, char *paths[])
 	while (errno = 0, (entry = fts_read(tree)) != NULL) {
 		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
 			if (fts_set(tree, entry, FTS_SKIP))
-				err(1, "%s", entry->fts_path);
+				err(1, "%s", ios_system_fts_path(entry));
 		}
 
 		switch (entry->fts_info) {
@@ -210,7 +210,7 @@ find_execute(PLAN *plan, char *paths[])
 		case FTS_ERR:
 			(void)fflush(stdout);
 			warnx("%s: %s",
-			    entry->fts_path, strerror(entry->fts_errno));
+			    ios_system_fts_path(entry), strerror(entry->fts_errno));
 			exitstatus = 1;
 			continue;
 #ifdef FTS_W
@@ -219,9 +219,9 @@ find_execute(PLAN *plan, char *paths[])
 #endif /* FTS_W */
 		}
 #define	BADCH	" \t\n\\'\""
-		if (isxargs && strpbrk(entry->fts_path, BADCH)) {
+		if (isxargs && strpbrk(ios_system_fts_path(entry), BADCH)) {
 			(void)fflush(stdout);
-			warnx("%s: illegal path", entry->fts_path);
+			warnx("%s: illegal path", ios_system_fts_path(entry));
 			exitstatus = 1;
 			continue;
 		}

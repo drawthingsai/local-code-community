@@ -7,6 +7,7 @@ public protocol ItemSelectWorkflowDelegate: AnyObject {
     item: ItemViewModel.ItemIdentifier, section: ItemDisplaySectionIdentity,
     workflow: ItemSelectWorkflow)
   func didTapTrash(item: ItemViewModel.ItemIdentifier, workflow: ItemSelectWorkflow)
+  func contextMenu(item: ItemViewModel.ItemIdentifier, workflow: ItemSelectWorkflow) -> UIMenu?
   func didSelectShowAll(showAll: Bool, workflow: ItemSelectWorkflow)
   func didSelectShowDetails(showDetails: Bool, workflow: ItemSelectWorkflow)
   func didDismiss(workflow: ItemSelectWorkflow)
@@ -150,17 +151,16 @@ extension ItemSelectWorkflow: ItemDisplayViewControllerDelegate {
     }
   }
 
-  func didSelectItem(
-    item: ItemViewModel.ItemIdentifier, section: ItemDisplaySectionIdentity, fromContextMenu: Bool
-  ) {
+  func didSelectItem(item: ItemViewModel.ItemIdentifier, section: ItemDisplaySectionIdentity) {
     delegate?.didSelectItem(item: item, section: section, workflow: self)
-    if fromContextMenu {
-      viewController.selectItem(at: 0, section: 0)
-    }
   }
 
   func didTapTrash(item: ItemViewModel.ItemIdentifier) {
     delegate?.didTapTrash(item: item, workflow: self)
+  }
+
+  func contextMenu(for item: ItemViewModel.ItemIdentifier) -> UIMenu? {
+    delegate?.contextMenu(item: item, workflow: self)
   }
 
   func didTapSegmentedControl(at index: Int) {

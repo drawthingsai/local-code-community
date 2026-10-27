@@ -162,6 +162,8 @@ struct flist far *f;    /* entry to delete */
     free((zvoid *)(f->zname));
   if (f->iname != NULL)
     free((zvoid *)(f->iname));
+  if (f->oname != NULL)
+    free((zvoid *)(f->oname));
 #ifdef UNICODE_SUPPORT
   if (f->uname)
     free((zvoid *)f->uname);
@@ -948,10 +950,15 @@ int newname(name, isdir, casesensitive)
        */
       if (verbose)
         fprintf(mesg, "excluding %s\n", oname);
+      free((zvoid *)oname);
       free((zvoid *)iname);
       free((zvoid *)zname);
     } else {
       z->mark = 1;
+      /* The entry owns the names it was read with (name may share zname or
+         iname); free them before taking the new ones. */
+      if (z->name != z->zname && z->name != z->iname)
+        free((zvoid *)(z->name));
       if ((z->name = malloc(strlen(name) + 1 + PAD)) == NULL) {
         if (undosm != zname)
           free((zvoid *)undosm);
@@ -960,6 +967,7 @@ int newname(name, isdir, casesensitive)
         return ZE_MEM;
       }
       strcpy(z->name, name);
+      free((zvoid *)(z->oname));
       z->oname = oname;
       z->dosflag = dosflag;
 
@@ -1066,6 +1074,11 @@ int newname(name, isdir, casesensitive)
     if (name == label) {
       label = f->name;
     }
+  } else {
+    /* excluded and not in the archive */
+    free((zvoid *)oname);
+    free((zvoid *)iname);
+    free((zvoid *)zname);
   }
   if (undosm != zname)
     free((zvoid *)undosm);
@@ -1868,6 +1881,7 @@ int bfcopy(n)
       }
 
       fclose(in_file);
+      in_file = NULL;
 
       /* open the split */
       while ((in_file = zfopen(split_path, FOPR)) == NULL) {
@@ -2127,6 +2141,10 @@ int ask_for_split_read_path(current_disk)
       }
     }
     if (toupper(buf[0]) == 'Q') {
+      free(archive_name);
+      free(split_dir);
+      free(split_name);
+      free(split_path);
       return ZE_ABORT;
     } else if ((fix == 1 || fix == 2) && toupper(buf[0]) == 'S') {
     /*
@@ -2136,6 +2154,10 @@ int ask_for_split_read_path(current_disk)
       if (buf[0] == 'y' || buf[0] == 'Y') {
     */
       skip_this_disk = current_in_disk + 1;
+      free(archive_name);
+      free(split_dir);
+      free(split_name);
+      free(split_path);
       return ZE_FORM;
     } else if (toupper(buf[0]) == 'C') {
       fprintf(mesg, "\nEnter path where this split is (ENTER = same dir, . = current dir)");
@@ -2156,6 +2178,10 @@ int ask_for_split_read_path(current_disk)
       }
     } else if (fix == 2 && toupper(buf[0]) == 'E') {
       /* no more splits to read */
+      free(archive_name);
+      free(split_dir);
+      free(split_name);
+      free(split_path);
       return ZE_EOF;
     } else if (fix == 2 && toupper(buf[0]) == 'Z') {
       total_disks = current_disk + 1;
@@ -2265,6 +2291,7 @@ int ask_for_split_read_path(current_disk)
   free(archive_name);
   free(split_dir);
   free(split_name);
+  free(split_path);
 
   return ZE_OK;
 }

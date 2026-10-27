@@ -62,26 +62,20 @@ static const char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 #include "cset.h"
 #include "extern.h"
 // iOS changes:
-#include "ios_error.h"
+#include "ios_system_support.h"
 #include <errno.h>
 
-STR s1 = { STRING1, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
-STR s2 = { STRING2, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
+__thread STR s1 = { STRING1, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
+__thread STR s2 = { STRING2, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
 
 static struct cset *setup(char *, STR *, int, int);
 static void usage(void);
+static void output(wint_t);
 
-static void initSTR(STR* s) {
-    s->which = STRING1;
-    s->state = NORMAL;
-    s->cnt = 0;
-    s->lastch = OOBCH;
-    s->cclass = 0;
-    s->equiv[0] = 0;
-    s->equiv[1] = OOBCH;
-    if (s->set != NULL) { free(s->set); s->set = NULL; }
-    s->str = NULL;
-}
+/* iOS: what an invocation holds, released however it ends. */
+static __thread struct cmap *map;
+static __thread struct cset *delete, *squeeze;
+static __thread char *string2;	/* strdup of string2 */
 
 static void csnode_free(struct csnode *c) {
     if (c == NULL) return;
@@ -123,21 +117,48 @@ static void cmap_free(struct cmap *m)
     m = NULL;
 }
 
+static void tr_cleanup(void *unused)
+{
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    cset_free(delete);
+    free(delete);
+    cset_free(squeeze);
+    free(squeeze);
+    delete = squeeze = NULL;
+    cmap_free(map);
+    map = NULL;
+    // An equivalence class points set at the STR's own equiv array.
+    if (s1.set != s1.equiv)
+        free(s1.set);
+    if (s2.set != s2.equiv)
+        free(s2.set);
+    s1.set = s2.set = NULL;
+    free(string2);
+    string2 = NULL;
+    ios_system_support_cleanup(unused);
+}
+
+/* iOS: a closed pipeline reports EPIPE; stop as SIGPIPE would. */
+static void output(wint_t ch)
+{
+    if (putwc(ch, thread_stdout) == WEOF) {
+        ios_system_stop_on_broken_pipe(thread_stdout);
+        err(1, "stdout");
+    }
+}
+
 
 int
 tr_main(int argc, char **argv)
 {
-	static int carray[NCHARS_SB];
-	struct cmap *map;
-	struct cset *delete , *squeeze;
+	int carray[NCHARS_SB];
 	int n, *p;
 	int Cflag, cflag, dflag, sflag, isstring2;
 	wint_t ch, cnt, lastch;
     
-    // iOS: reinitialize parameters:
-    initSTR(&s1); initSTR(&s2); s2.which = STRING2;
-
-	(void)setlocale(LC_ALL, "");
+	pthread_cleanup_push(tr_cleanup, NULL);
+	ios_system_support_init(argv);
+	/* Locale is owned by ios_system_support. */
 
 	Cflag = cflag = dflag = sflag = 0;
 	while ((ch = getopt(argc, argv, "Ccdsu")) != -1)
@@ -197,15 +218,10 @@ tr_main(int argc, char **argv)
 			if (!cset_in(delete, ch) &&
 			    (lastch != ch || !cset_in(squeeze, ch))) {
 				lastch = ch;
-                (void)putwc(ch, thread_stdout); // (void)putwchar(ch);
+                output(ch);
 			}
-        if (ferror(thread_stdin)) {
-            cset_free(delete);
-            cset_free(squeeze);
+        if (ferror(thread_stdin))
             err(1, NULL);
-        }
-        cset_free(delete);
-        cset_free(squeeze);
         exit(0);
 	}
 
@@ -221,12 +237,9 @@ tr_main(int argc, char **argv)
 
 		while ((ch = getwchar()) != WEOF)
 			if (!cset_in(delete, ch))
-				(void)putwc(ch, thread_stdout); // (void)putwchar(ch);
-        if (ferror(thread_stdin)) {
-            cset_free(delete);
+				output(ch);
+        if (ferror(thread_stdin))
             err(1, NULL);
-        }
-        cset_free(delete);
 		exit(0);
 	}
 
@@ -240,13 +253,10 @@ tr_main(int argc, char **argv)
 		for (lastch = OOBCH; (ch = getwchar()) != WEOF;)
 			if (lastch != ch || !cset_in(squeeze, ch)) {
 				lastch = ch;
-				(void)putwc(ch, thread_stdout); // (void)putwchar(ch);
+				output(ch);
 			}
-        if (ferror(thread_stdin)) {
-            cset_free(squeeze);
+        if (ferror(thread_stdin))
 			err(1, NULL);
-        }
-        cset_free(squeeze);
 		exit(0);
 	}
 
@@ -270,19 +280,13 @@ tr_main(int argc, char **argv)
 
 	if (Cflag || cflag) {
 		cmap_default(map, OOBCH);
-        if ((s2.str = strdup(argv[1])) == NULL) { // potential memory leak
-            cset_free(squeeze);
-            cmap_free(map);
+        if ((s2.str = string2 = strdup(argv[1])) == NULL)
             errx(1, "strdup(argv[1])");
-        }
 	} else
 		s2.str = argv[1];
 
-    if (!next(&s2)) {
-        cset_free(squeeze);
-        cmap_free(map);
+    if (!next(&s2))
         errx(1, "empty string2");
-    }
 
 	/*
 	 * For -s result will contain only those characters defined
@@ -399,22 +403,21 @@ endloop:
 				ch = cmap_lookup(map, ch);
 			if (lastch != ch || !cset_in(squeeze, ch)) {
 				lastch = ch;
-				(void)putwc(ch, thread_stdout); // (void)putwchar(ch);
+				output(ch);
 			}
 		}
 	else
 		while ((ch = getwchar()) != WEOF) {
 			if (!Cflag || iswrune(ch))
 				ch = cmap_lookup(map, ch);
-			(void)putwc(ch, thread_stdout); // (void)putwchar(ch);
+			output(ch);
 		}
     if (ferror(thread_stdin)) {
         err(1, NULL);
     }
-    cset_free(squeeze);
-    cmap_free(map);
-    pthread_exit(NULL);
-	// exit (0);
+	exit (0);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static struct cset *
@@ -439,7 +442,7 @@ setup(char *arg, STR *str, int cflag, int Cflag)
 int
 charcoll(const void *a, const void *b)
 {
-	static char sa[2], sb[2];
+	char sa[2] = "", sb[2] = "";
 
 	sa[0] = *(const int *)a;
 	sb[0] = *(const int *)b;

@@ -267,6 +267,10 @@ extension ModelSpeedWorkflow: ItemSelectWorkflowDelegate {
   func didTapTrash(item: ItemViewModel.ItemIdentifier, workflow: ItemSelectWorkflow) {
   }
 
+  func contextMenu(item: ItemViewModel.ItemIdentifier, workflow: ItemSelectWorkflow) -> UIMenu? {
+    nil
+  }
+
   func didSelectShowAll(showAll: Bool, workflow: ItemSelectWorkflow) {
   }
 

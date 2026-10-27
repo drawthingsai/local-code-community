@@ -76,6 +76,8 @@ int ios_ytdlp_main(int argc, char **argv);
 int ios_node_main(int argc, char **argv);
 int ios_npm_main(int argc, char **argv);
 int ios_npx_main(int argc, char **argv);
+int too_many_scripts(int argc, char** argv);
+static int ios_system_argv(int argc, const char* const argv[], bool waits);
 
 extern __thread int    __db_getopt_reset;
 __thread FILE* thread_stdin;
@@ -118,12 +120,10 @@ typedef struct _sessionParameters {
     char currentDir[MAXPATHLEN];
     char previousDirectory[MAXPATHLEN];
     char localMiniRoot[MAXPATHLEN];
-    char workspaceDirectory[MAXPATHLEN];
-    char temporaryDirectory[MAXPATHLEN];
     char appBundleDirectory[MAXPATHLEN];
-    pthread_t current_command_root_thread; // thread ID of first command
-    pthread_t lastThreadId; // thread ID of last command.
-    pthread_t mainThreadId; // thread ID of parent command, if any (e.g. vim, which starts "sh -c cd dir && flake8 file")
+    _Atomic(pthread_t) current_command_root_thread; // thread ID of first command
+    _Atomic(pthread_t) lastThreadId; // thread ID of last command.
+    _Atomic(pthread_t) mainThreadId; // thread ID of parent command, if any (e.g. vim, which starts "sh -c cd dir && flake8 file")
     FILE* stdin;
     FILE* stdout;
     FILE* stderr;
@@ -151,13 +151,27 @@ typedef struct _sessionParameters {
     bool sshpassPasswordSent;
     bool sshpassVerbose;
     int sshpassResult;
-    int global_errno;
+    _Atomic(int) global_errno;
+    // A session's commands start and end on their own threads (pipeline
+    // stages, popen): this guards the command name stack below.
+    pthread_mutex_t commandNameMutex;
     int numCommandsAllocated;
     int numCommand;
     char** commandName;
     char columns[5];
     char lines[5];
     bool activePager;
+    // References: the session list, each command from its launch to its end,
+    // and each thread whose current session it is. The last one frees it.
+    _Atomic(int) references;
+    bool isStage; // a pipeline stage's, freed with its pipeline instead
+    struct _sessionParameters *shellSession; // a stage's: the shell running it
+    // The shells that background children of this session's commands run,
+    // each in a session of its own (ios_system_osh_invocation); ios_kill stops
+    // them with this one.
+    pthread_mutex_t isolatedShellsMutex;
+    struct _sessionParameters *isolatedShells;
+    struct _sessionParameters *nextIsolatedShell;
 } sessionParameters;
 
 static void initSessionParameters(sessionParameters* sp) {
@@ -173,8 +187,6 @@ static void initSessionParameters(sessionParameters* sp) {
     strcpy(sp->currentDir, startDirectory);
     strcpy(sp->previousDirectory, startDirectory);
     sp->localMiniRoot[0] = 0;
-    sp->workspaceDirectory[0] = 0;
-    sp->temporaryDirectory[0] = 0;
     sp->appBundleDirectory[0] = 0;
     sp->global_errno = 0;
     sp->stdin = stdin;
@@ -200,6 +212,7 @@ static void initSessionParameters(sessionParameters* sp) {
     sp->sshpassPasswordSent = false;
     sp->sshpassVerbose = false;
     sp->sshpassResult = IOS_SSHPASS_INACTIVE;
+    pthread_mutex_init(&sp->commandNameMutex, NULL);
     sp->numCommandsAllocated = 10; // 10 slots available to store commands, will realloc if more needed.
     sp->commandName = malloc(sizeof(char*) * sp->numCommandsAllocated);
     for (int i = 0; i < sp->numCommandsAllocated; i++) {
@@ -210,6 +223,38 @@ static void initSessionParameters(sessionParameters* sp) {
     strcpy(sp->columns, "80");
     strcpy(sp->lines, "80");
     sp->activePager = FALSE;
+    atomic_init(&sp->references, 1);
+    sp->isStage = false;
+    sp->shellSession = NULL;
+    pthread_mutex_init(&sp->isolatedShellsMutex, NULL);
+    sp->isolatedShells = NULL;
+    sp->nextIsolatedShell = NULL;
+}
+
+// Frees what initSessionParameters allocated.
+static void releaseSessionParameters(sessionParameters* sp) {
+    for (int j = 0; j < sp->numCommandsAllocated; j++) free(sp->commandName[j]);
+    free(sp->commandName);
+    free(sp->sshpassPassword);
+    free(sp->sshpassPrompt);
+    pthread_mutex_destroy(&sp->sshpassMutex);
+    pthread_mutex_destroy(&sp->commandNameMutex);
+    pthread_mutex_destroy(&sp->pythonCommandsMutex);
+    pthread_cond_destroy(&sp->pythonCommandsCondition);
+    pthread_mutex_destroy(&sp->isolatedShellsMutex);
+}
+
+static void ios_session_retain(sessionParameters* sp) {
+    if (sp != NULL && !sp->isStage)
+        atomic_fetch_add_explicit(&sp->references, 1, memory_order_relaxed);
+}
+
+static void ios_session_release(sessionParameters* sp) {
+    if (sp != NULL && !sp->isStage &&
+        atomic_fetch_sub_explicit(&sp->references, 1, memory_order_acq_rel) == 1) {
+        releaseSessionParameters(sp);
+        free(sp);
+    }
 }
 
 void ios_setBookmarkDictionaryName(NSString* name) {
@@ -260,12 +305,30 @@ const char* ios_getBookmarkedVersion(const char* p) {
 static NSMutableDictionary* sessionList;
 static pthread_mutex_t sessionListMutex = PTHREAD_MUTEX_INITIALIZER;
 static NSMutableDictionary* aliasDictionary;
+// Aliases are shared by every session, which run commands concurrently.
+static pthread_mutex_t aliasMutex = PTHREAD_MUTEX_INITIALIZER;
 
+static NSArray<NSString*>* aliasEntry(NSString* command) {
+    pthread_mutex_lock(&aliasMutex);
+    NSArray<NSString*>* entry = command != nil ? aliasDictionary[command] : nil;
+    pthread_mutex_unlock(&aliasMutex);
+    return entry;
+}
+
+static NSDictionary<NSString*, NSArray<NSString*>*>* aliasSnapshot(void) {
+    pthread_mutex_lock(&aliasMutex);
+    NSDictionary* snapshot = [aliasDictionary copy] ?: @{};
+    pthread_mutex_unlock(&aliasMutex);
+    return snapshot;
+}
+
+// Retained: release it with ios_session_release.
 static sessionParameters *ios_session_for_key(id sessionKey) {
     pthread_mutex_lock(&sessionListMutex);
     sessionParameters *session = sessionList != nil
         ? (sessionParameters*)[[sessionList objectForKey:sessionKey] pointerValue]
         : NULL;
+    ios_session_retain(session);
     pthread_mutex_unlock(&sessionListMutex);
     return session;
 }
@@ -273,6 +336,21 @@ static sessionParameters *ios_session_for_key(id sessionKey) {
 // pointer to sessionParameters. thread-local variable so the entire system is thread-safe.
 // The sessionParameters pointer is shared by all threads in the same session.
 static __thread sessionParameters* currentSession = NULL;
+// The calling thread's reference to its current session, released when it
+// switches to another one or exits. (A pipeline stage's temporary switch
+// assigns currentSession directly and restores it.)
+static pthread_key_t ownedSessionKey;
+static pthread_once_t ownedSessionKeyOnce = PTHREAD_ONCE_INIT;
+static void releaseOwnedSession(void* session) { ios_session_release(session); }
+static void createOwnedSessionKey(void) { pthread_key_create(&ownedSessionKey, releaseOwnedSession); }
+// Makes session current on this thread, taking over one reference to it.
+static void adoptCurrentSession(sessionParameters* session) {
+    pthread_once(&ownedSessionKeyOnce, createOwnedSessionKey);
+    sessionParameters* previous = pthread_getspecific(ownedSessionKey);
+    pthread_setspecific(ownedSessionKey, session);
+    currentSession = session;
+    ios_session_release(previous);
+}
 static __thread IOSPythonCommandState *currentPythonCommand = NULL;
 static __thread uint64_t currentNodeCommandIdentifier = 0;
 // Python3 multiple interpreters:
@@ -295,12 +373,10 @@ int numTeXInterpreters = MaxTeXInterpreters; // Apps can overwrite this
 static bool TeXIsRunning[MaxTeXInterpreters];
 static int currentTeXInterpreter = 0;
 NSArray *TeXcommands = nil; // initialized later
-// OpenSSH is statically linked once. scp/sftp may use this slot for their
-// nested transport, while Local Code serializes top-level shell commands.
-enum { MaxSshCommands = 1 };
-int numSshCommands = MaxSshCommands; // Apps can overwrite this
-static bool sshIsRunning[MaxSshCommands];
-static int currentSshCommand = 0;
+// OpenSSH is statically linked once, with its state in globals: within one
+// session's OpenSSH job (see ios_exclusive_runtime), still one ssh and one scp
+// or sftp at a time. scp and sftp run their transport as that one ssh.
+static atomic_bool sshIsRunning = false;
 // we need the ability to run 2 rsync commands for local rsync:
 enum { MaxRsyncCommands = 2 };
 int numRsyncCommands = MaxRsyncCommands; // Apps can overwrite this
@@ -487,13 +563,21 @@ sig_t ios_signal(int value, sig_t function) {
     }
 }
 
+// The calling thread's session directory (NULL outside any session), for the
+// C helpers that fall back to it when a command has no PWD.
+const char *ios_currentSessionDirectory(void) {
+    return currentSession != NULL ? currentSession->currentDir : NULL;
+}
+
 NSString *ios_getLogicalPWD(const void* sessionId) {
     id sessionKey = @((NSUInteger)sessionId);
     sessionParameters *session = ios_session_for_key(sessionKey);
     if (session == nil) {
         return nil;
     }
-    return @(session->currentDir);
+    NSString *directory = @(session->currentDir);
+    ios_session_release(session);
+    return directory;
 }
 
 #undef getenv
@@ -510,15 +594,19 @@ void ios_setWindowSize(int width, int height, const void* sessionId) {
     sprintf(resizedSession->columns, "%d", MIN(width, 9999));
     sprintf(resizedSession->lines, "%d", MIN(height, 9999));
     // Also send SIGWINCH to the main thread of resizedSession:
-    if (resizedSession->current_command_root_thread != NULL) {
-        pthread_kill(resizedSession->current_command_root_thread, SIGWINCH);
+    pthread_t rootThread = resizedSession->current_command_root_thread;
+    if (rootThread != NULL) {
+        pthread_kill(rootThread, SIGWINCH);
     }
-    if (resizedSession->lastThreadId != NULL) {
-        pthread_kill(resizedSession->lastThreadId, SIGWINCH);
+    pthread_t lastThread = resizedSession->lastThreadId;
+    if (lastThread != NULL) {
+        pthread_kill(lastThread, SIGWINCH);
     }
-    if (resizedSession->mainThreadId != NULL) {
-        pthread_kill(resizedSession->mainThreadId, SIGWINCH);
+    pthread_t mainThread = resizedSession->mainThreadId;
+    if (mainThread != NULL) {
+        pthread_kill(mainThread, SIGWINCH);
     }
+    ios_session_release(resizedSession);
 }
 
 extern char* libc_getenv(const char* variableName);
@@ -555,10 +643,12 @@ int ios_getCommandStatus(void) {
 
 extern const char* ios_progname(void) {
     if (currentSession != NULL) {
-        if (currentSession->numCommand <= 0)
-            return currentSession->commandName[0];
-        else
-            return currentSession->commandName[currentSession->numCommand - 1];
+        // A copy: another command of the session may reuse the slot.
+        static __thread char name[NAME_MAX];
+        pthread_mutex_lock(&currentSession->commandNameMutex);
+        strlcpy(name, currentSession->commandName[MAX(currentSession->numCommand - 1, 0)], sizeof(name));
+        pthread_mutex_unlock(&currentSession->commandNameMutex);
+        return name;
     }
     else return getprogname();
 }
@@ -573,23 +663,10 @@ int ios_resolveDirectoryAlias(
         return 0;
     }
 
-    const char *alias = NULL;
-    const char *target = NULL;
-    int result = 1;
-    if (strcmp(path, "/home") == 0 || strncmp(path, "/home/", 6) == 0) {
-        alias = "/home";
-        target = currentSession->workspaceDirectory;
-    } else if (strcmp(path, "/tmp") == 0 || strncmp(path, "/tmp/", 5) == 0) {
-        alias = "/tmp";
-        target = currentSession->temporaryDirectory;
-    } else if (strcmp(path, "/app_bundle") == 0 || strncmp(path, "/app_bundle/", 12) == 0) {
-        alias = "/app_bundle";
-        target = currentSession->appBundleDirectory;
-        result = 2;
-    } else {
-        return 0;
-    }
-    if (target[0] == '\0') {
+    const char *alias = "/app_bundle";
+    const char *target = currentSession->appBundleDirectory;
+    if ((strcmp(path, alias) != 0 && strncmp(path, "/app_bundle/", 12) != 0) ||
+        target[0] == '\0') {
         return 0;
     }
 
@@ -599,8 +676,143 @@ int ios_resolveDirectoryAlias(
         errno = ENAMETOOLONG;
         return -1;
     }
-    return result;
+    return 2;
 }
+
+// OpenSSH (its globals), img2txt (libcaca's) and draw-things-cli (its
+// engine) keep process-wide state, so one job at a time runs each class: a
+// command and the commands it starts (scp's ssh transport, sshpass's ssh).
+typedef struct {
+    pthread_mutex_t mutex;
+    pthread_cond_t released;
+    const char *name;
+    uint64_t owner; // the job running it, 0 when idle
+    const sessionParameters *ownerSession; // the shell session of that job
+    int depth;
+} ios_exclusive_runtime;
+static ios_exclusive_runtime openSSHRuntime = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, "OpenSSH", 0, NULL, 0};
+static ios_exclusive_runtime img2txtRuntime = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, "img2txt", 0, NULL, 0};
+static ios_exclusive_runtime drawThingsRuntime = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, "draw-things-cli", 0, NULL, 0};
+// The job of the command running on this thread, which the commands it starts
+// join; 0 until it, or the command that started it, runs an exclusive class.
+static __thread uint64_t currentExclusiveJob = 0;
+static atomic_uint_fast64_t nextExclusiveJob = 1;
+
+static ios_exclusive_runtime *ios_exclusive_runtime_for(ios_command_isolation_policy isolation) {
+    switch (isolation) {
+        case IOS_COMMAND_ISOLATION_EXCLUSIVE_OPENSSH: return &openSSHRuntime;
+        case IOS_COMMAND_ISOLATION_EXCLUSIVE_IMG2TXT: return &img2txtRuntime;
+        case IOS_COMMAND_ISOLATION_EXCLUSIVE_DRAW_THINGS: return &drawThingsRuntime;
+        default: return NULL;
+    }
+}
+
+static void ios_unlock_mutex(void *mutex) { pthread_mutex_unlock(mutex); }
+
+// Waits, cancellably, while another job runs this class. Another job of the
+// same session (a pipeline stage counts as its shell's) gets a second and then
+// false: it may be the stage that drains the running job's output.
+static bool ios_enter_exclusive_runtime(ios_exclusive_runtime *runtime, uint64_t job, const sessionParameters *session) {
+    while (session != NULL && session->shellSession != NULL) session = session->shellSession;
+    bool entered = true;
+    uint64_t timedOwner = 0;
+    struct timespec deadline;
+    pthread_mutex_lock(&runtime->mutex);
+    pthread_cleanup_push(ios_unlock_mutex, &runtime->mutex);
+    while (runtime->owner != 0 && runtime->owner != job) {
+        if (runtime->ownerSession != session) {
+            pthread_cond_wait(&runtime->released, &runtime->mutex);
+            continue;
+        }
+        if (runtime->owner != timedOwner) {
+            timedOwner = runtime->owner;
+            clock_gettime(CLOCK_REALTIME, &deadline);
+            deadline.tv_sec += 1;
+        }
+        if (pthread_cond_timedwait(&runtime->released, &runtime->mutex, &deadline) == ETIMEDOUT &&
+            runtime->owner == timedOwner) {
+            entered = false;
+            break;
+        }
+    }
+    if (entered) {
+        runtime->owner = job;
+        runtime->ownerSession = session;
+        runtime->depth += 1;
+    }
+    pthread_cleanup_pop(1);
+    return entered;
+}
+
+// A second ssh waits a second for the first, then fails; a second scp or
+// sftp fails at once (as when this was checked at launch).
+static bool ios_claim_openssh_program(atomic_bool *slot, bool waits) {
+    for (int attempt = 0; ; attempt++) {
+        bool idle = false;
+        if (atomic_compare_exchange_strong(slot, &idle, true)) return true;
+        if (!waits || attempt >= 100) return false;
+        usleep(10000);
+    }
+}
+
+static void ios_leave_exclusive_runtime(ios_exclusive_runtime *runtime) {
+    pthread_mutex_lock(&runtime->mutex);
+    if (--runtime->depth == 0) {
+        runtime->owner = 0;
+        runtime->ownerSession = NULL;
+        pthread_cond_broadcast(&runtime->released);
+    }
+    pthread_mutex_unlock(&runtime->mutex);
+}
+
+// The commands a command started in the background (popen's) are its own: it
+// waits for them when it ends, and a later launch in its session does not join
+// them, as it would join the session's lastThreadId (awk's system() joined its
+// own print | "sort", which waited for awk). They run detached, so a finished
+// one is reclaimed at once; the command counts the ones still running.
+typedef struct {
+    pthread_mutex_t mutex;
+    pthread_cond_t ended;
+    int running;
+} ios_command_children;
+static __thread bool runningCommand = false;
+static __thread bool runningBackgroundChild = false; // this thread's command is one
+static __thread ios_command_children *commandChildren = NULL; // this thread's command's
+
+static ios_command_children *ios_own_command_children(void) {
+    if (commandChildren == NULL && (commandChildren = calloc(1, sizeof(*commandChildren))) != NULL) {
+        pthread_mutex_init(&commandChildren->mutex, NULL);
+        pthread_cond_init(&commandChildren->ended, NULL);
+    }
+    return commandChildren;
+}
+
+static void ios_command_child_ended(ios_command_children *children) {
+    pthread_mutex_lock(&children->mutex);
+    children->running -= 1;
+    pthread_cond_broadcast(&children->ended);
+    pthread_mutex_unlock(&children->mutex);
+}
+
+// Waits, not cancellably, until none of these commands runs, then frees them.
+static void ios_wait_command_children(ios_command_children *children) {
+    int cancelState;
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &cancelState);
+    pthread_mutex_lock(&children->mutex);
+    while (children->running > 0)
+        pthread_cond_wait(&children->ended, &children->mutex);
+    pthread_mutex_unlock(&children->mutex);
+    pthread_setcancelstate(cancelState, NULL);
+    pthread_mutex_destroy(&children->mutex);
+    pthread_cond_destroy(&children->ended);
+    free(children);
+}
+
+// The commands the ios_popen call on this thread is starting (its command,
+// or each stage of a pipeline in its string), which ios_pclose waits for, as
+// pclose(3) does: sort reads back what its compress program wrote only once
+// that program has ended.
+static __thread ios_command_children *currentPopenCommands = NULL;
 
 typedef struct _functionParameters {
     int argc;
@@ -625,6 +837,11 @@ typedef struct _functionParameters {
     IOSPythonCommandState pythonCommand;
     uint64_t nodeCommandIdentifier;
     bool nodeCommandPrepared;
+    ios_exclusive_runtime *exclusiveRuntime; // held while the command runs
+    uint64_t exclusiveJob; // the launching command's job (currentExclusiveJob)
+    ios_command_children *ownerChildren; // the command that started this one in the background
+    ios_command_children *popenCommands; // the ios_popen call that started this one
+    atomic_bool *programSlot; // OpenSSH's one ssh, or one scp or sftp, if held
 } functionParameters;
 
 #define IOS_NODE_WEAK_IMPORT __attribute__((weak_import))
@@ -725,21 +942,36 @@ static void cleanup_function(void* parameters) {
     // Cleanup calls Foundation and closes shared streams. A concurrent
     // ios_kill must not asynchronously terminate this thread here.
     ios_disable_root_command_pthread_cancel(p);
+    // Before its streams close: its children may still write to them.
+    if (commandChildren != NULL) {
+        ios_wait_command_children(commandChildren);
+        commandChildren = NULL;
+    }
+    if (p->programSlot != NULL) {
+        atomic_store(p->programSlot, false);
+        p->programSlot = NULL;
+    }
+    if (p->exclusiveRuntime != NULL) {
+        ios_leave_exclusive_runtime(p->exclusiveRuntime);
+        p->exclusiveRuntime = NULL;
+    }
     pthread_t current_thread = pthread_self();
     bool isPythonCommand = ios_function_runs_python(p->function);
     bool isNodeCommand = ios_function_runs_node(p->function);
     bool backgroundCommand = p->backgroundCommand;
     char* commandName = p->argv[0];
-    char* currentSessionCommandName = NULL;
+    char currentSessionCommandName[NAME_MAX];
+    char parentCommandName[NAME_MAX] = "";
     bool toNonInteractive = false;
     
-    if (currentSession->numCommand <= 0)
-        currentSessionCommandName = currentSession->commandName[0];
-    else
-        currentSessionCommandName = currentSession->commandName[currentSession->numCommand - 1];
+    pthread_mutex_lock(&currentSession->commandNameMutex);
+    int numCommand = currentSession->numCommand;
+    strlcpy(currentSessionCommandName, currentSession->commandName[MAX(numCommand - 1, 0)], sizeof(currentSessionCommandName));
+    if (numCommand > 1) strlcpy(parentCommandName, currentSession->commandName[numCommand - 2], sizeof(parentCommandName));
+    pthread_mutex_unlock(&currentSession->commandNameMutex);
     NSLog(@"cleanup_function: %s thread_id %p pid: %d stdin %d stdout %d stderr %d isPipeOut %d", commandName, (void *)current_thread, ios_currentPid(), fileno(p->stdin), fileno(p->stdout), fileno(p->stderr), p->isPipeOut);
     NSLog(@"currentSession->commandName: %s root_thread: %p", currentSessionCommandName, (void *)currentSession->current_command_root_thread);
-    NSLog(@"Num commands stored: %d", currentSession->numCommand);
+    NSLog(@"Num commands stored: %d", numCommand);
     if ((strcmp(commandName, "less") == 0) || (strcmp(commandName, "more") == 0)) {
         if ((strlen(currentSessionCommandName) > 0)
             && (strcmp(currentSessionCommandName, "less") != 0)
@@ -751,12 +983,11 @@ static void cleanup_function(void* parameters) {
             while (fgetc(thread_stdin) != EOF) { } // flush input, otherwise previous command gets blocked.
         } else {
             // but for python or ipython help(), flush the content of stdin:
-            if ((currentSession->numCommand > 1) &&
-                ((strncmp(currentSession->commandName[currentSession->numCommand - 2], "ipython", 7) == 0) ||
-                 (strncmp(currentSession->commandName[currentSession->numCommand - 2], "isympy", 6) == 0) ||
-                 (strncmp(currentSession->commandName[currentSession->numCommand - 2], "python", 6) == 0))) {
+            if ((strncmp(parentCommandName, "ipython", 7) == 0) ||
+                (strncmp(parentCommandName, "isympy", 6) == 0) ||
+                (strncmp(parentCommandName, "python", 6) == 0)) {
                 while (fgetc(thread_stdin) != EOF) { } // flush input to help() command
-                if (strncmp(currentSession->commandName[currentSession->numCommand - 2], "python", 6) == 0) {
+                if (strncmp(parentCommandName, "python", 6) == 0) {
                     toNonInteractive = true;
                 }
             }
@@ -765,7 +996,9 @@ static void cleanup_function(void* parameters) {
     }
     // If the command was started as a pipe, we wait for the first command to finish sending data
     // There is an exception for ssh, which can be started by scp or sftp. They will wait for it.
-    if ((!joinMainThread) && p->isPipeOut
+    // (Not a command's own background child: the command waits for it, so it
+    // must not wait for that command.)
+    if ((!joinMainThread) && p->isPipeOut && p->ownerChildren == NULL
         && (strcmp(commandName, "ssh") != 0)) { // not ssh
         if (currentSession->current_command_root_thread != 0) {
             if (currentSession->current_command_root_thread != current_thread) {
@@ -800,23 +1033,21 @@ static void cleanup_function(void* parameters) {
     } else if ([TeXcommands containsObject: commandNameString]) {
         NSLog(@"Ending a TeX command: %d", p->numInterpreter);
         TeXIsRunning[p->numInterpreter] = false;
-    } else if ((strcmp(commandName, "ssh") == 0)) {
-        NSLog(@"Ending a ssh command: %d", p->numInterpreter);
-        sshIsRunning[p->numInterpreter] = false;
     } else if (strcmp(commandName, "curl") == 0) {
         NSLog(@"Ending a curl command.");
         curlIsRunning = false;
-    } else if ((strcmp(commandName, "scp") == 0) || (strcmp(commandName, "sftp") == 0)) {
-        NSLog(@"Ending a scp/sftp command.");
-        scpIsRunning = false;
     } else if ((strcmp(commandName, "rsync") == 0) || (strcmp(commandName, "openrsync") == 0)) {
         NSLog(@"Ending a rsync command.");
         rsyncIsRunning[p->numInterpreter] = false;
     }
+    pthread_mutex_lock(&currentSession->commandNameMutex);
     if (currentSession->numCommand > 0)
         currentSession->numCommand -= 1;
     else
         currentSession->commandName[0][0] = 0;
+    // commands started by Python: Python will close stdin (Lua and Perl? not broken, AFAIK)
+    bool startedByPython = (currentSession->numCommand > 0) && (strncmp(currentSession->commandName[currentSession->numCommand - 1], "python", 6) == 0);
+    pthread_mutex_unlock(&currentSession->commandNameMutex);
     // if (strcmp(currentSession->commandName, commandName) == 0) {
     //     currentSession->commandName[0] = 0;
     // }
@@ -824,7 +1055,6 @@ static void cleanup_function(void* parameters) {
     for (int i = 0; i < p->argc; i++) free(p->argv_ref[i]);
     free(p->argv_ref);
     free(p->argv);
-    bool isLastThread = (currentSession->lastThreadId == current_thread);
     // sh and bash follow the same rules: under OSH, the caller (the shell's
     // external runner, a pipeline stage, or Python's subprocess adapter) owns
     // the streams it passes and closes them after the command exits.
@@ -866,8 +1096,7 @@ static void cleanup_function(void* parameters) {
         if (fcntl(fileno(p->stdin), F_GETPATH, filePath) < 0)
             mustCloseStdin &= false;
     }
-    // commands started by Python: Python will close stdin (Lua and Perl? not broken, AFAIK)
-    if ((currentSession->numCommand > 0) && (strncmp(currentSession->commandName[currentSession->numCommand - 1], "python", 6) == 0)) {
+    if (startedByPython) {
         // NSLog(@"Command started by Python, not closing stdin: %d \n", fileno(p->stdin));
         mustCloseStdin &= false;
     }
@@ -878,9 +1107,12 @@ static void cleanup_function(void* parameters) {
     if ((p->dlHandle != RTLD_SELF) && (p->dlHandle != RTLD_MAIN_ONLY)
         && (p->dlHandle != RTLD_DEFAULT) && (p->dlHandle != RTLD_NEXT))
         dlclose(p->dlHandle);
-    if (isLastThread) {
-        NSLog(@"Terminating lastthread of currentSession %p lastThreadId %p pid: %d\n", (void *)current_thread, (void *)currentSession->lastThreadId, ios_currentPid());
-        currentSession->lastThreadId = 0;
+    pthread_t lastThread = current_thread;
+    if (atomic_compare_exchange_strong(&currentSession->lastThreadId, &lastThread, NULL)) {
+        NSLog(@"Terminating lastthread of currentSession %p lastThreadId %p pid: %d\n", (void *)current_thread, (void *)current_thread, ios_currentPid());
+        // Its launcher kept it joinable for whoever takes lastThreadId; now
+        // nobody will join it.
+        pthread_detach(current_thread);
     } else {
         NSLog(@"Current thread %p lastthread %p pid: %d\n", (void *)pthread_self(), (void *)currentSession->lastThreadId, ios_currentPid());
     }
@@ -903,8 +1135,8 @@ static void cleanup_function(void* parameters) {
         // Since we ended the root thread for this session, reset SIGWINCH if it was set:
         sigaction (SIGWINCH, &sa, NULL);
     }
-    if (currentSession->mainThreadId == current_thread) {
-        currentSession->mainThreadId = 0;
+    pthread_t mainThread = current_thread;
+    if (atomic_compare_exchange_strong(&currentSession->mainThreadId, &mainThread, NULL)) {
         // Since we ended the main thread for this session, reset SIGWINCH if it was set:
         sigaction (SIGWINCH, &sa, NULL);
     }
@@ -946,12 +1178,16 @@ static void cleanup_function(void* parameters) {
     }
     [NSThread.currentThread.threadDictionary removeObjectForKey:ios_commandContextKey];
     if (p->commandContext) CFRelease(p->commandContext);
+    // Last: its owner may now close the streams this one used.
+    if (p->popenCommands != NULL) ios_command_child_ended(p->popenCommands);
+    if (p->ownerChildren != NULL) ios_command_child_ended(p->ownerChildren);
     free(parameters); // This was malloc'ed in ios_system
     cleanup_counter--;
     NSLog(@"returning from cleanup_function, session: %s\n", (char*)currentSession->context);
 }
 
 static void* run_function(void* parameters) {
+    runningCommand = true;
     // Signal dispositions are process-wide, so installing handlers here would
     // also affect UIKit, URLSession, and other unrelated threads. SIGSEGV and
     // SIGBUS must retain the host application's dispositions. This mask only
@@ -964,7 +1200,9 @@ static void* run_function(void* parameters) {
     pthread_sigmask(SIG_BLOCK, &blockedSignals, NULL);
 
     functionParameters *p = (functionParameters *) parameters;
+    runningBackgroundChild = p->ownerChildren != NULL;
     ios_setCurrentPid(p->processId);
+    currentExclusiveJob = p->exclusiveJob;
     bool isPythonCommand = ios_function_runs_python(p->function);
     bool isNodeCommand = ios_function_runs_node(p->function);
     int nodePreparationStatus = 0;
@@ -1024,6 +1262,10 @@ static void* run_function(void* parameters) {
     if (p->storeRootThread && (p->session != NULL)) {
         NSLog(@"Storing thread_id: %p as root_thread\n", (void *)pthread_self());
         p->session->current_command_root_thread = pthread_self();
+        // The first command records itself. Its launcher could store it only
+        // after pthread_create returns, when a short command may have ended.
+        pthread_t noMainThread = NULL;
+        atomic_compare_exchange_strong(&p->session->mainThreadId, &noMainThread, pthread_self());
         if (!isPythonCommand && !isNodeCommand && !isFFmpegCommand && !isOfficeCommand &&
             !isShellCommand) {
             atomic_store_explicit(
@@ -1040,20 +1282,15 @@ static void* run_function(void* parameters) {
             memory_order_relaxed);
     }
     // NSLog(@"Starting command: %s thread_id %x", p->argv[0], pthread_self());
-    // Thread-safe commands use invocation-local parsing (or no getopt).
-    // Resetting the legacy globals here would corrupt an overlapping command.
-    if (isolation != IOS_COMMAND_ISOLATION_THREAD_SAFE && !isFFmpegCommand && !isOfficeCommand &&
-        isolation != IOS_COMMAND_ISOLATION_EXCLUSIVE_DRAW_THINGS) {
-        optind = 1;
-        opterr = 1;
-        optreset = 1;
-    }
+    // Commands parse with the invocation's getopt (ios_system_support), which
+    // starts fresh on each command thread, or with their own parsers; libc's
+    // process-wide getopt state is no command's, so nothing resets it here.
     __db_getopt_reset = 1;
     thread_stdin  = p->stdin;
     thread_stdout = p->stdout;
     thread_stderr = p->stderr;
     thread_context = p->context;
-    currentSession = p->session;
+    adoptCurrentSession(p->session); // the reference the launcher took
     if (p->commandContext)
         NSThread.currentThread.threadDictionary[ios_commandContextKey] = (__bridge id)p->commandContext;
     currentPythonCommand = isPythonCommand ? &p->pythonCommand : NULL;
@@ -1080,7 +1317,30 @@ static void* run_function(void* parameters) {
             ios_disable_root_command_pthread_cancel(p);
             retval = 130;
         } else {
-            retval = p->function(p->argc, p->argv);
+            ios_exclusive_runtime *runtime = ios_exclusive_runtime_for(isolation);
+            if (runtime != NULL && currentExclusiveJob == 0)
+                currentExclusiveJob = atomic_fetch_add_explicit(&nextExclusiveJob, 1, memory_order_relaxed);
+            if (runtime != NULL && !ios_enter_exclusive_runtime(runtime, currentExclusiveJob, p->session)) {
+                fprintf(thread_stderr, "%s: %s is in use by another command of this session\n", p->argv[0], runtime->name);
+                retval = 1;
+            } else {
+                p->exclusiveRuntime = runtime;
+                atomic_bool *slot = runtime != &openSSHRuntime ? NULL
+                    : strcmp(p->argv[0], "ssh") == 0 ? &sshIsRunning
+                    : strcmp(p->argv[0], "scp") == 0 || strcmp(p->argv[0], "sftp") == 0 ? &scpIsRunning : NULL;
+                if (slot != NULL && !ios_claim_openssh_program(slot, slot == &sshIsRunning)) {
+                    if (slot == &sshIsRunning) {
+                        display_alert(@"Too many ssh commands", @"There are too many ssh commands running at the same time. Try closing some of them.");
+                    } else {
+                        display_alert(@"Only one scp or sftp command at a time", @"Please wait for the other one to end.");
+                    }
+                    if (currentSession != nil) currentSession->global_errno = ENOENT;
+                    retval = too_many_scripts(p->argc, p->argv);
+                } else {
+                    p->programSlot = slot;
+                    retval = p->function(p->argc, p->argv);
+                }
+            }
             ios_disable_root_command_pthread_cancel(p);
         }
         if (currentSession != nil) currentSession->global_errno = retval;
@@ -1388,14 +1648,6 @@ int ios_setSystemPaths(
 
     if (currentSession != NULL) {
         strlcpy(
-            currentSession->workspaceDirectory,
-            workspacePath.fileSystemRepresentation,
-            sizeof(currentSession->workspaceDirectory));
-        strlcpy(
-            currentSession->temporaryDirectory,
-            tmpPath.fileSystemRepresentation,
-            sizeof(currentSession->temporaryDirectory));
-        strlcpy(
             currentSession->appBundleDirectory,
             appBundlePath.fileSystemRepresentation,
             sizeof(currentSession->appBundleDirectory));
@@ -1416,9 +1668,7 @@ int ios_setSystemPaths(
     ios_setManagedPythonPath(pythonPathEntry);
     ios_setEnvironmentVariable("PATH_LOCALE", documentsPath.UTF8String, 1);
     ios_setEnvironmentVariable("SSH_HOME", documentsPath.UTF8String, 1);
-    ios_setEnvironmentVariable("DIG_HOME", documentsPath.UTF8String, 1);
     ios_setEnvironmentVariable("CURL_HOME", documentsPath.UTF8String, 1);
-    ios_setEnvironmentVariable("CURLOPT_SSH_KNOWNHOSTS", [documentsPath stringByAppendingPathComponent:@".ssh/known_hosts"].UTF8String, 1);
     ios_setEnvironmentVariable("HOME", workspacePath.UTF8String, 1);
     ios_setEnvironmentVariable("TMPDIR", tmpPath.UTF8String, 1);
     ios_setEnvironmentVariable("PYTHONUSERBASE", pythonUserBase.UTF8String, 1);
@@ -1758,6 +2008,10 @@ static const char* ios_expandFilename(const char *filename) {
             nameString = [nameString stringByReplacingOccurrencesOfString:variable_string withString:replacement_string];
         } else cannotExpand = true; // found a variable we can't expand. stop trying for this fileName
     }
+    // A relative name opens from the session's directory, not the process's,
+    // which another session's (or a concurrent shell's) cd moves.
+    if (nameString.length > 0 && !nameString.isAbsolutePath && currentSession != NULL)
+        nameString = [@(currentSession->currentDir) stringByAppendingPathComponent:nameString];
     return [nameString UTF8String];
 }
 
@@ -1819,8 +2073,9 @@ int ios_setMiniRoot(NSString* mRoot) {
 int ios_setMiniRootURL(NSURL* mRoot) {
     // NSFileManager *fileManager = [[NSFileManager alloc] init];
     if (currentSession == NULL) {
-        currentSession = malloc(sizeof(sessionParameters));
-        initSessionParameters(currentSession);
+        sessionParameters* session = malloc(sizeof(sessionParameters));
+        initSessionParameters(session);
+        adoptCurrentSession(session);
     }
     strcpy(currentSession->localMiniRoot, [mRoot.path UTF8String]);
     strcpy(currentSession->previousDirectory, currentSession->currentDir);
@@ -1881,7 +2136,10 @@ BOOL __cd_to_dir(NSString *newDir, NSFileManager *fileManager) {
   // We managed to change the directory.
   // Was that allowed?
   // Allowed "cd" = below miniRoot *or* below localMiniRoot
-  NSString* resultDir = [fileManager currentDirectoryPath];
+  // Another session may move the process directory before getcwd reads it.
+  char resolvedDir[MAXPATHLEN];
+  NSString* resultDir = realpath(newDir.fileSystemRepresentation, resolvedDir) != NULL ? @(resolvedDir)
+      : [fileManager currentDirectoryPath];
 
   if (__allowed_cd_to_path(resultDir)) {
     strcpy(currentSession->previousDirectory, currentSession->currentDir);
@@ -1920,7 +2178,10 @@ int ios_fchdir(const int fd) {
     // Was that allowed?
     // Allowed "cd" = below miniRoot *or* below localMiniRoot
     // NSFileManager *fileManager = [[NSFileManager alloc] init];
-    NSString* resultDir = [NSFileManager.defaultManager currentDirectoryPath];
+    // Another session may move the process directory before getcwd reads it.
+    char resolvedDir[MAXPATHLEN];
+    NSString* resultDir = fcntl(fd, F_GETPATH, resolvedDir) != -1 ? @(resolvedDir)
+        : [NSFileManager.defaultManager currentDirectoryPath];
     // NSLog(@"Inside fchdir, path: %s for session: %s\n", resultDir.UTF8String, (char*)currentSession->context);
 
     if (__allowed_cd_to_path(resultDir)) {
@@ -1959,7 +2220,10 @@ int ios_fchdir_nolock(const int fd) {
     // Was that allowed?
     // Allowed "cd" = below miniRoot *or* below localMiniRoot
     // NSFileManager *fileManager = [[NSFileManager alloc] init];
-    NSString* resultDir = [NSFileManager.defaultManager currentDirectoryPath];
+    // Another session may move the process directory before getcwd reads it.
+    char resolvedDir[MAXPATHLEN];
+    NSString* resultDir = fcntl(fd, F_GETPATH, resolvedDir) != -1 ? @(resolvedDir)
+        : [NSFileManager.defaultManager currentDirectoryPath];
     // NSLog(@"fchdir_nolock, success: %s\n", resultDir.UTF8String);
 
     if (__allowed_cd_to_path(resultDir)) {
@@ -2007,7 +2271,11 @@ int chdir_nolock(const char* path) {
     // We managed to change the directory.
     // Was that allowed?
     // Allowed "cd" = below miniRoot *or* below localMiniRoot
-    NSString* resultDir = [NSFileManager.defaultManager currentDirectoryPath];
+    // Releases run without pid_mtx, so another session may already have moved
+    // the process directory: take the result from the path, not getcwd.
+    char resolvedDir[MAXPATHLEN];
+    NSString* resultDir = realpath(path, resolvedDir) != NULL ? @(resolvedDir)
+        : [NSFileManager.defaultManager currentDirectoryPath];
     if (resultDir == nil) {
         resultDir = newDir;
     }
@@ -2069,7 +2337,11 @@ int chdir(const char* path) {
     // We managed to change the directory.
     // Was that allowed?
     // Allowed "cd" = below miniRoot *or* below localMiniRoot
-    NSString* resultDir = [NSFileManager.defaultManager currentDirectoryPath];
+    // Another session may move the process directory before getcwd reads
+    // it, so an absolute target is taken from the path itself.
+    char resolvedDir[MAXPATHLEN];
+    NSString* resultDir = path[0] == '/' && realpath(path, resolvedDir) != NULL ? @(resolvedDir)
+        : [NSFileManager.defaultManager currentDirectoryPath];
     // NSLog(@"After changing directory, result= %s\n", resultDir.UTF8String);
 
     if (__allowed_cd_to_path(resultDir)) {
@@ -2110,6 +2382,10 @@ int too_many_scripts(int argc, char** argv) {
     NSLog(@"%s: command not found\n", argv[0]);
     return currentSession->global_errno;
 }
+
+// Set on the calling thread when ios_system finds no command of that name,
+// for OSH to report: a command that runs can also exit with status 127.
+static __thread bool commandWasNotFound = false;
 
 int command_not_found(int argc, char** argv) {
     // Call an actual command in order to go through run_function / cleanup_function
@@ -2289,6 +2565,14 @@ static int ios_duplicateChildStream(int descriptor, const char *mode, FILE **slo
     return 0;
 }
 
+// The streams ios_popen returned, with the commands each started.
+static struct ios_popen_stream {
+    struct ios_popen_stream *next;
+    FILE *stream;
+    ios_command_children *commands;
+} *popenStreams = NULL;
+static pthread_mutex_t popenStreamsMutex = PTHREAD_MUTEX_INITIALIZER;
+
 FILE* ios_popen(const char* inputCmd, const char* type) {
     if (inputCmd == NULL || type == NULL ||
         (strcmp(type, "r") != 0 && strcmp(type, "w") != 0)) {
@@ -2321,16 +2605,66 @@ FILE* ios_popen(const char* inputCmd, const char* type) {
     FILE **slot = type[0] == 'w' ? &child_stdin : &child_stdout;
     FILE *child = type[0] == 'w' ? reader : writer;
     FILE *caller = type[0] == 'w' ? writer : reader;
+    // The outermost call counts the commands it starts; the inner calls of a
+    // pipeline in its string add theirs to the same count.
+    bool outermost = currentPopenCommands == NULL;
+    ios_command_children *commands = outermost ? calloc(1, sizeof(*commands)) : currentPopenCommands;
+    struct ios_popen_stream *entry = outermost ? malloc(sizeof(*entry)) : NULL;
+    if (outermost && (commands == NULL || entry == NULL)) {
+        free(commands);
+        free(entry);
+        fclose(reader);
+        fclose(writer);
+        errno = ENOMEM;
+        return NULL;
+    }
+    if (outermost) {
+        pthread_mutex_init(&commands->mutex, NULL);
+        pthread_cond_init(&commands->ended, NULL);
+        currentPopenCommands = commands;
+    }
     ios_replaceChildStream(slot, child);
     int status = ios_system_command_line(command);
+    if (outermost) currentPopenCommands = NULL;
     // Normally dispatch consumes the child stream; early allocation failure
     // can leave it pending on this thread instead.
     if (*slot == child) ios_replaceChildStream(slot, NULL);
     if (status != 0) {
         fclose(caller);
+        if (outermost) {
+            ios_wait_command_children(commands);
+            free(entry);
+        }
         return NULL;
     }
+    if (outermost) {
+        entry->stream = caller;
+        entry->commands = commands;
+        pthread_mutex_lock(&popenStreamsMutex);
+        entry->next = popenStreams;
+        popenStreams = entry;
+        pthread_mutex_unlock(&popenStreamsMutex);
+    }
     return caller;
+}
+
+int ios_pclose(FILE *stream) {
+    struct ios_popen_stream *entry = NULL;
+    pthread_mutex_lock(&popenStreamsMutex);
+    for (struct ios_popen_stream **link = &popenStreams; *link != NULL; link = &(*link)->next) {
+        if ((*link)->stream == stream) {
+            entry = *link;
+            *link = entry->next;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&popenStreamsMutex);
+    // Closing first ends the command's input (or output).
+    int closed = fclose(stream);
+    if (entry == NULL) return closed; // not ios_popen's: an ordinary close
+    ios_wait_command_children(entry->commands);
+    free(entry);
+    return closed == EOF ? -1 : 0;
 }
 
 // small function, behaves like strstr but skips quotes (Yury Korolev)
@@ -2520,6 +2854,10 @@ int pbcopy(int argc, char** argv) {
 
 int true_main(int argc, char** argv) {
     return 0;
+}
+
+int false_main(int argc, char** argv) {
+    return 1;
 }
 
 int sleep_main(int argc, char** argv) {
@@ -3243,8 +3581,6 @@ static const char *ios_python_environment_names[] = {
     "APPDIR",
     "CLICOLOR",
     "CURL_HOME",
-    "CURLOPT_SSH_KNOWNHOSTS",
-    "DIG_HOME",
     "HGRCPATH",
     "HOME",
     "IPYTHONDIR",
@@ -4068,29 +4404,33 @@ int type_main(int argc, char** argv) {
 int which_main(int argc, char** argv) {
     int showAll = 0;
     int silent = 0;
-    int ch;
     int status = 0;
 
-    optind = 1; opterr = 1; optreset = 1;
-    while ((ch = getopt(argc, argv, "as")) != -1) {
-        switch (ch) {
-        case 'a':
-            showAll = 1;
+    // Parsed here: libc getopt's state is shared by every session.
+    int first = 1;
+    for (; first < argc && argv[first][0] == '-' && argv[first][1] != '\0'; first++) {
+        if (strcmp(argv[first], "--") == 0) {
+            first++;
             break;
-        case 's':
-            silent = 1;
-            break;
-        default:
-            return 1;
+        }
+        for (const char *flag = argv[first] + 1; *flag != '\0'; flag++) {
+            if (*flag == 'a') {
+                showAll = 1;
+            } else if (*flag == 's') {
+                silent = 1;
+            } else {
+                fprintf(thread_stderr, "which: illegal option -- %c\n", *flag);
+                return 1;
+            }
         }
     }
-    if (optind >= argc) {
+    if (first >= argc) {
         return 1;
     }
 
     NSArray<NSString *> *directories = ios_directoriesInPath();
 
-    for (int i = optind; i < argc; i++) {
+    for (int i = first; i < argc; i++) {
         const char *command = argv[i];
         int found = 0;
 
@@ -4152,13 +4492,11 @@ int alias_main(int argc, char** argv) {
     // alias (no arguments): print list of aliases
     // alias (single argument): print corresponding alias
     NSString* usage = @"usage: alias command new command\n\talias command=new command\n\t!^ = first argument\n\t!* = all arguments";
-    if (aliasDictionary == nil) {
-        aliasDictionary = [NSMutableDictionary new];
-    }
     if (argc <= 1) {
         // no arguments: print list of aliases
-        for (NSString* command in aliasDictionary) {
-            NSArray<NSString*>* aliasArray = aliasDictionary[command];
+        NSDictionary<NSString*, NSArray<NSString*>*>* aliases = aliasSnapshot();
+        for (NSString* command in aliases) {
+            NSArray<NSString*>* aliasArray = aliases[command];
             fprintf(thread_stdout, "%s\t", command.UTF8String);
             fprintf(thread_stdout, "%s", aliasArray[0].UTF8String);
             if ([aliasArray[2] isEqualToString: @"afterFirst"]) {
@@ -4183,7 +4521,7 @@ int alias_main(int argc, char** argv) {
         // single command, show alias:
         command =  [NSString stringWithCString:argv[1] encoding:NSUTF8StringEncoding];
         NSLog(@"Extracting alias for command %s = %@.", argv[1], command);
-        NSArray<NSString*>* aliasArray = aliasDictionary[command];
+        NSArray<NSString*>* aliasArray = aliasEntry(command);
         if (aliasArray == nil) { return 0; }
         fprintf(thread_stdout, "%s", aliasArray[0].UTF8String);
         if ([aliasArray[2] isEqualToString: @"afterFirst"]) {
@@ -4292,7 +4630,12 @@ int alias_main(int argc, char** argv) {
     before = [before stringByTrimmingCharactersInSet: [NSCharacterSet whitespaceCharacterSet]];
     after = [after stringByTrimmingCharactersInSet: [NSCharacterSet whitespaceCharacterSet]];
     NSArray<NSString *> *result = @[before, after, position];
+    pthread_mutex_lock(&aliasMutex);
+    if (aliasDictionary == nil) {
+        aliasDictionary = [NSMutableDictionary new];
+    }
     aliasDictionary[command] = result;
+    pthread_mutex_unlock(&aliasMutex);
     return 0;
 }
 
@@ -4301,10 +4644,7 @@ NSString* aliasedCommand(NSString* command) {
         // \command = cancel aliasing
         return [command substringFromIndex:1];
     }
-    if (aliasDictionary == nil) {
-        return command;
-    }
-    NSArray<NSString*>* aliasArray = aliasDictionary[command];
+    NSArray<NSString*>* aliasArray = aliasEntry(command);
     if (aliasArray == nil) {
         return command;
     }
@@ -4319,21 +4659,20 @@ NSString* aliasedCommand(NSString* command) {
 
 int unalias_main(int argc, char** argv) {
     NSString* usage = @"usage: unalias [command|-a]";
-    if (aliasDictionary == nil) {
-        aliasDictionary = [NSMutableDictionary new];
-    }
     if ((argc == 1) || ((argv[1][0] == '-') && (strncmp(argv[1], "-a", 2) != 0))) {
         fprintf(thread_stderr, "%s\n", usage.UTF8String);
         return 0;
     }
+    pthread_mutex_lock(&aliasMutex);
     if (strncmp(argv[1], "-a", 2) == 0) {
         [aliasDictionary removeAllObjects];
-        return 0;
+    } else {
+        for (int i = 1; i < argc; i++) {
+            NSString* command =  [NSString stringWithCString:argv[i] encoding:NSUTF8StringEncoding];
+            if (command != nil) [aliasDictionary removeObjectForKey: command];
+        }
     }
-    for (int i = 1; i < argc; i++) {
-        NSString* command =  [NSString stringWithCString:argv[i] encoding:NSUTF8StringEncoding];
-        [aliasDictionary removeObjectForKey: command];
-    }
+    pthread_mutex_unlock(&aliasMutex);
     return 0;
 }
 
@@ -4352,9 +4691,9 @@ int sh_main(int argc, char** argv) {
 
 
 int ios_execv(const char *path, char* const argv[]) {
-    if (argv == NULL || argv[0] == NULL) {
+    if (argv == NULL || argv[0] == NULL || argv[0][0] == 0) {
         errno = EINVAL;
-        return EINVAL;
+        return -1;
     }
     int argc = 0;
     while (argv[argc] != NULL) argc++;
@@ -4365,13 +4704,21 @@ int ios_execv(const char *path, char* const argv[]) {
     const char **dispatchArgv = malloc(sizeof(char *) * argc);
     if (dispatchArgv == NULL) {
         errno = ENOMEM;
-        return ENOMEM;
+        return -1;
     }
     for (int i = 0; i < argc; i++) dispatchArgv[i] = argv[i];
     if (path != NULL && path[0] != 0) dispatchArgv[0] = path;
-    int returnValue = ios_system(argc, dispatchArgv);
+    // Like execv, fails only when there is nothing to run: the command reports
+    // through waitpid, so its status (returned when this waits) is not an
+    // error here. (The launch copies the arguments.)
+    commandWasNotFound = false;
+    ios_system_argv(argc, dispatchArgv, false);
     free(dispatchArgv);
-    return returnValue;
+    if (commandWasNotFound) {
+        errno = ENOENT;
+        return -1;
+    }
+    return 0;
 }
 
 int ios_execve(const char *path, char* const argv[], char* envp[]) {
@@ -4478,19 +4825,36 @@ int ios_dup2(int fd1, int fd2)
         }
     }
     else if (fd1 != fd2) {
-        if (fcntl(fd1, F_GETFL) < 0)
-            return -1;
-        if (fcntl(fd2, F_GETFL) >= 0)
-            close(fd2);
-        if (fcntl(fd1, F_DUPFD, fd2) < 0)
+        // One atomic dup2: checking fd2, closing it, then duplicating onto
+        // the lowest free number at or above it let another thread's open
+        // take fd2 in between, so that descriptor was closed instead.
+        if (dup2(fd1, fd2) < 0)
             return -1;
     }
     return fd2;
 }
 
+static int ios_kill_session(void);
+
 int ios_kill(void)
 {
     if (currentSession == NULL) return ESRCH;
+    int status = ios_kill_session();
+    // The shells this session's background children run stop with it, as a
+    // pipeline's stages do (see ios_system_osh_invocation).
+    sessionParameters *session = currentSession;
+    pthread_mutex_lock(&session->isolatedShellsMutex);
+    for (sessionParameters *shell = session->isolatedShells; shell != NULL; shell = shell->nextIsolatedShell) {
+        currentSession = shell;
+        ios_kill();
+    }
+    currentSession = session;
+    pthread_mutex_unlock(&session->isolatedShellsMutex);
+    return status;
+}
+
+static int ios_kill_session(void)
+{
     // Sequentially consistent with a shell starting up: either this sees the
     // shell running, or the shell sees this stop (ios_system_osh_invocation).
     atomic_store_explicit(&currentSession->commandCancellationRequested, true, memory_order_seq_cst);
@@ -4630,20 +4994,24 @@ void ios_switchSession(const void* sessionId) {
     pthread_mutex_lock(&sessionListMutex);
     if (sessionList == nil) {
         sessionList = [NSMutableDictionary new];
-        if (currentSession != NULL) [sessionList setObject: [NSValue valueWithPointer:currentSession] forKey: sessionKey];
+        if (currentSession != NULL) {
+            ios_session_retain(currentSession); // the list's reference
+            [sessionList setObject: [NSValue valueWithPointer:currentSession] forKey: sessionKey];
+        }
     }
     sessionParameters *selectedSession =
         (sessionParameters*)[[sessionList objectForKey: sessionKey] pointerValue];
     
     if (selectedSession == NULL) {
         sessionParameters* newSession =  malloc(sizeof(sessionParameters));
-        initSessionParameters(newSession);
+        initSessionParameters(newSession); // its reference is the list's
         [sessionList setObject: [NSValue valueWithPointer:newSession] forKey: sessionKey];
         selectedSession = newSession;
         createdSession = true;
     }
+    ios_session_retain(selectedSession); // this thread's
     pthread_mutex_unlock(&sessionListMutex);
-    currentSession = selectedSession;
+    adoptCurrentSession(selectedSession);
     if (!createdSession && currentSession != NULL) {
         NSString* currentSessionDir = [NSString stringWithCString:currentSession->currentDir encoding:NSUTF8StringEncoding];
         if (![currentSessionDir isEqualToString:[NSFileManager.defaultManager currentDirectoryPath]]) {
@@ -4693,12 +5061,16 @@ void ios_openSession(const void* sessionId) {
 void ios_closeSession(const void* sessionId) {
     // delete information associated with current session:
     id sessionKey = @((NSUInteger)sessionId);
+    sessionParameters *closedSession = NULL;
     pthread_mutex_lock(&sessionListMutex);
     if (sessionList != nil) {
+        closedSession = (sessionParameters*)[[sessionList objectForKey: sessionKey] pointerValue];
         [sessionList removeObjectForKey: sessionKey];
     }
     pthread_mutex_unlock(&sessionListMutex);
-    currentSession = NULL;
+    adoptCurrentSession(NULL);
+    // The list's reference; commands still running keep the session until they end.
+    ios_session_release(closedSession);
 }
 
 int ios_isatty(int fd) {
@@ -4723,8 +5095,9 @@ int ios_isatty(int fd) {
 
 void ios_setStreams(FILE* _stdin, FILE* _stdout, FILE* _stderr) {
     if (currentSession == NULL) {
-        currentSession = malloc(sizeof(sessionParameters));
-        initSessionParameters(currentSession);
+        sessionParameters* session = malloc(sizeof(sessionParameters));
+        initSessionParameters(session);
+        adoptCurrentSession(session);
     }
     currentSession->stdin = _stdin;
     currentSession->stdout = _stdout;
@@ -4779,11 +5152,10 @@ void ios_closetty(void) {
 int ios_activePager(void) {
     // All commands that read from tty instead of stdin:
     if (currentSession == nil) { return 0; }
-    char* currentSessionCommandName;
-    if (currentSession->numCommand <= 0)
-        currentSessionCommandName = currentSession->commandName[0];
-    else
-        currentSessionCommandName = currentSession->commandName[currentSession->numCommand - 1];
+    char currentSessionCommandName[NAME_MAX];
+    pthread_mutex_lock(&currentSession->commandNameMutex);
+    strlcpy(currentSessionCommandName, currentSession->commandName[MAX(currentSession->numCommand - 1, 0)], sizeof(currentSessionCommandName));
+    pthread_mutex_unlock(&currentSession->commandNameMutex);
     if ((strcmp(currentSessionCommandName, "less") == 0) ||
         (strcmp(currentSessionCommandName, "more") == 0)) {
         return 1;
@@ -4930,10 +5302,7 @@ NSArray* commandsAsArray(void) {
 }
 
 NSArray* aliasesAsArray(void) {
-    if (aliasDictionary == nil) {
-        aliasDictionary = [NSMutableDictionary new];
-    }
-    return aliasDictionary.allKeys;
+    return aliasSnapshot().allKeys;
 }
 
 // for output file names, arguments: returns a pointer to
@@ -5176,14 +5545,27 @@ NSString* beforeScriptCommandName(NSString* scriptName) {
 // ios_system_osh is the only public API that accepts shell text.
 static __thread int ios_direct_argc = 0;
 static __thread const char *const *ios_direct_argv = NULL;
+// A command execv starts is waited for through its pid (waitpid), so it is
+// detached rather than kept in the session's lastThreadId, which the next
+// waiting launch in the session joins: sftp's nested shell joined its ssh.
+static __thread bool ios_direct_detached = false;
 
-int ios_system(int argc, const char* const argv[]) {
+// Runs argv as a command. When waits, the caller gets its status once it ends
+// (ios_system). Otherwise, called from a command thread, it starts the command
+// and returns (ios_execv), as after fork and exec: the caller talks to it
+// through the streams it set up with dup2 and waits for it with waitpid. A
+// call outside a command still waits.
+static int ios_system_argv(int argc, const char* const argv[], bool waits) {
+    // Each early return starts nothing: ios_storeThreadId(0) gives up the pid
+    // a caller forked for this command, so its waitpid returns.
     if (argc <= 0 || argv == NULL || argv[0] == NULL || argv[0][0] == 0) {
+        ios_storeThreadId(0);
         errno = EINVAL;
         return EINVAL;
     }
     for (int i = 0; i < argc; i++) {
         if (argv[i] == NULL) {
+            ios_storeThreadId(0);
             errno = EINVAL;
             return EINVAL;
         }
@@ -5198,6 +5580,7 @@ int ios_system(int argc, const char* const argv[]) {
         atomic_load_explicit(
             &currentSession->cancellationRequested,
             memory_order_acquire)) {
+        ios_storeThreadId(0);
         currentSession->global_errno = 130;
         return 130;
     }
@@ -5213,6 +5596,7 @@ int ios_system(int argc, const char* const argv[]) {
         } else if (atomic_load_explicit(
                        &currentSession->commandCancellationRequested,
                        memory_order_seq_cst)) {
+            ios_storeThreadId(0);
             currentSession->global_errno = 130;
             return 130;
         }
@@ -5226,12 +5610,15 @@ int ios_system(int argc, const char* const argv[]) {
             &currentSession->pthreadCancelableRootCommand,
             memory_order_acquire)
         : NULL;
-    if (currentSession != NULL) currentSession->isMainThread = true;
+    if (currentSession != NULL && waits) currentSession->isMainThread = true;
+    bool previousDetached = ios_direct_detached;
     ios_direct_argc = argc;
     ios_direct_argv = argv;
+    ios_direct_detached = !waits;
     int status = ios_system_command_line(argv[0]);
     ios_direct_argc = previousArgc;
     ios_direct_argv = previousArgv;
+    ios_direct_detached = previousDetached;
     if (currentSession != NULL) {
         currentSession->isMainThread = previousIsMainThread;
         atomic_store_explicit(
@@ -5241,6 +5628,10 @@ int ios_system(int argc, const char* const argv[]) {
         currentSession->current_command_root_thread = previousRootThread;
     }
     return status;
+}
+
+int ios_system(int argc, const char* const argv[]) {
+    return ios_system_argv(argc, argv, true);
 }
 
 static int ios_system_command_line(const char* inputCmd) {
@@ -5264,8 +5655,9 @@ static int ios_system_command_line(const char* inputCmd) {
     // NSLog(@"ios_system, stdout %d \n", thread_stdout == NULL ? 0 : fileno(thread_stdout));
     // NSLog(@"ios_system, stderr %d \n", thread_stderr == NULL ? 0 : fileno(thread_stderr));
     if (currentSession == NULL) {
-        currentSession = malloc(sizeof(sessionParameters));
-        initSessionParameters(currentSession);
+        sessionParameters* session = malloc(sizeof(sessionParameters));
+        initSessionParameters(session);
+        adoptCurrentSession(session);
     }
     currentSession->global_errno = 0;
     NSLog(@"Starting command: %s currentSession->isMainThread: %d", inputCmd, currentSession->isMainThread);
@@ -5335,13 +5727,13 @@ static int ios_system_command_line(const char* inputCmd) {
         }
     }
     // alias expansion *before* input, output and error redirection.
-    if (!hasDirectArguments && (command[0] != '\\') && (aliasDictionary != nil)) {
+    if (!hasDirectArguments && (command[0] != '\\')) {
         // \command = cancel aliasing, get the original command
         char* commandForParsing = strdup(command);
         char* firstSpace = strstrquoted(commandForParsing, " ");
         if (firstSpace != NULL) { *firstSpace = 0; }
         NSString* commandAsString = [NSString stringWithCString:commandForParsing encoding:NSUTF8StringEncoding];
-        NSArray<NSString*>* aliasedCommand = aliasDictionary[commandAsString];
+        NSArray<NSString*>* aliasedCommand = aliasEntry(commandAsString);
         if (aliasedCommand != nil) {
             NSLog(@"%s %s %s", aliasedCommand[0].UTF8String, aliasedCommand[1].UTF8String, aliasedCommand[2].UTF8String);
             char* newCommand = NULL;
@@ -5417,6 +5809,11 @@ static int ios_system_command_line(const char* inputCmd) {
         NSLog(@"Unable to allocate params in ios_system");
         return -1;
     }
+    params->exclusiveRuntime = NULL;
+    params->ownerChildren = NULL;
+    params->popenCommands = NULL;
+    params->exclusiveJob = currentExclusiveJob;
+    params->programSlot = NULL;
     // If child_streams have been defined (in dup2 or popen), the new thread takes them.
     params->stdin = child_stdin;
     params->stdout = child_stdout;
@@ -5430,6 +5827,7 @@ static int ios_system_command_line(const char* inputCmd) {
         params->stderr != params->stdin &&
         params->stderr != params->stdout;
     params->session = currentSession;
+    ios_session_retain(params->session); // handed to the command thread
     params->processId = ios_currentPid();
     NSLog(@"After params creation, stdout %p stderr %p \n", (void *)params->stdout,  (void *)params->stderr);
     params->backgroundCommand = isBackgroundCommand(command);
@@ -5475,10 +5873,17 @@ static int ios_system_command_line(const char* inputCmd) {
         if (pipeMarker) {
             bool pushMainThread = currentSession->isMainThread;
             currentSession->isMainThread = false;
-            if (params->stdout != 0) thread_stdout = params->stdout;
+            // The rest of the pipeline writes where this command would have,
+            // taking that stream over as its own child stream, so it closes it
+            // at its end and a popen reader sees the end of input. This
+            // thread keeps its own streams: it may be a command's (awk's
+            // popen), whose output would otherwise go into the pipe it reads.
+            FILE *callerError = thread_stderr;
+            if (params->stdout != 0) child_stdout = params->stdout;
             if (params->stderr != 0) thread_stderr = params->stderr;
             // if popen fails, don't start the command
             params->stdout = ios_popen(pipeMarker+2, "w");
+            thread_stderr = callerError;
             params->stderr = params->stdout;
             currentSession->isMainThread = pushMainThread;
             pipeMarker[0] = 0x0;
@@ -5486,6 +5891,7 @@ static int ios_system_command_line(const char* inputCmd) {
             if (params->stdout == NULL) { // pipe open failed, return before we start a command
                 NSLog(@"Failed launching pipe for %s\n", pipeMarker+2);
                 ios_storeThreadId(0);
+                ios_session_release(params->session); // no command thread took it
                 free(params);
                 free(originalCommand); // releases cmd, which was a strdup of inputCommand
                 return currentSession->global_errno;
@@ -5495,15 +5901,19 @@ static int ios_system_command_line(const char* inputCmd) {
             if (pipeMarker) {
                 bool pushMainThread = currentSession->isMainThread;
                 currentSession->isMainThread = false;
-                if (params->stdout != 0) thread_stdout = params->stdout;
-                if (params->stderr != 0) thread_stderr = params->stderr; // ?????
+                // As above: the rest of the pipeline takes these, not this thread.
+                FILE *callerError = thread_stderr;
+                if (params->stdout != 0) child_stdout = params->stdout;
+                if (params->stderr != 0) thread_stderr = params->stderr;
                 // if popen fails, don't start the command
                 params->stdout = ios_popen(pipeMarker+1, "w");
+                thread_stderr = callerError;
                 currentSession->isMainThread = pushMainThread;
                 pipeMarker[0] = 0x0;
                 if (params->stdout == NULL) { // pipe open failed, return before we start a command
                     NSLog(@"Failed launching pipe for %s\n", pipeMarker+1);
                     ios_storeThreadId(0);
+                    ios_session_release(params->session); // no command thread took it
                     free(params);
                     free(originalCommand); // releases cmd, which was a strdup of inputCommand
                     return currentSession->global_errno;
@@ -5670,6 +6080,7 @@ static int ios_system_command_line(const char* inputCmd) {
             if (argv != NULL) argv[argc] = NULL;
         }
         if (argv == NULL) {
+            ios_session_release(params->session); // no command thread took it
             free(params);
             free(originalCommand);
             currentSession->global_errno = ENOMEM;
@@ -5778,8 +6189,9 @@ static int ios_system_command_line(const char* inputCmd) {
             }
             // strcpy(currentSession->commandName, argv[0]);
             // store into heap:
+            pthread_mutex_lock(&currentSession->commandNameMutex);
             if ((currentSession->numCommand <= 0) && (strlen(currentSession->commandName[0]) == 0)) {
-                strcpy(currentSession->commandName[0], argv[0]);
+                strlcpy(currentSession->commandName[0], argv[0], NAME_MAX);
                 currentSession->numCommand = 1;
             } else {
                 if (currentSession->numCommand >= currentSession->numCommandsAllocated) {
@@ -5790,9 +6202,10 @@ static int ios_system_command_line(const char* inputCmd) {
                         currentSession->commandName[i] = malloc(sizeof(char) * NAME_MAX);
                     }
                 }
-                strcpy(currentSession->commandName[currentSession->numCommand], argv[0]);
+                strlcpy(currentSession->commandName[currentSession->numCommand], argv[0], NAME_MAX);
                 currentSession->numCommand += 1;
             }
+            pthread_mutex_unlock(&currentSession->commandNameMutex);
             BOOL isDir = false;
             bool cmdIsAFile = false;
             bool cmdIsReal = false;
@@ -5802,15 +6215,20 @@ static int ios_system_command_line(const char* inputCmd) {
                 NSString* test_string = @"~";
                 commandName = [commandName stringByReplacingOccurrencesOfString:test_string withString:replacement_string options:NULL range:NSMakeRange(0, 1)];
             }
-            if ([NSFileManager.defaultManager fileExistsAtPath:commandName isDirectory:&isDir]  && (!isDir)) {
+            // A relative name is looked up in the session's directory, not the
+            // process's, which another session's (or a concurrent shell's) cd
+            // moves; argv keeps the name as typed.
+            NSString *lookupName = commandName.isAbsolutePath ? commandName
+                : [@(currentSession->currentDir) stringByAppendingPathComponent:commandName];
+            if ([NSFileManager.defaultManager fileExistsAtPath:lookupName isDirectory:&isDir]  && (!isDir)) {
                 // File exists, is a file.
                 struct stat sb;
-                if (stat(commandName.UTF8String, &sb) == 0) {
+                if (stat(lookupName.UTF8String, &sb) == 0) {
                     // File exists, is executable, not a directory.
                     cmdIsAFile = true;
                     // We can hexitexitave an empty file with the same name in the path, to fool which():
                     // We can also have a Mach-O binary with the same name in the path (in simulator, mostly)
-                    cmdIsReal = isRealCommand(commandName.UTF8String);
+                    cmdIsReal = isRealCommand(lookupName.UTF8String);
                 }
             }
             // if commandName contains "/", then it's a path, and we don't search for it in PATH.
@@ -5868,6 +6286,7 @@ static int ios_system_command_line(const char* inputCmd) {
                     } else
                         // if (cmdIsAFile) we are now ready to execute this file:
                         locationName = commandName;
+                    NSString *lookupLocation = cmdIsAFile ? lookupName : locationName;
                     if (enableLLVMInterpreter && (([locationName hasSuffix:@".bc"]) || ([locationName hasSuffix:@".ll"]))) {
                         // CLANG bitcode. insert lli in front of argument list:
                         argc += 1;
@@ -5900,9 +6319,9 @@ static int ios_system_command_line(const char* inputCmd) {
                         argv[0] = strdup("wasm3"); // this argument is new
                         break;
                     } else {
-                        if (isRealCommand(locationName.UTF8String)) {
+                        if (isRealCommand(lookupLocation.UTF8String)) {
                             cmdIsReal = true;
-                            NSData *data = [NSData dataWithContentsOfFile:locationName]; // You have the data. Conversion to String probably failed.
+                            NSData *data = [NSData dataWithContentsOfFile:lookupLocation]; // You have the data. Conversion to String probably failed.
                             NSString *fileContent = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
                             if ((fileContent == nil) && (data.length > 0)) {
                                 // Conversion to string failed with UTF8. Try with Ascii as a backup:
@@ -6116,67 +6535,11 @@ static int ios_system_command_line(const char* inputCmd) {
                         }
                     }
                 }
-            } else if ([commandName isEqualToString: @"ssh"]) {
-                // Ability to start multiple ssh commands:
-                // start by increasing the number of the interpreter, until we're out.
-                int numInterpreter = 0;
-                if (currentSshCommand < numSshCommands) {
-                    numInterpreter = currentSshCommand;
-                    currentSshCommand++;
-                } else {
-                    NSDate *start = [NSDate date];
-                    NSDate *now = [NSDate date];
-                    NSTimeInterval timeInterval = [now timeIntervalSinceDate:start];
-                    bool timeout = true;
-                    while (timeInterval < 1) { // keep trying for 1 second
-                        while  (numInterpreter < numSshCommands) {
-                            if (sshIsRunning[numInterpreter] == false) {
-                                timeout = false;
-                                break;
-                            }
-                            numInterpreter++;
-                        }
-                        if (!timeout) break; // need to break twice!
-                        numInterpreter = 0;
-                        now = [NSDate date];
-                        timeInterval = [now timeIntervalSinceDate:start];
-                    }
-                    if (timeout) {
-                        display_alert(@"Too many ssh commands", @"There are too many ssh commands running at the same time. Try closing some of them.");
-                        NSLog(@"%@", @"Too many ssh scripts running simultaneously.\n");
-                        function = &too_many_scripts;
-                        functionName = @"notAValidCommand";
-                        currentSession->global_errno = ENOENT;
-                        argv[0][0] = 'x'; // prevent reinitialization in cleanup_function
-                    }
-                }
-                if ((numInterpreter >= 0) && (numInterpreter < numSshCommands)) {
-                    params->numInterpreter = numInterpreter;
-                    sshIsRunning[numInterpreter] = true;
-                    NSLog(@"Starting a ssh command: %d", params->numInterpreter);
-                    if (numInterpreter > 0) {
-                        char suffix[2];
-                        suffix[0] = 'A' + (numInterpreter - 1);
-                        suffix[1] = 0;
-                        commandName = [@"ssh_cmd" stringByAppendingString: [NSString stringWithCString: suffix encoding:NSUTF8StringEncoding]];
-                        libraryName = [libraryName stringByReplacingOccurrencesOfString:@"ssh_cmd" withString:commandName];
-                    }
-                }
             } else if ([commandName isEqualToString: @"curl"]) {
                 bool idle = false;
                 if (!atomic_compare_exchange_strong(&curlIsRunning, &idle, true)) {
                     display_alert(@"Only one curl command at a time", @"Please wait for the other one to end.");
                     NSLog(@"%@", @"Too many curl commands running simultaneously.\n");
-                    function = &too_many_scripts;
-                    functionName = @"notAValidCommand";
-                    currentSession->global_errno = ENOENT;
-                    argv[0][0] = 'x'; // prevent reinitialization in cleanup_function
-                }
-            } else if ([commandName isEqualToString: @"scp"] || [commandName isEqualToString: @"sftp"]) {
-                bool idle = false;
-                if (!atomic_compare_exchange_strong(&scpIsRunning, &idle, true)) {
-                    display_alert(@"Only one scp or sftp command at a time", @"Please wait for the other one to end.");
-                    NSLog(@"%@", @"Too many scp/sftp commands running simultaneously.\n");
                     function = &too_many_scripts;
                     functionName = @"notAValidCommand";
                     currentSession->global_errno = ENOENT;
@@ -6252,6 +6615,7 @@ static int ios_system_command_line(const char* inputCmd) {
         }
         if (function == NULL) {
             function = &command_not_found;
+            commandWasNotFound = true;
             currentSession->global_errno = ENOENT;
             // function = dlsym(RTLD_SELF, "command_not_found");
         }
@@ -6295,6 +6659,14 @@ static int ios_system_command_line(const char* inputCmd) {
 #endif
                 pthread_attr_setstacksize(&commandAttributes, stackSize);
             }
+            // Every launch, as ios_pclose waits for each: the host's root
+            // command runs detached too when the host does not join commands.
+            if (currentPopenCommands != NULL) {
+                pthread_mutex_lock(&currentPopenCommands->mutex);
+                currentPopenCommands->running += 1;
+                pthread_mutex_unlock(&currentPopenCommands->mutex);
+                params->popenCommands = currentPopenCommands;
+            }
             if (currentSession->isMainThread) {
                 params->storeRootThread = true;
                 bool commandOperatesOnFiles = ([commandStructure[3] isEqualToString:@"file"] ||
@@ -6315,13 +6687,12 @@ static int ios_system_command_line(const char* inputCmd) {
                         pthread_create(&_tid, &commandAttributes, run_function, params);
                         while (_tid == NULL) { }
                         // ios_storeThreadId(_tid);
-                        if (currentSession->mainThreadId == NULL) currentSession->mainThreadId = _tid;
                         // Wait for this process to finish:
 						if (joinCommand) {
 							pthread_join(_tid, NULL);
 							// If there are auxiliary process, also wait for them:
-							if (currentSession->lastThreadId > 0) pthread_join(currentSession->lastThreadId, NULL);
-							currentSession->lastThreadId = 0;
+							pthread_t lastThread = atomic_exchange(&currentSession->lastThreadId, NULL);
+							if (lastThread != NULL) pthread_join(lastThread, NULL);
 							currentSession->current_command_root_thread = 0;
 						} else {
 							pthread_detach(_tid); // a thread must be either joined or detached
@@ -6334,13 +6705,12 @@ static int ios_system_command_line(const char* inputCmd) {
                     pthread_create(&_tid, &commandAttributes, run_function, params);
                     while (_tid == NULL) { }
                     // ios_storeThreadId(_tid);
-                    if (currentSession->mainThreadId == NULL) currentSession->mainThreadId = _tid;
                     // Wait for this process to finish:
 					if (joinCommand) {
 						pthread_join(_tid, NULL);
 						// If there are auxiliary process, also wait for them:
-						if (currentSession->lastThreadId > 0) pthread_join(currentSession->lastThreadId, NULL);
-						currentSession->lastThreadId = 0;
+						pthread_t lastThread = atomic_exchange(&currentSession->lastThreadId, NULL);
+						if (lastThread != NULL) pthread_join(lastThread, NULL);
 						currentSession->current_command_root_thread = 0;
 					} else {
 						pthread_detach(_tid); // a thread must be either joined or detached
@@ -6350,18 +6720,30 @@ static int ios_system_command_line(const char* inputCmd) {
             } else {
                 NSLog(@"Starting command %s, global_errno= %d\n", command, currentSession->global_errno);
                 // Don't send signal if not in main thread. Also, don't join threads.
+                ios_command_children *owner =
+                    !ios_direct_detached && runningCommand ? ios_own_command_children() : NULL;
+                if (owner != NULL) {
+                    pthread_mutex_lock(&owner->mutex);
+                    owner->running += 1;
+                    pthread_mutex_unlock(&owner->mutex);
+                    params->ownerChildren = owner;
+                }
                 volatile pthread_t _tid_local = NULL;
                 pthread_create(&_tid_local, &commandAttributes, run_function, params);
                 // The last command on the command line (with multiple pipes) will be created first
                 while (_tid_local == NULL) { }; // Wait until thread has actually started
                 // fprintf(stderr, "Started thread = %x\n", _tid_local);
-                if (currentSession->lastThreadId == 0) currentSession->lastThreadId = _tid_local; // will be joined later
-                else pthread_detach(_tid_local); // a thread must be either joined or detached.
+                pthread_t noLastThread = NULL;
+                // Not from params: the command may have ended and freed them.
+                if (ios_direct_detached || owner != NULL || currentPopenCommands != NULL ||
+                    !atomic_compare_exchange_strong(&currentSession->lastThreadId, &noLastThread, _tid_local)) // will be joined later
+                    pthread_detach(_tid_local); // a thread must be either joined or detached.
             }
             pthread_attr_destroy(&commandAttributes);
         } else {
             fprintf(params->stderr, "%s: command not found\n", argv[0]);
             NSLog(@"%s: command not found\n", argv[0]);
+            commandWasNotFound = true;
             free(argv);
             // If command output was redirected to a pipe, we still need to close it.
             // (to warn the other command that it can stop waiting)
@@ -6376,6 +6758,7 @@ static int ios_system_command_line(const char* inputCmd) {
                 && (handle != RTLD_MAIN_ONLY)
                 && (handle != RTLD_DEFAULT) && (handle != RTLD_NEXT))
                 dlclose(handle);
+            ios_session_release(params->session); // no command thread took it
             free(params); // This was malloc'ed in ios_system
             ios_storeThreadId(0);
             currentSession->global_errno = 127;
@@ -6385,6 +6768,7 @@ static int ios_system_command_line(const char* inputCmd) {
         ios_storeThreadId(0);
         free(argv); // argv is otherwise freed in cleanup_function
         free(dontExpand);
+        ios_session_release(params->session); // no command thread took it
         free(params);
     }
     NSLog(@"returning from ios_system, global_errno= %d\n", currentSession->global_errno);
@@ -6447,6 +6831,11 @@ static int osh_ios_run_external(
     }
 
     pid_t externalPid = ios_fork();
+    if (externalPid < 0) {
+        fprintf(error, "osh: fork: %s\n", strerror(errno));
+        free(commandEnvironment);
+        return 126;
+    }
     if (deferDirectoryRestoration) {
         // Only concurrent stage roots defer restoration. Ordinary commands and
         // nested Python subprocess calls still restore their own directory.
@@ -6459,8 +6848,12 @@ static int osh_ios_run_external(
     FILE *savedOutput = ios_stdout();
     FILE *savedError = ios_stderr();
     ios_setStreams(input, output, error);
+    commandWasNotFound = false;
     int status = ios_system(argc, argv);
     ios_setStreams(savedInput, savedOutput, savedError);
+    if (commandWasNotFound) {
+        osh_ios_note_command_not_found();
+    }
     pthread_t externalThread = ios_getThreadId(externalPid);
     if (externalThread == (pthread_t)-1) {
         // ios_system can return before starting a child when cancellation races
@@ -6504,9 +6897,13 @@ static void osh_ios_run_pipeline_callback(
     int count, const osh_ios_pipeline_command commands[], int envc,
     const char *const environment[], int statuses[], void *context) {
     osh_ios_context *shell = context;
+    // Restored once every stage has ended: the shell's directory, not the
+    // process's, which another session may have moved (chdir_nolock also
+    // records it as the shell's).
     char directory[MAXPATHLEN];
+    strlcpy(directory, shell->session->currentDir, sizeof(directory));
     sessionParameters *sessions = calloc((size_t)count, sizeof(sessionParameters));
-    if (sessions == NULL || getcwd(directory, sizeof(directory)) == NULL) {
+    if (sessions == NULL) {
         free(sessions);
         for (int i = 0; i < count; i++) {
             fclose(commands[i].input);
@@ -6517,15 +6914,16 @@ static void osh_ios_run_pipeline_callback(
         return;
     }
     id commandContext = NSThread.currentThread.threadDictionary[ios_commandContextKey];
+    uint64_t exclusiveJob = currentExclusiveJob;
     dispatch_group_t group = dispatch_group_create();
     for (int i = 0; i < count; i++) {
         sessionParameters *stage = &sessions[i];
         initSessionParameters(stage);
+        stage->isStage = true;
+        stage->shellSession = shell->session;
         strlcpy(stage->currentDir, shell->session->currentDir, sizeof(stage->currentDir));
         strlcpy(stage->previousDirectory, shell->session->previousDirectory, sizeof(stage->previousDirectory));
         strlcpy(stage->localMiniRoot, shell->session->localMiniRoot, sizeof(stage->localMiniRoot));
-        strlcpy(stage->workspaceDirectory, shell->session->workspaceDirectory, sizeof(stage->workspaceDirectory));
-        strlcpy(stage->temporaryDirectory, shell->session->temporaryDirectory, sizeof(stage->temporaryDirectory));
         strlcpy(stage->appBundleDirectory, shell->session->appBundleDirectory, sizeof(stage->appBundleDirectory));
         stage->context = shell->session->context;
         stage->stdin = commands[i].input;
@@ -6538,8 +6936,10 @@ static void osh_ios_run_pipeline_callback(
                 sessionParameters *savedSession = currentSession;
                 FILE *savedInput = thread_stdin, *savedOutput = thread_stdout, *savedError = thread_stderr;
                 void *savedContext = thread_context;
+                uint64_t savedExclusiveJob = currentExclusiveJob;
                 id savedCommandContext = NSThread.currentThread.threadDictionary[ios_commandContextKey];
                 currentSession = stage;
+                currentExclusiveJob = exclusiveJob;
                 thread_stdin = stage->stdin;
                 thread_stdout = stage->stdout;
                 thread_stderr = stage->stderr;
@@ -6572,6 +6972,7 @@ static void osh_ios_run_pipeline_callback(
                 thread_stdout = savedOutput;
                 thread_stderr = savedError;
                 thread_context = savedContext;
+                currentExclusiveJob = savedExclusiveJob;
             }
         });
     }
@@ -6588,14 +6989,7 @@ static void osh_ios_run_pipeline_callback(
     // restoring the shell's directory for its next command.
     chdir_nolock(directory);
     for (int i = 0; i < count; i++) {
-        sessionParameters *stage = &sessions[i];
-        for (int j = 0; j < stage->numCommandsAllocated; j++) free(stage->commandName[j]);
-        free(stage->commandName);
-        free(stage->sshpassPassword);
-        free(stage->sshpassPrompt);
-        pthread_mutex_destroy(&stage->sshpassMutex);
-        pthread_mutex_destroy(&stage->pythonCommandsMutex);
-        pthread_cond_destroy(&stage->pythonCommandsCondition);
+        releaseSessionParameters(&sessions[i]);
     }
     free(sessions);
 }
@@ -6685,6 +7079,13 @@ static int osh_ios_get_process_id_callback(void *context) {
     return oshContext != NULL ? oshContext->processId : ios_currentPid();
 }
 
+// Shells in other sessions move the process-wide cwd; this one's directory
+// is its session's.
+static const char *osh_ios_current_directory_callback(void *context) {
+    osh_ios_context *oshContext = (osh_ios_context *)context;
+    return oshContext != NULL && oshContext->session != NULL ? oshContext->session->currentDir : NULL;
+}
+
 // The calling thread's state that a shell evaluated on a helper thread uses,
 // as run_function provides it to command threads.
 typedef struct {
@@ -6694,6 +7095,7 @@ typedef struct {
     FILE *stderr;
     void *context;
     pid_t processId;
+    uint64_t exclusiveJob;
     CFTypeRef commandContext;
     int argc;
     const char *const *argv;
@@ -6704,12 +7106,14 @@ typedef struct {
 static void *osh_ios_invocation_thread(void *parameters) {
     @autoreleasepool {
         osh_ios_invocation *invocation = parameters;
-        currentSession = invocation->session;
+        ios_session_retain(invocation->session);
+        adoptCurrentSession(invocation->session);
         thread_stdin = invocation->stdin;
         thread_stdout = invocation->stdout;
         thread_stderr = invocation->stderr;
         thread_context = invocation->context;
         ios_setCurrentPid(invocation->processId);
+        currentExclusiveJob = invocation->exclusiveJob;
         if (invocation->commandContext != NULL) {
             NSThread.currentThread.threadDictionary[ios_commandContextKey] =
                 (__bridge id)invocation->commandContext;
@@ -6726,9 +7130,65 @@ static void *osh_ios_invocation_thread(void *parameters) {
 static int ios_system_osh_invocation(
     int argc, const char *const argv[], bool startsCommand) {
     if (currentSession == NULL) {
-        currentSession = malloc(sizeof(sessionParameters));
-        if (currentSession == NULL) return ENOMEM;
-        initSessionParameters(currentSession);
+        sessionParameters* session = malloc(sizeof(sessionParameters));
+        if (session == NULL) return ENOMEM;
+        initSessionParameters(session);
+        adoptCurrentSession(session);
+    }
+    // A command's background child (popen's) runs alongside its owner and the
+    // owner's other children, so a shell it starts keeps its bookkeeping (the
+    // directory and the root and shell threads it saves and restores) in a
+    // session of its own, as pipeline stages do: overlapping shells in one
+    // session restored each other's. It lives for this call; the commands
+    // the shell starts end within it.
+    if (runningBackgroundChild) {
+        sessionParameters *owner = currentSession;
+        sessionParameters *own = malloc(sizeof(sessionParameters));
+        if (own == NULL) return ENOMEM;
+        initSessionParameters(own);
+        own->isStage = true;
+        own->shellSession = owner;
+        strlcpy(own->currentDir, owner->currentDir, sizeof(own->currentDir));
+        strlcpy(own->previousDirectory, owner->previousDirectory, sizeof(own->previousDirectory));
+        strlcpy(own->localMiniRoot, owner->localMiniRoot, sizeof(own->localMiniRoot));
+        strlcpy(own->appBundleDirectory, owner->appBundleDirectory, sizeof(own->appBundleDirectory));
+        strlcpy(own->columns, owner->columns, sizeof(own->columns));
+        strlcpy(own->lines, owner->lines, sizeof(own->lines));
+        own->context = owner->context;
+        own->stdin = owner->stdin;
+        own->stdout = owner->stdout;
+        own->stderr = owner->stderr;
+        own->tty = owner->tty;
+        pthread_mutex_lock(&owner->isolatedShellsMutex);
+        // It runs one job, so a stop sticks however it arrives (a shell that
+        // starts as a new command, system()'s, would otherwise clear one that
+        // came after registration). A stop that came before this registration
+        // applies too: ios_kill sets the owner's flags before it walks this
+        // list, so a shell either is on the list it walks or sees them here.
+        own->keepsCancellationRequests = true;
+        if (atomic_load_explicit(&owner->commandCancellationRequested, memory_order_seq_cst) ||
+            atomic_load_explicit(&owner->cancellationRequested, memory_order_acquire)) {
+            atomic_store_explicit(&own->commandCancellationRequested, true, memory_order_seq_cst);
+        }
+        own->nextIsolatedShell = owner->isolatedShells;
+        owner->isolatedShells = own;
+        pthread_mutex_unlock(&owner->isolatedShellsMutex);
+        runningBackgroundChild = false;
+        currentSession = own;
+        int status = ios_system_osh_invocation(argc, argv, startsCommand);
+        currentSession = owner;
+        runningBackgroundChild = true;
+        pthread_mutex_lock(&owner->isolatedShellsMutex);
+        for (sessionParameters **link = &owner->isolatedShells; *link != NULL; link = &(*link)->nextIsolatedShell) {
+            if (*link == own) {
+                *link = own->nextIsolatedShell;
+                break;
+            }
+        }
+        pthread_mutex_unlock(&owner->isolatedShellsMutex);
+        releaseSessionParameters(own);
+        free(own);
+        return status;
     }
     if (argc <= 0) return 0;
     if (thread_stdin == NULL) thread_stdin = currentSession->stdin;
@@ -6760,6 +7220,7 @@ static int ios_system_osh_invocation(
             .stderr = thread_stderr,
             .context = thread_context,
             .processId = ios_currentPid(),
+            .exclusiveJob = currentExclusiveJob,
             // Borrowed: this thread keeps it alive while it waits below.
             .commandContext = (__bridge CFTypeRef)
                 NSThread.currentThread.threadDictionary[ios_commandContextKey],
@@ -6826,6 +7287,10 @@ static int ios_system_osh_evaluate(
     bool savedIsMainThread = currentSession->isMainThread;
 
     pid_t shellPid = ios_fork();
+    if (shellPid < 0) {
+        fprintf(thread_stderr, "osh: fork: %s\n", strerror(errno));
+        return EAGAIN;
+    }
     ios_storeThreadId(pthread_self());
 
     char **shellEnvironment =
@@ -6875,6 +7340,7 @@ static int ios_system_osh_evaluate(
         .context = &context,
         .run_pipeline = osh_ios_run_pipeline_callback,
         .can_run_pipeline = osh_ios_can_run_pipeline_callback,
+        .current_directory = osh_ios_current_directory_callback,
     };
     int status = osh_ios_run(
         argc, argv, thread_stdin, thread_stdout, thread_stderr, &config);

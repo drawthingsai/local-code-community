@@ -1,0 +1,73 @@
+# sort parity corpus
+sort words.txt
+sort -r words.txt
+sort -f words.txt
+sort -u words.txt
+sort -uf words.txt
+sort -n numbers.txt
+sort -rn numbers.txt
+sort -g numbers.txt
+sort -h numbers.txt
+printf '1K\n2M\n512\n3G\n1.5K\n' | sort -h
+printf 'Mar\nJan\nDec\nfeb\nxyz\n' | sort -M
+printf 'v1.10\nv1.2\nv1.9\nv10\n' | sort -V
+sort -k2 lines.txt
+sort -k3,3 -k2,2n lines.txt
+sort -t, -k2,2n csv.txt
+sort -t, -k3 csv.txt
+sort -t, -k2,2nr -k1,1 csv.txt
+sort -t$'\t' -k2 tabs.txt
+sort -k1.2,1.3 words.txt
+sort -b -k2 lines.txt
+sort -d words.txt
+sort -i mixed.bin
+sort -s -k3,3 lines.txt
+sort -z empty.txt
+printf 'b\0a\0c\0' | sort -z | od -c
+sort -c words.txt
+sort -c numbers.txt
+sort -C words.txt
+sort -n -c numbers.txt
+sort lines.txt | sort -c
+sort -m dups.txt dups.txt
+sort words.txt dups.txt numbers.txt
+sort words.txt missing.txt
+sort missing.txt
+sort -o out.txt words.txt; cat out.txt
+sort -o words.txt words.txt; cat words.txt
+sort -o dir words.txt
+sort unicode.txt
+sort -f unicode.txt
+sort -u dups.txt
+sort -R --random-source=lines.txt words.txt
+sort --random-sort --random-source=missing.txt words.txt
+sort -k2 -t ' ' -n lines.txt | head -3
+sort -S 1b -T dir lines.txt | head -3; ls -A dir
+sort -S 1b lines.txt words.txt | tail -2
+sort -S 1b -T missing-dir lines.txt
+sort --files0-from=lines.txt
+printf 'words.txt\0dups.txt\0' > f0; sort --files0-from=f0
+sort --debug -k2 words.txt
+sort -k0 words.txt
+sort -k1.0 words.txt
+sort -n -M words.txt
+sort -t ab words.txt
+sort -S bad words.txt
+sort -x words.txt
+sort --heapsort numbers.txt
+sort --mergesort -n numbers.txt
+sort --radixsort words.txt
+sort --qsort -r words.txt
+sort --mmap words.txt
+sort --batch-size=2 -m words.txt dups.txt lines.txt
+sort --version
+sort --help
+sort -
+sort - < words.txt
+sort < crlf.txt
+sort noeol.txt words.txt
+sort long.txt
+sort blank.txt
+sort -n blank.txt
+sort -t: -k2 /dev/null
+sort -c empty.txt

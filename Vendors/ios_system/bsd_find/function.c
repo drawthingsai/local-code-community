@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include "find.h"
 #include <TargetConditionals.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 
 static PLAN *palloc(OPTION *);
@@ -91,13 +91,23 @@ static __thread PLAN *lastexecplus = NULL;
 	}								\
 } while(0)
 
+/* iOS: every plan node of the invocation, for find_release_plans(). */
+static __thread struct plan_allocation {
+	struct plan_allocation *link;
+	PLAN plan;
+} *plan_allocations;
+
 static PLAN *
 palloc(OPTION *option)
 {
+	struct plan_allocation *allocation;
 	PLAN *new;
 
-	if ((new = malloc(sizeof(PLAN))) == NULL)
+	if ((allocation = calloc(1, sizeof(*allocation))) == NULL)
 		err(1, NULL);
+	allocation->link = plan_allocations;
+	plan_allocations = allocation;
+	new = &allocation->plan;
 	new->execute = option->execute;
 	new->flags = option->flags;
 	new->next = NULL;
@@ -437,9 +447,9 @@ c_acl(OPTION *option, char ***argvp __unused)
 int
 f_delete(PLAN *plan __unused, FTSENT *entry)
 {
-	/* ignore these from fts */
-	if (strcmp(entry->fts_accpath, ".") == 0 ||
-	    strcmp(entry->fts_accpath, "..") == 0)
+	/* ignore these from fts (iOS: roots are walked as absolute paths) */
+	if (strcmp(ios_system_fts_path(entry), ".") == 0 ||
+	    strcmp(ios_system_fts_path(entry), "..") == 0)
 		return 1;
 
 	/* sanity check */
@@ -469,10 +479,10 @@ f_delete(PLAN *plan __unused, FTSENT *entry)
 	/* rmdir directories, unlink everything else */
 	if (S_ISDIR(entry->fts_statp->st_mode)) {
 		if (rmdir(entry->fts_accpath) < 0 && errno != ENOTEMPTY)
-			warn("-delete: rmdir(%s)", entry->fts_path);
+			warn("-delete: rmdir(%s)", ios_system_fts_path(entry));
 	} else {
 		if (unlink(entry->fts_accpath) < 0)
-			warn("-delete: unlink(%s)", entry->fts_path);
+			warn("-delete: unlink(%s)", ios_system_fts_path(entry));
 	}
 
 	/* "succeed" */
@@ -636,10 +646,10 @@ f_exec(PLAN *plan, FTSENT *entry)
 
 	/* XXX - if file/dir ends in '/' this will not work -- can it? */
 	if ((plan->flags & F_EXECDIR) && \
-	    (file = strrchr(entry->fts_path, '/')))
+	    (file = strrchr(ios_system_fts_path(entry), '/')))
 		file++;
 	else
-		file = entry->fts_path;
+		file = (char *)ios_system_fts_path(entry);
 
 	if (plan->flags & F_EXECPLUS) {
 		if ((plan->e_argv[plan->e_ppos] = strdup(file)) == NULL)
@@ -750,11 +760,7 @@ c_exec(OPTION *option, char ***argvp)
 		}
 		argmax -= 1024;
 
-#if !TARGET_OS_IPHONE
-		for (ep = environ; *ep != NULL; ep++)
-#else
-        for (ep = environmentVariables(ios_currentPid()); *ep != NULL; ep++)
-#endif
+		for (ep = environmentVariables(ios_currentPid()); *ep != NULL; ep++)
 			argmax -= strlen(*ep) + 1 + sizeof(*ep);
 		argmax -= 1 + sizeof(*ep);
 		/*
@@ -773,11 +779,11 @@ c_exec(OPTION *option, char ***argvp)
 		new->e_next = lastexecplus;
 		lastexecplus = new;
 	}
-	if ((new->e_argv = malloc(cnt * sizeof(char *))) == NULL)
+	if ((new->e_argv = calloc(cnt, sizeof(char *))) == NULL)
 		err(1, NULL);
-	if ((new->e_orig = malloc(cnt * sizeof(char *))) == NULL)
+	if ((new->e_orig = calloc(cnt, sizeof(char *))) == NULL)
 		err(1, NULL);
-	if ((new->e_len = malloc(cnt * sizeof(int))) == NULL)
+	if ((new->e_len = calloc(cnt, sizeof(int))) == NULL)
 		err(1, NULL);
 
 	for (argv = *argvp, cnt = 0; argv < ap; ++argv, ++cnt) {
@@ -813,6 +819,37 @@ c_exec(OPTION *option, char ***argvp)
 
 done:	*argvp = argv + 1;
 	return new;
+}
+
+/* iOS: free the plan, including nodes the parser discarded. */
+void
+find_release_plans(void)
+{
+	while (plan_allocations != NULL) {
+		struct plan_allocation *allocation = plan_allocations;
+		PLAN *plan = &allocation->plan;
+		int i;
+
+		plan_allocations = allocation->link;
+		if (plan->execute == f_exec) {
+			if (plan->flags & F_EXECPLUS) {
+				for (i = plan->e_pbnum; plan->e_argv != NULL && i < plan->e_ppos; i++)
+					free(plan->e_argv[i]);
+			} else {
+				for (i = 0; plan->e_orig != NULL && plan->e_orig[i] != NULL; i++)
+					if (plan->e_len[i] != 0)
+						free(plan->e_argv[i]);
+			}
+			free(plan->e_argv);
+			free(plan->e_orig);
+			free(plan->e_len);
+		} else if (plan->execute == f_regex && plan->re_data != NULL) {
+			regfree(plan->re_data);
+			free(plan->re_data);
+		}
+		free(allocation);
+	}
+	lastexecplus = NULL;
 }
 
 /* Finish any pending -exec ... {} + functions. */
@@ -1099,9 +1136,9 @@ c_samefile(OPTION *option, char ***argvp)
 
 	new = palloc(option);
 	if (ftsoptions & FTS_PHYSICAL)
-		error = lstat(fn, &sb);
+		error = ios_system_lstat(fn, &sb);
 	else
-		error = stat(fn, &sb);
+		error = ios_system_stat(fn, &sb);
 	if (error != 0)
 		err(1, "%s", fn);
 	new->i_data = sb.st_ino;
@@ -1141,7 +1178,7 @@ c_links(OPTION *option, char ***argvp)
 int
 f_ls(PLAN *plan __unused, FTSENT *entry)
 {
-	printlong(entry->fts_path, entry->fts_accpath, entry->fts_statp);
+	printlong((char *)ios_system_fts_path(entry), entry->fts_accpath, entry->fts_statp);
 	return 1;
 }
 
@@ -1184,7 +1221,7 @@ f_name(PLAN *plan, FTSENT *entry)
 		fn[len] = '\0';
 		name = fn;
 	} else
-		name = entry->fts_name;
+		name = ios_system_fts_name(entry);
 	return !fnmatch(plan->c_data, name,
 	    plan->flags & F_IGNCASE ? FNM_CASEFOLD : 0);
 }
@@ -1249,9 +1286,9 @@ c_newer(OPTION *option, char ***argvp)
 		new->t_data.tv_nsec = 999999999;
 	} else {
 		if (ftsoptions & FTS_PHYSICAL)
-			error = lstat(fn_or_tspec, &sb);
+			error = ios_system_lstat(fn_or_tspec, &sb);
 		else
-			error = stat(fn_or_tspec, &sb);
+			error = ios_system_stat(fn_or_tspec, &sb);
 		if (error != 0)
 			err(1, "%s", fn_or_tspec);
 		if (option->flags & F_TIME2_C)
@@ -1277,7 +1314,7 @@ c_newer(OPTION *option, char ***argvp)
 int
 f_nogroup(PLAN *plan __unused, FTSENT *entry)
 {
-	return group_from_gid(entry->fts_statp->st_gid, 1) == NULL;
+	return ios_system_group_from_gid(entry->fts_statp->st_gid, 1) == NULL;
 }
 
 PLAN *
@@ -1297,7 +1334,7 @@ c_nogroup(OPTION *option, char ***argvp __unused)
 int
 f_nouser(PLAN *plan __unused, FTSENT *entry)
 {
-	return user_from_uid(entry->fts_statp->st_uid, 1) == NULL;
+	return ios_system_user_from_uid(entry->fts_statp->st_uid, 1) == NULL;
 }
 
 PLAN *
@@ -1317,7 +1354,7 @@ c_nouser(OPTION *option, char ***argvp __unused)
 int
 f_path(PLAN *plan, FTSENT *entry)
 {
-	return !fnmatch(plan->c_data, entry->fts_path,
+	return !fnmatch(plan->c_data, ios_system_fts_path(entry),
 	    plan->flags & F_IGNCASE ? FNM_CASEFOLD : 0);
 }
 
@@ -1366,10 +1403,10 @@ c_perm(OPTION *option, char ***argvp)
 		++perm;
 	}
 
-	if ((set = setmode(perm)) == NULL)
+	if ((set = ios_system_setmode(perm)) == NULL)
 		errx(1, "%s: %s: illegal mode string", option->name, perm);
 
-	new->m_data = getmode(set, 0);
+	new->m_data = ios_system_getmode(set, 0);
 	free(set);
 	return new;
 }
@@ -1383,7 +1420,7 @@ c_perm(OPTION *option, char ***argvp)
 int
 f_print(PLAN *plan __unused, FTSENT *entry)
 {
-	(void)puts(entry->fts_path);
+	(void)puts(ios_system_fts_path(entry));
 	return 1;
 }
 
@@ -1404,7 +1441,7 @@ c_print(OPTION *option, char ***argvp __unused)
 int
 f_print0(PLAN *plan __unused, FTSENT *entry)
 {
-	fputs(entry->fts_path, stdout);
+	fputs(ios_system_fts_path(entry), stdout);
 	fputc('\0', stdout);
 	return 1;
 }
@@ -1420,7 +1457,7 @@ int
 f_prune(PLAN *plan __unused, FTSENT *entry)
 {
 	if (fts_set(tree, entry, FTS_SKIP))
-		err(1, "%s", entry->fts_path);
+		err(1, "%s", ios_system_fts_path(entry));
 	return 1;
 }
 
@@ -1444,7 +1481,7 @@ f_regex(PLAN *plan, FTSENT *entry)
 	int matched;
 
 	pre = plan->re_data;
-	str = entry->fts_path;
+	str = (char *)ios_system_fts_path(entry);
 	len = strlen(str);
 	matched = 0;
 
@@ -1474,20 +1511,19 @@ c_regex(OPTION *option, char ***argvp)
 	int errcode;
 	char errbuf[LINE_MAX];
 
+	pattern = nextarg(option, argvp);
+	new = palloc(option);
+
 	if ((pre = malloc(sizeof(regex_t))) == NULL)
 		err(1, NULL);
-
-	pattern = nextarg(option, argvp);
-
 	if ((errcode = regcomp(pre, pattern,
 	    regexp_flags | (option->flags & F_IGNCASE ? REG_ICASE : 0))) != 0) {
 		regerror(errcode, pre, errbuf, sizeof errbuf);
+		free(pre);
 		errx(1, "%s: %s: %s",
 		     option->flags & F_IGNCASE ? "-iregex" : "-regex",
 		     pattern, errbuf);
 	}
-
-	new = palloc(option);
 	new->re_data = pre;
 
 	return new;

@@ -259,3 +259,25 @@ typedef struct fa {
 
 
 #include "proto.h"
+
+/*
+ * iOS: one invocation allocates from its own malloc zone, destroyed when the
+ * command ends (awk never frees its program, symbol table or cells). Blocks
+ * are freed through the zone: plain free() looks the zone up in the process
+ * list, which another invocation's zone destruction can change underneath it.
+ * Sources include this header after the system headers that declare these.
+ */
+#include <malloc/malloc.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stddef.h>	/* wchar_t; <wchar.h> must precede ios_error.h */
+extern __thread malloc_zone_t *awk_zone;
+char *awk_strdup(const char *);
+wchar_t *awk_wcsdup(const wchar_t *);
+void awk_free(void *);
+#define malloc(size) malloc_zone_malloc(awk_zone, (size))
+#define calloc(count, size) malloc_zone_calloc(awk_zone, (count), (size))
+#define realloc(pointer, size) malloc_zone_realloc(awk_zone, (pointer), (size))
+#define strdup(string) awk_strdup(string)
+#define wcsdup(string) awk_wcsdup(string)
+#define free(pointer) awk_free(pointer)

@@ -52,17 +52,17 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.34 2006/02/14 11:08:05 glebius Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-static int	fflag;				/* Unlink existing files. */
-static int	Fflag;				/* Remove empty directories also. */
-static int	hflag;				/* Check new name for symlink first. */
-static int	iflag;				/* Interactive mode. */
-static int	sflag;				/* Symbolic, not hard, link. */
-static int	vflag;				/* Verbose output. */
+static __thread int	fflag;		/* Unlink existing files. */
+static __thread int	Fflag;		/* Remove empty directories also. */
+static __thread int	hflag;		/* Check new name for symlink first. */
+static __thread int	iflag;		/* Interactive mode. */
+static __thread int	sflag;		/* Symbolic, not hard, link. */
+static __thread int	vflag;		/* Verbose output. */
 					/* System link call. */
-static int (*linkf)(const char *, const char *);
-static char	linkch;
+static __thread int (*linkf)(const char *, const char *);
+static __thread char	linkch;
 
 static int	linkit(const char *, const char *, int);
 static void	usage(void);
@@ -73,9 +73,9 @@ ln_main(int argc, char *argv[])
 	struct stat sb;
 	char *p, *sourcedir;
 	int ch, exitval;
-    
-    fflag = Fflag = hflag = iflag = sflag = vflag = 0;
-    optind = 1; opterr = 1; optreset = 1;
+
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
 	if (argc < 1)
 		usage();
 	/*
@@ -94,8 +94,7 @@ ln_main(int argc, char *argv[])
 		argv += optind;
 		if (argc != 2)
 			usage();
-		linkf = link;
-		return(linkit(argv[0], argv[1], 0));
+		linkf = ios_system_link;
         exit(linkit(argv[0], argv[1], 0));
 	}
 
@@ -130,7 +129,7 @@ ln_main(int argc, char *argv[])
 	argv += optind;
 	argc -= optind;
 
-	linkf = sflag ? symlink : link;
+	linkf = sflag ? ios_system_symlink : ios_system_link;
 	linkch = sflag ? '-' : '=';
 	if (sflag == 0)
 		Fflag = 0;
@@ -150,7 +149,7 @@ ln_main(int argc, char *argv[])
 	}
 					/* ln target1 target2 directory */
 	sourcedir = argv[argc - 1];
-	if (hflag && lstat(sourcedir, &sb) == 0 && S_ISLNK(sb.st_mode)) {
+	if (hflag && ios_system_lstat(sourcedir, &sb) == 0 && S_ISLNK(sb.st_mode)) {
 		/*
 		 * We were asked not to follow symlinks, but found one at
 		 * the target--simulate "not a directory" error
@@ -158,7 +157,7 @@ ln_main(int argc, char *argv[])
 		errno = ENOTDIR;
 		err(1, "%s", sourcedir);
 	}
-    if (stat(sourcedir, &sb)) {
+    if (ios_system_stat(sourcedir, &sb)) {
 		err(1, "%s", sourcedir);
     }
 	if (!S_ISDIR(sb.st_mode))
@@ -166,6 +165,8 @@ ln_main(int argc, char *argv[])
 	for (exitval = 0; *argv != sourcedir; ++argv)
 		exitval |= linkit(*argv, sourcedir, 1);
 	exit(exitval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static int
@@ -179,7 +180,7 @@ linkit(const char *target, const char *source, int isdir)
 
 	if (!sflag) {
 		/* If target doesn't exist, quit now. */
-		if (stat(target, &sb)) {
+		if (ios_system_stat(target, &sb)) {
             warn("%s", target);
 			return (1);
 		}
@@ -196,10 +197,10 @@ linkit(const char *target, const char *source, int isdir)
 	 * append the target's name.
 	 */
 	if (isdir ||
-	    (lstat(source, &sb) == 0 && S_ISDIR(sb.st_mode)) ||
-	    (!hflag && stat(source, &sb) == 0 && S_ISDIR(sb.st_mode))) {
+	    (ios_system_lstat(source, &sb) == 0 && S_ISDIR(sb.st_mode)) ||
+	    (!hflag && ios_system_stat(source, &sb) == 0 && S_ISDIR(sb.st_mode))) {
 		if (strlcpy(bbuf, target, sizeof(bbuf)) >= sizeof(bbuf) ||
-		    (p = basename(bbuf)) == NULL ||
+		    (p = basename_r(target, bbuf)) == NULL ||
 		    snprintf(path, sizeof(path), "%s/%s", source, p) >=
 		    (ssize_t)sizeof(path)) {
 			errno = ENAMETOOLONG;
@@ -209,18 +210,18 @@ linkit(const char *target, const char *source, int isdir)
 		source = path;
 	}
 
-	exists = !lstat(source, &sb);
+	exists = !ios_system_lstat(source, &sb);
 	/*
 	 * If the file exists, then unlink it forcibly if -f was specified
 	 * and interactively if -i was specified.
 	 */
 	if (fflag && exists) {
 		if (Fflag && S_ISDIR(sb.st_mode)) {
-			if (rmdir(source)) {
+			if (ios_system_rmdir(source)) {
                 warn("%s", source);
 				return (1);
 			}
-		} else if (unlink(source)) {
+		} else if (ios_system_unlink(source)) {
             warn("%s", source);
 			return (1);
 		}
@@ -238,11 +239,11 @@ linkit(const char *target, const char *source, int isdir)
 		}
 
 		if (Fflag && S_ISDIR(sb.st_mode)) {
-			if (rmdir(source)) {
+			if (ios_system_rmdir(source)) {
                 warn("%s", source);
 				return (1);
 			}
-		} else if (unlink(source)) {
+		} else if (ios_system_unlink(source)) {
             warn("%s", source);
 			return (1);
 		}

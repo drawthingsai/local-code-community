@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD: src/bin/pwd/pwd.c,v 1.25 2005/02/09 17:37:38 ru Exp $");
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static char *getcwd_logical(void);
 static void usage(void);
@@ -62,7 +62,10 @@ pwd_main(int argc, char *argv[])
 	int physical;
 	int ch;
 	char *p;
-    optind = 1; opterr = 1; optreset = 1;
+	char physical_path[PATH_MAX];
+
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
 
 	// 4207130
 	physical = 0;
@@ -91,20 +94,21 @@ pwd_main(int argc, char *argv[])
 	 * 4701537: Only fall back if $PWD was actually wrong. We want to
 	 * fail if the path is too long (errno == ENAMETOOLONG).
 	 */
+	// iOS: the session directory, not the process-wide working directory.
 	if ((!physical && (p = getcwd_logical()) != NULL) ||
-        ((physical || errno == ENOENT) && (p = getcwd(NULL, 0)) != NULL)) {
-        // p is the directory found by getcwd() (most likely)
+        ((physical || errno == ENOENT) && (p = ios_system_realpath(".", physical_path)) != NULL)) {
         if (physical) {
             fprintf(thread_stdout, "%s\n", p);
         } else {
-            fprintf(thread_stdout, ios_getBookmarkedVersion(p));
-            fprintf(thread_stdout, "\n");
+            fprintf(thread_stdout, "%s\n", ios_getBookmarkedVersion(p));
         }
     } else {
 		err(1, ".");
     }
-    
+
     exit(0);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void
@@ -126,7 +130,7 @@ getcwd_logical(void)
 	 * the current working directory.
 	 */
 	if ((pwd = getenv("PWD")) != NULL && *pwd == '/') {
-		if (stat(pwd, &lg) == -1 || stat(".", &phy) == -1)
+		if (stat(pwd, &lg) == -1 || ios_system_stat(".", &phy) == -1)
 			return (NULL);
 		if (lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino)
 			return (pwd);

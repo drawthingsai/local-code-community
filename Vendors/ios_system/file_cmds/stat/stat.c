@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD: src/usr.bin/stat/stat.c,v 1.6 2003/10/06 01:55:17 dougb Exp 
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #if HAVE_STRUCT_STAT_ST_FLAGS
 #define DEF_F "%#Xf "
@@ -192,8 +192,8 @@ static int	format1(const struct stat *,	/* stat info */
 	    int, int, int, int,		/* the parsed format */
 	    int, int);
 
-static char *timefmt;
-static int linkfail;
+static __thread const char *timefmt;
+static __thread int linkfail;
 
 #define addchar(s, c, nl) \
 	do { \
@@ -201,7 +201,7 @@ static int linkfail;
 		(*nl) = ((c) == '\n'); \
 	} while (0/*CONSTCOND*/)
 
-static char* progname;
+static __thread const char *progname;
 
 int
 stat_main(int argc, char *argv[])
@@ -211,6 +211,8 @@ stat_main(int argc, char *argv[])
 	int lsF, fmtchar, usestat, fn, nonl, quiet;
 	char *statfmt, *options, *synopsis;
 
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
 	am_readlink = 0;
 	lsF = 0;
 	fmtchar = '\0';
@@ -220,7 +222,6 @@ stat_main(int argc, char *argv[])
 	linkfail = 0;
 	statfmt = NULL;
 	timefmt = NULL;
-    optind = 1; opterr = 1; optreset = 1;
     progname = strrchr(argv[0], '/');
     progname = progname != NULL ? progname + 1 : argv[0];
 
@@ -319,9 +320,9 @@ stat_main(int argc, char *argv[])
 		if (argc == 0)
 			rc = fstat(fileno(thread_stdin), &st);
 		else if (usestat)
-			rc = stat(argv[0], &st);
+			rc = ios_system_stat(argv[0], &st);
 		else
-			rc = lstat(argv[0], &st);
+			rc = ios_system_lstat(argv[0], &st);
 
 		if (rc == -1) {
 			errs = 1;
@@ -338,7 +339,9 @@ stat_main(int argc, char *argv[])
 		fn++;
 	} while (argc > 0);
 
-	return (am_readlink ? linkfail : errs);
+	exit(am_readlink ? linkfail : errs);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 void
@@ -556,11 +559,11 @@ format1(const struct stat *st,
 	u_int64_t data;
 	char *sdata, lfmt[24], tmp[20];
 	char smode[12], sid[12], path[PATH_MAX + 4];
-	struct passwd *pw;
-	struct group *gr;
+	char *owner;
+	char devbuf[PATH_MAX];
 	const struct timespec *tsp;
 	struct timespec ts = {0,0};
-	struct tm *tm;
+	struct tm *tm, tmbuf;
 	int l, small, formats;
 
 	tsp = NULL;
@@ -578,11 +581,11 @@ format1(const struct stat *st,
 		data = (what == SHOW_st_dev) ? st->st_dev : st->st_rdev;
 #if HAVE_DEVNAME
 		sdata = (what == SHOW_st_dev) ?
-		    devname(st->st_dev, S_IFBLK) :
-		    devname(st->st_rdev, 
+		    devname_r(st->st_dev, S_IFBLK, devbuf, sizeof(devbuf)) :
+		    devname_r(st->st_rdev,
 		    S_ISCHR(st->st_mode) ? S_IFCHR :
 		    S_ISBLK(st->st_mode) ? S_IFBLK :
-		    0U);
+		    0U, devbuf, sizeof(devbuf));
 		if (sdata == NULL)
 			sdata = "???";
 #endif /* HAVE_DEVNAME */
@@ -656,8 +659,8 @@ format1(const struct stat *st,
 	case SHOW_st_uid:
 		small = (sizeof(st->st_uid) == 4);
 		data = st->st_uid;
-		if ((pw = getpwuid(st->st_uid)) != NULL)
-			sdata = pw->pw_name;
+		if ((owner = ios_system_user_from_uid(st->st_uid, 1)) != NULL)
+			sdata = owner;
 		else {
 			snprintf(sid, sizeof(sid), "(%ld)", (long)st->st_uid);
 			sdata = sid;
@@ -670,8 +673,8 @@ format1(const struct stat *st,
 	case SHOW_st_gid:
 		small = (sizeof(st->st_gid) == 4);
 		data = st->st_gid;
-		if ((gr = getgrgid(st->st_gid)) != NULL)
-			sdata = gr->gr_name;
+		if ((owner = ios_system_group_from_gid(st->st_gid, 1)) != NULL)
+			sdata = owner;
 		else {
 			snprintf(sid, sizeof(sid), "(%ld)", (long)st->st_gid);
 			sdata = sid;
@@ -700,10 +703,10 @@ format1(const struct stat *st,
 		ts = *tsp;		/* copy so we can muck with it */
 		small = (sizeof(ts.tv_sec) == 4);
 		data = ts.tv_sec;
-		tm = localtime(&ts.tv_sec);
+		tm = localtime_r(&ts.tv_sec, &tmbuf);
 		if (tm == NULL) {
 			ts.tv_sec = 0;
-			tm = localtime(&ts.tv_sec);
+			tm = localtime_r(&ts.tv_sec, &tmbuf);
 		}
 		(void)strftime(path, sizeof(path), timefmt, tm);
 		sdata = path;
@@ -761,7 +764,7 @@ format1(const struct stat *st,
 		data = 0;
 		if (S_ISLNK(st->st_mode)) {
 			snprintf(path, sizeof(path), " -> ");
-			l = readlink(file, path + 4, sizeof(path) - 4 - 1);
+			l = ios_system_readlink(file, path + 4, sizeof(path) - 4 - 1);
 			if (l == -1) {
 				linkfail = 1;
 				l = 0;

@@ -19,7 +19,7 @@ struct AgentCLIOptions: ParsableArguments {
   @Option(help: "Local Code project directory.")
   var project: String = "."
 
-  @Option(help: "Workspace root for /home and ancestor skills. Defaults to the project.")
+  @Option(help: "Workspace root for HOME (~) and ancestor skills. Defaults to the project.")
   var workspace: String?
 
   @Option(help: "User request. Use either --message or --prompt-file.")

@@ -1,0 +1,18 @@
+# lg2 parity corpus
+git init -q g && ls -a g | head -3
+git init -q g && cd g && git status --short; echo rc=$?
+git init -q g && cd g && echo x > f && git add f && git status --short
+git init -q g && cd g && echo x > f && git add . && git status
+git init g2 | sed "s|$PWD|PWD|"
+git init -q "$PWD/g3" && ls -d g3/.git
+cd dir && git init -q && git status --short | sort
+git init -q g && cd g && git config user.name tester && git config user.email t@x && git config user.name
+git init -q g && cd g && git config user.name t && git config user.email t@x && echo x > f && git add f && git commit -q -m first && git log --oneline | wc -l
+git init -q g && cd g && git config user.name t && git config user.email t@x && echo x > f && git add f && git commit -m first | tail -1 | wc -l && echo y > f && git diff | grep '^[-+][xy]'
+git init -q g && cd g && git config user.name t && git config user.email t@x && echo x > f && git add f && git commit -q -m one && git branch side && git branch | sort
+git init -q g && cd g && git config user.name t && git config user.email t@x && mkdir sub && echo a > sub/a && git add sub && git commit -q -m s && git ls-files
+git init -q g && cd g/. && git rev-parse --is-inside-work-tree
+git status
+git -x
+git nosuchcmd
+git init -q g && cd g && git config user.name t && git config user.email t@x && echo x > f && git add f && git commit -q -m one && echo y > f && git checkout -- f && cat f

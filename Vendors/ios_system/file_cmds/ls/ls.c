@@ -80,7 +80,7 @@ __RCSID("$FreeBSD: src/bin/ls/ls.c,v 1.66 2002/09/21 01:28:36 wollman Exp $");
 #endif /* __APPLE__ */
 #include "ls.h"
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 #include "ios_system_command_registry.h"
 
 /*
@@ -97,12 +97,12 @@ static u_quad_t	 makenines(u_quad_t);
 static int	 mastercmp(const FTSENT **, const FTSENT **);
 static void	 traverse(int, char **, int);
 
-static void (*printfcn)(DISPLAY *);
-static int (*sortfcn)(const FTSENT *, const FTSENT *);
+static __thread void (*printfcn)(DISPLAY *);
+static __thread int (*sortfcn)(const FTSENT *, const FTSENT *);
 
 __thread long blocksize;			/* block size units */
 __thread int termwidth = 80;		/* default terminal width */
-static int output;        /* If anything output. */
+static __thread int output;	/* If anything output. */
 
 /* flags */
 __thread       int f_accesstime;	/* use time of last access */
@@ -110,29 +110,29 @@ __thread       int f_birthtime;		/* use time of file birth */
 __thread       int f_flags;		/* show flags associated with a file */
 __thread       int f_humanval;		/* show human-readable file sizes */
 __thread       int f_inode;		/* print inode */
-static int f_kblocks;		/* print size in kilobytes */
-static int f_listdir;		/* list actual directory, not contents */
-static int f_listdot;		/* list files beginning with . */
+static __thread int f_kblocks;		/* print size in kilobytes */
+static __thread int f_listdir;		/* list actual directory, not contents */
+static __thread int f_listdot;		/* list files beginning with . */
 __thread       int f_longform;		/* long listing format */
 __thread       int f_nonprint;		/* show unprintables as ? */
-static int f_nosort;		/* don't sort output */
+static __thread int f_nosort;		/* don't sort output */
 __thread       int f_notabs;		/* don't use tab-separated multi-col output */
 __thread       int f_numericonly;	/* don't convert uid/gid to name */
 __thread       int f_octal;		/* show unprintables as \xxx */
 __thread       int f_octal_escape;	/* like f_octal but use C escapes if possible */
-static int f_recursive;		/* ls subdirectories also */
-static int f_reversesort;	/* reverse whatever sort is used */
+static __thread int f_recursive;		/* ls subdirectories also */
+static __thread int f_reversesort;	/* reverse whatever sort is used */
 __thread       int f_sectime;		/* print the real time for all files */
-static int f_singlecol;		/* use single column output */
+static __thread int f_singlecol;		/* use single column output */
 __thread       int f_size;		/* list size in short listing */
 __thread       int f_slash;		/* similar to f_type, but only for dirs */
 __thread       int f_sortacross;	/* sort across rows, not down columns */
 __thread       int f_statustime;	/* use time of last mode change */
 __thread       int f_stream;		/* stream the output, separate with commas */
-static int f_timesort;		/* sort by time vice name */
-static int f_sizesort;		/* sort by size */
+static __thread int f_timesort;		/* sort by time vice name */
+static __thread int f_sizesort;		/* sort by size */
 __thread       int f_type;		/* add type character for non-regular files */
-static int f_whiteout;		/* show whiteout entries */
+static __thread int f_whiteout;		/* show whiteout entries */
 __thread       int f_acl;		/* show ACLs in long listing */
 __thread       int f_xattr;		/* show extended attributes in long listing */
 __thread       int f_group;		/* show group */
@@ -140,59 +140,23 @@ __thread       int f_owner;		/* show owner */
 #ifdef COLORLS
 __thread       int f_color;		/* add type in color for non-regular files */
 
-char *ansi_bgcol;		/* ANSI sequence to set background colour */
-char *ansi_fgcol;		/* ANSI sequence to set foreground colour */
-char *ansi_coloff;		/* ANSI sequence to reset colours */
-char *attrs_off;		/* ANSI sequence to turn off attributes */
-char *enter_bold;		/* ANSI sequence to set color to bold mode */
+__thread const char *ansi_bgcol;	/* ANSI sequence to set background colour */
+__thread const char *ansi_fgcol;	/* ANSI sequence to set foreground colour */
+__thread const char *ansi_coloff;	/* ANSI sequence to reset colours */
+__thread const char *attrs_off;		/* ANSI sequence to turn off attributes */
+__thread const char *enter_bold;	/* ANSI sequence to set color to bold mode */
 #endif
 
-static void initializeAllFlags()
+
+
+static __thread int rval;
+
+static void ls_cleanup(void *unused)
 {
-    termwidth = 80;
-    f_accesstime = 0; /* use time of last access */
-    f_birthtime = 0;          /* use time of file birth */
-    f_flags = 0;              /* show flags associated with a file */
-    f_humanval = 0;           /* show human-readable file sizes */
-    f_inode = 0;              /* print inode */
-    f_kblocks = 0;            /* print size in kilobytes */
-    f_listdir = 0;            /* list actual directory, not contents */
-    f_listdot = 0;            /* list files beginning with . */
-    f_longform = 0;           /* long listing format */
-    f_nonprint = 0;           /* show unprintables as ? */
-    f_nosort = 0;             /* don't sort output */
-    f_notabs = 0;             /* don't use tab-separated multi-col output */
-    f_numericonly = 0;        /* don't convert uid/gid to name */
-    f_octal = 0;              /* show unprintables as \xxx */
-    f_octal_escape = 0;       /* like f_octal but use C escapes if possible */
-    f_recursive = 0;          /* ls subdirectories also */
-    f_reversesort = 0;        /* reverse whatever sort is used */
-    f_sectime = 0;            /* print the real time for all files */
-    f_singlecol = 0;          /* use single column output */
-    f_size = 0;               /* list size in short listing */
-    f_slash = 0;              /* similar to f_type, but only for dirs */
-    f_sortacross = 0; /* sort across rows, not down columns */
-    f_statustime = 0; /* use time of last mode change */
-    f_stream = 0;             /* stream the output, separate with commas */
-    f_timesort = 0;           /* sort by time vice name */
-    f_sizesort = 0;           /* sort by size */
-    f_type = 0;               /* add type character for non-regular files */
-    f_whiteout = 0;           /* show whiteout entries */
-    f_acl = 0;                /* show ACLs in long listing */
-    f_xattr = 0;              /* show extended attributes in long listing */
-    f_group = 0;              /* show group */
-    f_owner = 0;              /* show owner */
-#ifdef COLORLS
-    f_color = 0;              /* add type in color for non-regular files */
-#endif
-    optind = 1;
-    opterr = 1;
-    optreset = 1;
-    output = 0;
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	printcol_release();
+	ios_system_support_cleanup(unused);
 }
-
-
-static int rval;
 
 static int
 is_virtual_usr_bin_request(const char *path)
@@ -270,7 +234,7 @@ list_virtual_usr_bin(int argc, char *argv[])
 int
 ls_main(int argc, char *argv[])
 {
-	static char dot[] = ".", *dotav[] = {dot, NULL};
+	char dot[] = ".", *dotav[] = {dot, NULL};
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
@@ -280,12 +244,11 @@ ls_main(int argc, char *argv[])
 	char *bp = tcapbuf;
 #endif
 
+	pthread_cleanup_push(ls_cleanup, NULL);
+	ios_system_support_init(argv);
 	if (argc < 1)
 		ls_usage();
-    // re-initialize all flags:
-    initializeAllFlags();
-    rval = 0;
-    (void)setlocale(LC_ALL, "");
+	/* Locale is owned by ios_system_support. */
 
 	/* Terminal defaults to -Cq, non-terminal defaults to -1. */
     // iOS: we *are* a terminal, but file(thread_stdout) doesn't tell it
@@ -541,10 +504,9 @@ ls_main(int argc, char *argv[])
 		 * column number will be incremented incorrectly
 		 * for "stty oxtabs" mode.
 		 */
+		// iOS: no SIGINT/SIGQUIT handlers; dispositions are process-wide.
 #if !TARGET_OS_IPHONE
 		f_notabs = 1;
-		(void)signal(SIGINT, colorquit);
-		(void)signal(SIGQUIT, colorquit);
 #endif
 		parsecolors(getenv("LSCOLORS"));
 	}
@@ -582,7 +544,7 @@ ls_main(int argc, char *argv[])
 		if (f_kblocks)
 			blocksize = 2;
 		else {
-			(void)getbsize(&notused, &blocksize);
+			(void)ios_system_getbsize(&notused, &blocksize);
 			blocksize /= 512;
 		}
 	}
@@ -632,12 +594,9 @@ ls_main(int argc, char *argv[])
 		traverse(argc, argv, fts_options);
 	else
 		traverse(1, dotav, fts_options);
-    // reset signal:
-#if !TARGET_OS_IPHONE
-    (void)signal(SIGINT, SIG_DFL);
-    (void)signal(SIGQUIT, SIG_DFL);
-#endif
     exit(rval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 
@@ -656,7 +615,7 @@ traverse(int argc, char *argv[], int options)
 
 	// iOS: the working directory is process-wide, so the walk must not chdir.
 	if ((ftsp =
-         fts_open(argv, options | FTS_NOCHDIR, f_nosort ? NULL : mastercmp)) == NULL) {
+         ios_system_fts_open(argv, options | FTS_NOCHDIR, f_nosort ? NULL : mastercmp)) == NULL) {
 		err(1, "fts_open");
     }
 
@@ -698,9 +657,9 @@ traverse(int argc, char *argv[], int options)
 			 * directory with its name.
 			 */
 			if (output)
-				(void)fprintf(thread_stdout, "\n%s:\n", p->fts_path);
+				(void)fprintf(thread_stdout, "\n%s:\n", ios_system_fts_path(p));
 			else if (argc > 1) {
-				(void)fprintf(thread_stdout, "%s:\n", p->fts_path);
+				(void)fprintf(thread_stdout, "%s:\n", ios_system_fts_path(p));
 				output = 1;
 			}
 			chp = fts_children(ftsp, ch_options);
@@ -865,7 +824,7 @@ display(FTSENT *p, FTSENT *list)
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {
-            warnx("%s: %s", cur->fts_name, strerror(cur->fts_errno));
+            warnx("%s: %s", ios_system_fts_name(cur), strerror(cur->fts_errno));
 			cur->fts_number = NO_PRINT;
 			rval = 1;
 			continue;
@@ -887,10 +846,13 @@ display(FTSENT *p, FTSENT *list)
 				continue;
 			}
 		}
-		if (cur->fts_namelen > maxlen)
-			maxlen = cur->fts_namelen;
+		// iOS: operands are shown as written, not as the walk's absolute roots.
+		const char *name = ios_system_fts_name(cur);
+		size_t namelen = strlen(name);
+		if (namelen > maxlen)
+			maxlen = namelen;
 		if (f_octal || f_octal_escape) {
-			u_long t = len_octal(cur->fts_name, cur->fts_namelen);
+			u_long t = len_octal(name, namelen);
 
 			if (t > maxlen)
 				maxlen = t;
@@ -916,8 +878,8 @@ display(FTSENT *p, FTSENT *list)
 					user = nuser;
 					group = ngroup;
 				} else {
-					user = user_from_uid(sp->st_uid, 0);
-					group = group_from_gid(sp->st_gid, 0);
+					user = ios_system_user_from_uid(sp->st_uid, 0);
+					group = ios_system_group_from_gid(sp->st_gid, 0);
 				}
 				if ((ulen = strlen(user)) > maxuser)
 					maxuser = ulen;

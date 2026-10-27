@@ -101,30 +101,30 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <TargetConditionals.h>
 
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-static struct timeval	boottime;
+static __thread struct timeval	boottime;
 #if !HAVE_UTMPX
-static struct utmp	utmp;
+static __thread struct utmp	utmp;
 #endif
-static struct winsize	ws;
+static __thread struct winsize	ws;
 #if HAVE_KVM
-static kvm_t	       *kd;
+static __thread kvm_t	       *kd;
 #endif
-static time_t		now;		/* the current time of day */
-static int		ttywidth;	/* width of tty */
-static int		argwidth;	/* width of tty */
-static int		header = 1;	/* true if -h flag: don't print heading */
+static __thread time_t		now;		/* the current time of day */
+static __thread int		ttywidth;	/* width of tty */
+static __thread int		argwidth;	/* width of tty */
+static __thread int		header = 1;	/* true if -h flag: don't print heading */
 #if !HAVE_UTMPX
-static int		nflag;		/* true if -n flag: don't convert addrs */
+static __thread int		nflag;		/* true if -n flag: don't convert addrs */
 #endif
 #ifndef __APPLE__
-static int		dflag;		/* true if -d flag: output debug info */
+static __thread int		dflag;		/* true if -d flag: output debug info */
 #endif
-static int		sortidle;	/* sort by idle time */
+static __thread int		sortidle;	/* sort by idle time */
 __thread int		use_ampm;	/* use AM/PM time */
-static int             use_comma;      /* use comma as floats separator */
-static char	      **sel_users;	/* login array of particular users selected */
+static __thread int             use_comma;      /* use comma as floats separator */
+static __thread char	      **sel_users;	/* login array of particular users selected */
 
 /*
  * One of these per active utmp entry.
@@ -141,7 +141,84 @@ static struct	utmp_entry {
 	struct	kinfo_proc *kp;		/* `most interesting' proc */
 	char	*args;			/* arg list of interesting process */
 	struct	kinfo_proc *dkp;	/* debug option proc list */
-} *ep, *ehead = NULL, **nextp = &ehead;
+} static __thread *ep, *ehead, **nextp;	/* iOS: nextp starts at &ehead in w_main */
+
+static __thread struct kinfo_proc *kprocbuf;
+#if HAVE_UTMPX
+/*
+ * iOS: libc's setutxent/getutxent keep one cursor for the whole process, so
+ * read the utmpx file through this invocation's own stream, as getutxent
+ * does: a signature record, then 32-bit-time records. w keeps only
+ * USER_PROCESS entries, which libc returns unchanged.
+ */
+static __thread FILE *utmpx_file;
+
+struct utmpx_record {
+	char ut_user[256];
+	char ut_id[4];
+	char ut_line[32];
+	int32_t ut_pid;
+	int16_t ut_type;
+	int32_t ut_sec;
+	int32_t ut_usec;
+	char ut_host[256];
+	uint32_t ut_pad[16];
+};
+_Static_assert(sizeof(struct utmpx_record) == 628, "utmpx file record");
+
+static FILE *
+w_setutxent(void)
+{
+	struct utmpx_record record;
+	FILE *file = fopen(_PATH_UTMPX, "r");
+
+	if (file != NULL && (fread(&record, sizeof(record), 1, file) != 1 ||
+	    record.ut_type != SIGNATURE || strncmp(record.ut_user, "utmpx-1.00", sizeof(record.ut_user)) != 0)) {
+		fclose(file);
+		file = NULL;
+	}
+	return (file);
+}
+
+static struct utmpx *
+w_getutxent(FILE *file, struct utmpx *entry)
+{
+	struct utmpx_record record;
+
+	if (file == NULL || fread(&record, sizeof(record), 1, file) != 1)
+		return (NULL);
+	memset(entry, 0, sizeof(*entry));
+	memcpy(entry->ut_user, record.ut_user, sizeof(entry->ut_user));
+	memcpy(entry->ut_id, record.ut_id, sizeof(entry->ut_id));
+	memcpy(entry->ut_line, record.ut_line, sizeof(entry->ut_line));
+	entry->ut_pid = record.ut_pid;
+	entry->ut_type = record.ut_type;
+	entry->ut_tv.tv_sec = record.ut_sec;
+	entry->ut_tv.tv_usec = record.ut_usec;
+	memcpy(entry->ut_host, record.ut_host, sizeof(entry->ut_host));
+	return (entry);
+}
+#endif
+
+static void
+w_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+#if HAVE_UTMPX
+	if (utmpx_file != NULL)
+		fclose(utmpx_file);
+	utmpx_file = NULL;
+#endif
+	while (ehead != NULL) {
+		struct utmp_entry *next = ehead->next;
+		free(ehead->args);
+		free(ehead);
+		ehead = next;
+	}
+	free(kprocbuf);
+	kprocbuf = NULL;
+	ios_system_support_cleanup(unused);
+}
 
 #ifndef __APPLE__
 #define	debugproc(p) *((struct kinfo_proc **)&(p)->ki_udata)
@@ -166,11 +243,10 @@ int
 w_main(int argc, char *argv[])
 {
 	struct kinfo_proc *kp;
-	struct kinfo_proc *kprocbuf;
 	struct kinfo_proc *dkp;
 	struct stat *stp;
 #if HAVE_UTMPX
-	struct utmpx *ux;
+	struct utmpx *ux, uxbuf;
 #else
 	FILE *ut;
 #endif
@@ -197,12 +273,14 @@ w_main(int argc, char *argv[])
 	int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0 };
 #endif
 
-	(void)setlocale(LC_ALL, "");
+	pthread_cleanup_push(w_cleanup, NULL);
+	ios_system_support_init(argv);
+	nextp = &ehead;
+	/* Locale is owned by ios_system_support. */
 #ifndef __APPLE__
 	use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
 	use_comma = (*nl_langinfo(RADIXCHAR) != ',');
 #endif
-    optind = 1; opterr = 1; optreset = 1;
 
 	/* Are we w(1) or uptime(1)? */
 	if (this_is_uptime(argv[0]) == 0) {
@@ -266,12 +344,8 @@ w_main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-#if !TARGET_OS_IPHONE && !TARGET_OS_EMBEDDED
-	if (!(_res.options & RES_INIT))
-		res_init();
-	_res.retrans = 2;	/* resolver timeout to 2 seconds per try */
-	_res.retry = 1;		/* only try once.. */
-#endif
+	/* The resolver state (_res) is process-wide and other sessions' commands
+	   use it too, so w leaves its timeouts alone (as on iOS). */
 
 #if HAVE_KVM
 	/*
@@ -288,7 +362,7 @@ w_main(int argc, char *argv[])
 
 	(void)time(&now);
 #if HAVE_UTMPX
-	setutxent();
+	utmpx_file = w_setutxent();
 #else
     if ((ut = fopen(_PATH_UTMP, "r")) == NULL) {
 		err(1, "%s", _PATH_UTMP);
@@ -299,7 +373,7 @@ w_main(int argc, char *argv[])
 		sel_users = argv;
 
 #if HAVE_UTMPX
-	for (nusers = 0; (ux = getutxent());) {
+	for (nusers = 0; (ux = w_getutxent(utmpx_file, &uxbuf));) {
 		if (ux->ut_user[0] == '\0' || ux->ut_type != USER_PROCESS)
 			continue;
 		if (!(stp = ttystat(ux->ut_line, sizeof(ux->ut_line))))
@@ -371,7 +445,9 @@ w_main(int argc, char *argv[])
 			ep->idle = 0;
 	}
 #if HAVE_UTMPX
-	endutxent();
+	if (utmpx_file != NULL)
+		fclose(utmpx_file);
+	utmpx_file = NULL;
 #else
 	(void)fclose(ut);
 #endif
@@ -594,16 +670,13 @@ w_main(int argc, char *argv[])
 #endif
 		longidle = pr_idle(ep->idle);
 		(void)fprintf(thread_stdout, "%.*s\n", argwidth - longidle, ep->args);
-#ifdef __APPLE__
-		free(ep->args);
-#endif
 	}
 #if HAVE_KVM
 	(void)kvm_close(kd);
-#else
-	free(kprocbuf);
 #endif /* HAVE_KVM */
 	exit(0);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void
@@ -675,7 +748,7 @@ pr_header(time_t *nowp, int nusers)
 static struct stat *
 ttystat(char *line, int sz)
 {
-	static struct stat sb;
+	static __thread struct stat sb;
 	char ttybuf[MAXPATHLEN];
 
 	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%.*s", _PATH_DEV, sz, line);

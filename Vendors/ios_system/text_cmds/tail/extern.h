@@ -72,5 +72,23 @@ void oerr(void);
 int mapprint(struct mapinfo *, off_t, off_t);
 int maparound(struct mapinfo *, off_t);
 
-extern int Fflag, fflag, tail_qflag, rflag, rval, no_files;
-extern const char *tail_fname;
+extern __thread int Fflag, fflag, tail_qflag, rflag, rval, no_files;
+extern __thread const char *tail_fname;
+
+/* iOS: follow mode state, released by tail_cleanup however tail ends. */
+extern __thread struct kevent *ev;
+extern __thread int kq;
+
+/*
+ * iOS: one invocation allocates from its own malloc zone, destroyed when the
+ * command ends; blocks are freed through it (plain free() looks the zone up
+ * in the process list, which another zone's destruction can change). Sources
+ * include this header after the system headers.
+ */
+#include <malloc/malloc.h>
+extern __thread malloc_zone_t *tail_zone;
+void	tail_free(void *);
+#define malloc(size) malloc_zone_malloc(tail_zone, (size))
+#define calloc(count, size) malloc_zone_calloc(tail_zone, (count), (size))
+#define realloc(pointer, size) malloc_zone_realloc(tail_zone, (pointer), (size))
+#define free(pointer) tail_free(pointer)

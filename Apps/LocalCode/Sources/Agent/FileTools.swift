@@ -26,7 +26,7 @@ private func resolvedPath(
     projectPath: projectPath, workspacePath: workspacePath,
     permittedDirectoryURLs: permittedDirectoryURLs)
   guard let resolution = localPathResolver.resolve(trimmedPath) else {
-    throw FileToolError.pathEscapesWorkspace
+    throw FileToolError.pathEscapesWorkspace(trimmedPath)
   }
   return resolution
 }
@@ -167,7 +167,7 @@ fileprivate enum FileToolError: Error, LocalizedError {
   case missingPath
   case missingContent
   case missingReplacement
-  case pathEscapesWorkspace
+  case pathEscapesWorkspace(String)
   case cannotModifyAppBundlePath
   case cannotModifyProjectMetadata
   case fileNotFound(String)
@@ -199,7 +199,12 @@ fileprivate enum FileToolError: Error, LocalizedError {
       return "Missing file content."
     case .missingReplacement:
       return "Missing replacement text."
-    case .pathEscapesWorkspace:
+    case .pathEscapesWorkspace(let path):
+      // Models reach for /tmp by habit; point them at the real temporary directory.
+      if path == "/tmp" || path.hasPrefix("/tmp/") {
+        return
+          "/tmp is not available. Use $TMPDIR\(path.dropFirst("/tmp".count)) for temporary files."
+      }
       return
         "Path is outside the project, workspace, temporary directory, app bundle, and permitted folders. Use permit <directory> in Bash to request folder access."
     case .cannotModifyAppBundlePath:
@@ -552,7 +557,7 @@ public struct WriteTool {
       projectPath: projectPath, workspacePath: workspacePath,
       permittedDirectoryURLs: permittedDirectoryURLs)
     guard let resolution = localPathResolver.resolve(path) else {
-      throw FileToolError.pathEscapesWorkspace
+      throw FileToolError.pathEscapesWorkspace(path)
     }
     guard resolution.namespace != .appBundle else {
       throw FileToolError.cannotModifyAppBundlePath
@@ -633,7 +638,7 @@ public struct EditTool {
       projectPath: projectPath, workspacePath: workspacePath,
       permittedDirectoryURLs: permittedDirectoryURLs)
     guard let resolution = localPathResolver.resolve(path) else {
-      throw FileToolError.pathEscapesWorkspace
+      throw FileToolError.pathEscapesWorkspace(path)
     }
     guard resolution.namespace != .appBundle else {
       throw FileToolError.cannotModifyAppBundlePath

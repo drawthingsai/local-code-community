@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "envopts.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static const char *
 		 expand_vars(int in_thisarg, char **thisarg_p, char **dest_p,
@@ -62,14 +62,40 @@ static int	 is_there(char *candidate);
  * Routine to determine if a given fully-qualified filename is executable.
  * This is copied almost verbatim from FreeBSD's usr.bin/which/which.c.
  */
+/* iOS: strings and vectors built for this invocation, freed by env_release(). */
+static __thread void **owned;
+static __thread size_t owned_count;
+
+static void *
+own(void *pointer)
+{
+	void **grown;
+
+	if (pointer == NULL ||
+	    (grown = realloc(owned, (owned_count + 1) * sizeof(*owned))) == NULL)
+		err(1, NULL);
+	owned = grown;
+	owned[owned_count++] = pointer;
+	return pointer;
+}
+
+void
+env_release(void)
+{
+	while (owned_count > 0)
+		free(owned[--owned_count]);
+	free(owned);
+	owned = NULL;
+}
+
 static int
 is_there(char *candidate)
 {
         struct stat fin;
 
         /* XXX work around access(2) false positives for superuser */
-        if (access(candidate, X_OK) == 0 &&
-            stat(candidate, &fin) == 0 &&
+        if (ios_system_access(candidate, X_OK) == 0 &&
+            ios_system_stat(candidate, &fin) == 0 &&
             S_ISREG(fin.st_mode) &&
             (getuid() != 0 ||
             (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0)) {
@@ -128,7 +154,7 @@ search_paths(char *path, char **argv)
 		errno = ENOENT;
 		err(127, "%s", filename);
 	}
-	*argv = strdup(candidate);
+	*argv = own(strdup(candidate));
 }
 
 /**
@@ -163,7 +189,7 @@ search_paths(char *path, char **argv)
 void
 split_spaces(const char *str, int *origind, int *origc, char ***origv)
 {
-	static const char *nullarg = "";
+	static const char *const nullarg = "";
 	const char *bq_src, *copystr, *src;
 	char *dest, **newargv, *newstr, **nextarg, **oldarg;
 	int addcount, bq_destlen, copychar, found_sep, in_arg, in_dq, in_sq;
@@ -177,14 +203,14 @@ split_spaces(const char *str, int *origind, int *origc, char ***origv)
 		str++;
 	if (*str == '\0')
 		return;
-	newstr = malloc(strlen(str) + 1);
+	newstr = own(malloc(strlen(str) + 1));
 
 	/*
 	 * Allocate plenty of space for the new array of arg-pointers,
 	 * and start that array off with the first element of the old
 	 * array.
 	 */
-	newargv = malloc((*origc + (strlen(str) / 2) + 2) * sizeof(char *));
+	newargv = own(malloc((*origc + (strlen(str) / 2) + 2) * sizeof(char *)));
 	nextarg = newargv;
 	*nextarg++ = **origv;
 
@@ -459,11 +485,11 @@ expand_vars(int in_thisarg, char **thisarg_p, char **dest_p, const char **src_p)
 	if (in_thisarg) {
 		**dest_p = '\0';	/* Provide terminator for 'thisarg' */
 		newlen += strlen(*thisarg_p);
-		newstr = malloc(newlen);
+		newstr = own(malloc(newlen));
 		strcpy(newstr, *thisarg_p);
 		*thisarg_p = newstr;
 	} else {
-		newstr = malloc(newlen);
+		newstr = own(malloc(newlen));
 		*newstr = '\0';
 	}
 	*dest_p = strchr(newstr, '\0');

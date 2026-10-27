@@ -31,7 +31,7 @@ THIS SOFTWARE.
 #include <stdarg.h>
 #include <limits.h>
 #include "awk.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 char	EMPTY[] = { '\0' };
 __thread FILE	*infile	= NULL;
@@ -56,8 +56,8 @@ __thread int	lastfld	= 0;	/* last used field */
 __thread int	argno	= 1;	/* current input argument number */
 extern	__thread Awkfloat *ARGC;
 
-static Cell dollar0 = { OCELL, CFLD, NULL, EMPTY, 0.0, REC|STR|DONTFREE, NULL, NULL };
-static Cell dollar1 = { OCELL, CFLD, NULL, EMPTY, 0.0, FLD|STR|DONTFREE, NULL, NULL };
+static const Cell dollar0 = { OCELL, CFLD, NULL, EMPTY, 0.0, REC|STR|DONTFREE, NULL, NULL };
+static const Cell dollar1 = { OCELL, CFLD, NULL, EMPTY, 0.0, FLD|STR|DONTFREE, NULL, NULL };
 
 void recinit(unsigned int n)
 {
@@ -178,7 +178,7 @@ int getrec(char **pbuf, int *pbufsize, bool isrecord)	/* get next input record *
 			DPRINTF("opening file %s\n", file);
 			if (*file == '-' && *(file+1) == '\0')
 				infile = thread_stdin;
-			else if ((infile = fopen(file, "r")) == NULL)
+			else if ((infile = ios_system_fopen(file, "r")) == NULL)
 				FATAL("can't open file %s", file);
 			setfval(fnrloc, 0.0);
 		}
@@ -691,7 +691,7 @@ void eprint(void)	/* try to print context around error */
 	char *p, *q;
 	int c;
 	static __thread int been_here = 0;
-	extern char ebuf[], *ep;
+	extern __thread char ebuf[], *ep;
 
 	if (compile_time != COMPILING || been_here++ > 0 || ebuf == ep)
 		return;

@@ -80,9 +80,20 @@ __RCSID("$FreeBSD: src/bin/mv/mv.c,v 1.39 2002/07/09 17:45:13 johan Exp $");
 #endif /* __APPLE__ */ 
 
 #include "pathnames.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-static int fflg, iflg, nflg, vflg;
+static __thread int fflg, iflg, nflg, vflg;
+static __thread u_int blen;	/* fastcopy buffer */
+static __thread char *bp;
+
+static void mv_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	free(bp);
+	bp = NULL;
+	blen = 0;
+	ios_system_support_cleanup(unused);
+}
 
 static int	do_move(char *, char *);
 static int	fastcopy(char *, char *, struct stat *);
@@ -100,9 +111,9 @@ mv_main(int argc, char *argv[])
 #endif /* __APPLE__ */
 	int ch;
 	char path[PATH_MAX];
-    // initialize flags
-    fflg = iflg = nflg = vflg = 0;
-    optind = 1; opterr = 1; optreset = 1;
+
+	pthread_cleanup_push(mv_cleanup, NULL);
+	ios_system_support_init(argv);
 
 
 	while ((ch = getopt(argc, argv, "finv")) != -1)
@@ -135,14 +146,14 @@ mv_main(int argc, char *argv[])
 	 * If the stat on the target fails or the target isn't a directory,
 	 * try the move.  More than 2 arguments is an error in this case.
 	 */
-	if (stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
+	if (ios_system_stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
 		if (argc > 2)
 			usage();
         exit(do_move(argv[0], argv[1]));
 	}
 	
 #ifdef __APPLE__
-	if (argc == 2 && !lstat(argv[0], &fsb) && !lstat(argv[1], &tsb) &&
+	if (argc == 2 && !ios_system_lstat(argv[0], &fsb) && !ios_system_lstat(argv[1], &tsb) &&
 		fsb.st_ino == tsb.st_ino && fsb.st_dev == tsb.st_dev &&
 		fsb.st_gen == tsb.st_gen) {
 		/*
@@ -219,7 +230,7 @@ mv_main(int argc, char *argv[])
 				 * same file, and produce an error * (like on Sun) that 
 				 * conformance test 66 in mv.ex expects.
 				 */
-				if (!stat(*argv, &fsb) && !stat(path, &tsb) &&
+				if (!ios_system_stat(*argv, &fsb) && !ios_system_stat(path, &tsb) &&
 					fsb.st_ino == tsb.st_ino && 
 					fsb.st_dev == tsb.st_dev &&
 					fsb.st_gen == tsb.st_gen) {
@@ -237,6 +248,8 @@ mv_main(int argc, char *argv[])
 		}
 	}
 	exit(rval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 int
@@ -251,10 +264,10 @@ do_move(char *from, char *to)
 	 * should be replaced.  Otherwise if file exists but isn't writable
 	 * make sure the user wants to clobber it.
 	 */
-	if (!fflg && !access(to, F_OK)) {
+	if (!fflg && !ios_system_access(to, F_OK)) {
 
 		/* prompt only if source exist */
-	        if (lstat(from, &sb) == -1) {
+	        if (ios_system_lstat(from, &sb) == -1) {
                 warn("%s", from);
 			return (1);
 		}
@@ -268,12 +281,12 @@ do_move(char *from, char *to)
 		} else if (iflg) {
 			(void)fprintf(thread_stderr, "overwrite %s? %s", to, YESNO);
 			ask = 1;
-		} else if (access(to, W_OK) && !stat(to, &sb)) {
+		} else if (ios_system_access(to, W_OK) && !ios_system_stat(to, &sb)) {
 			strmode(sb.st_mode, modep);
 			(void)fprintf(thread_stderr, "override %s%s%s/%s for %s? %s",
 			    modep + 1, modep[9] == ' ' ? "" : " ",
-			    user_from_uid(sb.st_uid, 0),
-			    group_from_gid(sb.st_gid, 0), to, YESNO);
+			    ios_system_user_from_uid(sb.st_uid, 0),
+			    ios_system_group_from_gid(sb.st_gid, 0), to, YESNO);
 			ask = 1;
 		}
 		if (ask) {
@@ -287,7 +300,7 @@ do_move(char *from, char *to)
 			}
 		}
 	}
-	if (!rename(from, to)) {
+	if (!ios_system_rename(from, to)) {
 		if (vflg)
 			fprintf(thread_stdout, "%s -> %s\n", from, to);
 		return (0);
@@ -298,11 +311,11 @@ do_move(char *from, char *to)
 		char path[PATH_MAX];
 
 		/* Can't mv(1) a mount point. */
-		if (realpath(from, path) == NULL) {
+		if (ios_system_realpath(from, path) == NULL) {
             warnx("cannot resolve %s: %s", from, path);
 			return (1);
 		}
-		if (!statfs(path, &sfs) && !strcmp(path, sfs.f_mntonname)) {
+		if (!ios_system_statfs(path, &sfs) && !strcmp(path, sfs.f_mntonname)) {
             warnx("cannot rename a mount point");
 			return (1);
 		}
@@ -316,7 +329,7 @@ do_move(char *from, char *to)
 	 * it's a regular file, do the copy internally; otherwise, use
 	 * cp and rm.
 	 */
-	if (lstat(from, &sb)) {
+	if (ios_system_lstat(from, &sb)) {
         warn("%s", from);
 		return (1);
 	}
@@ -328,13 +341,11 @@ int
 fastcopy(char *from, char *to, struct stat *sbp)
 {
 	struct timeval tval[2];
-	static u_int blen;
-	static char *bp;
 	mode_t oldmode;
 	ssize_t nread;
 	int from_fd, to_fd;
 
-	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
+	if ((from_fd = ios_system_open(from, O_RDONLY, 0)) < 0) {
         warn("%s", from);
 		return (1);
 	}
@@ -349,8 +360,8 @@ fastcopy(char *from, char *to, struct stat *sbp)
 		blen = sbp->st_blksize;
 	}
 	while ((to_fd =
-	    open(to, O_CREAT | O_EXCL | O_TRUNC | O_WRONLY, 0)) < 0) {
-		if (errno == EEXIST && unlink(to) == 0)
+	    ios_system_open(to, O_CREAT | O_EXCL | O_TRUNC | O_WRONLY, 0)) < 0) {
+		if (errno == EEXIST && ios_system_unlink(to) == 0)
 			continue;
         warn("%s", to);
 		(void)close(from_fd);
@@ -384,7 +395,7 @@ fastcopy(char *from, char *to, struct stat *sbp)
 		}
 	if (nread < 0) {
         warn("%s", from);
-err:		if (unlink(to))
+err:		if (ios_system_unlink(to))
                 warn("%s: remove", to);
 		(void)close(from_fd);
 		(void)close(to_fd);
@@ -427,7 +438,7 @@ err:		if (unlink(to))
 	tval[0].tv_sec = sbp->st_atime;
 	tval[1].tv_sec = sbp->st_mtime;
 	tval[0].tv_usec = tval[1].tv_usec = 0;
-	if (utimes(to, tval))
+	if (ios_system_utimes(to, tval))
         warn("%s: set times", to);
 
 	if (close(to_fd)) {
@@ -435,7 +446,7 @@ err:		if (unlink(to))
 		return (1);
 	}
 
-	if (unlink(from)) {
+	if (ios_system_unlink(from)) {
         warn("%s: remove", from);
 		return (1);
 	}

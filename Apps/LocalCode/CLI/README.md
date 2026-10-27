@@ -65,7 +65,7 @@ prefill chunk size follows the app's memory policy, and can be overridden with
 `--chunked-prefill-max-length`. `--no-deterministic` selects stochastic sampling.
 
 Both agents accept `--message` or `--prompt-file` (exactly one); `--prompt-file -`
-reads stdin. `--workspace` controls `/home` and ancestor skill discovery and must
+reads stdin. `--workspace` sets `HOME` (`~`) and ancestor skill discovery and must
 contain the project. Without it, the project is also the workspace. Both paths
 use the app's file tools, OSH/Python/Node/npm, Lean/Z3, project-memory editing,
 date/time, and web tools. Automatic memory injection is disabled for CLI turns.

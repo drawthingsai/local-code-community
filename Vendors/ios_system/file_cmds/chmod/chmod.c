@@ -365,7 +365,7 @@ apnoacl:
 			omode = (mode_t)val;
 			oct = 1;
 		} else {
-            if ((set = setmode(mode)) == NULL) {
+            if ((set = ios_system_setmode(mode)) == NULL) {
 				errx(1, "Invalid file mode: %s", mode);
             }
 			oct = 0;
@@ -373,7 +373,7 @@ apnoacl:
 #ifdef __APPLE__
 	}
 #endif /* __APPLE__*/
-    if ((ftsp = fts_open(++argv, fts_options | FTS_NOCHDIR, 0)) == NULL) {
+    if ((ftsp = ios_system_fts_open(++argv, fts_options | FTS_NOCHDIR, 0)) == NULL) {
 		err(1, "fts_open");
     }
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
@@ -383,7 +383,7 @@ apnoacl:
 				(void)fts_set(ftsp, p, FTS_SKIP);
 			break;
 		case FTS_DNR:			/* Warn, chmod, continue. */
-			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+			warnx("%s: %s", ios_system_fts_path(p), strerror(p->fts_errno));
 			rval = 1;
 			break;
 		case FTS_DP:			/* Already changed at FTS_D. */
@@ -392,7 +392,7 @@ apnoacl:
 			if (acloptflags & ACL_FLAG) /* don't need stat for -N */
 				break;
 		case FTS_ERR:			/* Warn, continue. */
-			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+			warnx("%s: %s", ios_system_fts_path(p), strerror(p->fts_errno));
 			rval = 1;
 			continue;
 		case FTS_SL:			/* Ignore. */
@@ -412,20 +412,20 @@ apnoacl:
 #ifdef __APPLE__
 /* If an ACL manipulation option was specified, manipulate */
 		if (acloptflags & ACL_FLAG)	{
-			if (0 != modify_file_acl(acloptflags, p->fts_accpath, acl_input, (int)aclpos, inheritance_level, !hflag))
+			if (0 != modify_file_acl(acloptflags, ios_system_fts_path(p), acl_input, (int)aclpos, inheritance_level, !hflag))
 				rval = 1;
 		}
 		else {
 #endif /* __APPLE__ */
-			newmode = oct ? omode : getmode(set, p->fts_statp->st_mode);
+			newmode = oct ? omode : ios_system_getmode(set, p->fts_statp->st_mode);
 			if ((newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
 				continue;
 			if ((*change_mode)(p->fts_accpath, newmode) && !chmod_fflag) {
-                warn("Unable to change file mode on %s", p->fts_path);
+                warn("Unable to change file mode on %s", ios_system_fts_path(p));
 				rval = 1;
 			} else {
 				if (vflag) {
-					(void)fprintf(thread_stdout, "%s", p->fts_accpath);
+					(void)fprintf(thread_stdout, "%s", ios_system_fts_path(p));
 
 					if (vflag > 1) {
 						char m1[12], m2[12];

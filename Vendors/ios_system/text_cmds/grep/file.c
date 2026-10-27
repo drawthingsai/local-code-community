@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD: src/usr.bin/grep/file.c,v 1.7 2011/10/11 22:27:23 gabor Exp 
 #endif
 
 #include "grep.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #define	MAXBUFSIZ	(32 * 1024)
 #define	LNBUFBUMP	80
@@ -264,7 +264,7 @@ grep_open(const char *path)
 		/* Processing stdin implies --line-buffered. */
 		lbflag = true;
 		f->fd = fileno(thread_stdin);
-	} else if ((f->fd = open(path, O_RDONLY)) == -1)
+	} else if ((f->fd = ios_system_open(path, O_RDONLY)) == -1)
 		goto error1;
 
 	if (filebehave == FILE_MMAP) {
@@ -285,7 +285,6 @@ grep_open(const char *path)
 			fsiz = st.st_size;
 			buffer = mmap(NULL, fsiz, PROT_READ, flags,
 			     f->fd, (off_t)0);
-            fprintf(thread_stderr, "Read buffer: %s\n", buffer);
 			if (buffer == MAP_FAILED)
 				filebehave = FILE_STDIO;
 			else {
@@ -299,8 +298,9 @@ grep_open(const char *path)
 	if ((buffer == NULL) || (buffer == MAP_FAILED))
 		buffer = grep_malloc(MAXBUFSIZ);
 
+	/* iOS: zlib closes the descriptor it reads; give it a copy of stdin. */
 	if (filebehave == FILE_GZIP &&
-	    (gzbufdesc = gzdopen(f->fd, "r")) == NULL)
+	    (gzbufdesc = gzdopen(path == NULL ? dup(f->fd) : f->fd, "r")) == NULL)
 		goto error2;
 
 #ifndef WITHOUT_BZIP2
@@ -320,7 +320,8 @@ grep_open(const char *path)
 	return (f);
 
 error2:
-	close(f->fd);
+	if (path != NULL)
+		close(f->fd);
 error1:
 	free(f);
 	return (NULL);
@@ -333,7 +334,15 @@ void
 grep_close(struct file *f)
 {
 
-	close(f->fd);
+	/*
+	 * iOS: never close the invocation's stdin; the caller owns it, and in a
+	 * shared process its descriptor number can be reused meanwhile.
+	 */
+	if (filebehave == FILE_GZIP && gzbufdesc != NULL) {
+		gzclose(gzbufdesc);	/* closes the descriptor it was given */
+		gzbufdesc = NULL;
+	} else if (f->fd != fileno(thread_stdin))
+		close(f->fd);
 
 	/* Reset read buffer and line buffer */
 	if (filebehave == FILE_MMAP) {

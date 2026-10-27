@@ -35,7 +35,7 @@ THIS SOFTWARE.
 #include <wchar.h>
 #include "awk.h"
 #include "awkgram.tab.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #define MAXLIN 22
 
@@ -1174,8 +1174,8 @@ static wchar_t wcadvance(int *outlen, const uschar **sp, int max) {
 static int cclex(void) {
 	int i, len;
 	wchar_t wc;
-	static wchar_t *buf = NULL;
-	static int bufc = 100;
+	static __thread wchar_t *buf = NULL;
+	static __thread int bufc = 100;
 	wchar_t *bp;
 
 	if (buf == NULL && (buf = malloc(bufc * sizeof(wchar_t))) == NULL)
@@ -1358,7 +1358,7 @@ int relex(void)		/* lexical analyzer for reparse */
 	int num, m;
 	bool commafound, digitfound;
 	const uschar *startreptok;
-	static int parens = 0;
+	static __thread int parens = 0;
 
 rescan:
 	starttok = prestr;

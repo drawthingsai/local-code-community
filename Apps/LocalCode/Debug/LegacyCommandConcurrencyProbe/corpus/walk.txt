@@ -1,0 +1,125 @@
+# find du chmod parity corpus
+find dir | sort
+find . | sort
+find dir other -type f | sort
+find ./dir -name '*.txt' | sort
+find "$PWD/dir" -name a.txt | sed "s|$PWD|PWD|"
+cd "$(pwd -P)" && find dir "$PWD/dir" -maxdepth 0 -print | sed "s|$PWD|PWD|"
+cd "$(pwd -P)" && find dir "$PWD/./dir" ./dir -maxdepth 0 -print | sed "s|$PWD|PWD|"
+find dir/ -maxdepth 1 | sort
+find dir// -maxdepth 1 | sort
+find . -maxdepth 1 -name . 
+find . -maxdepth 0
+find .. -maxdepth 1 -name fx
+find dir -path 'dir/sub/*' | sort
+find . -path './dir/s*' -prune -o -type f -print | sort
+find dir -regex '.*\.log'
+find -E dir -regex 'dir/(a|b)\..*' | sort
+find dir -iname 'A.TXT'
+find dir -type d | sort
+find dir -type l
+find -L dir -type l
+find . -lname '*a.txt'
+find dir -empty
+find . -empty | sort
+find dir -newer lines.txt | sort
+find dir -newer missing
+find . -samefile lines.txt
+find -L . -samefile lines.txt | sort
+find dir -name a.txt -ls | awk '{print $3, $NF}'
+find dir -name a.txt -print0 | od -c | head -2
+find dir -name a.txt -exec cat {} \;
+find dir -name '*.txt' -exec echo found {} + | tr ' ' '\n' | sort
+find dir -name a.txt -exec ls -l {} \; | awk '{print $NF}'
+find dir -type f -size -1k | sort
+find dir -depth | head -3
+find -s dir
+find -s . -maxdepth 1
+find -x dir -name c.txt
+find dir -mindepth 2 | sort
+find missing
+find dir missing other | sort
+find dir -perm -644 -type f | sort
+find dir -perm 644 -type f | sort
+find . -perm +111 -type f
+find . -perm u=rwx -type f
+find . -perm -u+x,g+x -type f
+find . -perm bogus
+find dir -user "$(id -un)" -name a.txt
+find dir -nouser
+find dir -nogroup
+find dir -group nosuchgroup
+find dir -user nosuchuser
+find dir -delete
+find dir -name a.txt -o -name b.log | sort
+find dir \( -name a.txt -o -name b.log \) -print | sort
+find dir ! -name '*.txt' | sort
+find dir -name
+find dir -bogus
+find dir -newermt '2023-01-01' | sort
+find dir -newermt 'garbage'
+find dir -fstype apfs -name a.txt
+find dir -name '*.txt' | xargs wc -l | tail -1
+find . -name 'spaces*' -print0 | xargs -0 cat
+du dir | sort -k2
+du -a dir | sort -k2
+du -s dir other
+du -sh dir
+du -sk dir
+du -c dir other | tail -1
+du -d 1 dir | sort -k2
+du -d 0 .
+du "$PWD/dir/sub" | sed "s|$PWD|PWD|" | sort -k2
+du ./dir/sub/ | sort -k2
+du -I '*.log' -a dir | sort -k2
+du -I sub -a dir | sort -k2
+du -A -a dir/sub | sort -k2
+du missing
+du dir missing | sort -k2
+du -L dirlink | sort -k2
+du -H dirlink | sort -k2
+du dirlink
+du -x dir | tail -1
+du -t 1 -a dir | sort -k2
+du -g dir/a.txt
+du -m dir/a.txt
+du lines.txt link.txt
+BLOCKSIZE=512 du -a dir/sub/deep
+du -z
+chmod 600 lines.txt; ls -l lines.txt | cut -c1-10
+chmod u+x,go-r lines.txt; ls -l lines.txt | cut -c1-10
+chmod a=r lines.txt; ls -l lines.txt | cut -c1-10
+chmod +t dir; ls -ld dir | cut -c1-10
+chmod g+s dir; ls -ld dir | cut -c1-10
+chmod o+w,+X exec.sh lines.txt; ls -l exec.sh lines.txt | cut -c1-10
+chmod -R go-rwx dir; ls -lR dir | cut -c1-10 | sort | uniq -c
+chmod -Rv 700 dir | sort
+chmod -v 644 lines.txt
+chmod -vv 640 lines.txt
+chmod -v 644 ./dir/a.txt "$PWD/other/x.txt" | sed "s|$PWD|PWD|"
+chmod 644 missing
+chmod 644 lines.txt missing words.txt; ls -l words.txt | cut -c1-10
+chmod bogus lines.txt
+chmod 999 lines.txt
+chmod 77777 lines.txt
+chmod
+chmod 644
+chmod -h 600 link.txt; ls -l lines.txt | cut -c1-10
+chmod 600 link.txt; ls -l lines.txt | cut -c1-10
+chmod -R 700 dirlink; ls -ld dir | cut -c1-10
+chmod -RH 700 dirlink; ls -ld dir | cut -c1-10
+chmod -RL 700 dirlink; ls -l dir | head -2 | tail -1 | cut -c1-10
+chmod u=g lines.txt; ls -l lines.txt | cut -c1-10
+chmod go=u-w lines.txt; ls -l lines.txt | cut -c1-10
+chmod =rw,+X dir; ls -ld dir | cut -c1-10
+umask 077; chmod +r lines.txt; ls -l lines.txt | cut -c1-10
+umask 022; chmod +w ro.txt; ls -l ro.txt | cut -c1-10
+umask 000; chmod =rw lines.txt; ls -l lines.txt | cut -c1-10
+chmod +a "everyone deny delete" lines.txt; ls -le lines.txt | tail -1
+chmod +a "nosuchuser123 allow read" lines.txt
+chmod -N lines.txt; ls -le lines.txt | wc -l
+chmod +a "everyone deny delete" lines.txt; chmod -a# 0 lines.txt; ls -le lines.txt | wc -l
+chmod -a# 5 lines.txt
+chmod -E lines.txt < /dev/null; echo $?
+chmod -C lines.txt; echo $?
+chmod -x lines.txt

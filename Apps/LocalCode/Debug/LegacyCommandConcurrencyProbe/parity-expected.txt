@@ -1,0 +1,39 @@
+# Commands whose output is meant to differ from the pre-conversion baseline:
+# command, a tab, and the reason. parity.py --expected reports these apart from
+# unexpected differences, and flags entries that no longer differ.
+sed -n l mixed.bin	as /usr/bin/sed: in the C locale, l escapes bytes that are not printable ASCII (the baseline printed them raw)
+sed -n l unicode.txt	as /usr/bin/sed: in the C locale, l escapes bytes that are not printable ASCII (the baseline printed them raw)
+sed -i '' 1q lines.txt; wc -l lines.txt	sed -i no longer leaves its temporary file (.!pid!lines.txt) behind when q ends the script
+sed --bad words.txt	as /usr/bin/sed: --bad is an illegal option (the baseline ran with it and wrote ords.txt)
+uniq dups.txt out.txt; cat out.txt	uniq writes its output file (the baseline wrote nothing to it)
+BLOCKSIZE=1k ls -s long.txt	ls reads BLOCKSIZE from the session environment (the baseline read the process environment)
+BLOCKSIZE=1m ls -ls long.txt	ls reads BLOCKSIZE from the session environment (the baseline read the process environment)
+BLOCKSIZE=bogus ls -s long.txt	as /bin/ls: an unknown BLOCKSIZE is reported
+/usr/bin/echo 'trailing\c'; /usr/bin/echo next	as /bin/echo: \c ends the output where it appears
+LC_ALL=fr_FR.UTF-8 date -r 1704164640 '+%A %B'	date uses the session's LC_ALL (the baseline used the process locale)
+env -i A=1 B=2 /usr/bin/printenv A	env -i clears the session environment (the baseline crashed replacing the process environment)
+env -i /usr/bin/printenv | wc -l	env -i clears the session environment (the baseline crashed replacing the process environment)
+env - A=1 printenv A	env - clears the session environment (the baseline crashed replacing the process environment)
+env -v -i A=1 printenv A	env -i clears the session environment (the baseline crashed replacing the process environment)
+env -u PATH printenv PATH; echo $?	env -u removes the variable for the utility (the baseline left it set)
+env FOO=bar printenv FOO	the utility sees env's assignments (the baseline ran it without them)
+env -S 'A=1 B=2 printenv B'	env -S splits its string into assignments and the utility (the baseline failed)
+env -P /nonexistent nosuchcmd	OSH no longer adds "Command 'env' not found" after env's own error
+env nosuchcommand	OSH no longer adds "Command 'env' not found" after env's own error
+id -G	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+id -G root	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+id -Gn	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+id -Gn root | wc -w	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+id -p | head -2	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+id "$(id -un)" | cut -d' ' -f1	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+id | tr ',' '\n' | head -3	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+id 0 | cut -d' ' -f1	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+id root | cut -d' ' -f1,2	id reads the group database with private caches (the baseline crashed with SIGSEGV)
+printf 'lines.txt\nmissing\n' | xargs cat > /dev/null; echo $?	as /usr/bin/xargs: exits 1 when the utility fails (the baseline exited 0)
+printf 'x\n' | xargs false; echo $?	as /usr/bin/xargs: exits 1 when the utility fails (the baseline exited 0)
+printf 'x\n' | xargs nosuchcommand; echo $?	as /usr/bin/xargs: exits 127 when the utility is not found (the baseline exited 0)
+printf 'x\n' | xargs sh -c 'exit 255'; echo $?	as /usr/bin/xargs: exits 1 when the utility exits 255 (the baseline exited 0)
+printf 'a\nb\n' | xargs -o -I{} echo {}	xargs -o gives the utility xargs's own stdin; the app has no /dev/tty for it to open (the baseline failed)
+awk 'BEGIN {r = system("exit 3"); print r}'	system() returns the shell's status (the baseline waited forever for a pid that never ran)
+awk 'BEGIN {system("echo from system"); print "done"}'	system() returns after the shell (the baseline waited forever for a pid that never ran)
+awk 'BEGIN {print "b\na\nc" | "sort"; close("sort"); print "after"}'	close() returns once sort has written its output (the baseline returned at once and printed "after" first)

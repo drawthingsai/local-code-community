@@ -63,11 +63,28 @@ __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 #include <string.h>
 #include <unistd.h>
 #include <stddef.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static __thread int bflag, eflag, nflag, sflag, tflag, vflag;
 static __thread int rval;
 const __thread char *filename;
+static __thread char *buf;	/* raw_cat buffer */
+static __thread int open_fd = -1;	/* iOS: closed by cat_cleanup on early exit */
+static __thread FILE *open_fp;
+
+static void cat_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (open_fp != NULL)
+		fclose(open_fp);
+	else if (open_fd >= 0)
+		close(open_fd);
+	open_fp = NULL;
+	open_fd = -1;
+	free(buf);
+	buf = NULL;
+	ios_system_support_cleanup(unused);
+}
 
 static void usage(void);
 static void scanfiles(char *argv[], int cooked);
@@ -83,10 +100,9 @@ cat_main(int argc, char *argv[])
 {
 	int ch;
 
-	setlocale(LC_CTYPE, "");
-    // Initialize all flags
-    bflag = eflag = nflag = sflag = tflag = vflag = 0; rval = 0;
-    optind = 1; opterr = 1; optreset = 1;
+	pthread_cleanup_push(cat_cleanup, NULL);
+	ios_system_support_init(argv);
+	/* Locale is owned by ios_system_support. */
 
 	while ((ch = getopt(argc, argv, "benstuv")) != -1)
 		switch (ch) {
@@ -121,9 +137,9 @@ cat_main(int argc, char *argv[])
 	else
 		scanfiles(argv, 0);
 	// if (fclose(stdout)) err(1, "stdout");
-    optarg = NULL; opterr = 0; optind = 0;
     exit(rval);
-	/* NOTREACHED */
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void
@@ -149,7 +165,7 @@ scanfiles(char *argv[], int cooked)
 			fd = fileno(thread_stdin);
 		} else {
 			filename = path;
-			fd = open(path, O_RDONLY);
+			fd = ios_system_open(path, O_RDONLY);
 #ifndef NO_UDOM_SUPPORT
 			if (fd < 0 && errno == EOPNOTSUPP)
 				fd = udom_open(path, O_RDONLY);
@@ -162,14 +178,18 @@ scanfiles(char *argv[], int cooked)
 			if (fd == fileno(thread_stdin))
 				cook_cat(thread_stdin);
 			else {
-				fp = fdopen(fd, "r");
+				fp = open_fp = fdopen(fd, "r");
 				cook_cat(fp);
 				fclose(fp);
+				open_fp = NULL;
 			}
 		} else {
+			if (fd != fileno(thread_stdin))
+				open_fd = fd;
 			raw_cat(fd);
 			if (fd != fileno(thread_stdin))
 				close(fd);
+			open_fd = -1;
 		}
 		if (path == NULL)
 			break;
@@ -235,6 +255,7 @@ cook_cat(FILE *fp)
 		clearerr(fp);
 	}
     if (ferror(thread_stdout)) {
+		ios_system_stop_on_broken_pipe(thread_stdout);
 		err(1, "stdout");
     }
 }
@@ -242,10 +263,9 @@ cook_cat(FILE *fp)
 static void
 raw_cat(int rfd)
 {
-	int off, wfd;
-	ssize_t nr, nw;
+	int wfd;
+	ssize_t nr;
 	static __thread size_t bsize;
-	static __thread char *buf = NULL;
 	// struct stat sbuf;
 
 	wfd = fileno(thread_stdout);
@@ -257,16 +277,12 @@ raw_cat(int rfd)
             err(1, "buffer");
         }
 	}
+	// We can't write to the fd of stdout, so we write to stdout
 	while ((nr = read(rfd, buf, bsize)) > 0)
-        for (off = 0; nr; nr -= nw, off += nw) {
-            // We can't write to the fd of stdout, so we write to stdout
-            nw = 0; // number of bytes written
-            for (int i = 0; i < nr; i++) {
-                fputc(*(buf+off+nw), thread_stdout);
-                nw += 1;
-            }
-			// if ((nw = write(wfd, buf + off, (size_t)nr)) < 0) err(1, "stdout");
-        }
+		if (fwrite(buf, 1, (size_t)nr, thread_stdout) != (size_t)nr) {
+			ios_system_stop_on_broken_pipe(thread_stdout);
+			err(1, "stdout");
+		}
 	if (nr < 0) {
         warn("%s", filename);
 		rval = 1;
@@ -284,7 +300,11 @@ udom_open(const char *path, int flags)
 	int fd;
 	unsigned int len;
 
+	char resolved[PATH_MAX];
+
 	bzero(&sou, sizeof(sou));
+	if ((path = ios_system_session_path(path, resolved)) == NULL)
+		return (-1);
 
 	/*
 	 * Construct the unix domain socket address and attempt to connect

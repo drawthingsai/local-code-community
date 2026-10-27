@@ -1938,7 +1938,9 @@
 
 /* Define to a Set Process Title type if your system is supported by
    bsd-setproctitle.c */
-#define SPT_TYPE SPT_REUSEARGV
+/* iOS: no process title. SPT_REUSEARGV replaced the process-wide environ on
+   every command (compat_init_setproctitle), under every other session. */
+#define SPT_TYPE SPT_NONE
 
 /* Define if sshd somehow reacquires a controlling TTY after setsid() */
 /* #undef SSHD_ACQUIRES_CTTY */

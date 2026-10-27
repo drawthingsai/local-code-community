@@ -2,6 +2,7 @@ package(default_visibility = ["//visibility:public"])
 
 LIBGIT2_COPTS = [
     "-DLIBGIT2_NO_FEATURES_H",
+    "-DGIT_IOS_SYSTEM_SESSION=1",
     "-DGIT_THREADS=1",
     "-DGIT_ARCH_64=1",
     "-DGIT_USE_NSEC=1",

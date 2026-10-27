@@ -2192,12 +2192,14 @@ int readlocal(localz, z)
 
       /* Ask for directory with split.  Updates in_path */
       if (ask_for_split_read_path(start_disk) != ZE_OK) {
+        free(split_path);
         return ZE_ABORT;
       }
       free(split_path);
       split_path = get_in_split_path(in_path, start_disk);
     }
   }
+  free(split_path);
 #endif
 
   /* For utilities assume archive is on one disk for now */
@@ -2220,6 +2222,7 @@ int readlocal(localz, z)
     int f = ferror(in_file);
     zipwarn("reading local entry: ", infozip_strerror(errno));
     fclose(in_file);
+    in_file = NULL;
     return f ? ZE_READ : ZE_EOF;
   }
 
@@ -2243,6 +2246,7 @@ int readlocal(localz, z)
   if ((locz = (struct zlist far *)farmalloc(sizeof(struct zlist))) == NULL) {
     zipwarn("reading entry", "");
     fclose(in_file);
+    in_file = NULL;
     return ZE_MEM;
   }
 
@@ -6048,22 +6052,28 @@ int zipcopy(z)
         /* could not open split */
 
         if (!noisy) {
-          ZIPERR(ZE_OPEN, split_path);
+          /* errbuf carries the name past the free */
+          snprintf(errbuf, sizeof(errbuf), "%s", split_path);
+          free(split_path);
+          ZIPERR(ZE_OPEN, errbuf);
         }
 
         /* Ask for directory with split.  Updates global in_path */
         r = ask_for_split_read_path(start_disk);
         if (r == ZE_ABORT) {
           /* user abort */
+          free(split_path);
           return ZE_ABORT;
         } else if ((fix == 1 || fix == 2) && r == ZE_FORM) {
           /* user asks to skip this disk */
+          free(split_path);
           return ZE_FORM;
         }
         free(split_path);
         split_path = get_in_split_path(in_path, start_disk);
       }
     }
+    free(split_path);
 
     if (zfseeko(in_file, start_offset, SEEK_SET) != 0) {
       fclose(in_file);
@@ -6084,8 +6094,10 @@ int zipcopy(z)
   if (fread(buf, LOCHEAD, 1, in_file) != 1) {
     int f = ferror(in_file);
     zipwarn("reading local entry: ", infozip_strerror(errno));
-    if (fix != 2)
+    if (fix != 2) {
       fclose(in_file);
+      in_file = NULL;
+    }
     return f ? ZE_READ : ZE_EOF;
   }
 
@@ -6108,8 +6120,10 @@ int zipcopy(z)
 
   if ((localz = (struct zlist far *)farmalloc(sizeof(struct zlist))) == NULL) {
     zipwarn("reading entry", "");
-    if (fix != 2)
+    if (fix != 2) {
       fclose(in_file);
+      in_file = NULL;
+    }
     return ZE_MEM;
   }
 

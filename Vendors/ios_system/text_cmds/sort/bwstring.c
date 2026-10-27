@@ -40,12 +40,12 @@ __FBSDID("$FreeBSD: head/usr.bin/sort/bwstring.c 298089 2016-04-15 22:31:22Z pfg
 
 #include "bwstring.h"
 #include "sort.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-bool byte_sort;
+__thread bool byte_sort;
 
-static wchar_t **wmonths;
-static unsigned char **cmonths;
+static __thread wchar_t **wmonths;
+static __thread unsigned char **cmonths;
 
 /* initialise months */
 
@@ -415,6 +415,15 @@ bwsnocpy(struct bwstring *dst, const struct bwstring *src, size_t offset,
  * The output is ended either with '\n' (nl == true)
  * or '\0' (nl == false).
  */
+/* iOS: a closed pipeline reports EPIPE; stop as SIGPIPE would. */
+static void
+output_failed(FILE *f)
+{
+
+	ios_system_stop_on_broken_pipe(f);
+	err(2, NULL);
+}
+
 size_t
 bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 {
@@ -426,11 +435,11 @@ bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 			bws->data.cstr[len] = '\n';
 
 			if (fwrite(bws->data.cstr, len + 1, 1, f) < 1)
-				err(2, NULL);
+				output_failed(f);
 
 			bws->data.cstr[len] = '\0';
 		} else if (fwrite(bws->data.cstr, len + 1, 1, f) < 1)
-			err(2, NULL);
+			output_failed(f);
 
 		return (len + 1);
 
@@ -449,7 +458,7 @@ bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 				nums = fwprintf(f, L"%lc", *s);
 
 				if (nums != 1)
-					err(2, NULL);
+					output_failed(f);
 				++printed;
 			} else {
 				int nums;
@@ -457,11 +466,12 @@ bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 				nums = fwprintf(f, L"%ls", s);
 
 				if (nums < 1)
-					err(2, NULL);
+					output_failed(f);
 				printed += nums;
 			}
 		}
-		fwprintf(f, L"%lc", eols);
+		if (fwprintf(f, L"%lc", eols) < 1)
+			output_failed(f);
 		return (printed + 1);
 	}
 }

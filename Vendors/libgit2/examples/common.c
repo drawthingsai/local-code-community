@@ -180,7 +180,7 @@ void get_repopath_to(char **out_path, const char *target, git_repository *repo)
 void get_relpath_to(char **out_path, const char *target_path, git_repository *repo)
 {
 	const char *repo_path = repo_base_path(repo);
-	char *program_path = getcwd(NULL, 0);
+	char *program_path = lg2_getcwd();
 
 	const char *target_abspath = NULL;
 	char *target_abspath_builder = NULL;
@@ -341,7 +341,9 @@ static int ask_for_ssh_key(char **privkey, const char *suggested_keys_directory)
 	int listing_failure = 0;
 
 #ifndef _WIN32
-	int dir_fd = open(suggested_keys_directory, O_DIRECTORY | O_RDONLY);
+	char keys_directory[PATH_MAX];
+	const char *keys_path = lg2_session_path(suggested_keys_directory, keys_directory);
+	int dir_fd = keys_path != NULL ? open(keys_path, O_DIRECTORY | O_RDONLY) : -1;
 	DIR *dir = NULL;
 
 	if (dir_fd != -1) {
@@ -959,6 +961,29 @@ void handle_signature_create_error(int source_err)
 	}
 }
 
+extern char *ios_getenv(const char *name);
+
+char *lg2_getcwd(void)
+{
+	const char *directory = ios_getenv("PWD");
+	return directory != NULL && directory[0] == '/' ? strdup(directory) : getcwd(NULL, 0);
+}
+
+const char *lg2_session_path(const char *path, char *buffer)
+{
+	const char *directory = ios_getenv("PWD");
+	int length;
+
+	if (path[0] == '/' || path[0] == '\0' || directory == NULL || directory[0] != '/')
+		return path;
+	length = snprintf(buffer, PATH_MAX, "%s/%s", directory, path);
+	if (length < 0 || length >= PATH_MAX) {
+		errno = ENAMETOOLONG;
+		return NULL;
+	}
+	return buffer;
+}
+
 char *read_file(const char *path)
 {
 	ssize_t total = 0;
@@ -966,7 +991,9 @@ char *read_file(const char *path)
 	struct stat st;
 	int fd = -1;
 
-	if ((fd = open(path, O_RDONLY)) < 0 || fstat(fd, &st) < 0)
+	char resolved[PATH_MAX];
+	if ((path = lg2_session_path(path, resolved)) == NULL ||
+	    (fd = open(path, O_RDONLY)) < 0 || fstat(fd, &st) < 0)
 		goto out;
 
 	if ((buf = malloc(st.st_size + 1)) == NULL)

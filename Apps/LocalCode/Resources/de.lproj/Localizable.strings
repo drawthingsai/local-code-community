@@ -2807,3 +2807,7 @@
 "prevent_sleep_while_working_ios_detail" = "Hält den Bildschirm eingeschaltet, während Agenten arbeiten oder Modelle heruntergeladen werden, damit sich dieses Gerät nicht sperrt und sie unterbricht.";
 "steer" = "Steuern";
 "check_for_updates_dot" = "Nach Updates suchen...";
+"remove_download_dot" = "Download entfernen...";
+"remove_download" = "Download entfernen";
+"remove_download_detail" = "%1$@ wird von diesem Gerät gelöscht, wodurch %2$@ frei werden. Sie können das Modell jederzeit erneut herunterladen.";
+"remove" = "Entfernen";

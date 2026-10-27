@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD: src/bin/ls/util.c,v 1.38 2005/06/03 11:05:58 dd Exp $");
 #include "ls.h"
 #include "extern.h"
 #include <TargetConditionals.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 int
 prn_normal(const char *s)

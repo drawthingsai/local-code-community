@@ -318,7 +318,7 @@ main(int argc, char *argv[])
 	}
 
 	if (blocksize == 0)
-		(void)getbsize(&notused, &blocksize);
+		(void)ios_system_getbsize(&notused, &blocksize);
 
 	if (!Aflag) {
 		cblocksize /= DEV_BSIZE;
@@ -334,7 +334,7 @@ main(int argc, char *argv[])
 
 	/* Cancellation is owned by ios_system; do not install process handlers. */
 
-	if ((fts = fts_open(argv, ftsoptions | FTS_NOCHDIR, NULL)) == NULL)
+	if ((fts = ios_system_fts_open(argv, ftsoptions | FTS_NOCHDIR, NULL)) == NULL)
 		err(1, "fts_open");
 
 	while ((void)(errno = 0), (p = fts_read(fts)) != NULL) {
@@ -357,32 +357,32 @@ main(int argc, char *argv[])
 			    total >= threshold : total <= threshold)) {
 				if (hflag > 0) {
 					prthumanval(COMPAT_FTS_BIGNUM(p));
-					(void)printf("\t%s\n", p->fts_path);
+					(void)printf("\t%s\n", ios_system_fts_path(p));
 				} else {
 					(void)printf("%jd\t%s\n",
 					    (intmax_t)howmany(COMPAT_FTS_BIGNUM(p) *
 					    cblocksize, blocksize),
-					    p->fts_path);
+					    ios_system_fts_path(p));
 				}
 			}
 			break;
 		case FTS_DC:			/* Ignore. */
 			if (COMPAT_MODE("bin/du", "unix2003")) {
-				errx(1, "Can't follow symlink cycle from %s to %s", p->fts_path, p->fts_cycle->fts_path);
+				errx(1, "Can't follow symlink cycle from %s to %s", ios_system_fts_path(p), ios_system_fts_path(p->fts_cycle));
 			}
 			break;
 		case FTS_DNR:			/* Warn, continue. */
 		case FTS_ERR:
 		case FTS_NS:
-			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+			warnx("%s: %s", ios_system_fts_path(p), strerror(p->fts_errno));
 			rval = 1;
 			break;
 		case FTS_SLNONE:
 			if (COMPAT_MODE("bin/du", "unix2003")) {
 				struct stat sb;
-				int rc = ios_system_stat(p->fts_path, &sb);
+				int rc = stat(p->fts_accpath, &sb);
 				if (rc < 0 && errno == ELOOP) {
-					errx(1, "Too many symlinks at %s", p->fts_path);
+					errx(1, "Too many symlinks at %s", ios_system_fts_path(p));
 				}
 			}
 		default:
@@ -402,12 +402,12 @@ main(int argc, char *argv[])
 			    size >= threshold : size <= threshold)) {
 				if (hflag > 0) {
 					prthumanval(curblocks);
-					(void)printf("\t%s\n", p->fts_path);
+					(void)printf("\t%s\n", ios_system_fts_path(p));
 				} else {
 					(void)printf("%jd\t%s\n",
 					    (intmax_t)howmany(curblocks *
 					    cblocksize, blocksize),
-					    p->fts_path);
+					    ios_system_fts_path(p));
 				}
 			}
 
@@ -767,7 +767,7 @@ ignorep(FTSENT *ent)
 	if (nodumpflag && (ent->fts_statp->st_flags & UF_NODUMP))
 		return 1;
 	SLIST_FOREACH(ign, &ignores, next)
-		if (fnmatch(ign->mask, ent->fts_name, 0) != FNM_NOMATCH)
+		if (fnmatch(ign->mask, ios_system_fts_name(ent), 0) != FNM_NOMATCH)
 			return 1;
 	return 0;
 }

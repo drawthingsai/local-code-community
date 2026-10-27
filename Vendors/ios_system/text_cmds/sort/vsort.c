@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD: head/usr.bin/sort/vsort.c 281132 2015-04-06 02:35:55Z pfg $"
 
 #include "sort.h"
 #include "vsort.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static inline bool
 isdigit_clocale(wchar_t c)

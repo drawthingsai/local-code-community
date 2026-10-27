@@ -58,7 +58,7 @@ __used static const char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static int	rw(char *, struct stat *, int);
 static void	stime_arg1(char *, struct timeval *);
@@ -76,13 +76,14 @@ touch_main(int argc, char *argv[])
 	int (*utimes_f)(const char *, const struct timeval *);
 	int Aflag, aflag, cflag, fflag, mflag, ch, fd, len, rval, timeset;
 	char *p;
-	char *myname;
+	char *myname, namebuf[PATH_MAX];
 
-	myname = basename(argv[0]);
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
+	myname = basename_r(argv[0], namebuf);
 	Aflag = aflag = cflag = fflag = mflag = timeset = 0;
-    optind = 1; opterr = 1; optreset = 1;
-	stat_f = stat;
-	utimes_f = utimes;
+	stat_f = ios_system_stat;
+	utimes_f = ios_system_utimes;
     if (gettimeofday(&tv[0], NULL)) {
 		err(1, "gettimeofday");
     }
@@ -103,8 +104,8 @@ touch_main(int argc, char *argv[])
 			break;
 		case 'h':
 			cflag = 1;
-			stat_f = lstat;
-			utimes_f = lutimes;
+			stat_f = ios_system_lstat;
+			utimes_f = ios_system_lutimes;
 			break;
 		case 'm':
 			mflag = 1;
@@ -174,7 +175,7 @@ touch_main(int argc, char *argv[])
 			}
 			if (!cflag) {
 				/* Create the file. */
-				fd = open(*argv,
+				fd = ios_system_open(*argv,
 				    O_WRONLY | O_CREAT, DEFFILEMODE);
 				if (fd == -1 || fstat(fd, &sb) || close(fd)) {
 					rval = 1;
@@ -239,6 +240,8 @@ touch_main(int argc, char *argv[])
 		}
 	}
 	exit(rval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 #define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
@@ -247,12 +250,12 @@ void
 stime_arg1(char *arg, struct timeval *tvp)
 {
 	time_t now;
-	struct tm *t;
+	struct tm *t, tm;
 	int yearset;
 	char *p;
 					/* Start with the current time. */
 	now = tvp[0].tv_sec;
-    if ((t = localtime(&now)) == NULL) {
+    if ((t = localtime_r(&now, &tm)) == NULL) {
 		err(1, "localtime");
     }
 					/* [[CC]YY]MMDDhhmm[.SS] */
@@ -309,10 +312,10 @@ void
 stime_arg2(char *arg, int year, struct timeval *tvp)
 {
 	time_t now;
-	struct tm *t;
+	struct tm *t, tm;
 					/* Start with the current time. */
 	now = tvp[0].tv_sec;
-    if ((t = localtime(&now)) == NULL) {
+    if ((t = localtime_r(&now, &tm)) == NULL) {
 		err(1, "localtime");
     }
 
@@ -372,7 +375,7 @@ stime_file(char *fname, struct timeval *tvp)
 {
 	struct stat sb;
 
-    if (stat(fname, &sb)) {
+    if (ios_system_stat(fname, &sb)) {
 		err(1, "%s", fname);
     }
 	TIMESPEC_TO_TIMEVAL(tvp, &sb.st_atimespec);
@@ -392,10 +395,10 @@ rw(char *fname, struct stat *sbp, int force)
 	}
 
 	needed_chmod = rval = 0;
-	if ((fd = open(fname, O_RDWR, 0)) == -1) {
-		if (!force || chmod(fname, DEFFILEMODE))
+	if ((fd = ios_system_open(fname, O_RDWR, 0)) == -1) {
+		if (!force || ios_system_chmod(fname, DEFFILEMODE))
 			goto err;
-		if ((fd = open(fname, O_RDWR, 0)) == -1)
+		if ((fd = ios_system_open(fname, O_RDWR, 0)) == -1)
 			goto err;
 		needed_chmod = 1;
 	}
@@ -421,7 +424,7 @@ err:			rval = 1;
 		rval = 1;
 		warn("%s", fname);
 	}
-	if (needed_chmod && chmod(fname, sbp->st_mode) && rval != 1) {
+	if (needed_chmod && ios_system_chmod(fname, sbp->st_mode) && rval != 1) {
 		rval = 1;
         warn("%s: permissions modified", fname);
 	}

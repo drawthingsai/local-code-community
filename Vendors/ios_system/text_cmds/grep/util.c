@@ -59,9 +59,10 @@ __FBSDID("$FreeBSD: src/usr.bin/grep/util.c,v 1.19 2011/12/07 12:25:28 gabor Exp
 #include "fastmatch.h"
 #endif
 #include "grep.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static __thread int	 linesqueued;
+__thread struct file	*current_file;	/* iOS: closed by grep_cleanup on early exit */
 static int	 procline(struct str *l, int);
 
 bool
@@ -136,7 +137,7 @@ grep_tree(char **argv)
 
 	fts_flags |= FTS_NOSTAT | FTS_NOCHDIR;
 
-    if (!(fts = fts_open(argv, fts_flags, NULL))) {
+    if (!(fts = ios_system_fts_open(argv, fts_flags, NULL))) {
 		err(2, "fts_open");
     }
 	while ((p = fts_read(fts)) != NULL) {
@@ -146,29 +147,31 @@ grep_tree(char **argv)
 		case FTS_ERR:
 			file_err = true;
 			if(!sflag)
-                warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+                warnx("%s: %s", ios_system_fts_path(p), strerror(p->fts_errno));
 			break;
 		case FTS_D:
 			/* FALLTHROUGH */
 		case FTS_DP:
 			if (dexclude || dinclude)
 				if (!dir_matching(p->fts_name) ||
-				    !dir_matching(p->fts_path))
+				    !dir_matching(ios_system_fts_path(p)))
 					fts_set(fts, p, FTS_SKIP);
 			break;
 		case FTS_DC:
 			/* Print a warning for recursive directory loop */
 			warnx("warning: %s: recursive directory loop",
-				p->fts_path);
+				ios_system_fts_path(p));
 			break;
 		default:
 			/* Check for file exclusion/inclusion */
 			ok = true;
+			// iOS: names as the user wrote them; procfile opens
+			// them from the session directory.
 			if (fexclude || finclude)
-				ok &= file_matching(p->fts_path);
+				ok &= file_matching(ios_system_fts_path(p));
 
 			if (ok)
-				c += procfile(p->fts_path);
+				c += procfile(ios_system_fts_path(p));
 			break;
 		}
 	}
@@ -201,9 +204,9 @@ procfile(const char *fn)
 		}
 #endif
 		fn = label != NULL ? label : getstr(1);
-		f = grep_open(NULL);
+		f = current_file = grep_open(NULL);
 	} else {
-		if (!stat(fn, &sb)) {
+		if (!ios_system_stat(fn, &sb)) {
 			/* Check if we need to process the file */
 			s = sb.st_mode & S_IFMT;
 			if (s == S_IFDIR && dirbehave == DIR_SKIP)
@@ -212,7 +215,7 @@ procfile(const char *fn)
 				|| s == S_IFSOCK) && devbehave == DEV_SKIP)
 					return (0);
 		}
-		f = grep_open(fn);
+		f = current_file = grep_open(fn);
 	}
 	if (f == NULL) {
 		file_err = true;
@@ -244,6 +247,7 @@ procfile(const char *fn)
 		/* Return if we need to skip a binary file */
 		if (f->binary && binbehave == BINFILE_SKIP) {
 			grep_close(f);
+			current_file = NULL;
 			free(ln.file);
 			free(f);
 			return (0);
@@ -260,6 +264,7 @@ procfile(const char *fn)
 	if (Bflag > 0)
 		clearqueue();
 	grep_close(f);
+	current_file = NULL;
 
 #ifdef __APPLE__
 	/* 10680370 */
@@ -305,6 +310,50 @@ mbtowc_reverse(wchar_t *pwc, const char *s, size_t n)
 
 #define iswword(x)	(iswalnum((x)) || (x) == L'_')
 
+#ifdef __APPLE__
+/*
+ * iOS: upstream matches binary lines by switching the process locale to "C"
+ * around regexec(); its regex refers to the process locale, so both the
+ * compiled pattern and the match see "C". Without touching the process,
+ * use copies compiled in "C" and match them with this thread in "C".
+ */
+static __thread regex_t	*r_pattern_c;
+static __thread unsigned int compiled_patterns_c;
+
+static locale_t
+binary_locale(void)
+{
+	locale_t c_locale = ios_system_locale_with(LC_ALL_MASK, "C");
+
+	if (c_locale == NULL)
+		return (NULL);
+	if (r_pattern_c == NULL)
+		r_pattern_c = grep_calloc(patterns, sizeof(*r_pattern_c));
+	// regcomp_l() does not give the same result; compile in the thread's "C".
+	locale_t previous = uselocale(c_locale);
+	while (compiled_patterns_c < patterns) {
+		if (regcomp(&r_pattern_c[compiled_patterns_c],
+		    pattern[compiled_patterns_c].pat, cflags) != 0)
+			break;
+		++compiled_patterns_c;
+	}
+	uselocale(previous);
+	return (compiled_patterns_c == patterns ? c_locale : NULL);
+}
+
+void
+release_binary_patterns(void)
+{
+
+	for (unsigned int i = 0; i < compiled_patterns_c; ++i)
+		regfree(&r_pattern_c[i]);
+	compiled_patterns_c = 0;
+	r_pattern_c = NULL;
+}
+#endif
+
+
+
 /*
  * Processes a line comparing it with the specified patterns.  Each pattern
  * is looped to be compared along with the full string, saving each and every
@@ -345,25 +394,30 @@ procline(struct str *l, int nottext)
 
 		/* Loop to compare with all the patterns */
 		for (i = 0; i < patterns; i++) {
-#ifdef __APPLE__
-			/* 10462853: Treat binary files as binary. */
-			if (nottext) {
-				setlocale(LC_ALL, "C");
-			}
-#endif /* __APPLE__ */
 #ifndef WITHOUT_FASTMATCH
 			if (fg_pattern[i].pattern)
 				r = fastexec(&fg_pattern[i],
 				    l->dat, 1, &pmatch, eflags);
 			else
 #endif
+			{
+#ifdef __APPLE__
+				/*
+				 * 10462853: Treat binary files as binary.  iOS:
+				 * switch only this thread's locale, not the process's.
+				 */
+				locale_t previous = NULL, c_locale = nottext ?
+				    binary_locale() : NULL;
+				if (c_locale != NULL) {
+					previous = uselocale(c_locale);
+					r = regexec(&r_pattern_c[i], l->dat, 1,
+					    &pmatch, eflags);
+					uselocale(previous);
+				} else
+#endif /* __APPLE__ */
 				r = regexec(&r_pattern[i], l->dat, 1,
 				    &pmatch, eflags);
-#ifdef __APPLE__
-			if (nottext) {
-				setlocale(LC_ALL, "");
 			}
-#endif /* __APPLE__ */
 			r = (r == 0) ? 0 : REG_NOMATCH;
 			st = (cflags & REG_NOSUB)
 				? (size_t)l->len
@@ -496,7 +550,7 @@ grep_malloc(size_t size)
 {
 	void *ptr;
 
-    if ((ptr = malloc(size)) == NULL) {
+    if ((ptr = malloc_zone_malloc(grep_zone, size)) == NULL) {
 		err(2, "malloc");
     }
 	return (ptr);
@@ -510,7 +564,7 @@ grep_calloc(size_t nmemb, size_t size)
 {
 	void *ptr;
 
-    if ((ptr = calloc(nmemb, size)) == NULL) {
+    if ((ptr = malloc_zone_calloc(grep_zone, nmemb, size)) == NULL) {
         err(2, "calloc");
     }
 	return (ptr);
@@ -523,7 +577,7 @@ void *
 grep_realloc(void *ptr, size_t size)
 {
 
-    if ((ptr = realloc(ptr, size)) == NULL) {
+    if ((ptr = malloc_zone_realloc(grep_zone, ptr, size)) == NULL) {
         err(2, "realloc");
     }
 	return (ptr);
@@ -536,11 +590,23 @@ char *
 grep_strdup(const char *str)
 {
 	char *ret;
+	size_t len = strlen(str) + 1;
 
-    if ((ret = strdup(str)) == NULL) {
+    if ((ret = malloc_zone_malloc(grep_zone, len)) == NULL) {
         err(2, "strdup");
     }
-	return (ret);
+	return (memcpy(ret, str, len));
+}
+
+__thread malloc_zone_t *grep_zone;
+
+#undef free
+void
+grep_free(void *ptr)
+{
+
+	if (ptr != NULL)
+		malloc_zone_free(grep_zone, ptr);
 }
 
 /*
@@ -602,4 +668,5 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 		fwrite(line->dat, line->len, 1, thread_stdout);
 		putchar('\n');
 	}
+	ios_system_stop_on_broken_pipe(thread_stdout);
 }

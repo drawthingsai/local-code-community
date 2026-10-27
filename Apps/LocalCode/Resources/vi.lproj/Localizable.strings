@@ -3081,3 +3081,6 @@
 "prevent_sleep_while_working_ios_detail" = "Giữ màn hình luôn bật trong khi tác tử làm việc hoặc mô hình đang tải về, để thiết bị này không bị khóa và tạm dừng chúng.";
 "steer" = "Điều hướng";
 "check_for_updates_dot" = "Kiểm tra cập nhật...";
+"remove_download_dot" = "Xóa bản tải về...";
+"remove_download" = "Xóa bản tải về";
+"remove_download_detail" = "%1$@ sẽ bị xóa khỏi thiết bị này, giải phóng %2$@. Bạn có thể tải lại bất cứ lúc nào.";

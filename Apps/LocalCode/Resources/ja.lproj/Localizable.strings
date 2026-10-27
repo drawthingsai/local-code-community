@@ -2805,3 +2805,7 @@
 "prevent_sleep_while_working_ios_detail" = "エージェントの作業中やモデルのダウンロード中に画面をオンのままにして、このデバイスがロックされて作業が一時停止しないようにします。";
 "steer" = "軌道修正";
 "check_for_updates_dot" = "アップデートを確認...";
+"remove_download_dot" = "ダウンロードを削除...";
+"remove_download" = "ダウンロードを削除";
+"remove_download_detail" = "%1$@をこのデバイスから削除し、%2$@の空き容量を確保します。いつでも再ダウンロードできます。";
+"remove" = "削除";

@@ -54,7 +54,7 @@ static const char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
 
 #include "defs.h"
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 // #ifdef __APPLE__
 // #include <get_compat.h>
@@ -64,12 +64,16 @@ static const char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
 
 #define LHSZ	128
 #define	LHMASK	(LHSZ - 1)
-static struct labhash {
+static __thread struct labhash {
 	struct	labhash *lh_next;
 	u_int	lh_hash;
 	struct	s_command *lh_cmd;
 	int	lh_ref;
 } *labels[LHSZ];
+
+/* iOS: every command node of this invocation, released by compile_release. */
+static __thread struct s_command **commands;
+static __thread size_t command_count, command_capacity;
 
 static char	 *compile_addr(char *, struct s_addr *);
 static char	 *compile_ccl(char **, char *);
@@ -97,7 +101,7 @@ struct s_format {
 	enum e_args args;			/* Argument type */
 };
 
-static struct s_format cmd_fmts[] = {
+static const struct s_format cmd_fmts[] = {
 	{'{', 2, GROUP},
 	{'}', 0, ENDGROUP},
 	{'a', 1, TEXT},
@@ -161,9 +165,9 @@ static struct s_command **
 compile_stream(struct s_command **link)
 {
 	char *p;
-	static char lbuf[_POSIX2_LINE_MAX + 1];	/* To save stack */
+	static __thread char lbuf[_POSIX2_LINE_MAX + 1];	/* To save stack */
 	struct s_command *cmd, *cmd2, *stack;
-	struct s_format *fp;
+	const struct s_format *fp;
 	int naddr;				/* Number of addresses */
 
 	stack = 0;
@@ -185,8 +189,18 @@ semicolon:	EATSPACE();
 				goto semicolon;
 			}
 		}
-		if ((*link = cmd = malloc(sizeof(struct s_command))) == NULL)
+		if (command_count == command_capacity) {
+			size_t capacity = command_capacity ? command_capacity * 2 : 16;
+			struct s_command **grown = realloc(commands, capacity * sizeof(*commands));
+			if (grown == NULL)
+				err(1, "malloc");
+			commands = grown;
+			command_capacity = capacity;
+		}
+		// Zeroed so a script that fails to compile can be released.
+		if ((*link = cmd = calloc(1, sizeof(struct s_command))) == NULL)
             err(1, "malloc");
+		commands[command_count++] = cmd;
 		link = &cmd->next;
 		cmd->nonsel = cmd->inrange = 0;
 		/* First parse the addresses */
@@ -196,7 +210,7 @@ semicolon:	EATSPACE();
 #define	addrchar(c)	(strchr("0123456789/\\$", (c)))
 		if (addrchar(*p)) {
 			naddr++;
-			if ((cmd->a1 = malloc(sizeof(struct s_addr))) == NULL)
+			if ((cmd->a1 = calloc(1, sizeof(struct s_addr))) == NULL)
                 err(1, "malloc");
 			p = compile_addr(p, cmd->a1);
 			EATSPACE();				/* EXTENSION */
@@ -204,7 +218,7 @@ semicolon:	EATSPACE();
 				p++;
 				EATSPACE();			/* EXTENSION */
 				naddr++;
-				if ((cmd->a2 = malloc(sizeof(struct s_addr)))
+				if ((cmd->a2 = calloc(1, sizeof(struct s_addr)))
 				    == NULL)
                     err(1, "malloc");
 				p = compile_addr(p, cmd->a2);
@@ -290,7 +304,7 @@ nonsel:		/* Now parse the command */
 			cmd->t = duptoeol(p, "w command");
 			if (aflag)
 				cmd->u.fd = -1;
-			else if ((cmd->u.fd = open(p,
+			else if ((cmd->u.fd = ios_system_open(p,
 			    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 			    DEFFILEMODE)) == -1)
                 err(1, "%s", p);
@@ -325,8 +339,9 @@ nonsel:		/* Now parse the command */
                 errx(1,
                      "%lu: %s: substitute pattern can not be delimited by newline or backslash",
                      linenum, fname);
-            if ((cmd->u.s = malloc(sizeof(struct s_subst))) == NULL)
+            if ((cmd->u.s = calloc(1, sizeof(struct s_subst))) == NULL)
                 err(1, "malloc");
+			cmd->u.s->wfd = -1;
 			p = compile_re(p, &cmd->u.s->re);
 			if (p == NULL)
                 errx(1,
@@ -455,12 +470,20 @@ compile_re(char *p, regex_t **repp)
 		*repp = NULL;
 		return (p);
 	}
-	if ((*repp = malloc(sizeof(regex_t))) == NULL)
+	regex_t *compiled;
+	*repp = NULL;
+	if (p == NULL)
+		return (NULL);
+	if ((compiled = malloc(sizeof(regex_t))) == NULL)
         err(1, "malloc");
-	if (p && (eval = regcomp(*repp, re, rflags)) != 0)
-    { errx(1, "%lu: %s: RE error: %s",
-				linenum, fname, strregerror(eval, *repp));
+	// iOS: store the regex only once it compiled, so cleanup can free it.
+	if ((eval = regcomp(compiled, re, rflags)) != 0)
+    {
+		const char *message = strregerror(eval, compiled);
+		free(compiled);
+		errx(1, "%lu: %s: RE error: %s", linenum, fname, message);
     }
+	*repp = compiled;
 	if (maxnsub < (*repp)->re_nsub)
 		maxnsub = (*repp)->re_nsub;
 	return (p);
@@ -474,7 +497,7 @@ compile_re(char *p, regex_t **repp)
 static char *
 compile_subst(char *p, struct s_subst *s)
 {
-	static char lbuf[_POSIX2_LINE_MAX + 1];
+	static __thread char lbuf[_POSIX2_LINE_MAX + 1];
 	int asize, size;
 	u_char ref;
 	char c, *text, *op, *sp;
@@ -489,6 +512,7 @@ compile_subst(char *p, struct s_subst *s)
 	asize = 2 * _POSIX2_LINE_MAX + 1;
 	if ((text = malloc(asize)) == NULL)
         err(1, "malloc");
+	s->new = text;	/* iOS: owned by the command if compiling fails */
 	size = 0;
 	do {
 		op = sp = text + size;
@@ -549,6 +573,7 @@ compile_subst(char *p, struct s_subst *s)
 			asize *= 2;
 			if ((text = realloc(text, asize)) == NULL)
                 err(1, "malloc");
+			s->new = text;
 		}
 	} while (cu_fgets(p = lbuf, sizeof(lbuf), &more));
     errx(1, "%lu: %s: unterminated substitute in regular expression",
@@ -627,7 +652,7 @@ compile_flags(char *p, struct s_subst *s)
 			if (q == wfile)
                 errx(1, "%lu: %s: no wfile specified", linenum, fname);
 			s->wfile = strdup(wfile);
-			if (!aflag && (s->wfd = open(wfile,
+			if (!aflag && (s->wfd = ios_system_open(wfile,
 			    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 			    DEFFILEMODE)) == -1)
                 err(1, "%s", wfile);
@@ -864,6 +889,7 @@ fixuplabel(struct s_command *cp, struct s_command *end)
             { errx(1, "%lu: %s: undefined label '%s'", linenum, fname, cp->t);
             }
 			free(cp->t);
+			cp->t = NULL;
 			break;
 		case '{':
 			/* Do interior commands. */
@@ -948,5 +974,71 @@ uselabel(void)
                 warnx("%lu: %s: unused label '%s'", linenum, fname, lh->lh_cmd->t);
 			free(lh);
 		}
+		labels[i] = NULL;
 	}
+}
+
+static void
+release_address(struct s_addr *a)
+{
+	if (a != NULL && a->type == AT_RE && a->u.r != NULL) {
+		regfree(a->u.r);
+		free(a->u.r);
+	}
+	free(a);
+}
+
+/*
+ * iOS: free the compiled script.  Nodes are released from the allocation
+ * list because a script that failed to compile is not a well-formed tree.
+ */
+void
+compile_release(void)
+{
+	struct labhash *lh, *next;
+	int i;
+
+	for (i = 0; i < LHSZ; i++) {
+		for (lh = labels[i]; lh != NULL; lh = next) {
+			next = lh->lh_next;
+			free(lh);
+		}
+		labels[i] = NULL;
+	}
+	for (size_t index = 0; index < command_count; ++index) {
+		struct s_command *cp = commands[index];
+		release_address(cp->a1);
+		release_address(cp->a2);
+		switch (cp->code) {
+		case 's':
+			if (cp->u.s != NULL) {
+				if (cp->u.s->re != NULL) {
+					regfree(cp->u.s->re);
+					free(cp->u.s->re);
+				}
+				if (cp->u.s->wfd != -1)
+					close(cp->u.s->wfd);
+				free(cp->u.s->wfile);
+				free(cp->u.s->new);
+				free(cp->u.s);
+			}
+			break;
+		case 'y':
+			if (cp->u.y != NULL) {
+				free(cp->u.y->multis);
+				free(cp->u.y);
+			}
+			break;
+		case 'w':
+			if (cp->t != NULL && cp->u.fd != -1)
+				close(cp->u.fd);
+			break;
+		}
+		free(cp->t);
+		free(cp);
+	}
+	free(commands);
+	commands = NULL;
+	command_count = command_capacity = 0;
+	prog = NULL;
 }

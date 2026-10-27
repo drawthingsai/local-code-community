@@ -40,7 +40,7 @@ THIS SOFTWARE.
 #include "awk.h"
 #include "awkgram.tab.h"
 
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static void stdinit(void);
 static void flush_all(void);
@@ -78,25 +78,26 @@ extern	__thread int	pairstack[];
 extern	__thread Awkfloat	srand_seed;
 
 __thread Node	*winner = NULL;	/* root of parse tree */
-Cell	*tmps;		/* free temporary cells for execution */
+static __thread Cell	*tmps;	/* free temporary cells for execution */
 
-static Cell	truecell	={ OBOOL, BTRUE, 0, 0, 1.0, NUM, NULL, NULL };
-Cell	*True	= &truecell;
-static Cell	falsecell	={ OBOOL, BFALSE, 0, 0, 0.0, NUM, NULL, NULL };
-Cell	*False	= &falsecell;
-static Cell	breakcell	={ OJUMP, JBREAK, 0, 0, 0.0, NUM, NULL, NULL };
-Cell	*jbreak	= &breakcell;
-static Cell	contcell	={ OJUMP, JCONT, 0, 0, 0.0, NUM, NULL, NULL };
-Cell	*jcont	= &contcell;
-static Cell	nextcell	={ OJUMP, JNEXT, 0, 0, 0.0, NUM, NULL, NULL };
-Cell	*jnext	= &nextcell;
-static Cell	nextfilecell	={ OJUMP, JNEXTFILE, 0, 0, 0.0, NUM, NULL, NULL };
-Cell	*jnextfile	= &nextfilecell;
-static Cell	exitcell	={ OJUMP, JEXIT, 0, 0, 0.0, NUM, NULL, NULL };
-Cell	*jexit	= &exitcell;
-static Cell	retcell		={ OJUMP, JRET, 0, 0, 0.0, NUM, NULL, NULL };
-Cell	*jret	= &retcell;
-static Cell	tempcell	={ OCELL, CTEMP, 0, EMPTY, 0.0, NUM|STR|DONTFREE, NULL, NULL };
+/* iOS: per thread, because converting one to a string stores the string in it. */
+static __thread Cell	truecell	={ OBOOL, BTRUE, 0, 0, 1.0, NUM, NULL, NULL };
+#define	True	(&truecell)
+static __thread Cell	falsecell	={ OBOOL, BFALSE, 0, 0, 0.0, NUM, NULL, NULL };
+#define	False	(&falsecell)
+static __thread Cell	breakcell	={ OJUMP, JBREAK, 0, 0, 0.0, NUM, NULL, NULL };
+#define	jbreak	(&breakcell)
+static __thread Cell	contcell	={ OJUMP, JCONT, 0, 0, 0.0, NUM, NULL, NULL };
+#define	jcont	(&contcell)
+static __thread Cell	nextcell	={ OJUMP, JNEXT, 0, 0, 0.0, NUM, NULL, NULL };
+#define	jnext	(&nextcell)
+static __thread Cell	nextfilecell	={ OJUMP, JNEXTFILE, 0, 0, 0.0, NUM, NULL, NULL };
+#define	jnextfile	(&nextfilecell)
+static __thread Cell	exitcell	={ OJUMP, JEXIT, 0, 0, 0.0, NUM, NULL, NULL };
+#define	jexit	(&exitcell)
+static __thread Cell	retcell		={ OJUMP, JRET, 0, 0, 0.0, NUM, NULL, NULL };
+#define	jret	(&retcell)
+static const Cell	tempcell	={ OCELL, CTEMP, 0, EMPTY, 0.0, NUM|STR|DONTFREE, NULL, NULL };
 
 __thread Node	*curnode = NULL;	/* the node being executed, for debugging */
 
@@ -338,9 +339,9 @@ struct Frame {	/* stack frame for awk function calls */
 
 #define	NARGS	50	/* max args in a call */
 
-struct Frame *frame = NULL;	/* base of stack frames; dynamically allocated */
-int	nframe = 0;		/* number of frames allocated */
-struct Frame *frp = NULL;	/* frame pointer. bottom level unused */
+static __thread struct Frame *frame = NULL;	/* base of stack frames; dynamically allocated */
+static __thread int	nframe = 0;		/* number of frames allocated */
+static __thread struct Frame *frp = NULL;	/* frame pointer. bottom level unused */
 
 Cell *call(Node **a, int n)	/* function call.  very kludgy and fragile */
 {
@@ -948,8 +949,8 @@ int format(char **pbuf, int *pbufsize, const char *s, Node *a)	/* printf-like co
 #define FMTSZ(a)   (fmtsz - ((a) - fmt))
 #define BUFSZ(a)   (bufsize - ((a) - buf))
 
-	static bool first = true;
-	static bool have_a_format = false;
+	static __thread bool first = true;
+	static __thread bool have_a_format = false;
 
 	if (first) {
 		char xbuf[100];
@@ -1140,6 +1141,7 @@ Cell *awkprintf(Node **a, int n)		/* printf */
 	if (a[1] == NULL) {
 		/* fputs(buf, stdout); */
 		fwrite(buf, len, 1, thread_stdout);
+		ios_system_stop_on_broken_pipe(thread_stdout);
 		if (ferror(thread_stdout))
 			FATAL("write error on stdout");
 	} else {
@@ -1147,6 +1149,7 @@ Cell *awkprintf(Node **a, int n)		/* printf */
 		/* fputs(buf, fp); */
 		fwrite(buf, len, 1, fp);
 		fflush(fp);
+		ios_system_stop_on_broken_pipe(fp);
 		if (ferror(fp))
 			FATAL("write error on %s", filename(fp));
 	}
@@ -1775,8 +1778,14 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		fflush(thread_stdout);		/* in case something is buffered already */
             // iOS
             int pid = ios_fork();
-            ios_system_osh(getsval(x));
-            waitpid(pid, &status, 0);
+            if (pid < 0) {
+                status = -1;	/* like system(3) when it cannot fork */
+            } else {
+                // The shell runs on this thread, not as pid, so give pid up
+                // when it returns; waiting for pid to run would never end.
+                status = W_EXITCODE(ios_system_osh(getsval(x)), 0);
+                ios_releaseThreadId(pid);
+            }
 		// status = system(getsval(x));
 		u = status;
 		if (status != -1) {
@@ -1796,7 +1805,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		/* random() returns numbers in [0..2^31-1]
 		 * in order to get a number in [0, 1), divide it by 2^31
 		 */
-		u = (Awkfloat) random() / (0x7fffffffL + 0x1UL);
+		u = (Awkfloat) ios_system_random() / (0x7fffffffL + 0x1UL);
 		break;
 	case FSRAND:
 		if (isrec(x))	/* no argument provided */
@@ -1804,7 +1813,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		else
 			u = getfval(x);
 		tmp = u;
-		srandom((unsigned long) u);
+		ios_system_srandom((unsigned long) u);
 		u = srand_seed;
 		srand_seed = tmp;
 		break;
@@ -1864,6 +1873,7 @@ Cell *printstat(Node **a, int n)	/* print a[0] */
 	}
 	if (a[1] != NULL)
 		fflush(fp);
+	ios_system_stop_on_broken_pipe(fp);
 	if (ferror(fp))
 		FATAL("write error on %s", filename(fp));
 	return(True);
@@ -1894,9 +1904,12 @@ struct files {
 	FILE	*fp;
 	const char	*fname;
 	int	mode;	/* '|', 'a', 'w' => LE/LT, GT */
-} *files;
+};
+static __thread struct files *files;
+/* iOS: where output to a closed standard stream goes (see closefile). */
+static __thread FILE *discard, *saved_stdout, *saved_stderr;
 
-size_t nfiles;
+static __thread size_t nfiles;
 
 static void stdinit(void)	/* in case stdin, etc., are not constants */
 {
@@ -1951,16 +1964,16 @@ FILE *openfile(int a, const char *us, bool *pnewflag)
 	fflush(thread_stdout);	/* force a semblance of order */
 	m = a;
 	if (a == GT) {
-		fp = fopen(s, "w");
+		fp = ios_system_fopen(s, "w");
 	} else if (a == APPEND) {
-		fp = fopen(s, "a");
+		fp = ios_system_fopen(s, "a");
 		m = GT;	/* so can mix > and >> */
 	} else if (a == '|') {	/* output pipe */
 		fp = popen(s, "w");
 	} else if (a == LE) {	/* input pipe */
 		fp = popen(s, "r");
 	} else if (a == LT) {	/* getline <file */
-		fp = strcmp(s, "-") == 0 ? thread_stdin : fopen(s, "r");	/* "-" is stdin */
+		fp = strcmp(s, "-") == 0 ? thread_stdin : ios_system_fopen(s, "r");	/* "-" is stdin */
 	} else	/* can't happen */
 		FATAL("illegal redirection %d", a);
 	if (fp != NULL) {
@@ -1999,10 +2012,28 @@ const char *filename(FILE *fp)
 			continue;
 		if (ferror(files[i].fp))
 			FATAL("i/o error occurred on %s", files[i].fname);
+		// iOS: the standard streams belong to the caller, so instead of
+		// upstream's reopen on /dev/null, later output for a closed one
+		// goes to this invocation's own /dev/null stream.
 		if (files[i].fp == thread_stdin || files[i].fp == thread_stdout ||
-		    files[i].fp == thread_stderr)
-			stat = freopen("/dev/null", "r+", files[i].fp) == NULL;
-		else if (files[i].mode == '|' || files[i].mode == LE)
+		    files[i].fp == thread_stderr) {
+			stat = files[i].fp != thread_stdin && fflush(files[i].fp) == EOF;
+			if (stat)
+				FATAL("i/o error occurred closing %s", files[i].fname);
+			if (files[i].fp != thread_stdin) {
+				if (discard == NULL && (discard = fopen("/dev/null", "w")) == NULL)
+					FATAL("can't open /dev/null");
+				if (files[i].fp == thread_stdout && saved_stdout == NULL) {
+					saved_stdout = thread_stdout;
+					thread_stdout = discard;
+				} else if (files[i].fp == thread_stderr && saved_stderr == NULL) {
+					saved_stderr = thread_stderr;
+					thread_stderr = discard;
+				}
+				files[i].fp = discard;
+			}
+			break;
+		} else if (files[i].mode == '|' || files[i].mode == LE)
 			stat = pclose(files[i].fp) == -1;
 		else
 			stat = fclose(files[i].fp) == EOF;
@@ -2052,6 +2083,33 @@ void closeall(void)
     files = NULL;
     free(frame);
     frame = NULL;
+}
+
+/* iOS: close what the program left open when it stops early; never FATAL. */
+void awk_close_files(void)
+{
+	size_t i;
+
+	for (i = 0; files != NULL && i < nfiles; i++) {
+		FILE *fp = files[i].fp;
+		if (fp == NULL || fp == thread_stdin)
+			continue;
+		if (fp == thread_stdout || fp == thread_stderr)
+			fflush(fp);
+		else if (files[i].mode == '|' || files[i].mode == LE)
+			pclose(fp);
+		else
+			fclose(fp);
+		files[i].fp = NULL;
+	}
+	if (saved_stdout != NULL)
+		thread_stdout = saved_stdout;
+	if (saved_stderr != NULL)
+		thread_stderr = saved_stderr;
+	saved_stdout = saved_stderr = NULL;
+	if (discard != NULL)
+		fclose(discard);
+	discard = NULL;
 }
 
 static void flush_all(void)
@@ -2231,8 +2289,8 @@ void backsub(char **pb_ptr, const char **sptr_ptr)	/* handle \\& variations */
 {						/* sptr[0] == '\\' */
 	char *pb = *pb_ptr;
 	const char *sptr = *sptr_ptr;
-	static bool first = true;
-	static bool do_posix = false;
+	static __thread bool first = true;
+	static __thread bool do_posix = false;
 
 	if (first) {
 		first = false;

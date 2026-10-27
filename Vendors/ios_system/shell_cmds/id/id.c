@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD: src/usr.bin/id/id.c,v 1.33 2006/12/29 12:28:34 stefanf Exp $
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static void	id_print(struct passwd *, int, int, int);
 static void	pline(struct passwd *);
@@ -74,7 +74,29 @@ static void	maclabel(void);
 static void	usage(void);
 struct passwd *who(char *);
 
-static int isgroups, iswhoami;
+static __thread int isgroups, iswhoami;
+
+#ifdef __APPLE__
+/* iOS: getgrouplist_2 is SPI; grow a getgrouplist(3) buffer until the
+ * whole list fits (same order as /usr/bin/id). Free the result. */
+static gid_t *
+user_groups(const char *name, gid_t basegid, int *count)
+{
+	gid_t *groups = NULL, *grown;
+	int capacity;
+
+	for (capacity = NGROUPS + 1;; capacity *= 4) {
+		if ((grown = realloc(groups, capacity * sizeof(gid_t))) == NULL) {
+			free(groups);
+			err(1, NULL);
+		}
+		groups = grown;
+		*count = capacity;
+		if (getgrouplist(name, basegid, (int *)groups, count) == 0 || capacity >= 65536)
+			return groups;
+	}
+}
+#endif
 
 #ifdef __APPLE__
 // SPI for 5235093
@@ -94,10 +116,9 @@ id_main(int argc, char *argv[])
 	Gflag = Mflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
 	Aflag = 0;
 	Fflag = 0;
-    optind = 1; opterr = 1; optreset = 1;
-    // Initialize:
-    isgroups = 0;
-    iswhoami = 0;
+
+	pthread_cleanup_push(ios_system_support_cleanup, NULL);
+	ios_system_support_init(argv);
 
 	myname = strrchr(argv[0], '/');
 	myname = (myname != NULL) ? myname + 1 : argv[0];
@@ -232,6 +253,8 @@ id_main(int argc, char *argv[])
 		id_print(pw, 0, 1, 1);
 	}
 	exit(0);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 void
@@ -310,6 +333,7 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 #ifdef __APPLE__
 		// 5235093
 		// ngroups = getgrouplist_2(pw->pw_name, gid, &groups);
+		groups = user_groups(pw->pw_name, gid, &ngroups);
 #else
 		ngroups = NGROUPS + 1;
 		getgrouplist(pw->pw_name, gid, groups, &ngroups);
@@ -412,6 +436,7 @@ group(struct passwd *pw, int nflag)
 #ifdef __APPLE__
 		// 5235093
 		// ngroups = getgrouplist_2(pw->pw_name, pw->pw_gid, &groups);
+		groups = user_groups(pw->pw_name, pw->pw_gid, &ngroups);
 #else
 		ngroups = NGROUPS + 1;
 		(void) getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups);

@@ -1,0 +1,173 @@
+# rm rmdir mv ln mkdir touch stat readlink parity corpus
+rm lines.txt; ls
+rm -v lines.txt words.txt
+rm missing
+rm -f missing; echo $?
+rm -f
+rm
+rm dir
+rm -d emptydir; ls -d emptydir
+rm -r dir; ls
+rm -rv dir | sort
+rm -rf dir other; ls
+rm -R ./dir/sub; ls dir
+rm -r "$PWD/dir/sub/deep"; ls dir/sub
+rm -r dir/sub ../fx/other; ls
+rm -r .
+rm -r ..
+rm -rf dir/.
+rm -r dir/sub/
+rm -r dir//sub; ls dir
+rm link.txt; ls lines.txt link.txt
+rm dirlink; ls -d dir dirlink
+rm broken; ls broken
+rm -r dirlink/; ls -d dir dirlink
+rm 'spaces in name.txt' -- -dash.txt; ls
+rm -f ro.txt; ls ro.txt
+rm -i lines.txt < /dev/null; ls lines.txt
+rm -P long.txt; ls long.txt
+rm -W lines.txt
+rm -x lines.txt
+chmod 555 dir/sub; rm -r dir; chmod 755 dir/sub; ls -R dir
+unlink lines.txt; ls lines.txt
+unlink lines.txt words.txt
+unlink missing
+rmdir emptydir; ls -d emptydir
+rmdir dir
+rmdir missing
+rmdir lines.txt
+mkdir -p a/b/c; rmdir -p a/b/c; ls -d a
+mkdir -p a/b/c; touch a/f; rmdir -p a/b/c; ls -R a
+rmdir -p emptydir/; ls -d emptydir
+rmdir "$PWD/emptydir"; ls
+rmdir -x emptydir
+rmdir
+mv lines.txt moved.txt; ls moved.txt lines.txt
+mv -v lines.txt words.txt dir; ls dir
+mv lines.txt dir/; cat dir/lines.txt | head -1
+mv dir newdir; ls newdir
+mv dir other; ls -R other
+mv emptydir dir/sub; ls dir/sub
+mv missing x
+mv lines.txt
+mv a b c
+mv -n lines.txt words.txt; head -1 words.txt
+mv -f lines.txt words.txt; head -1 words.txt
+mv -i lines.txt words.txt < /dev/null; head -1 words.txt
+mv -vn lines.txt words.txt
+mv link.txt link2.txt; ls -l link2.txt | awk '{print $NF}'
+mv dirlink dl; ls -ld dl | awk '{print $1, $NF}'
+mv broken broken2; ls -l broken2 | awk '{print $NF}'
+mv ./lines.txt "$PWD/other/"; ls other
+mv dir dir/sub
+mv dir/a.txt ../fx/other; ls other
+mv lines.txt ro.txt; head -1 ro.txt
+mv 'spaces in name.txt' -- -dash.txt dir; ls dir
+mv -x a b
+mv lines.txt /tmp/../tmp/../nonexistent/x
+ln lines.txt hard.txt; ls -l hard.txt | awk '{print $2}'; cat hard.txt | head -1
+ln -s lines.txt soft.txt; readlink soft.txt
+ln -s missing-target dangling; readlink dangling
+ln -sv lines.txt words.txt dir; ls -l dir | wc -l
+ln lines.txt words.txt
+ln -f lines.txt words.txt; head -1 words.txt
+ln -s lines.txt link.txt
+ln -sf words.txt link.txt; readlink link.txt
+ln -sfn other dirlink; readlink dirlink; ls dir | head -2
+ln -sf other dirlink; readlink dirlink; ls -l dir | tail -1 | awk '{print $NF}'
+ln -sfh other dirlink; readlink dirlink
+ln -sF other emptydir; readlink emptydir
+ln -s lines.txt; ls -l
+ln lines.txt; echo $?
+ln dir hard
+ln missing x
+ln -s ../lines.txt dir/up.txt; cat dir/up.txt | head -1
+ln -s "$PWD/lines.txt" abs.txt; readlink abs.txt | sed "s|$PWD|PWD|"
+ln -i lines.txt words.txt < /dev/null; head -1 words.txt
+link lines.txt l2; ls -l l2 | awk '{print $2}'
+link lines.txt
+link missing x
+ln -x a b
+ln
+mkdir newdir; ls -ld newdir | awk '{print $1}'
+mkdir -v a b c; ls -d a b c
+mkdir dir
+mkdir -p dir; echo $?
+mkdir -p x/y/z; ls -R x
+mkdir -pv p/q
+mkdir missing/child
+mkdir -m 700 private; ls -ld private | awk '{print $1}'
+mkdir -m u=rwx,g=rx,o= m1; ls -ld m1 | awk '{print $1}'
+mkdir -m a+t sticky; ls -ld sticky | awk '{print $1}'
+mkdir -m go-w m2; ls -ld m2 | awk '{print $1}'
+mkdir -m 1777 t1; ls -ld t1 | awk '{print $1}'
+mkdir -m bogus m3
+mkdir -m 8 m4
+mkdir -p -m 711 deep/er; ls -ld deep deep/er | awk '{print $1}'
+mkdir "$PWD/absdir"; ls -d absdir
+mkdir ./rel/; ls -d rel
+mkdir lines.txt
+mkdir
+mkdir -x foo
+umask 077; mkdir masked; ls -ld masked | awk '{print $1}'
+umask 077; mkdir -m +x mx; ls -ld mx | awk '{print $1}'
+umask 027; mkdir -p u1/u2; ls -ld u1 u1/u2 | awk '{print $1}'
+touch new.txt; ls new.txt
+touch -c nothere; ls nothere
+touch -t 202001021530 lines.txt; ls -lT lines.txt | awk '{print $6, $7, $8, $9}'
+touch -t 2001021530.45 lines.txt; stat -f '%Sm' -t '%Y-%m-%d %H:%M:%S' lines.txt
+touch -t 01021530 lines.txt; stat -f '%Sm' -t '%m-%d %H:%M' lines.txt
+touch -r long.txt new2.txt; stat -f '%m' new2.txt
+touch -A -0100 lines.txt; stat -f '%m' lines.txt
+touch -A 01 -m lines.txt; stat -f '%m %a' lines.txt
+touch -a -t 202202020202 lines.txt; stat -f '%a %m' lines.txt
+touch -m -t 202202020202 lines.txt; stat -f '%a %m' lines.txt
+touch -h -t 202202020202 link.txt; stat -f '%m' link.txt lines.txt
+touch -t 202202020202 link.txt; stat -f '%m' link.txt; stat -L -f '%m' link.txt
+touch -t bogus lines.txt
+touch -t 20201 lines.txt
+touch -r missing x
+touch 0102153020 lines.txt; stat -f '%Sm' -t '%y-%m-%d %H:%M' lines.txt; ls 0102153020; touch -t 202001021530 lines.txt
+touch dir/sub; stat -f '%m' dir/sub | cut -c1-3
+touch ro.txt; echo $?
+touch missing/x
+touch "$PWD/abs.txt" ./rel.txt; ls abs.txt rel.txt
+touch
+touch -x a
+stat lines.txt | sed -e 's/ [0-9]\{6,\} / INODE /' -e 's/\("[^"]*" "[^"]*" \)"[^"]*"/\1"CTIME"/'
+stat -f '%N %z %p %Sp %l' lines.txt dir link.txt
+stat -L -f '%N %z %Sp' link.txt dirlink
+stat -f '%Su %Sg' lines.txt | wc -w
+stat -f '%u %g' lines.txt | wc -w
+stat -f '%Y' link.txt dir/sub/up.txt
+stat -f '%N%SY' link.txt broken
+stat -f '%T' dir lines.txt link.txt exec.sh
+stat -F dir lines.txt link.txt exec.sh | awk '{print $1, $NF}'
+stat -l lines.txt | awk '{print $1, $5, $NF}'
+stat -s lines.txt | tr ' ' '\n' | grep -E 'st_size|st_mode|st_mtime'
+stat -r lines.txt | wc -w
+stat -x lines.txt | grep -E 'File|Size|Mode'
+stat -t '%Y' -f '%Sm %Sa' lines.txt
+stat -f '%Sm' -t '%A %B %d' long.txt
+stat -n -f '%N' lines.txt; echo
+stat -q missing; echo $?
+stat missing
+stat lines.txt missing words.txt | wc -l
+stat -f '%Sd' lines.txt | wc -c
+stat -f '%Sr' /dev/null
+stat -f '%Hr %Lr' /dev/null | wc -w
+stat -f '%z' < lines.txt
+stat -f '%z' - < lines.txt
+stat -f '%N' "$PWD/lines.txt" ./dir/../lines.txt | sed "s|$PWD|PWD|"
+stat -f 'bad %Q' lines.txt
+stat -f '%#o %#x %10.3z|%-6z|' lines.txt
+stat -x -f '%N' lines.txt
+stat -z lines.txt
+readlink link.txt
+readlink dirlink broken dir/sub/up.txt
+readlink -n link.txt; echo
+readlink lines.txt; echo $?
+readlink missing; echo $?
+readlink -f link.txt
+readlink
+readlink "$PWD/link.txt"

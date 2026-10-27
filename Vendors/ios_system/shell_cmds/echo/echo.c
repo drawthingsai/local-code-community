@@ -129,20 +129,13 @@ echo_main(int argc, char *argv[])
 		vp++->iov_len = 1;
 	}
 	/* assert(veclen == (vp - iov)); */
-	while (veclen) {
-		int nwrite;
-
-		nwrite = (veclen > IOV_MAX) ? IOV_MAX : veclen;
-        // if (writev(STDOUT_FILENO, iov, nwrite) == -1)
-        //         errexit(progname, "write");
-        struct iovec *cp = iov;
-        for (int i = 0; i < nwrite; i++) {
-            if (fprintf(thread_stdout, "%s", (char*)(cp->iov_base)) == -1)
-                errexit(progname, "write");
-            cp++;
-        }
-		iov += nwrite;
-		veclen -= nwrite;
+	// iOS: write each element with its length (a trailing \c is cut off).
+	for (vp = iov; veclen > 0; vp++, veclen--) {
+		if (fwrite(vp->iov_base, 1, vp->iov_len, thread_stdout) != vp->iov_len) {
+			free(iov);
+			errexit(progname, "write");
+		}
 	}
+	free(iov);
 	return 0;
 }

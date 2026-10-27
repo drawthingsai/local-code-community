@@ -59,15 +59,46 @@ static const char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 #include <unistd.h>
 
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-int Fflag, fflag, tail_qflag, rflag, rval, no_files;
-const char *tail_fname;
+__thread int Fflag, fflag, tail_qflag, rflag, rval, no_files;
+__thread const char *tail_fname;
 
-file_info_t *files;
+static __thread file_info_t *files;
+static __thread FILE *open_fp;	/* iOS: file being printed without -f */
 
 static void obsolete(char **);
 static void usage(void);
+
+__thread malloc_zone_t *tail_zone;
+
+#undef free
+void
+tail_free(void *pointer)
+{
+	if (pointer != NULL)
+		malloc_zone_free(tail_zone, pointer);
+}
+
+static void tail_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (open_fp != NULL && open_fp != thread_stdin)
+		fclose(open_fp);
+	open_fp = NULL;
+	for (int i = 0; files != NULL && i < no_files; i++)
+		if (files[i].fp != NULL && files[i].fp != thread_stdin)
+			fclose(files[i].fp);
+	files = NULL;
+	if (kq >= 0)
+		close(kq);
+	kq = -1;
+	ev = NULL;
+	ios_system_support_cleanup(unused);
+	if (tail_zone != NULL)
+		malloc_destroy_zone(tail_zone);
+	tail_zone = NULL;
+}
 
 int
 tail_main(int argc, char *argv[])
@@ -80,13 +111,12 @@ tail_main(int argc, char *argv[])
 	file_info_t *file;
 	char *p;
 
-    Fflag = 0;
-    fflag = 0;
-    tail_qflag = 0;
-    rflag = 0;
-    rval = 0;
-    no_files = 0;
-    
+	pthread_cleanup_push(tail_cleanup, NULL);
+	ios_system_support_init(argv);
+	if ((tail_zone = malloc_create_zone(0, 0)) == NULL)
+		err(1, "malloc");
+	malloc_set_zone_name(tail_zone, "tail");
+
 	/*
 	 * Tail's options are weird.  First, -n10 is the same as -n-10, not
 	 * -n+10.  Second, the number options are 1 based and not offsets,
@@ -197,13 +227,14 @@ tail_main(int argc, char *argv[])
 		files = (struct file_info *) malloc(no_files * sizeof(struct file_info));
 		if (! files)
 			err(1, "Couldn't malloc space for file descriptors.");
+		memset(files, 0, no_files * sizeof(struct file_info));
 
 		for (file = files; (tail_fname = argc ? *argv++ : "stdin"); file++) {
 			file->file_name = malloc(strlen(tail_fname)+1);
 			if (! file->file_name)
 				errx(1, "Couldn't malloc space for file name.");
 			strncpy(file->file_name, tail_fname, strlen(tail_fname)+1);
-			file->fp = argc ? fopen(file->file_name, "r") : thread_stdin;
+			file->fp = argc ? ios_system_fopen(file->file_name, "r") : thread_stdin;
 			if (file->fp == NULL ||
 			    fstat(fileno(file->fp), &file->st)) {
 				file->fp = NULL;
@@ -214,15 +245,14 @@ tail_main(int argc, char *argv[])
 				break;
 		}
 		follow(files, style, off);
-		for (i = 0, file = files; i < no_files; i++, file++) {
-		    free(file->file_name);
-		}
-		free(files);
 	} else if (*argv) {
 		for (first = 1; (tail_fname = *argv++);) {
-			if ((fp = fopen(tail_fname, "r")) == NULL ||
+			if ((fp = open_fp = ios_system_fopen(tail_fname, "r")) == NULL ||
 			    fstat(fileno(fp), &sb)) {
 				ierr();
+				if (fp != NULL)
+					fclose(fp);
+				open_fp = NULL;
 				continue;
 			}
 			if (argc > 1 && !tail_qflag) {
@@ -234,14 +264,20 @@ tail_main(int argc, char *argv[])
 
 #ifdef __APPLE__
 			/* 3849683: don't read a directory */
-			if (S_IFDIR == (sb.st_mode & S_IFMT))
+			if (S_IFDIR == (sb.st_mode & S_IFMT)) {
+				fclose(fp);
+				open_fp = NULL;
 				continue;
+			}
 #endif
 
 			if (rflag)
 				reverse(fp, style, off, &sb);
 			else
 				forward(fp, style, off, &sb);
+			// iOS: the process does not exit, so close each file.
+			fclose(fp);
+			open_fp = NULL;
 		}
 	} else {
 		tail_fname = "stdin";
@@ -257,6 +293,8 @@ tail_main(int argc, char *argv[])
 			forward(thread_stdin, style, off, &sb);
 	}
 	exit(rval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 /*

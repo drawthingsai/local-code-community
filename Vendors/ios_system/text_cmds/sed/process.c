@@ -58,9 +58,9 @@ static const char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
 
 #include "defs.h"
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-static SPACE HS, PS, SS, YS;
+static __thread SPACE HS, PS, SS, YS;
 #define	pd		PS.deleted
 #define	ps		PS.space
 #define	psl		PS.len
@@ -76,13 +76,13 @@ static void		 regsub(SPACE *, char *, char *);
 static int		 substitute(struct s_command *);
 
 __thread struct s_appends *appends;	/* Array of pointers to strings to append. */
-static int appendx;		/* Index into appends array. */
+static __thread int appendx;	/* Index into appends array. */
 __thread int appendnum;			/* Size of appends array. */
 
-static int lastaddr;		/* Set by applies if last address of a range. */
-static int sdone;		/* If any substitutes since last line input. */
+static __thread int lastaddr;	/* Set by applies if last address of a range. */
+static __thread int sdone;	/* If any substitutes since last line input. */
 				/* Iov structure for 'w' commands. */
-static regex_t *defpreg;
+static __thread regex_t *defpreg;
 __thread size_t maxnsub;
 __thread regmatch_t *match;
 
@@ -228,7 +228,7 @@ redirect:
 			case 'w':
 				if (pd)
 					break;
-				if (cp->u.fd == -1 && (cp->u.fd = open(cp->t,
+				if (cp->u.fd == -1 && (cp->u.fd = ios_system_open(cp->t,
 				    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
                     DEFFILEMODE)) == -1) {
                     err(1, "%s", cp->t);
@@ -263,6 +263,22 @@ new:		if (!sed_nflag && !pd)
 			OUT(ps)
 		flush_appends();
 	} /* for all lines */
+}
+
+/* iOS: free the buffers of one invocation. */
+void
+process_release(void)
+{
+	SPACE *spaces[] = {&PS, &HS, &SS, &YS};
+	for (size_t index = 0; index < sizeof(spaces) / sizeof(spaces[0]); ++index) {
+		free(spaces[index]->back);
+		memset(spaces[index], 0, sizeof(*spaces[index]));
+	}
+	free(appends);
+	appends = NULL;
+	free(match);
+	match = NULL;
+	defpreg = NULL;
 }
 
 /*
@@ -415,7 +431,7 @@ substitute(struct s_command *cp)
 
 	/* Handle the 'w' flag. */
 	if (cp->u.s->wfile && !pd) {
-		if (cp->u.s->wfd == -1 && (cp->u.s->wfd = open(cp->u.s->wfile,
+		if (cp->u.s->wfd == -1 && (cp->u.s->wfd = ios_system_open(cp->u.s->wfile,
             O_WRONLY|O_APPEND|O_CREAT|O_TRUNC, DEFFILEMODE)) == -1) {
             err(1, "%s", cp->u.s->wfile);
         }
@@ -508,13 +524,14 @@ flush_appends(void)
 			 * would be truly bizarre, but possible.  It's probably
 			 * not that big a performance win, anyhow.
 			 */
-			if ((f = fopen(appends[i].s, "r")) == NULL)
+			if ((f = ios_system_fopen(appends[i].s, "r")) == NULL)
 				break;
 			while ((count = fread(buf, sizeof(char), sizeof(buf), f)))
 				(void)fwrite(buf, sizeof(char), count, outfile);
 			(void)fclose(f);
 			break;
 		}
+	ios_system_stop_on_broken_pipe(outfile);
 	if (ferror(outfile)) {
         errx(1, "%s: %s", outfname, strerror(errno ? errno : EIO));
     }
@@ -528,7 +545,7 @@ lputs(char *s, size_t len)
 	int c, col, width;
 	char *p;
 	struct winsize win;
-	static int termwidth = -1;
+	static __thread int termwidth = -1;
 	size_t clen, i;
 	wchar_t wc;
 	mbstate_t mbs;

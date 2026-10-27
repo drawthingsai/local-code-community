@@ -69,10 +69,27 @@ __used static const char rcsid[] =
 // #else
 #define COMPAT_MODE(func, mode) 1
 #endif
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
-static uid_t uid;
+static __thread int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
+static __thread uid_t uid;
+static __thread FTS *fts;	/* iOS: closed by rm_cleanup on early exit */
+
+/* iOS: undelete(2) has no session wrapper. */
+static int undelete_session(const char *path)
+{
+	char resolved[PATH_MAX];
+	return (path = ios_system_session_path(path, resolved)) != NULL ? undelete(path) : -1;
+}
+
+static void rm_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (fts != NULL)
+		fts_close(fts);
+	fts = NULL;
+	ios_system_support_cleanup(unused);
+}
 
 static int	check __P((char *, char *, struct stat *));
 static int checkdir __P((char *));
@@ -98,12 +115,10 @@ rm_main(argc, argv)
 	int ch, rflag;
 	char *p;
 
+	pthread_cleanup_push(rm_cleanup, NULL);
+	ios_system_support_init(argv);
 	if (argc < 1)
 		usage();
-
-    // init all flags, something quite important for rm
-    dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
-        optind = 1; opterr = 1; optreset = 1;
 
 	/*
 	 * Test for the special case where the utility is called as
@@ -158,7 +173,7 @@ rm_main(argc, argv)
 
 	if (argc < 1) {
 		if (fflag)
-			return 0;
+			exit(0);
 		usage();
 	}
 
@@ -174,13 +189,14 @@ rm_main(argc, argv)
 	}
 
 	exit (eval);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 void
 rm_tree(argv)
 	char **argv;
 {
-	FTS *fts;
 	FTSENT *p;
 	int needstat;
 	int flags;
@@ -204,7 +220,7 @@ rm_tree(argv)
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
 	// iOS: the working directory is process-wide, so the walk must not chdir.
-	if (!(fts = fts_open(argv, flags | FTS_NOCHDIR, NULL))) {
+	if (!(fts = ios_system_fts_open(argv, flags | FTS_NOCHDIR, NULL))) {
 		if (fflag && errno == ENOENT)
 			return;
         err(1, NULL);
@@ -214,12 +230,12 @@ rm_tree(argv)
 		case FTS_DNR:
 			if (!fflag || p->fts_errno != ENOENT) {
                 warnx("%s: %s",
-                    p->fts_path);
+                    ios_system_fts_path(p), strerror(p->fts_errno));
 				eval = 1;
 			}
 			continue;
 		case FTS_ERR:
-			errx(1, "%s: %s", p->fts_path, strerror(p->fts_errno));
+			errx(1, "%s: %s", ios_system_fts_path(p), strerror(p->fts_errno));
 		case FTS_NS:
 			/*
 			 * FTS_NS: assume that if can't stat the file, it
@@ -229,7 +245,7 @@ rm_tree(argv)
 				break;
 			if (!fflag || p->fts_errno != ENOENT) {
 				warnx("%s: %s",
-                    p->fts_path);
+                    ios_system_fts_path(p), strerror(p->fts_errno));
 				eval = 1;
 			}
 			continue;
@@ -238,8 +254,8 @@ rm_tree(argv)
 			/* In conformance mode the user is prompted to skip processing the contents.
 			 * Then the option to delete the dir is presented post-order */
 			if (!fflag && 
-					( (wantConformance && !checkdir(p->fts_path)) ||
-					  (!wantConformance && !check(p->fts_path, p->fts_accpath, p->fts_statp))
+					( (wantConformance && !checkdir(ios_system_fts_path(p))) ||
+					  (!wantConformance && !check(ios_system_fts_path(p), p->fts_accpath, p->fts_statp))
 					)
 			   ){
 				(void)fts_set(fts, p, FTS_SKIP);
@@ -259,7 +275,7 @@ rm_tree(argv)
 			else if(wantConformance)
 			{
 				/* delete directory if force is on, or if user answers Y to prompt */
-				if(fflag || check(p->fts_path, p->fts_accpath, p->fts_statp)) 
+				if(fflag || check(ios_system_fts_path(p), p->fts_accpath, p->fts_statp)) 
 					break;
 				else
 					continue;
@@ -267,7 +283,7 @@ rm_tree(argv)
 			break;
 		default:
 			if (!fflag &&
-			    !check(p->fts_path, p->fts_accpath, p->fts_statp))
+			    !check(ios_system_fts_path(p), p->fts_accpath, p->fts_statp))
 				continue;
 		}
 
@@ -290,7 +306,7 @@ rm_tree(argv)
 				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (rval == 0 && vflag)
 						(void)fprintf(thread_stdout, "%s\n",
-						    p->fts_path);
+						    ios_system_fts_path(p));
 					continue;
 				}
 				break;
@@ -300,7 +316,7 @@ rm_tree(argv)
 				if (rval == 0 && (fflag && errno == ENOENT)) {
 					if (vflag)
 						(void)fprintf(thread_stdout, "%s\n",
-						    p->fts_path);
+						    ios_system_fts_path(p));
 					continue;
 				}
 				break;
@@ -321,17 +337,18 @@ rm_tree(argv)
                     if (rval == 0 || (fflag && errno == ENOENT)) {
                         if (rval == 0 && vflag)
                             (void)fprintf(thread_stdout, "%s\n",
-                                          p->fts_path);
+                                          ios_system_fts_path(p));
                         continue;
                     }
 				}
 			}
 		}
 err:
-        warn("%s", p->fts_path);
+        warn("%s", ios_system_fts_path(p));
 		eval = 1;
 	}
     fts_close(fts);
+	fts = NULL;
     if (errno) {
 		err(1, "fts_read");
     }
@@ -351,7 +368,7 @@ rm_file(argv)
 	 */
 	while ((f = *argv++) != NULL) {
 		/* Assume if can't stat the file, can't unlink it. */
-		if (lstat(f, &sb)) {
+		if (ios_system_lstat(f, &sb)) {
 			if (Wflag) {
 				sb.st_mode = S_IFWHT|S_IWUSR|S_IRUSR;
 			} else {
@@ -378,25 +395,25 @@ rm_file(argv)
 		if (!uid &&
 		    (sb.st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
-			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
+			rval = ios_system_chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
 		if (rval == 0) {
 			if (S_ISWHT(sb.st_mode))
-				rval = undelete(f);
+				rval = undelete_session(f);
 			else if (S_ISDIR(sb.st_mode))
-				rval = rmdir(f);
+				rval = ios_system_rmdir(f);
 			else {
 #ifdef __APPLE__
                 // added a call to FileManager() to set immutable to false so that rm can work.
                 // related to bug fix in "Get File" for a-Shell
 				if (Pflag) {
-					if (removefile(f, NULL, REMOVEFILE_SECURE_7_PASS)) /* overwrites and unlinks */
+					if (ios_system_removefile(f, NULL, REMOVEFILE_SECURE_7_PASS)) /* overwrites and unlinks */
 						eval = rval = 1;
 				} else
-					rval = unlink(f);
+					rval = ios_system_unlink(f);
 #else  /* !__APPLE__ */
 				if (Pflag)
 					rm_overwrite(f, &sb);
-				rval = unlink(f);
+				rval = ios_system_unlink(f);
 #endif	/* __APPLE__ */
 			}
 		}
@@ -432,13 +449,13 @@ rm_overwrite(file, sbp)
 	char *buf = NULL;
 
 	if (sbp == NULL) {
-		if (lstat(file, &sb))
+		if (ios_system_lstat(file, &sb))
 			goto err;
 		sbp = &sb;
 	}
 	if (!S_ISREG(sbp->st_mode))
 		return;
-	if ((fd = open(file, O_WRONLY, 0)) == -1)
+	if ((fd = ios_system_open(file, O_WRONLY, 0)) == -1)
 		goto err;
 	if (fstatfs(fd, &fsb) == -1)
 		goto err;
@@ -513,7 +530,7 @@ check(path, name, sp)
 		 * first because we may not have stat'ed the file.
 		 */
 		if (!stdin_ok || S_ISLNK(sp->st_mode) ||
-		    (!access(name, W_OK) &&
+		    (!ios_system_access(name, W_OK) &&
 		    !(sp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid)))
 			return (1);
@@ -523,8 +540,8 @@ check(path, name, sp)
         }
 		(void)fprintf(thread_stderr, "override %s%s%s/%s %s%sfor %s? ",
 		    modep + 1, modep[9] == ' ' ? "" : " ",
-		    user_from_uid(sp->st_uid, 0),
-		    group_from_gid(sp->st_gid, 0),
+		    ios_system_user_from_uid(sp->st_uid, 0),
+		    ios_system_group_from_gid(sp->st_gid, 0),
 		    *flagsp ? flagsp : "", *flagsp ? " " : "", 
 		    path);
 		free(flagsp);

@@ -41,20 +41,20 @@ struct trans {
   const char *str;
 };
 
-static struct trans trans_mon[] = {
+static const struct trans trans_mon[] = {
   { 1, "january" }, { 2, "february" }, { 3, "march" }, { 4, "april" },
   { 5, "may"}, { 6, "june" }, { 7, "july" }, { 8, "august" },
   { 9, "september" }, { 10, "october" }, { 11, "november" }, { 12, "december" },
   { -1, NULL }
 };
 
-static struct trans trans_wday[] = {
+static const struct trans trans_wday[] = {
   { 0, "sunday" }, { 1, "monday" }, { 2, "tuesday" }, { 3, "wednesday" },
   { 4, "thursday" }, { 5, "friday" }, { 6, "saturday" },
   { -1, NULL }
 };
 
-static char digits[] = "0123456789";
+static const char digits[] = "0123456789";
 static int adjhour(struct tm *, char, int, int);
 
 static int
@@ -62,7 +62,7 @@ domktime(struct tm *t, char type)
 {
   time_t ret;
 
-  while ((ret = mktime(t)) == -1 && t->tm_year > 68 && t->tm_year < 138)
+  while ((ret = zone_mktime(t)) == -1 && t->tm_year > 68 && t->tm_year < 138)
     /* While mktime() fails, adjust by an hour */
     adjhour(t, type == '-' ? type : '+', 1, 0);
 
@@ -103,7 +103,7 @@ vary_append(struct vary *v, char *arg)
   return result;
 }
 
-static int mdays[12] = { 31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+static const int mdays[12] = { 31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
 static int
 daysinmonth(const struct tm *t)

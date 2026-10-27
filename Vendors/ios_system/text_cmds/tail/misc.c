@@ -54,7 +54,7 @@ static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #include <unistd.h>
 
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 void
 ierr()
@@ -66,6 +66,7 @@ ierr()
 void
 oerr()
 {
+	ios_system_stop_on_broken_pipe(stdout);
 	err(1, "stdout");
 }
 

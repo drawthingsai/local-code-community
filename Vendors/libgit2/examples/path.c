@@ -159,7 +159,7 @@ void expand_path(char **path)
 
 	// If a relative path, convert it to an absolute path.
 	if (**path != PATH_DELIM) {
-		char *cwd = getcwd(NULL, 0);
+		char *cwd = lg2_getcwd();
 
 		join_paths(&new_path, cwd, *path);
 

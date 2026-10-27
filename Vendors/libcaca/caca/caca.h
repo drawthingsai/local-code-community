@@ -542,8 +542,8 @@ __extern int caca_get_event_resize_height(caca_event_t const *);
  *  option parsing, DLL injection.
  *
  *  @{ */
-__extern int caca_optind;
-__extern char *caca_optarg;
+__extern __thread int caca_optind;
+__extern __thread char *caca_optarg;
 __extern int caca_getopt(int, char * const[], char const *,
                          struct caca_option const *, int *);
 /*  @} */

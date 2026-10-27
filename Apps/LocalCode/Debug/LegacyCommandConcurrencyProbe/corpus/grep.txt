@@ -1,0 +1,101 @@
+# grep parity corpus
+grep value3 lines.txt
+grep -n key0 lines.txt
+grep -c key1 lines.txt
+grep -v key lines.txt
+grep -i APPLE words.txt
+grep -w line lines.txt
+grep -x apple words.txt
+grep -o 'value[0-9]' lines.txt
+grep -b line lines.txt
+grep -H x other/x.txt
+grep -h line lines.txt words.txt
+grep -l a lines.txt words.txt dups.txt
+grep -L zzz lines.txt words.txt
+grep -q apple words.txt; echo $?
+grep -q nothing words.txt; echo $?
+grep -s x missing.txt; echo $?
+grep x missing.txt
+grep -m 2 line lines.txt
+grep -A1 'line 5 ' lines.txt
+grep -B2 'line 5 ' lines.txt
+grep -C1 -n 'line 1[05] ' lines.txt
+grep -A1 -B1 key2 lines.txt | head -20
+grep -E 'value(1|2)$|key0' lines.txt
+grep -E 'v[a-z]+e[0-9]{1}' lines.txt
+grep 'value\(1\|2\)' lines.txt
+grep -F '.' numbers.txt
+grep -F -e apple -e cherry words.txt
+grep -e apple -e date words.txt
+grep -f script.sed lines.txt
+grep -f missing.txt lines.txt
+grep -f empty.txt lines.txt; echo $?
+grep '' empty.txt; echo $?
+grep '' words.txt
+grep -c '' blank.txt
+grep -v '^$' blank.txt
+grep '^ ' blank.txt
+grep -r error dir
+grep -rn error dir other
+grep -R deep .
+grep -rl a dir
+grep -r --include='*.txt' a dir
+grep -r --exclude='*.log' error dir
+grep -r --exclude-dir=sub error dir
+grep -r --include-dir=sub error dir
+grep -rc a dir
+grep -r a missing-dir
+grep a dir
+grep -d skip a dir lines.txt
+grep -d read a dir
+grep binary mixed.bin
+grep -c text mixed.bin
+grep -a binary mixed.bin
+grep -I binary mixed.bin; echo $?
+grep -U -c . mixed.bin
+grep -a . mixed.bin | wc -l
+grep -o . mixed.bin | wc -l
+grep -a -o '[a-z]*' mixed.bin
+grep 'é' unicode.txt
+grep -i 'école' unicode.txt
+grep -o '[[:alpha:]]*' unicode.txt
+grep -c '^.\{4\}$' unicode.txt
+grep -w 'naïve' unicode.txt
+grep -E '中|🙂' unicode.txt
+grep two crlf.txt | od -c | head -2
+grep last noeol.txt
+grep --null -l a lines.txt words.txt | od -c
+grep -Z -l a words.txt | od -c
+grep --label=input -H a < words.txt
+grep -H a < words.txt
+grep -n a - < words.txt
+grep --color=always apple words.txt | od -c | head -3
+grep --colour=never apple words.txt
+grep --line-buffered a words.txt
+grep -e '[' words.txt
+grep -E '(' words.txt
+grep -E 'a{1,2' words.txt
+grep
+grep -k a words.txt
+grep -V | head -1
+grep --context=1 date words.txt
+grep -P a words.txt
+egrep 'an+a' words.txt
+fgrep 'an+a' words.txt
+fgrep -x date words.txt
+egrep -c '^(a|b)' dups.txt
+grep -y apple words.txt
+grep -ivn a words.txt
+grep -n '' noeol.txt
+printf 'abc\x00def\n' | grep -c abc
+printf 'one\ntwo\nthree\n' | grep -n o
+printf 'x\n' | grep -L x; echo $?
+grep -r a 'spaces in name.txt'
+grep -- -dash -- -dash.txt
+grep -e -dash ./-dash.txt
+grep -rh '' dir/sub | sort
+grep -r --null -l deep . | od -c | head -2
+grep -m1 -c a words.txt
+grep -lv a words.txt dups.txt
+grep -A 1 -m 1 cherry words.txt
+grep -B 99 Apple words.txt

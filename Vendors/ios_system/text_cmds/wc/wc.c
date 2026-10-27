@@ -62,29 +62,51 @@ __FBSDID("$FreeBSD: src/usr.bin/wc/wc.c,v 1.21 2004/12/27 22:27:56 josef Exp $")
 #include <unistd.h>
 #include <wchar.h>
 #include <wctype.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 /* We allocte this much memory statically, and use it as a fallback for
   malloc failure, or statfs failure.  So it should be small, but not
   "too small" */
 #define SMALL_BUF_SIZE (1024 * 8)
 
-static uintmax_t tlinect, twordct, tcharct;
-static int doline, doword, dochar, domulti;
+static __thread uintmax_t tlinect, twordct, tcharct;
+static __thread int doline, doword, dochar, domulti;
+
+/* iOS: the read buffer and open file belong to the invocation. */
+static __thread u_char *wc_buf;
+static __thread off_t wc_buf_size;
+static __thread int open_fd = -1;
 
 static int	cnt(const char *);
 static void	usage(void);
+
+/* iOS: the invocation's stdin belongs to the caller. */
+static void close_input(int fd)
+{
+	if (fd != fileno(thread_stdin))
+		close(fd);
+	open_fd = -1;
+}
+
+static void wc_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (open_fd >= 0)
+		close(open_fd);
+	open_fd = -1;
+	free(wc_buf);
+	wc_buf = NULL;
+	ios_system_support_cleanup(unused);
+}
 
 int
 wc_main(int argc, char *argv[])
 {
 	int ch, errors, total;
 
-	(void) setlocale(LC_CTYPE, "");
-    // Initialize flags:
-    doline = doword = dochar =  domulti = 0;
-    tlinect = twordct = tcharct = 0;
-    optind = 1; opterr = 1; optreset = 1;
+	pthread_cleanup_push(wc_cleanup, NULL);
+	ios_system_support_init(argv);
+	/* Locale is owned by ios_system_support. */
 
 	while ((ch = getopt(argc, argv, "clmw")) != -1)
 		switch((char)ch) {
@@ -138,8 +160,9 @@ wc_main(int argc, char *argv[])
 			(void)fprintf(thread_stdout, " %7ju", tcharct);
 		(void)fprintf(thread_stdout, " total\n");
 	}
-    optarg = NULL; opterr = 0; optind = 0;
 	exit(errors == 0 ? 0 : 1);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static int
@@ -153,9 +176,9 @@ cnt(const char *file)
 	size_t clen;
 	short gotsp;
 	u_char *p;
-	static u_char small_buf[SMALL_BUF_SIZE];
-	static u_char *buf = small_buf;
-	static off_t buf_size = SMALL_BUF_SIZE;
+	u_char small_buf[SMALL_BUF_SIZE];
+	u_char *buf;
+	off_t buf_size;
 	wchar_t wch;
 	mbstate_t mbs;
 
@@ -164,7 +187,7 @@ cnt(const char *file)
 		file = "stdin";
 		fd = fileno(thread_stdin);
 	} else {
-		if ((fd = open(file, O_RDONLY, 0)) < 0) {
+		if ((fd = open_fd = ios_system_open(file, O_RDONLY, 0)) < 0) {
             warn("%s: open", file);
 			return (1);
 		}
@@ -173,16 +196,19 @@ cnt(const char *file)
 	if (fstatfs(fd, &fsb)) {
 	    fsb.f_iosize = SMALL_BUF_SIZE;
 	}
-	if (fsb.f_iosize != buf_size) {
-	    if (buf != small_buf) {
-		free(buf);
-	    }
-	    if (fsb.f_iosize == SMALL_BUF_SIZE || !(buf = malloc(fsb.f_iosize))) {
+	if (fsb.f_iosize != wc_buf_size) {
+	    free(wc_buf);
+	    wc_buf = NULL;
+	    wc_buf_size = 0;
+	    if (fsb.f_iosize != SMALL_BUF_SIZE && (wc_buf = malloc(fsb.f_iosize)) != NULL)
+		wc_buf_size = fsb.f_iosize;
+	}
+	if (wc_buf != NULL) {
+		buf = wc_buf;
+		buf_size = wc_buf_size;
+	} else {
 		buf = small_buf;
 		buf_size = SMALL_BUF_SIZE;
-	    } else {
-		buf_size = fsb.f_iosize;
-	    }
 	}
 
 	if (doword || (domulti && MB_CUR_MAX != 1))
@@ -196,7 +222,7 @@ cnt(const char *file)
         while ((len = read(fd, buf, buf_size))) {
 			if (len == -1) {
                 warn("%s: read", file);
-				(void)close(fd);
+				close_input(fd);
 				return (1);
 			}
 			charct += len;
@@ -210,7 +236,7 @@ cnt(const char *file)
 			tcharct += charct;
 			(void)fprintf(thread_stdout, " %7ju", charct);
 		}
-		(void)close(fd);
+		close_input(fd);
 		return (0);
 	}
 	/*
@@ -220,13 +246,13 @@ cnt(const char *file)
 	if (dochar || domulti) {
 		if (fstat(fd, &sb)) {
             warn("%s: fstat", file);
-			(void)close(fd);
+			close_input(fd);
 			return (1);
 		}
 		if (S_ISREG(sb.st_mode)) {
 			(void)fprintf(thread_stdout, " %7lld", (long long)sb.st_size);
 			tcharct += sb.st_size;
-			(void)close(fd);
+			close_input(fd);
 			return (0);
 		}
 	}
@@ -238,7 +264,7 @@ word:	gotsp = 1;
 	while ((len = read(fd, buf, buf_size)) != 0) {
 		if (len == -1) {
             warn("%s: read", file);
-			(void)close(fd);
+			close_input(fd);
 			return (1);
 		}
 		p = buf;
@@ -288,7 +314,7 @@ word:	gotsp = 1;
 		tcharct += charct;
 		(void)fprintf(thread_stdout, " %7ju", charct);
 	}
-	(void)close(fd);
+	close_input(fd);
 	return (0);
 }
 

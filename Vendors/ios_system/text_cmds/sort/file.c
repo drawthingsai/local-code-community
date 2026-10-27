@@ -49,17 +49,17 @@ __FBSDID("$FreeBSD: head/usr.bin/sort/file.c 298089 2016-04-15 22:31:22Z pfg $")
 #include "coll.h"
 #include "file.h"
 #include "radixsort.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
-unsigned long long free_memory = 1000000;
-unsigned long long available_free_memory = 1000000;
+__thread unsigned long long free_memory = 1000000;
+__thread unsigned long long available_free_memory = 1000000;
 
-bool use_mmap;
+__thread bool use_mmap;
 
-const char *tmpdir = "/var/tmp";
-const char *compress_program;
+__thread const char *tmpdir = "/var/tmp";
+__thread const char *compress_program;
 
-size_t max_open_files = 16;
+__thread size_t max_open_files = 16;
 
 /*
  * How much space we read from file at once
@@ -107,14 +107,12 @@ struct CLEANABLE_FILE
 /*
  * List header of "cleanable" files list.
  */
-static LIST_HEAD(CLEANABLE_FILES,CLEANABLE_FILE) tmp_files;
+/* iOS: per invocation, and only its own thread uses it (no semaphore). */
+static __thread LIST_HEAD(CLEANABLE_FILES,CLEANABLE_FILE) tmp_files;
 
-/*
- * Semaphore to protect the tmp file list.
- * We use semaphore here because it is signal-safe, according to POSIX.
- * And semaphore does not require pthread library.
- */
-static sem_t tmp_files_sem;
+/* iOS: streams opened by openfile, closed by close_open_files on early exit. */
+static __thread FILE **open_files;
+static __thread size_t open_file_count, open_file_capacity;
 
 static void mt_sort(struct sort_list *list,
     int (*sort_func)(void *, size_t, size_t,
@@ -128,7 +126,6 @@ init_tmp_files(void)
 {
 
 	LIST_INIT(&tmp_files);
-	sem_init(&tmp_files_sem, 0, 1);
 }
 
 /*
@@ -139,12 +136,10 @@ tmp_file_atexit(const char *tmp_file)
 {
 
 	if (tmp_file) {
-		sem_wait(&tmp_files_sem);
 		struct CLEANABLE_FILE *item =
 		    sort_malloc(sizeof(struct CLEANABLE_FILE));
 		item->fn = sort_strdup(tmp_file);
 		LIST_INSERT_HEAD(&tmp_files, item, files);
-		sem_post(&tmp_files_sem);
 	}
 }
 
@@ -156,12 +151,10 @@ clear_tmp_files(void)
 {
 	struct CLEANABLE_FILE *item;
 
-	sem_wait(&tmp_files_sem);
 	LIST_FOREACH(item,&tmp_files,files) {
 		if ((item) && (item->fn))
-			unlink(item->fn);
+			ios_system_unlink(item->fn);
 	}
-	sem_post(&tmp_files_sem);
 }
 
 /*
@@ -174,7 +167,6 @@ file_is_tmp(const char* fn)
 	bool ret = false;
 
 	if (fn) {
-		sem_wait(&tmp_files_sem);
 		LIST_FOREACH(item,&tmp_files,files) {
 			if ((item) && (item->fn))
 				if (strcmp(item->fn, fn) == 0) {
@@ -182,7 +174,6 @@ file_is_tmp(const char* fn)
 					break;
 				}
 		}
-		sem_post(&tmp_files_sem);
 	}
 
 	return (ret);
@@ -194,15 +185,19 @@ file_is_tmp(const char* fn)
 char *
 new_tmp_file_name(void)
 {
-	static size_t tfcounter = 0;
-	static const char *fn = ".bsdsort.";
+	static __thread size_t tfcounter = 0;
+	static const char fn[] = ".bsdsort.";
 	char *ret;
 	size_t sz;
+	uint64_t thread;
 
-	sz = strlen(tmpdir) + 1 + strlen(fn) + 32 + 1;
+	// iOS: sessions share one process, so the name also carries the thread.
+	pthread_threadid_np(NULL, &thread);
+	sz = strlen(tmpdir) + 1 + strlen(fn) + 64 + 1;
 	ret = sort_malloc(sz);
 
-	sprintf(ret, "%s/%s%d.%lu", tmpdir, fn, (int) getpid(), (unsigned long)(tfcounter++));
+	sprintf(ret, "%s/%s%d.%llu.%lu", tmpdir, fn, (int) getpid(),
+	    (unsigned long long)thread, (unsigned long)(tfcounter++));
 	tmp_file_atexit(ret);
 	return (ret);
 }
@@ -270,7 +265,7 @@ file_list_clean(struct file_list *fl)
 			for (i = 0; i < fl->count; i++) {
 				if (fl->fns[i]) {
 					if (fl->tmp)
-						unlink(fl->fns[i]);
+						ios_system_unlink(fl->fns[i]);
 					sort_free(fl->fns[i]);
 					fl->fns[i] = 0;
 				}
@@ -543,12 +538,7 @@ openfile(const char *fn, const char *mode)
 	if (strcmp(fn, "-") == 0) {
 		return ((mode && mode[0] == 'r') ? thread_stdin : thread_stdout);
 	} else {
-		mode_t orig_file_mask = 0;
 		int is_tmp = file_is_tmp(fn);
-
-		if (is_tmp && (mode[0] == 'w'))
-			orig_file_mask = umask(S_IWGRP | S_IWOTH |
-			    S_IRGRP | S_IROTH);
 
 		if (is_tmp && (compress_program != NULL)) {
 			char *cmd;
@@ -573,15 +563,40 @@ openfile(const char *fn, const char *mode)
 
 			sort_free(cmd);
 
+		} else if (is_tmp && (mode[0] == 'w')) {
+			/*
+			 * iOS: create temporaries owner-only with an explicit
+			 * mode; changing the process umask would also apply to
+			 * files other sessions create meanwhile.
+			 */
+			int fd = ios_system_open(fn, O_WRONLY | O_CREAT | O_TRUNC,
+			    S_IRUSR | S_IWUSR);
+			if (fd < 0 || (file = fdopen(fd, mode)) == NULL)
+				err(2, NULL);
 		} else
-			if ((file = fopen(fn, mode)) == NULL)
+			if ((file = ios_system_fopen(fn, mode)) == NULL)
 				err(2, NULL);
 
-		if (is_tmp && (mode[0] == 'w'))
-			umask(orig_file_mask);
+		if (open_file_count == open_file_capacity) {
+			open_file_capacity = open_file_capacity ? open_file_capacity * 2 : 8;
+			open_files = sort_realloc(open_files,
+			    open_file_capacity * sizeof(*open_files));
+		}
+		open_files[open_file_count++] = file;
 	}
 
 	return (file);
+}
+
+/* iOS: close what an early exit left open. */
+void
+close_open_files(void)
+{
+
+	while (open_file_count > 0) {
+		FILE *f = open_files[--open_file_count];
+		fclose(f);
+	}
 }
 
 /*
@@ -597,6 +612,11 @@ closefile(FILE *f, const char *fn)
 	} else if (f == thread_stdout) {
 		fflush(f);
 	} else {
+		for (size_t i = 0; i < open_file_count; ++i)
+			if (open_files[i] == f) {
+				open_files[i] = open_files[--open_file_count];
+				break;
+			}
 		if (file_is_tmp(fn) && compress_program != NULL) {
 			if(pclose(f)<0)
 				err(2,NULL);
@@ -640,7 +660,7 @@ file_reader_init(const char *fsrc)
 #endif
 			addr = MAP_FAILED;
 
-			fd = open(fsrc, O_RDONLY);
+			fd = ios_system_open(fsrc, O_RDONLY);
 			if (fd < 0)
 				err(2, NULL);
 

@@ -32,11 +32,14 @@
 
 #include <errno.h>
 #include <stdbool.h>
+#include <malloc/malloc.h>
 #include <stdlib.h>
 
 /*
  * mem.c
  */
+extern __thread malloc_zone_t *sort_zone;
+
 void *sort_malloc(size_t);
 void sort_free(const void *ptr);
 void *sort_realloc(void *, size_t);

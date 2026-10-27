@@ -57,13 +57,13 @@ async (tab) => {
 
 ```sh
 web-browse-cli run --file browser-task.js
-web-browse-cli screenshot --file /tmp/profile.png --inline --full-page
+web-browse-cli screenshot --file $TMPDIR/profile.png --inline --full-page
 ```
 
 The fixture tracks application state separately from the input's DOM value, the way
 controlled inputs do. The result should contain `name: "Liu Liu"`, `enabled: true`,
 `country: "ca"`, and `inputEvents: 1`. File arguments use the app's existing project,
-`/home`, `/tmp`, `/app_bundle`, and permitted-directory path resolver.
+`~`, `$TMPDIR`, `/app_bundle`, and permitted-directory path resolver.
 
 ## Observations and their size
 

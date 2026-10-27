@@ -20,7 +20,7 @@ public func hyperframes_main(
   var directory =
     ios_getenv("PWD").map { String(cString: $0) } ?? FileManager.default.currentDirectoryPath
   let home = ios_getenv("HOME").map { String(cString: $0) } ?? directory
-  let aliases = ["/home", "/tmp", "/app_bundle"].map { alias -> (String, String) in
+  let aliases = ["/app_bundle"].map { alias -> (String, String) in
     var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
     let resolved = ios_resolveDirectoryAlias(alias, &buffer, buffer.count)
     return (alias, resolved > 0 ? String(cString: buffer) : alias)

@@ -1,0 +1,117 @@
+# sed parity corpus
+sed -n 3p lines.txt
+sed -n '3,7p' lines.txt
+sed -n '$p' lines.txt
+sed -n '/key0/p' lines.txt
+sed -n '/line 5/,/line 9/p' lines.txt
+sed -n '5,/key2/p' lines.txt
+sed '1d' lines.txt
+sed '2,$d' lines.txt
+sed '/value3/d' lines.txt
+sed '/value3/!d' lines.txt
+sed 's/value/VAL/' lines.txt
+sed 's/value/VAL/g' lines.txt
+sed 's/e/E/2' lines.txt
+sed 's/e/E/2g' lines.txt
+sed -n 's/key1/KEY1/p' lines.txt
+sed 's/\(line\) \([0-9]*\)/\2 \1/' lines.txt
+sed -E 's/(line) ([0-9]+)/\2-\1/' lines.txt
+sed -E 's/[0-9]+$//' lines.txt
+sed 's/.*/[&]/' words.txt
+sed $'s/a/\\\n/g' words.txt
+sed 's|/|:|g' dir/a.txt
+sed -e 's/a/A/' -e 's/b/B/' words.txt
+sed -e 1d -e '$d' words.txt
+sed -f script.sed lines.txt
+sed -f missing.sed lines.txt
+sed 'y/abc/ABC/' words.txt
+sed 'y/aé/AÉ/' unicode.txt
+sed $'1i\\\ninserted' words.txt
+sed $'2a\\\nappended' words.txt
+sed $'3c\\\nchanged' words.txt
+sed $'/apple/c\\\nfruit' words.txt
+sed = words.txt
+sed -n '$=' lines.txt
+sed -n l mixed.bin
+sed -n l unicode.txt
+sed -n l long.txt
+sed 3q lines.txt
+sed -n '2{p;q;}' lines.txt
+sed '/cherry/{s/cherry/CHERRY/;s/C/c/;}' words.txt
+sed -n '/a/{/e/p;}' words.txt
+sed ':a;N;$!ba;s/\n/,/g' words.txt
+sed '$!N;s/\n/ /' words.txt
+sed 'N;P;D' words.txt
+sed -n 'h;n;G;p' words.txt
+sed '1!G;h;$!d' words.txt
+sed -n 'H;${x;s/\n/|/g;p;}' words.txt
+sed 'x;$!d' words.txt
+sed '/apple/b skip;s/a/A/;:skip' words.txt
+sed 's/a/A/;t;s/e/E/' words.txt
+sed 's/a/A/;tdone;s/e/E/;:done' words.txt
+sed 'r dir/a.txt' words.txt
+sed '1r missing.txt' words.txt
+sed -n '/apple/w out.txt' words.txt
+sed 's/apple/APPLE/w changes.txt' words.txt
+sed -n $'/an/w same.txt\n/er/w same.txt' words.txt
+sed -n 1p lines.txt words.txt
+sed -n '$p' lines.txt words.txt
+sed 's/^/> /' lines.txt missing.txt words.txt
+sed p empty.txt
+sed p noeol.txt
+sed 's/$/|/' crlf.txt
+sed 's/\r$//' crlf.txt
+sed -n '/^$/=' blank.txt
+sed 's/x*/y/' long.txt
+sed 's/é/E/g' unicode.txt
+sed 's/[[:upper:]]/_/g' unicode.txt
+sed -n '/[[:alpha:]]\{6\}/p' unicode.txt
+printf 'a\nb\nc\n' | sed -n 2p
+printf 'a\nb\nc\n' | sed $'$a\\\nend'
+printf 'no newline' | sed 's/no/yes/'
+printf 'x\n' | sed -i '' s/x/y/
+sed -i '' 's/value/V/' lines.txt; cat lines.txt
+sed -i.bak 's/apple/pear/' words.txt; cat words.txt words.txt.bak
+sed -i '' -e '1d' dir/a.txt dir/b.log; cat dir/a.txt dir/b.log
+sed -i '' 's/x/y/' missing.txt
+sed -i '' 's/a/b/' link.txt
+sed -i '' 's/a/b/' dir
+sed -i '' 's/read/write/' ro.txt; cat ro.txt
+sed -i '' 1q lines.txt; wc -l lines.txt
+sed -i '' 's/spaced/SPACED/' 'spaces in name.txt'; cat 'spaces in name.txt'
+sed -i '' 's/c/C/' dir/sub/c.txt; cat dir/sub/c.txt
+sed -n 's/a/b/X' words.txt
+sed 'k' words.txt
+sed '/unterminated' words.txt
+sed 's/a/b' words.txt
+sed 'y/ab/c/' words.txt
+sed 'b nowhere' words.txt
+sed $':dup\n:dup' words.txt
+sed '{p' words.txt
+sed '}' words.txt
+sed 's/\(a\)/\2/' words.txt
+sed -E 's/(a/b/' words.txt
+sed 3x lines.txt
+sed --bad words.txt
+sed
+sed -n
+sed -l -n 2p lines.txt
+sed -a -n '/a/w aflag.txt' words.txt
+sed -n -- 2p lines.txt
+sed -n 2p -- -dash.txt
+sed 's/a/A/' -dash.txt
+sed 1d -
+sed -E 's/(.)(.)/\2\1/g' words.txt
+sed 's/[aeiou]//g;s/^$/EMPTY/' words.txt
+sed -n '/A/I p' words.txt
+sed -n '0,/a/p' words.txt
+sed -n '2~2p' lines.txt
+sed 's/a/&&/3' words.txt
+sed 's/\./DOT/g' numbers.txt
+sed -E 's/^-?[0-9]+$/INT/' numbers.txt
+sed 's/\t/<TAB>/g' tabs.txt
+sed "s/'/Q/g" csv.txt
+sed 's/,/\t/g' csv.txt
+sed -n '/^b/,$p' csv.txt
+sed '1~3d' lines.txt
+sed '/line 1[0-9]/,+2d' lines.txt

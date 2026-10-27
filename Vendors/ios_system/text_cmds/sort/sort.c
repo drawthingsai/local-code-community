@@ -54,11 +54,11 @@ __FBSDID("$FreeBSD: head/usr.bin/sort/sort.c 289751 2015-10-22 10:57:15Z gabor $
 #include "coll.h"
 #include "file.h"
 #include "sort.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #ifndef WITHOUT_NLS
 #include <nl_types.h>
-nl_catd sort_catalog;
+__thread nl_catd sort_catalog;
 #endif
 
 #define	OPTIONS	"bcCdfghik:Mmno:RrsS:t:T:uVz"
@@ -66,18 +66,18 @@ nl_catd sort_catalog;
 #define DEFAULT_RANDOM_SORT_SEED_FILE ("/dev/random")
 #define MAX_DEFAULT_RANDOM_SEED_DATA_SIZE (1024)
 
-static bool need_random;
-static const char *random_source = DEFAULT_RANDOM_SORT_SEED_FILE;
-static const void *random_seed;
-static size_t random_seed_size;
+static __thread bool need_random;
+static __thread const char *random_source = DEFAULT_RANDOM_SORT_SEED_FILE;
+static __thread const void *random_seed;
+static __thread size_t random_seed_size;
 
-MD5_CTX md5_ctx;
+__thread MD5_CTX md5_ctx;
 
 /*
  * Default messages to use when NLS is disabled or no catalogue
  * is found.
  */
-const char *nlsstr[] = { "",
+const char *const nlsstr[] = { "",
 /* 1*/"mutually exclusive flags",
 /* 2*/"extra argument not allowed with -c",
 /* 3*/"Unknown feature",
@@ -101,28 +101,28 @@ const char *nlsstr[] = { "",
       "[--version-sort] [--random-sort [--random-source file]] "
       "[--compress-program program] [file ...]\n" };
 
-struct sort_opts sort_opts_vals;
+__thread struct sort_opts sort_opts_vals;
 
-bool debug_sort;
-bool need_hint;
+__thread bool debug_sort;
+__thread bool need_hint;
 
 #if defined(SORT_THREADS)
 unsigned int ncpu = 1;
 size_t nthreads = 1;
 #endif
 
-static bool gnusort_numeric_compatibility;
+static __thread bool gnusort_numeric_compatibility;
 
-static struct sort_mods default_sort_mods_object;
-struct sort_mods * const default_sort_mods = &default_sort_mods_object;
+/* iOS: default_sort_mods is a macro naming this (see sort.h). */
+__thread struct sort_mods default_sort_mods_object;
 
-static bool print_symbols_on_debug;
+static __thread bool print_symbols_on_debug;
 
 /*
  * Arguments from file (when file0-from option is used:
  */
-static size_t argc_from_file0 = (size_t)-1;
-static char **argv_from_file0;
+static __thread size_t argc_from_file0 = (size_t)-1;
+static __thread char **argv_from_file0;
 
 /*
  * Placeholder symbols for options which have no single-character equivalent
@@ -150,7 +150,7 @@ enum
 #define	NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS 6
 static const char mutually_exclusive_flags[NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS] = { 'M', 'n', 'g', 'R', 'h', 'V' };
 
-static struct option long_options[] = {
+static const struct option long_options[] = {
 				{ "batch-size", required_argument, NULL, BS_OPT },
 				{ "buffer-size", required_argument, NULL, 'S' },
 				{ "check", optional_argument, NULL, 'c' },
@@ -241,7 +241,7 @@ read_fns_from_file0(const char *fn)
 	if (fn == NULL)
 		return;
 
-	f = fopen(fn, "r");
+	f = ios_system_fopen(fn, "r");
 	if (f == NULL)
 		err(2, "%s", fn);
 
@@ -333,8 +333,7 @@ set_locale(void)
 	struct lconv *lc;
 	const char *locale;
 
-	setlocale(LC_ALL, "");
-
+	/* Locale is owned by ios_system_support. */
 	lc = localeconv();
 
 	if (lc) {
@@ -353,26 +352,14 @@ set_locale(void)
 	if (getenv("GNUSORT_NUMERIC_COMPATIBILITY"))
 		gnusort_numeric_compatibility = true;
 
-	locale = setlocale(LC_COLLATE, NULL);
+	/*
+	 * iOS: ask the thread's locale instead of switching the process locale
+	 * to compare its collation with "C" and "POSIX".
+	 */
+	locale = querylocale(LC_COLLATE_MASK, uselocale(NULL));
 
-	if (locale) {
-		char *tmpl;
-		const char *cclocale;
-
-		tmpl = sort_strdup(locale);
-		cclocale = setlocale(LC_COLLATE, "C");
-		if (cclocale && !strcmp(cclocale, tmpl))
-			byte_sort = true;
-		else {
-			const char *pclocale;
-
-			pclocale = setlocale(LC_COLLATE, "POSIX");
-			if (pclocale && !strcmp(pclocale, tmpl))
-				byte_sort = true;
-		}
-		setlocale(LC_COLLATE, tmpl);
-		sort_free(tmpl);
-	}
+	if (locale && (!strcmp(locale, "C") || !strcmp(locale, "POSIX")))
+		byte_sort = true;
 }
 
 /*
@@ -458,10 +445,22 @@ parse_memory_buffer_value(const char *value)
  * thread, or when sort returns, as upstream does with atexit().
  */
 static void
-clear_tmp_files_cleanup(void *unused __unused)
+sort_cleanup(void *unused)
 {
 
-	clear_tmp_files();
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (sort_zone != NULL) {
+		clear_tmp_files();
+		close_open_files();
+	}
+#ifndef WITHOUT_NLS
+	if (sort_catalog != (nl_catd)0 && sort_catalog != (nl_catd)-1)
+		catclose(sort_catalog);
+#endif
+	ios_system_support_cleanup(unused);
+	if (sort_zone != NULL)
+		malloc_destroy_zone(sort_zone);
+	sort_zone = NULL;
 }
 
 /*
@@ -931,16 +930,18 @@ sort_main(int argc, char **argv)
     
     for (int i = 0; i < NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS; i++) mef_flags[i] = false;
 
+	pthread_cleanup_push(sort_cleanup, NULL);
+	ios_system_support_init(argv);
+	if ((sort_zone = malloc_create_zone(0, 0)) == NULL)
+		err(2, NULL);
+	malloc_set_zone_name(sort_zone, "sort");
 	result = 0;
-    keys_num = 0;
 	outfile = sort_strdup("-");
 	real_outfile = NULL;
 
 	struct sort_mods *sm = &default_sort_mods_object;
-    
-	init_tmp_files();
 
-	pthread_cleanup_push(clear_tmp_files_cleanup, NULL);
+	init_tmp_files();
 
 	set_hw_params();
 	set_locale();
@@ -1085,10 +1086,10 @@ sort_main(int argc, char **argv)
 				sort_opts_vals.sort_method = SORT_RADIXSORT;
 				break;
 			case RANDOMSOURCE_OPT:
-				random_source = strdup(optarg);
+				random_source = sort_strdup(optarg);
 				break;
 			case COMPRESSPROGRAM_OPT:
-				compress_program = strdup(optarg);
+				compress_program = sort_strdup(optarg);
 				break;
 			case FF_OPT:
 				read_fns_from_file0(optarg);
@@ -1143,6 +1144,7 @@ sort_main(int argc, char **argv)
 
 #ifndef WITHOUT_NLS
 	catclose(sort_catalog);
+	sort_catalog = (nl_catd)-1;
 #endif
 
 	if (keys_num == 0) {
@@ -1178,7 +1180,7 @@ sort_main(int argc, char **argv)
 		nthreads = 1;
 #endif
 		printf("Using collate rules of %s locale\n",
-		    setlocale(LC_COLLATE, NULL));
+		    querylocale(LC_COLLATE_MASK, uselocale(NULL)));
 		if (byte_sort)
 			printf("Byte sort is used\n");
 		if (print_symbols_on_debug) {
@@ -1207,7 +1209,7 @@ sort_main(int argc, char **argv)
 					strcpy(tmp + strlen(tmp), ".tmp");
 					sort_free(outfile);
 					outfile = tmp;
-					if (access(outfile, F_OK) < 0)
+					if (ios_system_access(outfile, F_OK) < 0)
 						break;
 				}
 				tmp_file_atexit(outfile);
@@ -1271,15 +1273,15 @@ sort_main(int argc, char **argv)
 	}
 
 	if (real_outfile) {
-		unlink(real_outfile);
-		if (rename(outfile, real_outfile) < 0)
+		ios_system_unlink(real_outfile);
+		if (ios_system_rename(outfile, real_outfile) < 0)
 			err(2, NULL);
 		sort_free(real_outfile);
 	}
 
 	sort_free(outfile);
 
+	exit(result);
 	pthread_cleanup_pop(1);
-
 	return (result);
 }

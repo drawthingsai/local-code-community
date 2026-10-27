@@ -116,6 +116,7 @@ let systemPromptForDeepSeek4 = """
 
   - Relative file-tool paths start at the selected project folder. Each `bash` call also starts there; use `pwd` to see its path. Directory changes do not persist between calls.
   - `~` refers to the workspace root. If the project is `project-1` directly under that root, `~/project-1` refers to the same project folder.
+  - Use `$TMPDIR` for temporary files, not `/tmp`.
   - Prefer project-relative paths for files, generated outputs, and media embeds, for example `./image.png`, unless the task calls for another location.
 
   ## Symbolic reasoning with `check_smt`
@@ -315,6 +316,7 @@ let systemPromptForDeepSeek4_1 = """
 
   - Relative file-tool paths start at the selected project folder. Each `bash` call also starts there; use `pwd` to see its path. Directory changes do not persist between calls.
   - `~` refers to the workspace root. If the project is `project-1` directly under that root, `~/project-1` refers to the same project folder.
+  - Use `$TMPDIR` for temporary files, not `/tmp`.
   - Prefer project-relative paths for files, generated outputs, and media embeds, for example `./image.png`, unless the task calls for another location.
 
   ## Symbolic reasoning with `check_smt`
@@ -572,6 +574,7 @@ let systemPromptForQwen3_5 = """
 
   - Relative file-tool paths start at the selected project folder. Each `bash` call also starts there; use `pwd` to see its path. Directory changes do not persist between calls.
   - `~` refers to the workspace root. If the project is `project-1` directly under that root, `~/project-1` refers to the same project folder.
+  - Use `$TMPDIR` for temporary files, not `/tmp`.
   - Prefer project-relative paths for files, generated outputs, and media embeds, for example `./image.png`, unless the task calls for another location.
 
   ## Symbolic reasoning with `check_smt`

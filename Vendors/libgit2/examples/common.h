@@ -115,6 +115,14 @@ extern void check_lg2(int error, const char *message, const char *extra);
  */
 extern char *read_file(const char *path);
 
+/*
+ * iOS: ios_system runs commands for several sessions in one process. A
+ * relative path is the session's working directory (its PWD), not the
+ * process-wide one, which other sessions move.
+ */
+extern char *lg2_getcwd(void);
+extern const char *lg2_session_path(const char *path, char *buffer);
+
 /**
  * Ask the user for input via stdin.
  *

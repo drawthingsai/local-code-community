@@ -9,20 +9,24 @@ struct LocalPathResolverTests {
     #expect(localPathResolver.resolve("abc.png")?.url.lastPathComponent == "abc.png")
   }
 
-  @Test func resolvesProjectHomeTildeAndTemporaryPaths() throws {
+  @Test func resolvesProjectHomeAndTemporaryPaths() throws {
     let fixture = try Fixture()
 
     #expect(
       fixture.localPathResolver.resolve("abc.png")?.url.path
         == fixture.projectURL.path + "/abc.png")
-    #expect(
-      fixture.localPathResolver.resolve("/home/abc.png")?.url.path
-        == fixture.workspaceURL.path + "/abc.png")
+    #expect(fixture.localPathResolver.resolve("/home/abc.png") == nil)
     #expect(
       fixture.localPathResolver.resolve("~/abc.png")?.url.path
         == fixture.workspaceURL.path + "/abc.png")
     #expect(
-      fixture.localPathResolver.resolve("/tmp/abc.png")?.url.path
+      fixture.localPathResolver.resolve("~/abc.png")?.reference(for: "abc.png") == "~/abc.png")
+    #expect(
+      fixture.localPathResolver.resolve("$HOME/abc.png")?.url.path
+        == fixture.workspaceURL.path + "/abc.png")
+    #expect(fixture.localPathResolver.resolve("/tmp/abc.png") == nil)
+    #expect(
+      fixture.localPathResolver.resolve("$TMPDIR/abc.png")?.url.path
         == fixture.temporaryURL.path + "/abc.png")
     #expect(
       fixture.localPathResolver.resolve("/app_bundle/Skills/review/SKILL.md")?.url.path
@@ -32,8 +36,10 @@ struct LocalPathResolverTests {
   @Test func aliasMatchingUsesPathComponentBoundaries() throws {
     let fixture = try Fixture()
 
-    #expect(fixture.localPathResolver.resolve("/homepage/file") == nil)
     #expect(fixture.localPathResolver.resolve("/tmpfile") == nil)
+    #expect(
+      fixture.localPathResolver.resolve("$TMPDIRfile")?.url.path
+        == fixture.projectURL.path + "/$TMPDIRfile")
     #expect(
       fixture.localPathResolver.resolve("~someone/file")?.url.path
         == fixture.projectURL.path + "/~someone/file")
@@ -44,9 +50,9 @@ struct LocalPathResolverTests {
     let fixture = try Fixture()
 
     #expect(fixture.localPathResolver.resolve("../sibling") == nil)
-    #expect(fixture.localPathResolver.resolve("/home/../outside") == nil)
     #expect(fixture.localPathResolver.resolve("~/../outside") == nil)
-    #expect(fixture.localPathResolver.resolve("/tmp/../outside") == nil)
+    #expect(fixture.localPathResolver.resolve("$HOME/../outside") == nil)
+    #expect(fixture.localPathResolver.resolve("$TMPDIR/../outside") == nil)
     #expect(fixture.localPathResolver.resolve("/app_bundle/../outside") == nil)
   }
 
@@ -58,12 +64,12 @@ struct LocalPathResolverTests {
     let sibling = fixture.localPathResolver.resolve(siblingURL.path)
     #expect(sibling?.url.path == siblingURL.path)
     #expect(sibling?.namespace == .home)
-    #expect(sibling?.reference(for: "sibling/file.swift") == "/home/sibling/file.swift")
+    #expect(sibling?.reference(for: "sibling/file.swift") == "~/sibling/file.swift")
 
     let temporary = fixture.localPathResolver.resolve(temporaryFileURL.absoluteString)
     #expect(temporary?.url.path == temporaryFileURL.path)
     #expect(temporary?.namespace == .temporary)
-    #expect(temporary?.reference(for: "result.txt") == "/tmp/result.txt")
+    #expect(temporary?.reference(for: "result.txt") == "$TMPDIR/result.txt")
   }
 
   @Test func resolvesAppBundleResourcesThroughVirtualPath() throws {

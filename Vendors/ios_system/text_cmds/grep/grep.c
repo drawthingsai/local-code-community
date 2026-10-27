@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD: src/usr.bin/grep/grep.c,v 1.16 2012/01/15 17:01:28 eadler Ex
 #include "fastmatch.h"
 #endif
 #include "grep.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 #ifndef WITHOUT_NLS
 #include <nl_types.h>
@@ -64,7 +64,7 @@ __thread nl_catd	 catalog;
  * Default messags to use when NLS is disabled or no catalogue
  * is found.
  */
-const char	*errstr[] = {
+const char	*const errstr[] = {
 	"",
 /* 1*/	"(standard input)",
 /* 2*/	"cannot read bzip2 compressed file",
@@ -102,7 +102,8 @@ unsigned __thread int	 dpatterns, dpattern_sz;
 __thread struct epat	*dpattern, *fpattern;
 
 /* For regex errors  */
-char	 re_error[RE_ERROR_BUF + 1];
+__thread char	 re_error[RE_ERROR_BUF + 1];
+static __thread unsigned int compiled_patterns;	/* entries of r_pattern compiled */
 
 /* Command-line flags */
 __thread unsigned long long Aflag;	/* -A x: print x lines trailing each match */
@@ -159,7 +160,32 @@ __thread bool	 prev;		/* flag whether or not the previous line matched */
 __thread int	 tail;		/* lines left to print */
 __thread bool	 file_err;	/* file reading error */
 
-static char* progname;
+static __thread char* progname;
+extern __thread struct file *current_file;
+
+/* iOS: release what the invocation holds when it ends, however it ends. */
+static void
+grep_cleanup(void *unused)
+{
+
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (current_file != NULL)
+		grep_close(current_file);
+	current_file = NULL;
+	for (unsigned int i = 0; i < compiled_patterns; ++i)
+		regfree(&r_pattern[i]);
+	compiled_patterns = 0;
+	release_binary_patterns();
+#ifndef WITHOUT_NLS
+	if (catalog != (nl_catd)0 && catalog != (nl_catd)-1)
+		catclose(catalog);
+	catalog = (nl_catd)-1;
+#endif
+	ios_system_support_cleanup(unused);
+	if (grep_zone != NULL)
+		malloc_destroy_zone(grep_zone);
+	grep_zone = NULL;
+}
 
 /*
  * Prints usage information and returns 2.
@@ -175,7 +201,7 @@ usage(void)
 	exit(2);
 }
 
-static const char	*optstr = "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXy";
+static const char	optstr[] = "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXy";
 
 static const struct option long_options[] =
 {
@@ -332,7 +358,7 @@ read_patterns(const char *fn)
 	char *line;
 	size_t len;
 
-    if ((f = fopen(fn, "r")) == NULL) {
+    if ((f = ios_system_fopen(fn, "r")) == NULL) {
 		err(2, "%s", fn);
     }
 	if ((fstat(fileno(f), &st) == -1) || (S_ISDIR(st.st_mode))) {
@@ -366,9 +392,14 @@ grep_main(int argc, char *argv[])
 	unsigned int aargc, eargc, i;
 	int c, lastc, needpattern, newarg, prevoptind;
 
-    setlocale(LC_ALL, "");
+	pthread_cleanup_push(grep_cleanup, NULL);
+	ios_system_support_init(argv);
+	if ((grep_zone = malloc_create_zone(0, 0)) == NULL)
+		err(2, "malloc");
+	malloc_set_zone_name(grep_zone, "grep");
+	queue_init();
+	/* Locale is owned by ios_system_support. */
     // Initialize all variables and flags:
-    optind = 1; opterr = 1; optreset = 1;
     patterns = pattern_sz = 0;
     fpatterns = fpattern_sz = 0;
     dpatterns = dpattern_sz = 0;
@@ -439,7 +470,7 @@ grep_main(int argc, char *argv[])
 	/* support for extra arguments in GREP_OPTIONS */
 	eargc = 0;
 	if (eopts != NULL && eopts[0] != '\0') {
-		char *str;
+		char *str, *eoptscopy;
 
 		/* make an estimation of how many extra arguments we have */
 		for (unsigned int j = 0; j < strlen(eopts); j++)
@@ -450,9 +481,12 @@ grep_main(int argc, char *argv[])
 
 		eargc = 0;
 		/* parse extra arguments */
+		/* iOS: strsep writes into the string, which other threads read; split a copy. */
+		eoptscopy = eopts = grep_strdup(eopts);
 		while ((str = strsep(&eopts, " ")) != NULL)
 			if (str[0] != '\0')
 				eargv[eargc++] = grep_strdup(str);
+		free(eoptscopy);
 
 		aargv = (char **)grep_calloc(eargc + argc + 1,
 		    sizeof(char *));
@@ -793,6 +827,7 @@ grep_main(int argc, char *argv[])
 				    RE_ERROR_BUF);
 				errx(2, "%s", re_error);
 			}
+			compiled_patterns = i + 1;
 #ifndef WITHOUT_FASTMATCH
 		}
 #endif
@@ -818,11 +853,9 @@ grep_main(int argc, char *argv[])
 			c+= procfile(*aargv);
 		}
 
-#ifndef WITHOUT_NLS
-	catclose(catalog);
-#endif
-
 	/* Find out the correct return value according to the
 	   results and the command line option. */
 	exit(c ? (file_err ? (qflag ? 0 : 2) : 0) : (file_err ? 2 : 1));
+	pthread_cleanup_pop(1);
+	return 0;
 }

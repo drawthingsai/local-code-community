@@ -34,3 +34,6 @@ struct vary {
 extern struct vary *vary_append(struct vary *v, char *arg);
 extern const struct vary *vary_apply(const struct vary *v, struct tm *t);
 extern void vary_destroy(struct vary *v);
+/* localtime_r(3) and mktime(3) in the session's TZ (date.c). */
+extern struct tm *zone_localtime(const time_t *clock, struct tm *result);
+extern time_t zone_mktime(struct tm *tm);

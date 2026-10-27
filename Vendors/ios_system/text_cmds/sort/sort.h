@@ -54,11 +54,11 @@
 #else
 #include <nl_types.h>
 
-extern nl_catd sort_catalog;
+extern __thread nl_catd sort_catalog;
 #define	getstr(n)	 catgets(sort_catalog, 1, n, nlsstr[n])
 #endif
 
-extern const char *nlsstr[];
+extern const char *const nlsstr[];
 
 #if defined(SORT_THREADS)
 #define	MT_SORT_THRESHOLD (10000)
@@ -69,12 +69,12 @@ extern size_t nthreads;
 /*
  * If true, we output some debug information.
  */
-extern bool debug_sort;
+extern __thread bool debug_sort;
 
 /*
  * MD5 context for random hash function
  */
-extern MD5_CTX md5_ctx;
+extern __thread MD5_CTX md5_ctx;
 
 /*
  * sort.c
@@ -127,10 +127,11 @@ struct sort_mods
 	bool		hflag;
 };
 
-extern bool need_hint;
+extern __thread bool need_hint;
 
-extern struct sort_opts sort_opts_vals;
+extern __thread struct sort_opts sort_opts_vals;
 
-extern struct sort_mods * const default_sort_mods;
+extern __thread struct sort_mods default_sort_mods_object;
+#define default_sort_mods (&default_sort_mods_object)
 
 #endif /* __BSD_SORT_H__ */

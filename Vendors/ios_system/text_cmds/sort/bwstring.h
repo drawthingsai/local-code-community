@@ -38,7 +38,7 @@
 
 #include "mem.h"
 
-extern bool byte_sort;
+extern __thread bool byte_sort;
 
 /* wchar_t is of 4 bytes: */
 #define	SIZEOF_WCHAR_STRING(LEN) ((LEN)*sizeof(wchar_t))

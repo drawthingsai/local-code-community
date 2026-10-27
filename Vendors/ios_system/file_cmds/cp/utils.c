@@ -66,13 +66,16 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 #endif /* __APPLE__ */
 
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 #define	cp_pct(x,y)	(int)(100.0 * (double)(x) / (double)(y))
+
+/* iOS: the copy buffer belongs to the invocation, not the process. */
+__thread char *copy_buffer;
 
 int
 copy_file(const FTSENT *entp, int dne)
 {
-	static char buf[MAXBSIZE];
+	char *buf;
 	struct stat *fs;
 	int ch, checkch, from_fd, rval, to_fd;
 	ssize_t rcount;
@@ -86,8 +89,11 @@ copy_file(const FTSENT *entp, int dne)
 	mode_t mode = 0;
 	struct stat to_stat;
 
-	if ((from_fd = open(entp->fts_path, O_RDONLY, 0)) == -1) {
-        warn("%s", entp->fts_path);
+	if (copy_buffer == NULL && (copy_buffer = malloc(MAXBSIZE)) == NULL)
+		err(1, "malloc");
+	buf = copy_buffer;
+	if ((from_fd = ios_system_open(entp->fts_path, O_RDONLY, 0)) == -1) {
+        warn("%s", ios_system_fts_path(entp));
 		return (1);
 	}
 
@@ -124,8 +130,8 @@ copy_file(const FTSENT *entp, int dne)
 		}
 		
 		if (cp_cflag) {
-			(void)unlink(to.p_path);
-			int error = clonefile(entp->fts_path, to.p_path, 0);
+			(void)ios_system_unlink(to.p_path);
+			int error = ios_system_clonefile(entp->fts_path, to.p_path, 0);
 			if (error)
                 warn("%s: clonefile failed", to.p_path);
 			(void)close(from_fd);
@@ -134,12 +140,12 @@ copy_file(const FTSENT *entp, int dne)
 
 		if (COMPAT_MODE("bin/cp", "unix2003")) {
 		    /* first try to overwrite existing destination file name */
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+		    to_fd = ios_system_open(to.p_path, O_WRONLY | O_TRUNC, 0);
 		    if (to_fd == -1) {
 			if (cp_fflag) {
 			    /* Only if it fails remove file and create a new one */
-			    (void)unlink(to.p_path);
-			    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+			    (void)ios_system_unlink(to.p_path);
+			    to_fd = ios_system_open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
 					 fs->st_mode & ~(S_ISUID | S_ISGID));
 			}
 		    }
@@ -147,24 +153,24 @@ copy_file(const FTSENT *entp, int dne)
 			if (cp_fflag) {
 			    /* remove existing destination file name, 
 			     * create a new file  */
-			    (void)unlink(to.p_path);
-			    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+			    (void)ios_system_unlink(to.p_path);
+			    to_fd = ios_system_open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
 					 fs->st_mode & ~(S_ISUID | S_ISGID));
 			} else 
 			    /* overwrite existing destination file name */
-			    to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+			    to_fd = ios_system_open(to.p_path, O_WRONLY | O_TRUNC, 0);
 		}
 	} else {
 
 		if (cp_cflag) {
-			int error = clonefile(entp->fts_path, to.p_path, 0);
+			int error = ios_system_clonefile(entp->fts_path, to.p_path, 0);
 			if (error)
                 warn("%s: clonefile failed", to.p_path);
 			(void)close(from_fd);
 			return error == 0 ? 0 : 1;
 		}
 
-		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+		to_fd = ios_system_open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 	}
 
@@ -219,7 +225,7 @@ copy_file(const FTSENT *entp, int dne)
 	    fs->st_size <= 8 * 1048576) {
 		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
 		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
-            warn("%s", entp->fts_path);
+            warn("%s", ios_system_fts_path(entp));
 			rval = 1;
 		} else {
 			wtotal = 0;
@@ -231,7 +237,7 @@ copy_file(const FTSENT *entp, int dne)
 					info = 0;
 					(void)fprintf(thread_stderr,
 						"%s -> %s %3d%%\n",
-						entp->fts_path, to.p_path,
+						ios_system_fts_path(entp), to.p_path,
 						cp_pct(wtotal, fs->st_size));
 						
 				}
@@ -244,7 +250,7 @@ copy_file(const FTSENT *entp, int dne)
 			}
 			/* Some systems don't unmap on close(2). */
 			if (munmap(p, fs->st_size) < 0) {
-                warn("%s", entp->fts_path);
+                warn("%s", ios_system_fts_path(entp));
 				rval = 1;
 			}
 		}
@@ -261,7 +267,7 @@ copy_file(const FTSENT *entp, int dne)
 					info = 0;
 					(void)fprintf(thread_stderr,
 						"%s -> %s %3d%%\n",
-						entp->fts_path, to.p_path,
+						ios_system_fts_path(entp), to.p_path,
 						cp_pct(wtotal, fs->st_size));
 						
 				}
@@ -275,7 +281,7 @@ copy_file(const FTSENT *entp, int dne)
 			}
 		}
 		if (rcount < 0) {
-            warn("%s", entp->fts_path);
+            warn("%s", ios_system_fts_path(entp));
 			rval = 1;
 		}
 	}
@@ -293,14 +299,14 @@ copy_file(const FTSENT *entp, int dne)
 	/* do these before setfile in case copyfile changes mtime */
 	if (!Xflag && S_ISREG(fs->st_mode)) { /* skip devices, etc */
 		if (fcopyfile(from_fd, to_fd, NULL, COPYFILE_XATTR) < 0)
-            warn("%s: could not copy extended attributes to %s", entp->fts_path, to.p_path);
+            warn("%s: could not copy extended attributes to %s", ios_system_fts_path(entp), to.p_path);
 	}
 	if (cp_pflag && setfile(fs, to_fd))
 		rval = 1;
 	if (cp_pflag) {
 		/* If this ACL denies writeattr then setfile will fail... */
 		if (fcopyfile(from_fd, to_fd, NULL, COPYFILE_ACL) < 0)
-            warn("%s: could not copy ACL to %s", entp->fts_path, to.p_path);
+            warn("%s: could not copy ACL to %s", ios_system_fts_path(entp), to.p_path);
 	}
 #else  /* !__APPLE__ */
 	if (cp_pflag && setfile(fs, to_fd))
@@ -322,24 +328,24 @@ copy_link(const FTSENT *p, int exists)
 	ssize_t len;
 	char llink[PATH_MAX];
 
-	if ((len = readlink(p->fts_path, llink, sizeof(llink) - 1)) == -1) {
-        warn("readlink: %s", p->fts_path);
+	if ((len = ios_system_readlink(p->fts_path, llink, sizeof(llink) - 1)) == -1) {
+        warn("readlink: %s", ios_system_fts_path(p));
 		return (1);
 	}
 	llink[len] = '\0';
-	if (exists && unlink(to.p_path)) {
+	if (exists && ios_system_unlink(to.p_path)) {
         warn("unlink: %s", to.p_path);
 		return (1);
 	}
-	if (symlink(llink, to.p_path)) {
+	if (ios_system_symlink(llink, to.p_path)) {
         warn("symlink: %s", llink);
 		return (1);
 	}
 #ifdef __APPLE__
 	if (!Xflag)
-		if (copyfile(p->fts_path, to.p_path, NULL, COPYFILE_XATTR | COPYFILE_NOFOLLOW_SRC) <0)
+		if (ios_system_copyfile(p->fts_path, to.p_path, NULL, COPYFILE_XATTR | COPYFILE_NOFOLLOW_SRC) <0)
             warn("%s: could not copy extended attributes to %s",
-                 p->fts_path, to.p_path, strerror(errno));
+                 ios_system_fts_path(p), to.p_path, strerror(errno));
 #endif
 	return (cp_pflag ? setfile(p->fts_statp, -1) : 0);
 }
@@ -347,11 +353,11 @@ copy_link(const FTSENT *p, int exists)
 int
 copy_fifo(struct stat *from_stat, int exists)
 {
-	if (exists && unlink(to.p_path)) {
+	if (exists && ios_system_unlink(to.p_path)) {
         warn("unlink: %s", to.p_path);
 		return (1);
 	}
-	if (mkfifo(to.p_path, from_stat->st_mode)) {
+	if (ios_system_mkfifo(to.p_path, from_stat->st_mode)) {
         warn("mkfifo: %s", to.p_path);
 		return (1);
 	}
@@ -361,11 +367,11 @@ copy_fifo(struct stat *from_stat, int exists)
 int
 copy_special(struct stat *from_stat, int exists)
 {
-	if (exists && unlink(to.p_path)) {
+	if (exists && ios_system_unlink(to.p_path)) {
         warn("unlink: %s", to.p_path);
 		return (1);
 	}
-	if (mknod(to.p_path, from_stat->st_mode, from_stat->st_rdev)) {
+	if (ios_system_mknod(to.p_path, from_stat->st_mode, from_stat->st_rdev)) {
         warn("mknod: %s", to.p_path);
 		return (1);
 	}
@@ -375,7 +381,7 @@ copy_special(struct stat *from_stat, int exists)
 int
 setfile(struct stat *fs, int fd)
 {
-	static struct timeval tv[2];
+	struct timeval tv[2];
 	struct stat ts;
 	int rval, gotstat, islink, fdval;
 
@@ -386,12 +392,12 @@ setfile(struct stat *fs, int fd)
 
 	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atimespec);
 	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtimespec);
-	if (fdval ? futimes(fd, tv) : (islink ? lutimes(to.p_path, tv) : utimes(to.p_path, tv))) {
+	if (fdval ? futimes(fd, tv) : (islink ? ios_system_lutimes(to.p_path, tv) : ios_system_utimes(to.p_path, tv))) {
         warn("%sutimes: %s", fdval ? "f" : (islink ? "l" : ""), to.p_path);
 		rval = 1;
 	}
-	if (fdval ? fstat(fd, &ts) : (islink ? lstat(to.p_path, &ts) :
-				      stat(to.p_path, &ts))) {
+	if (fdval ? fstat(fd, &ts) : (islink ? ios_system_lstat(to.p_path, &ts) :
+				      ios_system_stat(to.p_path, &ts))) {
 		gotstat = 0;
 	} else {
 		gotstat = 1;
@@ -405,8 +411,8 @@ setfile(struct stat *fs, int fd)
 	 */
 	if (!gotstat || fs->st_uid != ts.st_uid || fs->st_gid != ts.st_gid) {
 		if (fdval ? fchown(fd, fs->st_uid, fs->st_gid) : (islink ?
-								  lchown(to.p_path, fs->st_uid, fs->st_gid) :
-								  chown(to.p_path, fs->st_uid, fs->st_gid))) {
+								  ios_system_lchown(to.p_path, fs->st_uid, fs->st_gid) :
+								  ios_system_chown(to.p_path, fs->st_uid, fs->st_gid))) {
 			    if (errno != EPERM) {
                     warn("%schown: %s", fdval ? "f" : (islink ? "l" : ""), to.p_path);
 				    rval = 1;
@@ -417,8 +423,8 @@ setfile(struct stat *fs, int fd)
 
 	if (!gotstat || fs->st_mode != ts.st_mode) {
 		if (fdval ? fchmod(fd, fs->st_mode) : (islink ?
-						       lchmod(to.p_path, fs->st_mode) :
-						       chmod(to.p_path, fs->st_mode))) {
+						       ios_system_lchmod(to.p_path, fs->st_mode) :
+						       ios_system_chmod(to.p_path, fs->st_mode))) {
             warn("%schmod: %s", fdval ? "f" : (islink ? "l" : ""), to.p_path);
 			rval = 1;
 		}
@@ -426,8 +432,8 @@ setfile(struct stat *fs, int fd)
 
 	if (!gotstat || fs->st_flags != ts.st_flags) {
 		if (fdval ? fchflags(fd, fs->st_flags) : (islink ?
-							  lchflags(to.p_path, fs->st_flags) :
-							  chflags(to.p_path, fs->st_flags))) {
+							  ios_system_lchflags(to.p_path, fs->st_flags) :
+							  ios_system_chflags(to.p_path, fs->st_flags))) {
 			if (errno != EPERM) {
                 warn("%schflags: %s", fdval ? "f" : (islink ? "l" : ""), to.p_path);
 				rval = 1;
@@ -470,8 +476,8 @@ preserve_dir_acls(struct stat *fs, char *source_dir, char *dest_dir)
 	struct acl *aclp;
 	acl_t acl;
 
-	if (pathconf(source_dir, _PC_ACL_EXTENDED) != 1 ||
-	    pathconf(dest_dir, _PC_ACL_EXTENDED) != 1)
+	if (ios_system_pathconf(source_dir, _PC_ACL_EXTENDED) != 1 ||
+	    ios_system_pathconf(dest_dir, _PC_ACL_EXTENDED) != 1)
 		return (0);
 	/*
 	 * If the file is a link we will not follow it

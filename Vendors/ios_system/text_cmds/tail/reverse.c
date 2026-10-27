@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static void r_buf(FILE *);
 static void r_reg(FILE *, enum STYLE, off_t, struct stat *);

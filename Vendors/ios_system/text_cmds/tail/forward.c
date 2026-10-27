@@ -60,7 +60,7 @@ static const char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #include <unistd.h>
 
 #include "extern.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 static void rlines(FILE *, off_t, struct stat *);
 static void show(file_info_t *);
@@ -71,11 +71,11 @@ static void set_events(file_info_t *files);
 #define USE_KQUEUE	1
 #define ADD_EVENTS	2
 
-struct kevent *ev;
-int action = USE_SLEEP;
-int kq;
+__thread struct kevent *ev;
+static __thread int action = USE_SLEEP;
+__thread int kq = -1;
 
-static const file_info_t *last;
+static __thread const file_info_t *last;
 
 /*
  * forward -- display the file, from an offset, forward.
@@ -472,12 +472,14 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 			if (! file->fp)
 				continue;
 			if (Fflag && file->fp && fileno(file->fp) != STDIN_FILENO) {
-				if (stat(file->file_name, &sb2) == 0 &&
+				if (ios_system_stat(file->file_name, &sb2) == 0 &&
 				    (sb2.st_ino != file->st.st_ino ||
 				     sb2.st_dev != file->st.st_dev ||
 				     sb2.st_nlink == 0)) {
 					show(file);
-					file->fp = freopen(file->file_name, "r", file->fp);
+					char resolved[PATH_MAX];
+					const char *name = ios_system_session_path(file->file_name, resolved);
+					file->fp = name != NULL ? freopen(name, "r", file->fp) : NULL;
 					if (file->fp == NULL) {
 						ierr();
 						continue;

@@ -104,9 +104,9 @@ struct maxwidths {
 	int ifree;
 };
 
-static unsigned long long vals_si [] = {1, KILO_SI_SZ, MEGA_SI_SZ, GIGA_SI_SZ, TERA_SI_SZ, PETA_SI_SZ};
-static unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
-static __thread unsigned long long *valp;
+static const unsigned long long vals_si [] = {1, KILO_SI_SZ, MEGA_SI_SZ, GIGA_SI_SZ, TERA_SI_SZ, PETA_SI_SZ};
+static const unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
+static __thread const unsigned long long *valp;
 
 typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
@@ -129,6 +129,25 @@ static __thread int headerlen, timesthrough;
 static __thread long blocksize;
 static __thread char **vfslist;
 
+/* iOS: getmntinfo(3) fills one buffer shared by the whole process, which
+ * regetmntinfo() even rewrites in place. Keep a private copy instead. */
+static __thread struct statfs *mounts;
+
+static long
+df_getmntinfo(struct statfs **mntbufp, int flags)
+{
+	struct statfs *fresh;
+	int count = getmntinfo_r_np(&fresh, flags);
+
+	if (count <= 0) {
+		*mntbufp = NULL;
+		return (count);
+	}
+	free(mounts);
+	*mntbufp = mounts = fresh;
+	return (count);
+}
+
 static void df_cleanup(void *unused)
 {
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -137,6 +156,8 @@ static void df_cleanup(void *unused)
         free(vfslist);
         vfslist = NULL;
     }
+    free(mounts);
+    mounts = NULL;
     ios_system_support_cleanup(unused);
 }
 
@@ -186,7 +207,12 @@ df_main(int argc, char *argv[])
 	}
 
 	vfslist = NULL;
-	while ((ch = getopt(argc, argv, options)) != -1)
+	/* iOS: like macOS df, also --si (and that parser's error wording). */
+	static const struct option long_options[] = {
+		{"si", no_argument, NULL, 'H'},
+		{NULL, 0, NULL, 0}
+	};
+	while ((ch = getopt_long(argc, argv, options, long_options, NULL)) != -1)
 		switch (ch) {
 		case 'a':
 			aflag = 1;
@@ -277,7 +303,7 @@ df_main(int argc, char *argv[])
 	    vfslist = makevfslist(*argv++);
 	}
 
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
+	mntsize = df_getmntinfo(&mntbuf, MNT_NOWAIT);
 	bzero(&maxwidths, sizeof(maxwidths));
 	for (i = 0; i < mntsize; i++)
 		update_maxwidths(&maxwidths, &mntbuf[i]);
@@ -346,7 +372,7 @@ getmntpt(char *name)
 	long mntsize, i;
 	struct statfs *mntbuf;
 
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
+	mntsize = df_getmntinfo(&mntbuf, MNT_NOWAIT);
 	for (i = 0; i < mntsize; i++) {
 		if (!strcmp(mntbuf[i].f_mntfromname, name))
 			return (mntbuf[i].f_mntonname);
@@ -366,7 +392,7 @@ regetmntinfo(struct statfs **mntbufp, long mntsize, char **vfslist)
 	struct statfs *mntbuf;
 
 	if (vfslist == NULL)
-		return (nflag ? mntsize : getmntinfo(mntbufp, MNT_WAIT));
+		return (nflag ? mntsize : df_getmntinfo(mntbufp, MNT_WAIT));
 
 	mntbuf = *mntbufp;
 	for (j = 0, i = 0; i < mntsize; i++) {

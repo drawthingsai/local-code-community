@@ -33,7 +33,13 @@ __FBSDID("$FreeBSD: head/usr.bin/sort/mem.c 281132 2015-04-06 02:35:55Z pfg $");
 #include <string.h>
 
 #include "mem.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
+
+/*
+ * iOS: one invocation allocates from its own zone, destroyed when the command
+ * ends, so error exits do not leak lists and strings.
+ */
+__thread malloc_zone_t *sort_zone;
 
 /*
  * malloc() wrapper.
@@ -43,7 +49,7 @@ sort_malloc(size_t size)
 {
 	void *ptr;
 
-	if ((ptr = malloc(size)) == NULL)
+	if ((ptr = malloc_zone_malloc(sort_zone, size)) == NULL)
 		err(2, NULL);
 	return (ptr);
 }
@@ -55,8 +61,10 @@ void
 sort_free(const void *ptr)
 {
 
+	// iOS: free through the zone; plain free() looks the zone up in the
+	// process list, which another sort's zone destruction can change.
 	if (ptr)
-		free(__DECONST(void *, ptr));
+		malloc_zone_free(sort_zone, __DECONST(void *, ptr));
 }
 
 /*
@@ -66,7 +74,7 @@ void *
 sort_realloc(void *ptr, size_t size)
 {
 
-	if ((ptr = realloc(ptr, size)) == NULL)
+	if ((ptr = malloc_zone_realloc(sort_zone, ptr, size)) == NULL)
 		err(2, NULL);
 	return (ptr);
 }
@@ -76,7 +84,9 @@ sort_strdup(const char *str)
 {
 	char *dup;
 
-	if ((dup = strdup(str)) == NULL)
+	size_t length = strlen(str) + 1;
+
+	if ((dup = malloc_zone_malloc(sort_zone, length)) == NULL)
 		err(2, NULL);
-	return (dup);
+	return (memcpy(dup, str, length));
 }

@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.52 2005/09/05 04:36:08 csjp Exp $");
 // #include <get_compat.h>
 // #else /* !__APPLE__ */
 #define COMPAT_MODE(a,b) (1)
-#include "ios_error.h"
+#include "ios_system_support.h"
 #endif /* __APPLE__ */
 
 #include "extern.h"
@@ -87,22 +87,32 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.52 2005/09/05 04:36:08 csjp Exp $");
                 *--(p).p_end = 0;					\
 }
 
-static char emptystring[] = "";
-
-PATH_T to = { to.p_path, emptystring, "" };
+__thread PATH_T to;	/* iOS: initialized by cp_main */
 
 __thread int cp_fflag, cp_iflag, cp_nflag, cp_pflag, cp_vflag;
 #ifdef __APPLE__
 __thread int Xflag;
 #endif /* __APPLE__ */
-static int Rflag, rflag;
+static __thread int Rflag, rflag;
 __thread int cp_cflag = 0;
 volatile __thread sig_atomic_t info;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
 static int copy(char *[], enum op, int);
-static void siginfo(int __unused);
+static __thread FTS *ftsp;
+extern __thread char *copy_buffer;
+
+static void cp_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (ftsp != NULL)
+		fts_close(ftsp);
+	ftsp = NULL;
+	free(copy_buffer);
+	copy_buffer = NULL;
+	ios_system_support_cleanup(unused);
+}
 
 int
 cp_main(int argc, char *argv[])
@@ -112,14 +122,11 @@ cp_main(int argc, char *argv[])
 	int Hflag, Lflag, Pflag, ch, fts_options, r, have_trailing_slash;
 	char *target;
 
+	pthread_cleanup_push(cp_cleanup, NULL);
+	ios_system_support_init(argv);
+	to.p_end = to.target_end = to.p_path;
     Hflag = Lflag = Pflag = 0;
-    cp_fflag = cp_iflag = cp_nflag = cp_pflag = cp_vflag = 0;
-#ifdef __APPLE__
-    Xflag = 0;
-#endif /* __APPLE__ */
-    Rflag = rflag = cp_cflag = 0;
-    optind = 1; opterr = 1; optreset = 1;
-    
+
 	while ((ch = getopt(argc, argv, "cHLPRXafinprv")) != -1)
 		switch (ch) {
 		case 'c':
@@ -214,7 +221,7 @@ cp_main(int argc, char *argv[])
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL | FTS_COMFOLLOW;
 	}
-	(void)signal(SIGINFO, siginfo);
+	// iOS: no SIGINFO progress; signal dispositions are process-wide.
 
 	/* Save the target base in "to". */
 	target = argv[--argc];
@@ -248,7 +255,7 @@ cp_main(int argc, char *argv[])
 	 *
 	 * In (2), the real target is not directory, but "directory/source".
 	 */
-	r = stat(to.p_path, &to_stat);
+	r = ios_system_stat(to.p_path, &to_stat);
     if (r == -1 && errno != ENOENT) {
 		err(1, "%s", to.p_path);
     }
@@ -269,9 +276,9 @@ cp_main(int argc, char *argv[])
 		 */
 		if (r == -1) {
 			if (rflag || (Rflag && (Lflag || Hflag)))
-				stat(*argv, &tmp_stat);
+				ios_system_stat(*argv, &tmp_stat);
 			else
-				lstat(*argv, &tmp_stat);
+				ios_system_lstat(*argv, &tmp_stat);
 
 			if (S_ISDIR(tmp_stat.st_mode) && (Rflag || rflag))
 				type = DIR_TO_DNE;
@@ -295,14 +302,15 @@ cp_main(int argc, char *argv[])
 		 */
 		type = FILE_TO_DIR;
 
-	return (copy(argv, type, fts_options));
+	exit(copy(argv, type, fts_options));
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static int
 copy(char *argv[], enum op type, int fts_options)
 {
 	struct stat to_stat;
-	FTS *ftsp;
 	FTSENT *curr;
 	int base = 0, dne, badcp, rval;
 	size_t nlen;
@@ -313,10 +321,9 @@ copy(char *argv[], enum op type, int fts_options)
 	 * Keep an inverted copy of the umask, for use in correcting
 	 * permissions on created directories when not using -p.
 	 */
-	mask = ~umask(0777);
-	umask(~mask);
+	mask = ~ios_system_umask();
 
-    if ((ftsp = fts_open(argv, fts_options, NULL)) == NULL) {
+    if ((ftsp = ios_system_fts_open(argv, fts_options, NULL)) == NULL) {
 		err(1, "fts_open");
     }
 	for (badcp = rval = 0; (curr = fts_read(ftsp)) != NULL; badcp = 0) {
@@ -325,11 +332,11 @@ copy(char *argv[], enum op type, int fts_options)
 		case FTS_DNR:
 		case FTS_ERR:
 			warnx("%s: %s",
-                curr->fts_path, strerror(curr->fts_errno));
+                ios_system_fts_path(curr), strerror(curr->fts_errno));
 			rval = 1;
 			continue;
 		case FTS_DC:			/* Warn, continue. */
-			warnx("%s: directory causes a cycle", curr->fts_path);
+			warnx("%s: directory causes a cycle", ios_system_fts_path(curr));
             rval = 1;
 			continue;
 		default:
@@ -360,7 +367,7 @@ copy(char *argv[], enum op type, int fts_options)
 			} else {
 				strlcpy(path, curr->fts_name+2, sizeof(path));
 			}
-			if (!lstat(path, &statbuf)) {
+			if (!ios_system_lstat(path, &statbuf)) {
 				continue;
 			}
 		}
@@ -442,8 +449,8 @@ copy(char *argv[], enum op type, int fts_options)
 					rval = 1;
 #ifdef __APPLE__
 				/* setfile will fail if writeattr is denied */
-				if (copyfile(curr->fts_path, to.p_path, NULL, COPYFILE_ACL)<0)
-					warn("%s: unable to copy ACL to %s", curr->fts_path, to.p_path);
+				if (ios_system_copyfile(curr->fts_path, to.p_path, NULL, COPYFILE_ACL)<0)
+					warn("%s: unable to copy ACL to %s", ios_system_fts_path(curr), to.p_path);
 #else  /* !__APPLE__ */
 				if (preserve_dir_acls(curr->fts_statp,
 				    curr->fts_accpath, to.p_path) != 0)
@@ -453,7 +460,7 @@ copy(char *argv[], enum op type, int fts_options)
 				mode = curr->fts_statp->st_mode;
 				if ((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
 				    ((mode | S_IRWXU) & mask) != (mode & mask))
-					if (chmod(to.p_path, mode & mask) != 0){
+					if (ios_system_chmod(to.p_path, mode & mask) != 0){
 						warn("chmod: %s", to.p_path);
 						rval = 1;
 					}
@@ -462,13 +469,13 @@ copy(char *argv[], enum op type, int fts_options)
 		}
 
 		/* Not an error but need to remember it happened */
-		if (stat(to.p_path, &to_stat) == -1)
+		if (ios_system_stat(to.p_path, &to_stat) == -1)
 			dne = 1;
 		else {
 			if (to_stat.st_dev == curr->fts_statp->st_dev &&
 			    to_stat.st_ino == curr->fts_statp->st_ino) {
 				warnx("%s and %s are identical (not copied).",
-                    to.p_path, curr->fts_path);
+                    to.p_path, ios_system_fts_path(curr));
 				rval = 1;
 				if (S_ISDIR(curr->fts_statp->st_mode))
 					(void)fts_set(ftsp, curr, FTS_SKIP);
@@ -478,7 +485,7 @@ copy(char *argv[], enum op type, int fts_options)
 			    S_ISDIR(to_stat.st_mode)) {
                 warnx("cannot overwrite directory %s with "
                     "non-directory %s\n",
-				    to.p_path, curr->fts_path);
+				    to.p_path, ios_system_fts_path(curr));
 				rval = 1;
 				continue;
 			}
@@ -501,7 +508,7 @@ copy(char *argv[], enum op type, int fts_options)
 		case S_IFDIR:
 			if (!Rflag && !rflag) {
                 warnx("%s is a directory (not copied).",
-                    curr->fts_path);
+                    ios_system_fts_path(curr));
 				(void)fts_set(ftsp, curr, FTS_SKIP);
 				badcp = rval = 1;
 				break;
@@ -515,7 +522,7 @@ copy(char *argv[], enum op type, int fts_options)
 			 * umask blocks owner writes, we fail..
 			 */
 			if (dne) {
-				if (mkdir(to.p_path,
+				if (ios_system_mkdir(to.p_path,
 					  curr->fts_statp->st_mode | S_IRWXU) < 0) {
 					if (COMPAT_MODE("bin/cp", "unix2003")) {
                         warn("%s", to.p_path);
@@ -539,8 +546,8 @@ copy(char *argv[], enum op type, int fts_options)
 			curr->fts_number = cp_pflag || dne;
 #ifdef __APPLE__
 			if (!Xflag) {
-				if (copyfile(curr->fts_path, to.p_path, NULL, COPYFILE_XATTR) < 0)
-                    warn("%s: unable to copy extended attributes to %s", curr->fts_path, to.p_path);
+				if (ios_system_copyfile(curr->fts_path, to.p_path, NULL, COPYFILE_XATTR) < 0)
+                    warn("%s: unable to copy extended attributes to %s", ios_system_fts_path(curr), to.p_path);
 				/* ACL and mtime set in postorder traversal */
 			}
 #endif /* __APPLE__ */
@@ -570,18 +577,14 @@ copy(char *argv[], enum op type, int fts_options)
 			break;
 		}
 		if (cp_vflag && !badcp)
-			(void)fprintf(thread_stdout, "%s -> %s\n", curr->fts_path, to.p_path);
+			(void)fprintf(thread_stdout, "%s -> %s\n", ios_system_fts_path(curr), to.p_path);
 	}
     fts_close(ftsp);
+	ftsp = NULL;
     if (errno) {
         err(1, "fts_read");
     }
 	return (rval);
 }
 
-static void
-siginfo(int sig __unused)
-{
 
-	info = 1;
-}

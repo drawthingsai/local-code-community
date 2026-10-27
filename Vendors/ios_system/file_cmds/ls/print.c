@@ -85,7 +85,7 @@ __RCSID("$FreeBSD: src/bin/ls/print.c,v 1.57 2002/08/29 14:29:09 keramida Exp $"
 #include "ls.h"
 #include "extern.h"
 #include <TargetConditionals.h>
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 
 static int	printaname(FTSENT *, u_long, u_long);
@@ -119,10 +119,10 @@ typedef enum Colors {
 	C_NUMCOLORS		/* just a place-holder */
 } Colors;
 
-static const char *defcolors = "exfxcxdxbxegedabagacad";
+static const char defcolors[] = "exfxcxdxbxegedabagacad";
 
 /* colors for file types */
-static struct {
+static __thread struct {
 	int	num[2];
 	int	bold;
 } colors[C_NUMCOLORS];
@@ -164,7 +164,7 @@ printname(const char *name)
 /*
  * print access control list
  */
-static struct {
+static const struct {
 	acl_perm_t	perm;
 	char		*name;
 	int		flags;
@@ -191,7 +191,7 @@ static struct {
 	{0, NULL, 0}
 };
 
-static struct {
+static const struct {
 	acl_flag_t	flag;
 	char		*name;
 	int		flags;
@@ -584,7 +584,7 @@ printlong(DISPLAY *dp)
 		if (f_color)
 			color_printed = colortype(sp->st_mode);
 #endif
-		(void)printname(p->fts_name);
+		(void)printname(ios_system_fts_name(p));
 #ifdef COLORLS
 		if (f_color && color_printed)
 			endcolor(0);
@@ -615,7 +615,7 @@ printstream(DISPLAY *dp)
 	for (p = dp->list, chcnt = 0; p; p = p->fts_link) {
 		if (p->fts_number == NO_PRINT)
 			continue;
-		if (strlen(p->fts_name) + chcnt +
+		if (strlen(ios_system_fts_name(p)) + chcnt +
 		    (p->fts_link ? 2 : 0) >= (unsigned)termwidth) {
 			putchar('\n');
 			chcnt = 0;
@@ -630,12 +630,22 @@ printstream(DISPLAY *dp)
 		putchar('\n');
 }
 		
+/* iOS: printcol's table belongs to the invocation. */
+static __thread FTSENT **array;
+static __thread int lastentries = -1;
+
+void
+printcol_release(void)
+{
+	free(array);
+	array = NULL;
+	lastentries = -1;
+}
+
 void
 printcol(DISPLAY *dp)
 {
 	extern __thread int termwidth;
-	static FTSENT **array;
-	static int lastentries = -1;
 	FTSENT *p;
 	int base;
 	int chcnt;
@@ -748,7 +758,7 @@ printaname(FTSENT *p, u_long inodefield, u_long sizefield)
 	if (f_color)
 		color_printed = colortype(sp->st_mode);
 #endif
-	chcnt += printname(p->fts_name);
+	chcnt += printname(ios_system_fts_name(p));
 #ifdef COLORLS
 	if (f_color && color_printed)
 		endcolor(0);
@@ -1012,7 +1022,8 @@ printlink(FTSENT *p)
 		(void)snprintf(name, sizeof(name),
 		    "%s/%s", p->fts_parent->fts_accpath, p->fts_name);
 	if ((lnklen = readlink(name, path, sizeof(path) - 1)) == -1) {
-		(void)fprintf(thread_stderr, "\nls: %s: %s\n", name, strerror(errno));
+		(void)fprintf(thread_stderr, "\nls: %s: %s\n",
+		    p->fts_level == FTS_ROOTLEVEL ? ios_system_fts_name(p) : name, strerror(errno));
 		return;
 	}
 	path[lnklen] = '\0';

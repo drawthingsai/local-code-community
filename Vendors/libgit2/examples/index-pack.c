@@ -1,4 +1,5 @@
 #include "common.h"
+#include <limits.h>
 
 /*
  * This could be run in the main loop whilst the application waits for
@@ -40,7 +41,9 @@ int lg2_index_pack(git_repository *repo, int argc, char **argv)
 	}
 
 
-	if ((fd = open(argv[1], 0)) < 0) {
+	char resolved[PATH_MAX];
+	const char *pack = lg2_session_path(argv[1], resolved);
+	if (pack == NULL || (fd = open(pack, 0)) < 0) {
 		perror("open");
 		return -1;
 	}

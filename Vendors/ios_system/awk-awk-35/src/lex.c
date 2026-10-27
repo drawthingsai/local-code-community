@@ -28,7 +28,7 @@ THIS SOFTWARE.
 #include <ctype.h>
 #include "awk.h"
 #include "awkgram.tab.h"
-#include "ios_error.h"
+#include "ios_system_support.h"
 
 extern __thread YYSTYPE	yylval;
 extern __thread bool	infunc;
@@ -165,8 +165,8 @@ static int gettok(char **pbuf, int *psz)	/* get next input token */
 int	word(char *);
 int	string(void);
 int	regexpr(void);
-bool	sc	= false;	/* true => return a } right now */
-bool	reg	= false;	/* true => return a REGEXPR now */
+__thread bool	sc	= false;	/* true => return a } right now */
+__thread bool	reg	= false;	/* true => return a REGEXPR now */
 
 int yylex(void)
 {
@@ -548,12 +548,18 @@ int regexpr(void)
 
 /* low-level lexical stuff, sort of inherited from lex */
 
-char	ebuf[300];
-char	*ep = ebuf;
-// iOS: we cannot make these thread_local
-static char	yysbuf[100];	/* pushback buffer */
-static char	*yysptr = yysbuf;
+__thread char	ebuf[300];
+__thread char	*ep;		/* iOS: set by lex_init */
+static __thread char	yysbuf[100];	/* pushback buffer */
+static __thread char	*yysptr;	/* iOS: set by lex_init */
 __thread FILE	*yyin = NULL;
+
+/* iOS: thread-local buffers cannot be named in their pointers' initializers. */
+void lex_init(void)
+{
+	ep = ebuf;
+	yysptr = yysbuf;
+}
 
 int input(void)	/* get next lexical input character */
 {

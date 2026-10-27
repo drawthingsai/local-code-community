@@ -479,23 +479,22 @@ private final class BashJob {
     if let exitCode = snapshot.exitCode, exitCode != 0 {
       diagnostics += "\n" + text(snapshot.stdout)
     }
-    let aliases = ["/home", "/tmp", "/app_bundle"].filter { alias in
-      // Match an absolute alias, not /private/tmp, ./tmp, or /homepage.
+    let aliases = ["/tmp", "/app_bundle"].filter { alias in
+      // Match an absolute alias, not /private/tmp, ./tmp, or /tmpfile.
       diagnostics.range(
         of: #"(?<![\p{L}\p{N}_./~$-])\#(alias)(?=/|[^\p{L}\p{N}_.-]|$)"#,
         options: .regularExpression) != nil
     }
     if !aliases.isEmpty {
+      // Models reach for these by habit; name the variable that holds the real path.
       let resolver = LocalPathResolver(projectPath: projectPath, workspacePath: workspacePath)
-      let mappings = aliases.compactMap { alias -> String? in
-        guard let path = resolver.resolve(alias)?.url.path else { return nil }
-        return "\(alias) -> \(path)"
+      for alias in aliases {
+        output.append(
+          alias == "/tmp"
+            ? "Path hint: /tmp is not available; use $TMPDIR (\(resolver.temporaryURL.path))."
+            : "Path hint: /app_bundle is a cd alias; elsewhere use $APP_BUNDLE (\(resolver.appBundleURL.path))."
+        )
       }
-      output.append(
-        """
-        Path hint: These are virtual directory aliases. Use their physical paths instead:
-        \(mappings.joined(separator: "\n"))
-        """)
     }
     if !output.isEmpty {
       content.append(.text(output.joined(separator: "\n")))
@@ -692,7 +691,6 @@ private final class BashJob {
     _ command: ShellCommand, stdin: UnsafeMutablePointer<FILE>,
     stdout: UnsafeMutablePointer<FILE>, stderr: UnsafeMutablePointer<FILE>
   ) -> Int32 {
-    let pathResolver = LocalPathResolver(projectPath: projectPath, workspacePath: workspacePath)
     let currentDirectoryPath =
       ios_getLogicalPWD(UnsafeRawPointer(sessionName)) as String? ?? projectPath
     var commandStdin = stdin
@@ -724,26 +722,12 @@ private final class BashJob {
         continue
       }
 
-      let resolvedPath: String
-      if path == "/dev/null" {
-        resolvedPath = path
-      } else {
-        let resolutionPath: String
-        if path.hasPrefix("/") || path.lowercased().hasPrefix("file://") {
-          resolutionPath = path
-        } else {
-          resolutionPath =
-            URL(
-              fileURLWithPath: currentDirectoryPath, isDirectory: true
-            ).appendingPathComponent(path).path
-        }
-        guard let localPath = pathResolver.resolve(resolutionPath)?.url.path else {
-          writeBashError(
-            "redirection is outside the local workspace: \(path)", to: commandStderr)
-          return 1
-        }
-        resolvedPath = localPath
-      }
+      // Open the target as OSH would: relative to the current directory, without aliases.
+      let resolvedPath =
+        path.hasPrefix("/")
+        ? path
+        : URL(fileURLWithPath: currentDirectoryPath, isDirectory: true)
+          .appendingPathComponent(path).path
       guard let stream = fopen(resolvedPath, mode) else {
         writeBashError(
           "unable to open \(path): \(String(cString: strerror(errno)))", to: commandStderr)

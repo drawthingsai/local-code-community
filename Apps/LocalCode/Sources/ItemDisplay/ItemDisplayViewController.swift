@@ -8,10 +8,10 @@ protocol ItemDisplayViewControllerDelegate: AnyObject {
   func didCloseItemDisplay()
   func didTapTrash(item: ItemViewModel.ItemIdentifier)
   func didTapSegmentedControl(at index: Int)
-  func didSelectItem(
-    item: ItemViewModel.ItemIdentifier, section: ItemDisplaySectionIdentity, fromContextMenu: Bool)
+  func didSelectItem(item: ItemViewModel.ItemIdentifier, section: ItemDisplaySectionIdentity)
   func didTapSectionHeader(section: ItemDisplaySectionIdentity, selectedSegmentIndex: Int)
   func didTapDetailSwitch()
+  func contextMenu(for item: ItemViewModel.ItemIdentifier) -> UIMenu?
 }
 
 final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
@@ -37,8 +37,7 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
 
   init(
     userInterfaceIdiom: UIUserInterfaceIdiom, cellHeight: CGFloat, minimumLineSpacing: CGFloat,
-    workspace: Workspace, segmentedControls: [String], isDetailSwitchDisplayed: Bool,
-    contextMenuItemTitle: String? = nil
+    workspace: Workspace, segmentedControls: [String], isDetailSwitchDisplayed: Bool
   ) {
     self.userInterfaceIdiom = userInterfaceIdiom
     self.cellHeight = cellHeight
@@ -46,14 +45,11 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     self.workspace = workspace
     self.segmentedControls = segmentedControls
     self.isDetailSwitchDisplayed = isDetailSwitchDisplayed
-    self.contextMenuItemTitle = contextMenuItemTitle
     super.init(nibName: nil, bundle: nil)
   }
   required init?(coder: NSCoder) {
     fatalError()
   }
-
-  private var contextMenuItemTitle: String?
 
   private lazy var searchFieldBackground: BorderView = {
     let view = BorderView.defaultBorderView(cornerRadius: Self.searchFieldHeight / 2)
@@ -637,34 +633,21 @@ extension ItemDisplayViewController: UICollectionViewDelegate {
     let section = displayingItems[indexPath.section]
     guard indexPath.item < section.items.count else { return }
     self.delegate?.didSelectItem(
-      item: section.items[indexPath.item].itemIdentifier, section: section.identifier,
-      fromContextMenu: false)
+      item: section.items[indexPath.item].itemIdentifier, section: section.identifier)
   }
 
   func collectionView(
     _ collectionView: UICollectionView, contextMenuConfigurationForItemsAt indexPaths: [IndexPath],
     point: CGPoint
   ) -> UIContextMenuConfiguration? {
-    guard let indexPath = indexPaths.first else { return nil }
-    if let contextMenuItemTitle = self.contextMenuItemTitle {
-      let actions: [UIAction] = [
-        UIAction(
-          title: contextMenuItemTitle
-        ) { [weak self] _ in
-          guard let self = self else { return }
-          guard indexPath.section < displayingItems.count else { return }
-          let section = displayingItems[indexPath.section]
-          guard indexPath.item < section.items.count else { return }
-          self.delegate?.didSelectItem(
-            item: section.items[indexPath.item].itemIdentifier, section: section.identifier,
-            fromContextMenu: true)
-        }
-      ]
-      return UIContextMenuConfiguration(actionProvider: { _ in
-        return UIMenu(children: actions)
-      })
+    guard let indexPath = indexPaths.first, indexPath.section < displayingItems.count else {
+      return nil
     }
-    return nil
+    let section = displayingItems[indexPath.section]
+    guard indexPath.item < section.items.count,
+      let menu = delegate?.contextMenu(for: section.items[indexPath.item].itemIdentifier)
+    else { return nil }
+    return UIContextMenuConfiguration(actionProvider: { _ in menu })
   }
 
   func collectionView(
@@ -691,15 +674,6 @@ extension ItemDisplayViewController {
         scrollPosition: [.left, .centeredVertically])
       break
     }
-  }
-  // This method needs to be removed.
-  public func selectItem(at index: Int, section: Int) {
-    guard section >= 0 && section < displayingItems.count else { return }
-    let sectionModel = displayingItems[section]
-    guard index >= 0 && index < sectionModel.items.count else { return }
-    collectionView.selectItem(
-      at: IndexPath(item: index, section: section), animated: false,
-      scrollPosition: [.left, .centeredVertically])
   }
   public func unselectAll() {
     collectionView.selectItem(

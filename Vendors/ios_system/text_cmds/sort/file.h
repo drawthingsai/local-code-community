@@ -74,25 +74,28 @@ struct file_list
 
 /**/
 
-extern unsigned long long free_memory;
-extern unsigned long long available_free_memory;
+extern __thread unsigned long long free_memory;
+extern __thread unsigned long long available_free_memory;
 
 /* Are we using mmap ? */
-extern bool use_mmap;
+extern __thread bool use_mmap;
 
 /* temporary file dir */
 
-extern const char *tmpdir;
+extern __thread const char *tmpdir;
 
 /*
  * Max number of simultaneously open files (including the output file).
  */
-extern size_t max_open_files;
+extern __thread size_t max_open_files;
 
 /*
  * Compress program
  */
-extern const char* compress_program;
+extern __thread const char* compress_program;
+
+/* iOS: close streams openfile opened when the command stops early. */
+void close_open_files(void);
 
 /* funcs */
 

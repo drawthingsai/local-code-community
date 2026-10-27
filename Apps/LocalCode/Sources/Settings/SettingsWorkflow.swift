@@ -1698,6 +1698,11 @@ extension SettingsWorkflow: ProjectControllerDelegate {
     guard let model = projectHistoryManager.thread(id: thread.threadId)?.model else { return }
     let history = projectHistoryManager.history(threadId: thread.threadId)
     var filename = (thread.title ?? "").replacingOccurrences(of: "/", with: "-")
+    // A title is the prompt's whole first line, but a file name holds at most 255 bytes with its
+    // extension.
+    while filename.utf8.count > 255 - ".jsonl".utf8.count {
+      filename.removeLast()
+    }
     if filename.isEmpty {
       filename = "context"
     }

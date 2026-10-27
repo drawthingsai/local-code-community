@@ -693,6 +693,9 @@ modify_file_acl(unsigned int optflags, const char *path, acl_t modifier, int pos
 	unsigned retval = 0;
 
 	extern __thread int chmod_fflag;
+	/* iOS: path is shown to the user; system calls resolve it from the session directory. */
+	char resolved[PATH_MAX];
+	const char *target = path != NULL ? ios_system_session_path(path, resolved) : NULL;
 
 /* XXX acl_get_file() returns a zero entry ACL if an ACL was previously
  * associated with the file, and has had its entries removed.
@@ -720,7 +723,7 @@ modify_file_acl(unsigned int optflags, const char *path, acl_t modifier, int pos
             err(1, "filesec_set_property() failed");
                 }
 		if (follow) {
-			if (chmodx_np(path, file_section) != 0) {
+			if (chmodx_np(target, file_section) != 0) {
                 if (!chmod_fflag) {
 					warn("Failed to clear ACL on file %s", path);
 				}
@@ -754,7 +757,7 @@ modify_file_acl(unsigned int optflags, const char *path, acl_t modifier, int pos
         if (file_acl == NULL) err(1, "acl_dup() failed");
 	} else {
 		if (follow) {
-			file_acl = acl_get_file(path, ACL_TYPE_EXTENDED);
+			file_acl = acl_get_file(target, ACL_TYPE_EXTENDED);
 		} else {
 			acl_fd = ios_system_open(path, O_SYMLINK);
 			if (acl_fd != -1) {
@@ -858,7 +861,7 @@ modify_file_acl(unsigned int optflags, const char *path, acl_t modifier, int pos
 	if (!(optflags & (ACL_TO_STDOUT|ACL_CHECK_CANONICITY))) {
 		int status = -1;
 		if (follow) {
-                        status = acl_set_file(path, ACL_TYPE_EXTENDED, file_acl);
+                        status = acl_set_file(target, ACL_TYPE_EXTENDED, file_acl);
 		} else {
 			acl_fd = ios_system_open(path, O_SYMLINK);
 			if (acl_fd != -1) {

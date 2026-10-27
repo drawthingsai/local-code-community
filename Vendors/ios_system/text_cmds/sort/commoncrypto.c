@@ -20,7 +20,8 @@ __FBSDID("$FreeBSD: head/lib/libmd/mdXhl.c 294037 2016-01-14 21:08:23Z jtl $");
 #include <stdlib.h>
 
 #include "commoncrypto.h"
-#include "ios_error.h"
+#include "mem.h"
+#include "ios_system_support.h"
 
 #define LENGTH CC_MD5_DIGEST_LENGTH
 
@@ -34,7 +35,7 @@ MD5End(CC_MD5_CTX *ctx, char *buf)
 	static const char hex[]="0123456789abcdef";
 
 	if (!buf)
-		buf = malloc(2*LENGTH + 1);
+		buf = sort_malloc(2*LENGTH + 1);
 	if (!buf)
 		return 0;
 	CC_MD5_Final(digest, ctx);

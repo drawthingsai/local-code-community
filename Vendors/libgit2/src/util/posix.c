@@ -105,9 +105,36 @@ const char *p_gai_strerror(int ret)
 
 #endif /* NO_ADDRINFO */
 
+#ifdef GIT_IOS_SYSTEM_SESSION
+/* The session's working directory (ios_system's PWD); absent elsewhere. */
+extern char *ios_getenv(const char *name) __attribute__((weak));
+
+const char *git__session_path(const char *path, char *buffer)
+{
+	const char *directory;
+	int length;
+
+	if (path == NULL || path[0] == '/' || path[0] == '\0' || ios_getenv == NULL ||
+	    (directory = ios_getenv("PWD")) == NULL || directory[0] != '/')
+		return path;
+	length = snprintf(buffer, PATH_MAX, "%s/%s", directory, path);
+	if (length < 0 || length >= PATH_MAX) {
+		errno = ENAMETOOLONG;
+		return NULL;
+	}
+	return buffer;
+}
+#endif
+
 int p_open(const char *path, volatile int flags, ...)
 {
 	mode_t mode = 0;
+#ifdef GIT_IOS_SYSTEM_SESSION
+	char resolved[PATH_MAX];
+
+	if ((path = git__session_path(path, resolved)) == NULL)
+		return -1;
+#endif
 
 	#ifdef GIT_DEBUG_STRICT_OPEN
 	if (strstr(path, "//") != NULL) {
@@ -129,6 +156,12 @@ int p_open(const char *path, volatile int flags, ...)
 
 int p_creat(const char *path, mode_t mode)
 {
+#ifdef GIT_IOS_SYSTEM_SESSION
+	char resolved[PATH_MAX];
+
+	if ((path = git__session_path(path, resolved)) == NULL)
+		return -1;
+#endif
 	return open(path, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_CLOEXEC, mode);
 }
 
@@ -139,6 +172,18 @@ int p_getcwd(char *buffer_out, size_t size)
 	GIT_ASSERT_ARG(buffer_out);
 	GIT_ASSERT_ARG(size > 0);
 
+#ifdef GIT_IOS_SYSTEM_SESSION
+	const char *directory = ios_getenv != NULL ? ios_getenv("PWD") : NULL;
+
+	if (directory != NULL && directory[0] == '/') {
+		if (strlen(directory) >= size) {
+			errno = ERANGE;
+			return -1;
+		}
+		strcpy(buffer_out, directory);
+		cwd_buffer = buffer_out;
+	} else
+#endif
 	cwd_buffer = getcwd(buffer_out, size);
 
 	if (cwd_buffer == NULL)
@@ -152,6 +197,13 @@ int p_getcwd(char *buffer_out, size_t size)
 
 int p_rename(const char *from, const char *to)
 {
+#ifdef GIT_IOS_SYSTEM_SESSION
+	char from_buffer[PATH_MAX], to_buffer[PATH_MAX];
+
+	if ((from = git__session_path(from, from_buffer)) == NULL ||
+	    (to = git__session_path(to, to_buffer)) == NULL)
+		return -1;
+#endif
 	if (!link(from, to)) {
 		p_unlink(from);
 		return 0;

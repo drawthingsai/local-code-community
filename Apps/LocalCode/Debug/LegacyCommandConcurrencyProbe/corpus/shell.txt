@@ -1,0 +1,166 @@
+# echo date env printenv pwd uname id whoami w uptime xargs df parity corpus
+/usr/bin/echo hello world
+/usr/bin/echo -n no newline; /usr/bin/echo
+/usr/bin/echo 'trailing\c'; /usr/bin/echo next
+/usr/bin/echo -e x
+/usr/bin/echo
+/usr/bin/echo '%s %d %n'
+date -r 0
+date -u -r 1704164640
+date -r 1704164640 '+%Y-%m-%d %H:%M:%S %Z'
+date -R -r 1704164640
+date -j -f '%Y-%m-%d' 2024-02-29 '+%A %j'
+date -j -f '%s' 86400 '+%F'
+date -j 202402291230 '+%F %R'
+date -j -v+1d -r 0 '+%F'
+date -j -v-1m -v+2y -r 1704164640 '+%F'
+date -j -v1d -v3m -r 1704164640 '+%F'
+date -r 1704164640 -v+mon '+%F %a'
+date -r lines.txt '+%s'
+date -r missing
+date -j -f '%Y' bad
+date -j 99999999
+date -j 2401011261
+date -x
+date -r 1704164640 '+%c'
+LC_ALL=fr_FR.UTF-8 date -r 1704164640 '+%A %B'
+LC_ALL=fr_FR.UTF-8 date -R -r 1704164640
+LC_TIME=de_DE.UTF-8 date -r 1704164640 '+%a %b'
+TZ=Asia/Tokyo date -r 0 '+%H %Z'
+TZ=America/New_York date -r 1704164640; date -r 0 '+%H %Z'
+date -u -r 0 '+%H'; date -r 0 '+%H %Z'
+date -j -f '%s' x 2>/dev/null; date -r 0 '+%Z'
+env | grep -c '^PATH='
+env -i A=1 B=2 /usr/bin/printenv A
+env -i /usr/bin/printenv | wc -l
+env - A=1 printenv A
+env -u PATH printenv PATH; echo $?
+env FOO=bar printenv FOO
+env FOO=bar BAZ='q x' sh -c 'echo "$FOO-$BAZ"'
+env -v -i A=1 printenv A
+env -S 'A=1 B=2 printenv B'
+env -S'printenv HOME' | sed "s|$HOME|HOME|"
+env -P /usr/bin:/bin printenv HOME | sed "s|$HOME|HOME|"
+env -P /nonexistent nosuchcmd
+env nosuchcommand
+env -x
+env -u
+printenv HOME | sed "s|$HOME|HOME|"
+printenv NOSUCHVAR; echo $?
+printenv | grep -c '^HOME='
+printenv -x
+printenv PATH HOME
+pwd | sed "s|$PWD|PWD|"
+pwd -P | sed "s|$(pwd -P)|PPWD|"
+pwd -L | sed "s|$PWD|PWD|"
+cd dir && pwd | sed "s|$OLDPWD|OLD|"
+cd dirlink && pwd -L | sed "s|$OLDPWD|OLD|" && pwd -P | sed "s|$(cd .. && pwd -P)|OLDP|"
+pwd extra
+pwd -x
+uname
+uname -s
+uname -m
+uname -p
+uname -n | wc -w
+uname -r | wc -w
+uname -a | wc -w
+uname -sm
+UNAME_SYSNAME=Fake uname -s
+uname extra
+uname -x
+id -u
+id -un
+id -g
+id -gn
+id -G
+id -Gn
+id | tr ',' '\n' | head -3
+id -p | head -2
+id -P | cut -d: -f1,3,4
+id -F
+id "$(id -un)" | cut -d' ' -f1
+id root | cut -d' ' -f1,2
+id -G root
+id -Gn root | wc -w
+id 0 | cut -d' ' -f1
+id nosuchuser
+id -x
+id -u -g
+whoami
+whoami extra
+uptime | grep -c 'load average'
+uptime -x
+w -h | wc -l | awk '{print ($1 >= 0)}'
+w | head -1 | grep -c 'load average'
+w -x
+printf 'a b c\n' | xargs
+printf 'a b c\n' | xargs -n 1
+printf 'a\nb\nc\n' | xargs -n 2 echo x
+printf 'a\0b c\0' | xargs -0 -n1 echo
+printf 'one\ntwo\n' | xargs -I{} echo '[{}]'
+printf 'one\ntwo\n' | xargs -J% echo first % last
+printf 'a b\nc\n' | xargs -L 1 echo
+printf 'a\nSTOP\nb\n' | xargs -E STOP echo
+printf 'a\nb\n' | xargs -t echo 2>&1
+printf 'lines.txt\nwords.txt\n' | xargs wc -l
+printf 'lines.txt\nmissing\n' | xargs cat > /dev/null; echo $?
+printf 'x\n' | xargs nosuchcommand; echo $?
+printf 'x\n' | xargs false; echo $?
+printf 'x\n' | xargs sh -c 'exit 255'; echo $?
+printf 'a\nb\n' | xargs -I{} sed 's/^/got /'
+printf 'a\nb\n' | xargs -o -I{} echo {}
+printf '"quoted arg" plain\n' | xargs -n1 echo
+printf "it's\n" | xargs echo
+printf 'a b c d\n' | xargs -n 2 -x echo
+printf 'aaaa bbbb\n' | xargs -s 12 echo
+printf '' | xargs echo empty
+printf 'a\n' | xargs -R 2 echo
+printf 'a\n' | xargs -P 2 echo
+printf 'a\n' | xargs -x echo
+xargs -y
+printf 'x{}x\n' | xargs -I{} -R 1 echo {} {}
+find dir -name '*.txt' | sort | xargs -n1 basename
+df / | head -1
+df -h / | head -1
+df -k . | awk 'NR==2 {print NF}'
+df -i . | head -1
+df -P . | head -1
+df missing
+df -T apfs . | awk 'NR==2 {print NF}'
+df -l . | wc -l
+df -x
+df -a | head -1
+df -n . | wc -l
+printf 'a\nST\nSTOPX\nb\n' | xargs -E STOP echo
+printf 'a STOP b\n' | xargs -E STOP echo
+printenv HO; echo $?
+which ls
+which -a ls
+which -s ls; echo $?
+which nosuchcmd; echo $?
+which -as ls nosuchcmd; echo $?
+which -x ls; echo $?
+which; echo $?
+which -- ls
+TZ=America/New_York date -r 1710052200 '+%F %T %Z %z %s'
+TZ=America/New_York date -j -f '%Y-%m-%d %H:%M:%S' '2024-03-10 02:30:00' '+%F %T %Z %s'
+TZ=America/New_York date -j -f '%Y-%m-%d %H:%M:%S' '2024-11-03 01:30:00' '+%F %T %Z %s'
+TZ=America/New_York date -j -v+1m -r 1704128400 '+%F %T %Z'
+TZ=America/New_York date -j -v+1d -r 1710000000 '+%F %T %Z'
+TZ=America/New_York date -j -v-6H -r 1730620000 '+%F %T %Z'
+TZ=Australia/Lord_Howe date -r 1712414700 '+%F %T %Z %z'
+TZ=Asia/Kathmandu date -r 0 '+%F %T %Z %z'
+TZ=Europe/Dublin date -r 1720000000 '+%c %Z'
+TZ=JST-9 date -r 0 '+%F %T %Z %z %s'
+TZ='<+0330>-3:30' date -r 86400 '+%T %Z %z'
+TZ=EST5EDT4,M3.2.0/2,M11.1.0/2 date -r 1720000000 '+%T %Z'
+TZ=bogus date -r 0 '+%T %Z'
+TZ= date -r 0 '+%T %Z'
+TZ=:Asia/Tokyo date -j 202401011200 '+%s %Z'
+TZ=Asia/Tokyo date -j -f %s 86400 '+%F %T %Z'
+TZ=Asia/Tokyo date -u -r 0 '+%T %Z'
+TZ=America/Sao_Paulo date -r 1572739200 '+%F %T %Z %z'
+TZ=Pacific/Chatham date -r 1700000000 '+%F %T %Z %z'
+TZ=America/New_York date -R -r 1704164640
+TZ=Europe/London date -j -v1d -v12m -v2030y -r 0 '+%F %T %Z %s'
+date -u -j -f '%Y-%m-%d %H:%M:%S' '2024-07-01 12:00:00' '+%s %Z'

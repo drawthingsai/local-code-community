@@ -44,6 +44,7 @@ extern int ios_system(int argc, const char* const argv[]);
 // Execute a command string with the no-process OSH runtime used by Local Code.
 extern int ios_system_osh(const char* inputCmd);
 extern FILE *ios_popen(const char *command, const char *type); // Execute this command and pipe the result
+extern int ios_pclose(FILE *stream); // close a stream ios_popen returned and wait for its commands
 extern int ios_kill(void); // kill the current running command
 extern int ios_killpid(pid_t pid, int sig); // kill the current running command
 extern int chdir(const char* path);
@@ -79,8 +80,8 @@ extern NSString* aliasedCommand(NSString* command); // if the command is aliased
 extern NSString* getoptString(NSString* command);
 extern NSString* operatesOn(NSString* command);
 extern void initializeEnvironment(void);
-// workspaceURL supplies HOME and the /home directory alias. projectURL supplies
-// the initial working directory and project-local Node/Python package paths.
+// workspaceURL supplies HOME. projectURL supplies the initial working directory
+// and project-local Node/Python package paths.
 // appBundleURL supplies the read-only /app_bundle directory alias.
 extern int ios_setSystemPaths(
     NSURL *documentsURL,

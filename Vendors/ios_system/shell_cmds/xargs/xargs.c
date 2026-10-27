@@ -67,9 +67,7 @@ __FBSDID("$FreeBSD: src/usr.bin/xargs/xargs.c,v 1.57 2005/02/27 02:01:31 gad Exp
 
 #include <TargetConditionals.h>
 #ifdef TARGET_OS_IPHONE
-#include "ios_error.h"
-#undef stderr
-#define stderr thread_stderr
+#include "ios_system_support.h"
 #endif
 #include "pathnames.h"
 
@@ -90,16 +88,42 @@ static void	waitchildren(const char *, int);
 static __thread int last_was_newline = 1;
 static __thread int last_was_blank = 0;
 
-static char echo[] = _PATH_ECHO;
+static const char echo[] = _PATH_ECHO;
 static __thread char **av, **bxp, **ep, **endxp, **xp;
 static __thread char *argp, *bbp, *ebp, *inpline, *p, *replstr;
-static const char *eofstr;
+static __thread const char *eofstr;
 static __thread int count, insingle, indouble, oflag, pflag, tflag, Rflag, rval, zflag;
 static __thread int cnt, Iflag, jfound, Lflag, wasquoted, xflag;
 static __thread int curprocs, maxprocs;
-static size_t pad9314053;
+static __thread size_t pad9314053;
 
 static __thread volatile int childerr;
+/* ios_system: a utility reads thread_stdin, so run() swaps it instead of fd 0. */
+static __thread FILE *saved_stdin, *null_stdin;
+
+static void
+restore_stdin(void)
+{
+	if (null_stdin != NULL) {
+		thread_stdin = saved_stdin;
+		fclose(null_stdin);
+		null_stdin = NULL;
+	}
+}
+
+static void
+xargs_cleanup(void *unused)
+{
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	restore_stdin();
+	free(av);
+	free(bbp);
+	free(inpline);
+	av = NULL;
+	bbp = NULL;
+	inpline = NULL;
+	ios_system_support_cleanup(unused);
+}
 
 extern char **environ;
 
@@ -112,12 +136,10 @@ xargs_main(int argc, char *argv[])
 	size_t linelen;
 	char *endptr;
 
+	pthread_cleanup_push(xargs_cleanup, NULL);
+	ios_system_support_init(argv);
 	inpline = replstr = NULL;
-#if !TARGET_OS_IPHONE
-	ep = environ;
-#else
-    ep = environmentVariables(ios_currentPid());
-#endif
+	ep = environmentVariables(ios_currentPid());
 	eofstr = "";
 	Jflag = nflag = 0;
     
@@ -150,7 +172,7 @@ xargs_main(int argc, char *argv[])
     childerr = 0;
     // end init
     
-	(void)setlocale(LC_ALL, "");
+	/* Locale is owned by ios_system_support. */
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -312,6 +334,8 @@ xargs_main(int argc, char *argv[])
 	ebp = (argp = p = bbp) + nline - 1;
 	for (;;)
 		parse_input(argc, argv);
+	pthread_cleanup_pop(1);
+	return 0;
 }
 
 static void
@@ -370,8 +394,10 @@ parse_input(int argc, char *argv[])
 arg1:		if (insingle || indouble)
 			errx(1, "unterminated quote");
 arg2:
+		/* The argument is not terminated yet: compare its bytes. */
 		foundeof = *eofstr != '\0' &&
-		    strcmp(argp, eofstr) == 0;
+		    (size_t)(p - argp) == strlen(eofstr) &&
+		    strncmp(argp, eofstr, p - argp) == 0;
 
 #ifdef __APPLE__
 		/* 6591323: -I specifies that it processes the entire line,
@@ -627,49 +653,33 @@ exec:
 		err(1, "vfork");
     default:   // ios_system: go through both branches
 	// case 0:
-		if (oflag) {
-#if !TARGET_OS_IPHONE
-			if ((fd = open(_PATH_TTY, O_RDONLY)) == -1)
-#else
-            if ((fd = ios_getstdin()) == -1) 
-#endif
-            err(1, "can't open /dev/tty");
-		} else {
-			fd = open(_PATH_DEVNULL, O_RDONLY);
+		// ios_system (on every platform): execvp runs the utility in this
+		// process with this session's streams, so dup2 onto fd 0 would
+		// change stdin for the whole process. The utility reads xargs's
+		// stdin with -o, /dev/null otherwise.
+		if (!oflag) {
+			if ((null_stdin = fopen(_PATH_DEVNULL, "r")) == NULL)
+				err(1, "%s", _PATH_DEVNULL);
+			saved_stdin = thread_stdin;
+			thread_stdin = null_stdin;
 		}
-		if (fd > STDIN_FILENO) {
-			if (dup2(fd, STDIN_FILENO) != 0)
-				err(1, "can't dup2 to stdin");
-#if !TARGET_OS_IPHONE
-            close(fd);
-#endif
-		}
-#if !TARGET_OS_IPHONE
-		execvp(argv[0], argv);
-		childerr = errno;
-		// _exit(1);
-#else
-        childerr = execvp(argv[0], argv);
-#endif
+        // execvp starts the utility and returns; it fails with ENOENT when
+        // the utility was not found, which ios_system has already reported.
+        childerr = execvp(argv[0], argv) == -1 ? errno : 0;
 	}
 	curprocs++;
-    // Now, we need to wait until the child process has finished. 
-#if !TARGET_OS_IPHONE
-	waitchildren(*argv, 0);
-#else
-    // iOS specifics: wait for each process in turn.
+    // Now, we need to wait until the child process has finished.
+    // ios_system: wait for each process in turn.
     int status;
     waitpid(pid, &status, 0); // wait for this process to finish (iOS)
+    restore_stdin();
     curprocs--;
-    if (childerr != 0) {
-        errno = childerr;
-        err(errno == ENOENT ? 127 : 126, "%s", *argv);
-    }
+    if (childerr == ENOENT)
+        exit(127);
     if (WIFSIGNALED(status) || WEXITSTATUS(status) == 255)
         exit(1);
     if (WEXITSTATUS(status))
         rval = 1;
-#endif
 }
 
 // wait for all children of current process (Unix default).
@@ -680,9 +690,8 @@ waitchildren(const char *name, int waitall)
 	pid_t pid;
 	int status;
 
-#if TARGET_OS_IPHONE
-    return;
-#endif
+	// ios_system (on every platform): run() already waited for its utility.
+	return;
 	while ((pid = waitpid(-1, &status, !waitall && curprocs < maxprocs ?
 	    WNOHANG : 0)) > 0) {
 		curprocs--;

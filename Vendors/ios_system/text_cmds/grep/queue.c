@@ -48,12 +48,19 @@ struct qentry {
 	struct str	 	data;
 };
 
-// queue is the only item in grep that is not a thread-local variable.
-// it could create issues, but at the same time the macros are not thread-friendly.
-static STAILQ_HEAD(, qentry)	queue = STAILQ_HEAD_INITIALIZER(queue);
+// iOS: thread-local; STAILQ_HEAD_INITIALIZER names its own address, so
+// queue_init sets it up at run time.
+static __thread STAILQ_HEAD(, qentry)	queue;
 static __thread unsigned long long	count;
 
 static struct qentry	*dequeue(void);
+
+void
+queue_init(void)
+{
+
+	STAILQ_INIT(&queue);
+}
 
 void
 enqueue(struct str *x)
@@ -70,8 +77,11 @@ enqueue(struct str *x)
 
 	STAILQ_INSERT_TAIL(&queue, item, list);
 
-	if (++count > Bflag)
-		free(dequeue());
+	if (++count > Bflag) {
+		item = dequeue();
+		free(item->data.dat);
+		free(item);
+	}
 }
 
 static struct qentry *
@@ -95,6 +105,7 @@ printqueue(void)
 
 	while ((item = dequeue()) != NULL) {
 		printline(&item->data, '-', (regmatch_t *)NULL, 0);
+		free(item->data.dat);
 		free(item);
 	}
 }
@@ -104,6 +115,8 @@ clearqueue(void)
 {
 	struct qentry *item;
 
-	while ((item = dequeue()) != NULL)
+	while ((item = dequeue()) != NULL) {
+		free(item->data.dat);
 		free(item);
+	}
 }

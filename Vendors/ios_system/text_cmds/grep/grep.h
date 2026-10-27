@@ -49,7 +49,7 @@ extern __thread nl_catd		 catalog;
 #define getstr(n)	 catgets(catalog, 1, n, errstr[n])
 #endif
 
-extern const char		*errstr[];
+extern const char		*const errstr[];
 
 #define VERSION		"2.5.1-FreeBSD"
 
@@ -138,7 +138,7 @@ extern __thread fastmatch_t *fg_pattern;
 
 /* For regex errors  */
 #define RE_ERROR_BUF	512
-extern char	 re_error[RE_ERROR_BUF + 1];	/* Seems big enough */
+extern __thread char	 re_error[RE_ERROR_BUF + 1];	/* Seems big enough */
 
 /* util.c */
 bool	 file_matching(const char *fname);
@@ -149,8 +149,10 @@ void	*grep_calloc(size_t nmemb, size_t size);
 void	*grep_realloc(void *ptr, size_t size);
 char	*grep_strdup(const char *str);
 void	 printline(struct str *line, int sep, regmatch_t *matches, int m);
+void	 release_binary_patterns(void);	/* iOS */
 
 /* queue.c */
+void	 queue_init(void);
 void	 enqueue(struct str *x);
 void	 printqueue(void);
 void	 clearqueue(void);
@@ -159,3 +161,14 @@ void	 clearqueue(void);
 void		 grep_close(struct file *f);
 struct file	*grep_open(const char *path);
 char		*grep_fgetln(struct file *f, size_t *len);
+
+/*
+ * iOS: one invocation allocates from its own malloc zone, destroyed when the
+ * command ends; blocks are freed through it (plain free() looks the zone up
+ * in the process list, which another zone's destruction can change). Sources
+ * include this header after the system headers.
+ */
+#include <malloc/malloc.h>
+extern __thread malloc_zone_t *grep_zone;
+void	 grep_free(void *ptr);
+#define free(pointer) grep_free(pointer)

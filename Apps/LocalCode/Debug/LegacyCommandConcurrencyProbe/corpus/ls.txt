@@ -1,0 +1,76 @@
+# ls parity corpus (mtimes are fixed; owner names come from the host)
+ls
+ls -1
+ls -a
+ls -A
+ls -C
+ls -x
+ls -m
+ls -l lines.txt words.txt
+ls -l dir
+ls -la dir
+ls -ld dir dirlink
+ls -lL dirlink
+ls -lH dirlink
+ls -F
+ls -p
+ls -i lines.txt | wc -w
+ls -s lines.txt long.txt
+ls -sk long.txt
+ls -lh long.txt binary.bin
+ls -lt
+ls -ltr
+ls -lS
+ls -lSr
+ls -lu lines.txt
+ls -lc lines.txt | wc -w
+ls -lU lines.txt | wc -w
+ls -f | sort
+ls -R dir
+ls -lR dir
+ls -1R
+ls dir other
+ls dir lines.txt
+ls lines.txt dir/a.txt other/x.txt
+ls -d */
+ls ./dir ../fx/other
+ls "$PWD/other"
+ls -l "$PWD/other/x.txt" | wc -w
+ls missing
+ls lines.txt missing words.txt
+ls -l broken
+ls -lL broken
+ls link.txt
+ls -l link.txt dir/sub/up.txt
+ls -n lines.txt
+ls -lo lines.txt
+ls -lg lines.txt | wc -w
+ls -le lines.txt
+ls -l@ lines.txt
+ls -B mixed.bin lines.txt
+ls -q
+ls -b
+ls -w
+ls emptydir
+ls -la emptydir
+ls -T -l lines.txt
+ls -lT dir | head -2
+ls -1 'spaces in name.txt' -- -dash.txt
+ls -G
+CLICOLOR=1 CLICOLOR_FORCE=1 ls dir
+CLICOLOR=1 CLICOLOR_FORCE=1 LSCOLORS=Gxfxcxdxbxegedabagacad ls -F
+BLOCKSIZE=1k ls -s long.txt
+BLOCKSIZE=1m ls -ls long.txt
+BLOCKSIZE=bogus ls -s long.txt
+COLUMNS=20 ls -C
+COLUMNS=200 ls -x
+ls -1 /usr/bin | head -3
+ls -z
+ls -l /dev/null | wc -w
+ls -ld .
+ls -ld ..
+ls -l . | head -3
+ls -d .
+ls -r
+ls -1t lines.txt words.txt dups.txt
+ls -ldi dir | wc -w

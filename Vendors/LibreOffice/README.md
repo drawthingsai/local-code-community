@@ -443,8 +443,8 @@ bazel-bin/Vendors/LibreOffice/ios_system_validation \
 ```
 
 The test links the full `ios_system` host (including Python, Node and FFmpeg),
-checks the static command category, and exercises OSH path aliases, output
-redirection, repeated conversions and recovery after a bad input.
+checks the static command category, and exercises `$TMPDIR` output paths,
+output redirection, repeated conversions and recovery after a bad input.
 
 `//Vendors/LibreOffice:bundle_validation` builds the same test as a signed macOS
 app, carrying resources transitively through `ios_system`. After extracting its

@@ -32,8 +32,10 @@
 // in order to run webAssembly commands sequentially, we first stack them, then run them in command line order:
 // At this point, this could just be a mutex.
 
-int preparingWebAssemblyCommands = 0;
-int orderOfWebAssemblyCommands = 0;
+// Every session's waitpid comes through here, so the counts and the runner
+// lookup are atomic.
+static _Atomic(int) preparingWebAssemblyCommands = 0;
+static _Atomic(int) orderOfWebAssemblyCommands = 0;
 void startedPreparingWebAssemblyCommand(void) {
     preparingWebAssemblyCommands += 1;
     orderOfWebAssemblyCommands += 1;
@@ -44,12 +46,13 @@ int webAssemblyCommandOrder(void) {
 }
 
 void finishedPreparingWebAssemblyCommand(void) {
-    if (preparingWebAssemblyCommands > 0)
-        preparingWebAssemblyCommands -= 1;
+    int count = preparingWebAssemblyCommands;
+    while (count > 0 && !atomic_compare_exchange_weak(&preparingWebAssemblyCommands, &count, count - 1)) { }
 }
 
+typedef void (*WebAssemblyRunner)(void);
 static void executeWebAssemblyCommandsInOrder(void) {
-    static void (*function)(void) = NULL;
+    static _Atomic(WebAssemblyRunner) function = NULL;
     if (function == NULL) {
         function = dlsym(RTLD_MAIN_ONLY, "executeWebAssemblyCommands");
     }
@@ -189,6 +192,13 @@ static char** copyEnvironment[IOS_MAX_THREADS];
 static char previousDirectory[IOS_MAX_THREADS][MAXPATHLEN];
 static bool deferDirectoryRestoration[IOS_MAX_THREADS];
 static int previousPid[IOS_MAX_THREADS];
+// A forked slot stays with its parent until the parent reaps it (waitpid) or
+// releases it (ios_releaseThreadId): until then the parent still runs as that
+// pid and reads its environment, directory and previous pid. The child's exit
+// only marks it finished (thread_ids 0), so another session cannot take the
+// slot in between.
+static atomic_bool slotHeld[IOS_MAX_THREADS];
+static _Atomic(pthread_t) slotParent[IOS_MAX_THREADS];
 
 static int pid_overflow = 0;
 static __thread pid_t current_pid = 0;
@@ -213,13 +223,42 @@ inline pthread_t ios_getThreadId(pid_t pid) {
     return thread_ids[pid];
 }
 
+extern const char *ios_currentSessionDirectory(void); // defined in ios_system.m
+
+// The directory a "process" returns to when it ends: its session's, not the
+// process-wide working directory, which another session may have moved.
+static void storePreviousDirectory(pid_t pid) {
+    const char *directory = ios_getenv("PWD");
+    if (directory == NULL || directory[0] != '/') directory = ios_currentSessionDirectory();
+    if (directory != NULL) {
+        strlcpy(previousDirectory[pid], directory, sizeof(previousDirectory[pid]));
+    } else {
+        getwd(previousDirectory[pid]);
+    }
+}
+
 void newPreviousDirectory(void) {
     // Called when a command calls "cd". Actually changes the directory for that command.
-    getwd(previousDirectory[current_pid]);
+    storePreviousDirectory(current_pid);
 }
 
 // We do not recycle process ids too quickly to avoid collisions.
 void storeEnvironment(char* envp[]);
+void resetEnvironment(pid_t pid);
+// The caller (pid_mtx held) takes pid for a child of parentPid.
+static void claimSlot(pid_t pid, pid_t parentPid, char **parentEnvironment) {
+    thread_ids[pid] = -1; // Not yet started
+    slotHeld[pid] = true;
+    slotParent[pid] = pthread_self();
+    current_pid = pid;
+    // A reused slot still holds its last command's copy (release keeps it).
+    resetEnvironment(pid);
+    storeEnvironment(parentEnvironment); // duplicate the environment variables
+    storePreviousDirectory(pid); // store current working directory
+    deferDirectoryRestoration[pid] = false;
+    previousPid[pid] = parentPid;
+}
+
 static inline const pid_t ios_nextAvailablePid(void) {
     while (cleanup_counter > 0) { } // Don't start a command while another is ending.
     // fprintf(stderr, "Locking in ios_nextAvailablePid\n");
@@ -227,58 +266,64 @@ static inline const pid_t ios_nextAvailablePid(void) {
     char** currentEnvironment = environmentVariables(current_pid);
     int previousPidId = current_pid;
     if (!pid_overflow && (last_allocated_pid < IOS_MAX_THREADS - 1)
-        && (thread_ids[last_allocated_pid+1] == 0)) {
-        current_pid = last_allocated_pid + 1;
-        last_allocated_pid = current_pid;
-        thread_ids[current_pid] = -1; // Not yet started
-        numVariablesSet[current_pid] = 0;
-        environment[current_pid] = NULL;
-        storeEnvironment(currentEnvironment); // duplicate the environment variables
-        getwd(previousDirectory[current_pid]); // store current working directory
-        deferDirectoryRestoration[current_pid] = false;
-        previousPid[current_pid] = previousPidId;
-        // fprintf(stderr, "Returning from ios_nextAvailablePid, pid= %d\n", current_pid);
+        && (thread_ids[last_allocated_pid+1] == 0) && !slotHeld[last_allocated_pid+1]) {
+        last_allocated_pid = last_allocated_pid + 1;
+        claimSlot(last_allocated_pid, previousPidId, currentEnvironment);
         pthread_mutex_unlock(&pid_mtx);
         return current_pid;
     }
     // We've already started more than IOS_MAX_THREADS threads.
-    if (!pid_overflow) current_pid = 0; // first time over the limit
     pid_overflow = 1;
-    while (1) {
-        current_pid = last_allocated_pid + 1;
-        last_allocated_pid = current_pid;
-        if (current_pid >= IOS_MAX_THREADS) {
-            current_pid = 1;
-            last_allocated_pid = 1;
+    // When every slot runs or belongs to a parent that has not reaped it, wait
+    // a little for other commands to end, then fail like fork(2) at the process
+    // limit: a held slot's parent still runs as that pid and will reap it.
+    for (int attempt = 0; attempt < 2000; attempt++) {
+        for (int scanned = 0; scanned < IOS_MAX_THREADS; scanned++) {
+            pid_t pid = last_allocated_pid + 1;
+            if (pid >= IOS_MAX_THREADS) pid = 1;
+            last_allocated_pid = pid;
+            if (thread_ids[pid] == 0 && !slotHeld[pid]) {
+                claimSlot(pid, previousPidId, currentEnvironment);
+                pthread_mutex_unlock(&pid_mtx);
+                return current_pid;
+            }
         }
-        pthread_t thread_pid = ios_getThreadId(current_pid);
-        if (thread_pid == 0) { // We found a not-active pid
-            thread_ids[current_pid] = -1; // Not yet started
-            numVariablesSet[current_pid] = 0;
-            environment[current_pid] = NULL;
-            storeEnvironment(currentEnvironment); // duplicate the environment variables
-            getwd(previousDirectory[current_pid]); // store current working directory
-            deferDirectoryRestoration[current_pid] = false;
-            previousPid[current_pid] = previousPidId;
-            // fprintf(stderr, "Returning from ios_nextAvailablePid, pid= %d\n", current_pid);
-            pthread_mutex_unlock(&pid_mtx);
-            return current_pid;
-        }
-        // Dangerous: if the process is already killed, this wil crash
-        /*
-        if (pthread_kill(thread_pid, 0) != 0) {
-            thread_ids[current_pid] = 0;
-            return current_pid; // not running anymore
-        }
-        */
+        pthread_mutex_unlock(&pid_mtx);
+        usleep(1000);
+        pthread_mutex_lock(&pid_mtx);
     }
+    pthread_mutex_unlock(&pid_mtx);
+    errno = EAGAIN;
+    return -1;
+}
+
+// waitpid blocks on this until the pid's thread is cleared. Releases run
+// without pid_mtx, so the wait has its own mutex: every change of a slot to 0
+// stores it, then broadcasts holding the mutex, and a waiter reads the slot
+// holding it.
+static pthread_mutex_t threadEndMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t threadEnded = PTHREAD_COND_INITIALIZER;
+
+static void unlockThreadEndMutex(void *unused) { pthread_mutex_unlock(&threadEndMutex); }
+
+static void notifyThreadEnded(void) {
+    pthread_mutex_lock(&threadEndMutex);
+    pthread_cond_broadcast(&threadEnded);
+    pthread_mutex_unlock(&threadEndMutex);
+}
+
+static void clearThreadId(pid_t pid) {
+    thread_ids[pid] = 0;
+    notifyThreadEnded();
 }
 
 inline void ios_storeThreadId(pthread_t thread) {
     // To avoid issues when a command starts a command without forking,
     // we only store thread IDs for the first thread of the "process".
+    // Storing 0 gives up a pid whose launch failed: it ends without running.
     pthread_t pending = (pthread_t)-1;
-    atomic_compare_exchange_strong(&thread_ids[current_pid], &pending, thread);
+    if (atomic_compare_exchange_strong(&thread_ids[current_pid], &pending, thread) && thread == 0)
+        notifyThreadEnded();
 }
 
 void ios_setCurrentPid(pid_t pid) {
@@ -538,10 +583,18 @@ void ios_deferDirectoryRestoration(pid_t pid) {
     deferDirectoryRestoration[pid] = true;
 }
 
+// A command that ends hands back the slots it forked but never reaped.
+static void releaseSlotsHeldBy(pthread_t thread) {
+    for (int p = 0; p < IOS_MAX_THREADS; p++) {
+        if (slotHeld[p] && slotParent[p] == thread) slotHeld[p] = false;
+    }
+}
+
 void ios_releaseThread(pthread_t thread) {
     if (thread == NULL) {
         return;
     }
+    releaseSlotsHeldBy(thread);
     // TODO: this is inefficient. Replace with NSMutableArray?
     for (int p = 0; p < IOS_MAX_THREADS; p++) {
         if (thread_ids[p] == thread) {
@@ -551,7 +604,7 @@ void ios_releaseThread(pthread_t thread) {
             // fprintf(stderr, "Reset current directory to %s because process %d terminates\n", previousDirectory[p], p);
             current_pid = previousPid[p];
             if (!deferDirectoryRestoration[p]) chdir_nolock(previousDirectory[p]);
-            thread_ids[p] = NULL;
+            clearThreadId(p);
             return;
         }
     }
@@ -560,11 +613,12 @@ void ios_releaseThread(pthread_t thread) {
 
 void ios_releaseBackgroundThread(pthread_t thread) {
     // Same as ios_releaseThread, but do not reset the directory.
+    releaseSlotsHeldBy(thread);
     for (int p = 0; p < IOS_MAX_THREADS; p++) {
         if (thread_ids[p] == thread) {
             // fprintf(stderr, "Found Id %d\n", p);
             current_pid = previousPid[p];
-            thread_ids[p] = NULL;
+            clearThreadId(p);
             return;
         }
     }
@@ -572,13 +626,14 @@ void ios_releaseBackgroundThread(pthread_t thread) {
 }
 
 void ios_releaseThreadId(pid_t pid) {
+    if (pid < 0 || pid >= IOS_MAX_THREADS) return;
     // Don't reset the environment; sometimes, commands try to change the environment while it is being erased.
     // resetEnvironment(pid);
     if (thread_ids[pid] != 0) {
         // fprintf(stderr, "Locking for pid %d in ios_releaseThreadId\n", pid);
         // fprintf(stderr, "Reset current directory to %s because process %d terminates\n", previousDirectory[pid], pid);
         if (!deferDirectoryRestoration[pid]) chdir_nolock(previousDirectory[pid]);
-        thread_ids[pid] = 0;
+        clearThreadId(pid);
         // fprintf(stderr, "Unlocking for pid %d in ios_releaseThreadId\n", pid);
     } else {
         // fprintf(stderr, "ios_releaseThreadId: pid %d was already terminated.\n", pid);
@@ -586,6 +641,15 @@ void ios_releaseThreadId(pid_t pid) {
     // The child may already have released its slot. Restore the waiting caller
     // too, so later commands inherit the parent environment instead of the child.
     if (current_pid == pid) current_pid = previousPid[pid];
+    slotHeld[pid] = false;
+}
+
+// waitpid reaps the child: the caller runs as its own pid again and the slot
+// can be reused.
+static void reapChild(pid_t pid) {
+    if (pid <= 0 || pid >= IOS_MAX_THREADS) return;
+    if (current_pid == pid) current_pid = previousPid[pid];
+    slotHeld[pid] = false;
 }
 
 pid_t ios_currentPid(void) {
@@ -613,14 +677,13 @@ __attribute__ ((optnone)) void ios_waitpid(pid_t pid) {
         }
         return;
     }
-    // New system: thread Id is store with pid:
-    threadToWaitFor = ios_getThreadId(pid);
-    while (threadToWaitFor != 0) {
-        // -1: not started, >0 started, not finished, 0: finished
-        threadToWaitFor = ios_getThreadId(pid);
-    }
-    // fprintf(stderr, "Returning from ios_waitpid for %d \n", pid);
-    return;
+    // New system: thread Id is store with pid. -1: not started, >0 started,
+    // not finished, 0: finished.
+    pthread_mutex_lock(&threadEndMutex);
+    pthread_cleanup_push(unlockThreadEndMutex, NULL);
+    while (ios_getThreadId(pid) != 0)
+        pthread_cond_wait(&threadEnded, &threadEndMutex);
+    pthread_cleanup_pop(1);
 }
 
 __attribute__ ((optnone)) pid_t waitpid(pid_t pid, int *stat_loc, int options) {
@@ -641,12 +704,14 @@ __attribute__ ((optnone)) pid_t waitpid(pid_t pid, int *stat_loc, int options) {
             if (stat_loc) *stat_loc = W_EXITCODE(ios_getCommandStatus(), 0);
             fflush(thread_stdout);
             fflush(thread_stderr);
+            reapChild(pid);
             return pid; // was "-1". See man page and https://github.com/holzschu/ios_system/issues/89
         }
     } else {
         // Wait until the process is terminated:
         ios_waitpid(pid);
         if (stat_loc) *stat_loc = W_EXITCODE(ios_getCommandStatus(), 0);
+        reapChild(pid);
         return pid;
     }
 }
@@ -673,12 +738,14 @@ __attribute__ ((optnone)) pid_t ios_full_waitpid(pid_t pid, int *stat_loc, int o
             if (stat_loc) *stat_loc = W_EXITCODE(ios_getCommandStatus(), 0);
             fflush(thread_stdout);
             fflush(thread_stderr);
+            reapChild(pid);
             return pid; // was "-1". See man page and https://github.com/holzschu/ios_system/issues/89
         }
     } else {
         // Wait until the process is terminated:
         ios_waitpid(pid);
         if (stat_loc) *stat_loc = W_EXITCODE(ios_getCommandStatus(), 0);
+        reapChild(pid);
         return pid;
     }
 }
