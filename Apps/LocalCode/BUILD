@@ -4,6 +4,13 @@ load("@build_bazel_rules_apple//apple:resources.bzl", "apple_resource_group")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_binary", "swift_library", "swift_test")
 load("@rules_xcodeproj//xcodeproj:defs.bzl", "top_level_target", "xcodeproj")
 
+# local-code-community leaves out the team's provisioning profiles. Without one, simulator builds
+# still work, and device builds need a profile of your own at this path.
+DEVELOPMENT_PROVISIONING_PROFILE = (glob(
+    ["ProvisioningFiles/LocalCode_Development.mobileprovision"],
+    allow_empty = True,
+) or [None])[0]
+
 exports_files([
     "Sources/Agent/DeepSeekTextGenerator.swift",
     "Sources/Agent/SystemPrompt.swift",
@@ -151,7 +158,7 @@ ios_application(
         "$(location @SwiftCrypto//:CCryptoBoringSSL)",
     ],
     minimum_os_version = "16.0",
-    provisioning_profile = "ProvisioningFiles/LocalCode_Development.mobileprovision",
+    provisioning_profile = DEVELOPMENT_PROVISIONING_PROFILE,
     # LocalCode consumes the common committed iOS Python resources on device
     # and simulator; platform-specific native code stays in XCFramework slices.
     # Native command runtimes are linked into the app executable, except those
@@ -216,7 +223,7 @@ ios_application(
     include_symbols_in_bundle = True,
     infoplists = ["StaticInlinePython/Info.plist"],
     minimum_os_version = "16.0",
-    provisioning_profile = "ProvisioningFiles/LocalCode_Development.mobileprovision",
+    provisioning_profile = DEVELOPMENT_PROVISIONING_PROFILE,
     resources = [
         "//Vendors/FFmpeg:notices",
         "//Vendors/Madrid:Madrid-LICENSE.txt",
@@ -258,7 +265,7 @@ ios_application(
     include_symbols_in_bundle = True,
     infoplists = ["StaticInlineNode/Info.plist"],
     minimum_os_version = "16.0",
-    provisioning_profile = "ProvisioningFiles/LocalCode_Development.mobileprovision",
+    provisioning_profile = DEVELOPMENT_PROVISIONING_PROFILE,
     resources = [":NodeMobileRuntimeResources"],
     visibility = ["//visibility:public"],
     deps = [":StaticInlineNodeMain"],
@@ -283,7 +290,7 @@ ios_application(
     include_symbols_in_bundle = True,
     infoplists = ["StaticInlineLean/Info.plist"],
     minimum_os_version = "16.0",
-    provisioning_profile = "ProvisioningFiles/LocalCode_Development.mobileprovision",
+    provisioning_profile = DEVELOPMENT_PROVISIONING_PROFILE,
     resources = ["//Vendors/Lean:LeanRuntimeResources"],
     visibility = ["//visibility:public"],
     deps = [":StaticInlineLeanMain"],

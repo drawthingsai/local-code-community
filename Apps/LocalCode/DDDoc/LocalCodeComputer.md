@@ -149,7 +149,7 @@ Only Computer's own UI creates rules. Outside Approve for me, only Computer's ow
 
 ## Approve for me
 
-Approve for me is a per-project mode in which a reviewer model approves the calls it judges safe and sends the rest to the user. It also reviews calls that a stored rule covers, as a check on a rule matching a call the user would not have wanted. The user turns it on for a project in Computer's menu; Local Code cannot turn it on. The menu-bar icon shows when the mode is on. The setting is keyed by the project's resolved path, like rules.
+Approve for me is a per-project mode in which a reviewer model approves the calls it judges safe and sends the rest to the user. It also reviews calls that a stored rule covers, as a check on a rule matching a call the user would not have wanted. The user turns it on for a project in Computer's menu; Local Code cannot turn it on. The menu-bar icon shows a check while jobs run in a project with the mode on. The setting is keyed by the project's resolved path, like rules.
 
 ```text
 needs a grant
@@ -202,7 +202,7 @@ Each job is spawned with `posix_spawn` and `POSIX_SPAWN_SETSID`, so it gets its 
 
 Processes that call `setsid` themselves leave the group: the Bazel server, `nohup` jobs, development servers. macOS has no cgroups. While a job runs, Computer snapshots its process tree. After the job ends, descendants that are still alive are listed in the tray under Left running, each with Kill. This is best effort.
 
-The menu-bar icon shows idle, running, or waiting for approval. Its menu lists:
+The menu-bar icon is dimmed when idle and lit while jobs run, with a check while Approve for me covers a project with running jobs and an orange dot while approvals wait. Its menu lists:
 
 - pending approvals, which open the panel;
 - running jobs, each with the first line of the command, the project, elapsed time, a tier badge, and Kill;
