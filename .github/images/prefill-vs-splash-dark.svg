@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" font-family='system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif' role="img" aria-labelledby="title desc">
+<title id="title">Qwen 3.8 27B prefill speed, M5 Ultra (256 GB)</title>
+<desc id="desc">Prefill speed in tokens per second for Local Code and Splash, at each amount of context already in use. Higher is better.</desc>
+<rect x="0.5" y="0.5" width="759" height="459" rx="12" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
+<text x="72" y="34" font-size="16" font-weight="600" fill="#f0efec">Qwen 3.8 27B prefill speed, M5 Ultra (256 GB)</text>
+<rect x="72" y="54" width="12" height="12" rx="3" fill="#3987e5"/>
+<text x="92" y="64.5" font-size="13" fill="#c3c2b7">Local Code (4-bit S)</text>
+<rect x="248.0" y="54" width="12" height="12" rx="3" fill="#d95926"/>
+<text x="268.0" y="64.5" font-size="13" fill="#c3c2b7">Splash (BF16 KV cache)</text>
+<rect x="437.2" y="54" width="12" height="12" rx="3" fill="#199e70"/>
+<text x="457.2" y="64.5" font-size="13" fill="#c3c2b7">Splash (Int8 KV cache)</text>
+<text x="62" y="400.0" font-size="12" text-anchor="end" fill="#898781" style="font-variant-numeric: tabular-nums">0</text>
+<line x1="72" y1="309.1" x2="732" y2="309.1" stroke="#2c2c2a" stroke-width="1"/>
+<text x="62" y="313.1" font-size="12" text-anchor="end" fill="#898781" style="font-variant-numeric: tabular-nums">1K</text>
+<line x1="72" y1="222.3" x2="732" y2="222.3" stroke="#2c2c2a" stroke-width="1"/>
+<text x="62" y="226.3" font-size="12" text-anchor="end" fill="#898781" style="font-variant-numeric: tabular-nums">2K</text>
+<line x1="72" y1="135.4" x2="732" y2="135.4" stroke="#2c2c2a" stroke-width="1"/>
+<text x="62" y="139.4" font-size="12" text-anchor="end" fill="#898781" style="font-variant-numeric: tabular-nums">3K</text>
+<line x1="72" y1="396" x2="732" y2="396" stroke="#383835" stroke-width="1"/>
+<path d="M89.0,396.0 V135.3 Q89.0,131.3 93.0,131.3 H109.0 Q113.0,131.3 113.0,135.3 V396.0 Z" fill="#3987e5"/>
+<path d="M115.0,396.0 V235.2 Q115.0,231.2 119.0,231.2 H135.0 Q139.0,231.2 139.0,235.2 V396.0 Z" fill="#d95926"/>
+<path d="M141.0,396.0 V235.3 Q141.0,231.3 145.0,231.3 H161.0 Q165.0,231.3 165.0,235.3 V396.0 Z" fill="#199e70"/>
+<text x="127.0" y="123.3" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.61×</text>
+<text x="127.0" y="416" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0</text>
+<path d="M199.0,396.0 V166.4 Q199.0,162.4 203.0,162.4 H219.0 Q223.0,162.4 223.0,166.4 V396.0 Z" fill="#3987e5"/>
+<path d="M225.0,396.0 V248.3 Q225.0,244.3 229.0,244.3 H245.0 Q249.0,244.3 249.0,248.3 V396.0 Z" fill="#d95926"/>
+<path d="M251.0,396.0 V248.1 Q251.0,244.1 255.0,244.1 H271.0 Q275.0,244.1 275.0,248.1 V396.0 Z" fill="#199e70"/>
+<text x="237.0" y="154.4" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.54×</text>
+<text x="237.0" y="416" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">8K</text>
+<path d="M309.0,396.0 V204.8 Q309.0,200.8 313.0,200.8 H329.0 Q333.0,200.8 333.0,204.8 V396.0 Z" fill="#3987e5"/>
+<path d="M335.0,396.0 V261.4 Q335.0,257.4 339.0,257.4 H355.0 Q359.0,257.4 359.0,261.4 V396.0 Z" fill="#d95926"/>
+<path d="M361.0,396.0 V259.2 Q361.0,255.2 365.0,255.2 H381.0 Q385.0,255.2 385.0,259.2 V396.0 Z" fill="#199e70"/>
+<text x="347.0" y="192.8" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.39×</text>
+<text x="347.0" y="416" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">16K</text>
+<path d="M419.0,396.0 V227.3 Q419.0,223.3 423.0,223.3 H439.0 Q443.0,223.3 443.0,227.3 V396.0 Z" fill="#3987e5"/>
+<path d="M445.0,396.0 V281.5 Q445.0,277.5 449.0,277.5 H465.0 Q469.0,277.5 469.0,281.5 V396.0 Z" fill="#d95926"/>
+<path d="M471.0,396.0 V277.9 Q471.0,273.9 475.0,273.9 H491.0 Q495.0,273.9 495.0,277.9 V396.0 Z" fill="#199e70"/>
+<text x="457.0" y="215.3" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.41×</text>
+<text x="457.0" y="416" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">32K</text>
+<path d="M529.0,396.0 V271.0 Q529.0,267.0 533.0,267.0 H549.0 Q553.0,267.0 553.0,271.0 V396.0 Z" fill="#3987e5"/>
+<path d="M555.0,396.0 V307.5 Q555.0,303.5 559.0,303.5 H575.0 Q579.0,303.5 579.0,307.5 V396.0 Z" fill="#d95926"/>
+<path d="M581.0,396.0 V303.4 Q581.0,299.4 585.0,299.4 H601.0 Q605.0,299.4 605.0,303.4 V396.0 Z" fill="#199e70"/>
+<text x="567.0" y="259.0" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.34×</text>
+<text x="567.0" y="416" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">64K</text>
+<path d="M639.0,396.0 V316.4 Q639.0,312.4 643.0,312.4 H659.0 Q663.0,312.4 663.0,316.4 V396.0 Z" fill="#3987e5"/>
+<path d="M665.0,396.0 V338.3 Q665.0,334.3 669.0,334.3 H685.0 Q689.0,334.3 689.0,338.3 V396.0 Z" fill="#d95926"/>
+<path d="M691.0,396.0 V332.4 Q691.0,328.4 695.0,328.4 H711.0 Q715.0,328.4 715.0,332.4 V396.0 Z" fill="#199e70"/>
+<text x="677.0" y="304.4" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.24×</text>
+<text x="677.0" y="416" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">128K</text>
+<text x="402.0" y="442" font-size="12" text-anchor="middle" fill="#c3c2b7">Context already in use (tokens)</text>
+<text transform="translate(20 244.0) rotate(-90)" font-size="12" text-anchor="middle" fill="#c3c2b7">Prefill speed (tokens per second, higher is better)</text>
+</svg>

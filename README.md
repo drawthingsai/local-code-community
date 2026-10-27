@@ -107,7 +107,17 @@ Qwen 3.8 27B is a small model that understands images, and it is strong at codin
 
 Before a model writes its first token, it has to read the whole prompt. For an agent, that means the conversation so far, the files it has opened and the output of its tools. This step is called prefill. Each tool call adds to the context, so in agent work, prefill is often what you wait for.
 
-The table compares prefill speed in Local Code and in [Splash](https://github.com/incoai/splash), an open-source inference engine for Apple silicon, on an M5 Ultra with 256 GB of memory. Splash runs the model's UD-Q4_K_XL GGUF checkpoint. Each reading prefills an 8,192-token chunk after the given amount of context is already in use. Speeds are in tokens per second:
+The chart compares prefill speed in Local Code and in [Splash](https://github.com/incoai/splash), an open-source inference engine for Apple silicon, on an M5 Ultra with 256 GB of memory. Splash runs the model's UD-Q4_K_XL GGUF checkpoint. Each reading prefills an 8,192-token chunk after the given amount of context is already in use. The label above each group is how much faster Local Code is than the faster of the two Splash settings.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/prefill-vs-splash-dark.svg">
+  <img alt="Qwen 3.8 27B prefill speed on an M5 Ultra, for Local Code and for Splash with a BF16 or an Int8 KV cache. The data is in the table below the chart." src=".github/images/prefill-vs-splash-light.svg">
+</picture>
+
+<details>
+<summary>Data</summary>
+
+Speeds are in tokens per second.
 
 | Context in use | Local Code (4-bit S) | Splash (BF16 KV cache) | Splash (Int8 KV cache) |
 | --- | --- | --- | --- |
@@ -118,7 +128,9 @@ The table compares prefill speed in Local Code and in [Splash](https://github.co
 | 64K | 1,485 | 1,065 | 1,112 |
 | 128K | 962 | 710 | 778 |
 
-Splash decodes faster than Local Code because it drafts tokens with the DFlash2 draft model. This table leaves decode out, because it compares how the two engines implement attention.
+</details>
+
+Splash decodes faster than Local Code because it drafts tokens with the DFlash2 draft model. This comparison leaves decode out, because it compares how the two engines implement attention.
 
 #### Why Local Code Prefills Faster
 
