@@ -3,7 +3,8 @@
 # Replaces the paths listed in the source repository's SYNCLIST for this repository with
 # their copies from the source repository. Only files tracked there are copied, so untracked
 # files in the source working tree never land here. A SYNCLIST line is either a path with
-# the same name in both repositories, or `source path -> path here`.
+# the same name in both repositories, or `source path -> path here`. A `!source path` line leaves
+# that path out of the copies, so it is removed here.
 
 cd "$(dirname "$0")" || exit 1
 
@@ -25,10 +26,23 @@ fi
 STAGING_PATH="$(mktemp -d)"
 trap 'rm -rf "$STAGING_PATH"' EXIT
 
+# Collect the excluded paths first, since a `!` line can follow the path that contains it
+EXCLUDE_PATHSPECS=()
+while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" =~ ^[[:space:]]*! ]]; then
+        excluded="$(sed -E 's/^[[:space:]]*![[:space:]]*//; s/[[:space:]]+$//; s#/+$##' <<< "$line")"
+        if [[ -z "$excluded" ]]; then
+            echo "Invalid line: $line"
+            exit 1
+        fi
+        EXCLUDE_PATHSPECS+=(":(exclude,literal)$excluded")
+    fi
+done < "$SOURCE_REPO/$DIR_LIST_FILE"
+
 # Read paths from the file and process them
 while IFS= read -r line || [[ -n "$line" ]]; do
-    # Skip empty lines
-    if [[ -z "${line//[[:space:]]/}" ]]; then
+    # Skip empty lines and exclusions
+    if [[ -z "${line//[[:space:]]/}" || "$line" =~ ^[[:space:]]*! ]]; then
         continue
     fi
 
@@ -51,7 +65,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     echo "Removed: $DESTINATION_PATH$destination"
 
     # Copy the tracked files from the source repo
-    git -C "$SOURCE_REPO" --literal-pathspecs ls-files -z -- "$source" \
+    git -C "$SOURCE_REPO" ls-files -z -- ":(literal)$source" "${EXCLUDE_PATHSPECS[@]}" \
         | (cd "$SOURCE_REPO" && COPYFILE_DISABLE=1 tar --null -T - -cf -) \
         | tar -C "$STAGING_PATH" -xf -
     if [[ -e "$STAGING_PATH/$source" || -L "$STAGING_PATH/$source" ]]; then
