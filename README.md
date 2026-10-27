@@ -8,7 +8,7 @@ Download Local Code from [getlocalcode.app](https://getlocalcode.app).
 
 This repository contains the source code of the app and its command-line tools, along with the libraries and vendored dependencies they are built from.
 
-## An Agent that does Real Work
+## An Agent That Does Real Work
 
 ### Models
 
@@ -22,28 +22,40 @@ Local Code downloads its own quantized checkpoints of each model:
 
 The DeepSeek 4.1 Flash 1017 sizes include a 203 GB engram file, which both of its quantizations share.
 
-The DeepSeek models are mixtures of experts, and they are larger than the memory of most Macs. For example, the DeepSeek 4.1 Flash 1017 (2-bit S) checkpoint is about 173 GB. Local Code keeps as many of the most used experts in memory as there is room for, and streams the rest from disk. So these models run on Macs with less memory than the checkpoint, and run faster the more memory there is.
+The DeepSeek models are mixtures of experts, and they are larger than the memory of most Macs. For example, the DeepSeek 4.1 Flash 1017 (2-bit S) checkpoint is about 173 GB. Local Code keeps as many of the most used experts in memory as there is room for, and streams the rest from disk. It also leaves room for the other apps you run. The experts kept in memory never take more than the Mac's memory minus 32 GB, or more than 72% of the memory that is free when the model loads. So these models run on Macs with less memory than the checkpoint, run faster the more memory there is, and leave the rest of the Mac usable.
 
 During setup, Local Code suggests a model based on the device's memory:
 
 - under 32 GB: Qwen 3.8 27B (2-bit S)
 - 32 GB and up: Qwen 3.8 27B (4-bit S)
-- 64 GB and up: DeepSeek 4 Flash 0731
-- 96 GB and up: DeepSeek 4.1 Flash 1017
+- 48 GB and up: DeepSeek 4 Flash 0731
+- 64 GB and up: DeepSeek 4.1 Flash 1017
 
 You can switch to any model later.
 
 ### Performance on Macs
 
-Speeds are in tokens per second, given as prefill / decode. Each prefill reading is a 4,096-token prompt, and each decode reading is 128 tokens generated after a short prompt.
+Speeds are in tokens per second, given as prefill / decode. Each column is the amount of context already in use. At each one, Local Code prefills one full chunk, and separately decodes 128 tokens. A chunk is the most Local Code prefills at once on that Mac: 4,096 tokens on the M5 Max, and 8,192 on the M5 Ultra.
 
-| Mac | Qwen 3.8 27B (4-bit S) | DeepSeek 4 Flash 0731 | DeepSeek 4.1 Flash 1017 |
-| --- | --- | --- | --- |
-| TBD, 24 GB | TBD / TBD | TBD / TBD | TBD / TBD |
-| TBD, 48 GB | TBD / TBD | TBD / TBD | TBD / TBD |
-| TBD, 64 GB | TBD / TBD | TBD / TBD | TBD / TBD |
-| TBD, 128 GB | TBD / TBD | TBD / TBD | TBD / TBD |
-| TBD, 256 GB | TBD / TBD | TBD / TBD | TBD / TBD |
+**M5 Max, 128 GB**
+
+| Model | 8K | 16K | 32K | 128K |
+| --- | --- | --- | --- | --- |
+| Qwen 3.8 27B (4-bit S) | 1,450 / 40.4 | 1,296 / 35.0 | 1,005 / 27.9 | 456 / 13.5 |
+| DeepSeek 4 Flash 0731 (2-bit S) | 1,361 / 42.3 | 1,316 / 41.7 | 1,237 / 40.9 | 924 / 36.7 |
+| DeepSeek 4.1 Flash 1017 (2-bit S) | 346 / 18.7 | 339 / 17.1 | 339 / 17.2 | 355 / 15.7 |
+
+On the M5 Max, the DeepSeek 4.1 Flash 1017 readings set Weights Streaming to 56 GiB (`--weights-streaming 56` in the CLI). DeepSeek 4 Flash 0731 keeps all of its weights in memory.
+
+**M5 Ultra, 256 GB**
+
+| Model | 8K | 16K | 32K | 128K |
+| --- | --- | --- | --- | --- |
+| Qwen 3.8 27B (4-bit S) | 2,689 / 54.5 | 2,247 / 44.0 | 1,988 / 33.2 | 962 / 12.2 |
+| DeepSeek 4 Flash 0731 (2-bit S) | 3,384 / 56.2 | 3,265 / 55.9 | 3,039 / 54.7 | 2,087 / 50.4 |
+| DeepSeek 4.1 Flash 1017 (2-bit S) | 4,279 / 52.0 | 4,276 / 52.0 | 4,121 / 51.4 | 3,665 / 50.3 |
+
+On the M5 Ultra, both DeepSeek readings are a second pass in the same session, without the 20-second cool-down before each prefill. For DeepSeek 4.1 Flash 1017, its engram entries are also already in memory.
 
 To measure your own Mac, open Model Speed in the app, or run the same measurements, at context lengths up to the model's limit, with the CLI:
 
@@ -95,17 +107,18 @@ Qwen 3.8 27B is a small model that understands images, and it is strong at codin
 
 Before a model writes its first token, it has to read the whole prompt. For an agent, that means the conversation so far, the files it has opened and the output of its tools. This step is called prefill. Each tool call adds to the context, so in agent work, prefill is often what you wait for.
 
-The table compares prefill speed in Local Code and in [Splash](https://github.com/incoai/splash), an open-source inference engine for Apple silicon, on TBD. Splash runs the model's UD-Q4_K_XL GGUF checkpoint. Each reading prefills a 4,096-token chunk after the given amount of context is already in use. Speeds are in tokens per second:
+The table compares prefill speed in Local Code and in [Splash](https://github.com/incoai/splash), an open-source inference engine for Apple silicon, on an M5 Ultra with 256 GB of memory. Splash runs the model's UD-Q4_K_XL GGUF checkpoint. Each reading prefills an 8,192-token chunk after the given amount of context is already in use. Speeds are in tokens per second:
 
 | Context in use | Local Code (4-bit S) | Splash (BF16 KV cache) | Splash (Int8 KV cache) |
 | --- | --- | --- | --- |
-| 0 | TBD | TBD | TBD |
-| 4K | TBD | TBD | TBD |
-| 8K | TBD | TBD | TBD |
-| 16K | TBD | TBD | TBD |
-| 32K | TBD | TBD | TBD |
-| 64K | TBD | TBD | TBD |
-| 128K | TBD | TBD | TBD |
+| 0 | 3,048 | 1,897 | 1,896 |
+| 8K | 2,689 | 1,747 | 1,749 |
+| 16K | 2,247 | 1,596 | 1,621 |
+| 32K | 1,988 | 1,364 | 1,406 |
+| 64K | 1,485 | 1,065 | 1,112 |
+| 128K | 962 | 710 | 778 |
+
+Splash decodes faster than Local Code because it drafts tokens with the DFlash2 draft model. This table leaves decode out, because it compares how the two engines implement attention.
 
 #### Why Local Code Prefills Faster
 
@@ -118,7 +131,7 @@ Both grow with the length of the context, so at 64K or 128K tokens they take a l
 
 The GPUs in Apple's M5 chips and later multiply two Int8 matrices faster than they multiply floating-point ones. Local Code converts both Q and K to Int8, so QK runs at that faster rate. It computes PV in floating point.
 
-Splash's default Int8 KV cache also stores K and V in Int8, but it multiplies them with BF16 numbers in both QK and PV. Because one side of each multiplication is BF16, Splash can't use the faster Int8 × Int8 path. The Int8 cache saves memory, but it doesn't make attention faster.
+Splash's default Int8 KV cache also stores K and V in Int8, but it multiplies them with BF16 numbers in both QK and PV. Because one side of each multiplication is BF16, Splash can't use the faster Int8 × Int8 path. The Int8 cache saves memory, and makes long-context prefill only a little faster, by 10% at 128K. Local Code is still 24% faster there.
 
 #### Accuracy
 
