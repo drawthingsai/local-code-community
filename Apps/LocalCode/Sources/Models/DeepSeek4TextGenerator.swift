@@ -891,9 +891,13 @@ extension DeepSeek4TextGenerator {
                 of: ".ffn.experts.streaming_gate-0-0]", with: ".ffn.experts-0-0]"
               )
               .replacingOccurrences(
-                of: ".ffn.experts.streaming_up-0-0]", with: ".ffn.experts-0-1]")
+                of: ".ffn.experts.streaming_up-0-0]", with: ".ffn.experts-0-1]"
+              )
+              // The resident layers fuse the shared expert into the routed SwiGLU.
+              .replacingOccurrences(of: ".ffn.experts-0-2]", with: ".ffn.shared_experts-0-0]")
+              .replacingOccurrences(of: ".ffn.experts-0-3]", with: ".ffn.shared_experts-0-1]")
             guard shape.count == 3, checkpointName.contains(".ffn.experts") else {
-              return .continue(name, codec: codec)
+              return .continue(checkpointName, codec: codec)
             }
             if allExpertsFullyResident {
               return .continue(name, codec: codec)

@@ -663,7 +663,11 @@ extension DeepSeek4_1TextGenerator {
                     of: ".ffn.experts.streaming_gate-0-0]", with: ".ffn.experts-0-0]"
                   )
                   .replacingOccurrences(
-                    of: ".ffn.experts.streaming_up-0-0]", with: ".ffn.experts-0-1]")
+                    of: ".ffn.experts.streaming_up-0-0]", with: ".ffn.experts-0-1]"
+                  )
+                  // The resident layers fuse the shared expert into the routed SwiGLU.
+                  .replacingOccurrences(of: ".ffn.experts-0-2]", with: ".ffn.shared_experts-0-0]")
+                  .replacingOccurrences(of: ".ffn.experts-0-3]", with: ".ffn.shared_experts-0-1]")
                 if shape.count == 3 && name.contains(".ffn.experts"),
                   let layer = name.components(separatedBy: "layers.").last?
                     .components(separatedBy: ".").first.flatMap(Int.init),
