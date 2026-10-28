@@ -1,6 +1,6 @@
 # Local Code
 
-Local Code is a private AI agent for Mac, iPad and iPhone. It puts three things in one app: an LLM inference engine for Apple Silicon, a coding harness tuned to each model, and an agent runtime with Python, Node.js, a shell and other familiar tools built in. With these, the agent can work through whole tasks on files you choose, such as analyzing data, charting it, writing documents and slide decks, or building software.
+Local Code is a private AI agent for Mac, iPad and iPhone, written mostly in Swift. It puts three things in one app: an LLM inference engine for Apple Silicon, a coding harness tuned to each model, and an agent runtime with Python, Node.js, a shell and other familiar tools built in. With these, the agent can work through whole tasks on files you choose, such as analyzing data, charting it, writing documents and slide decks, or building software.
 
 With an on-device quasi-frontier model, such as DeepSeek 4.1 Flash 1017, inference runs on your device and works offline. You can also pick a cloud model from Anthropic, OpenAI, OpenRouter or an OpenAI-compatible server. When you do, your prompts, file contents and tool output go to that provider. Either way, the agent's tools run inside the app's sandbox and can reach only the folders you allow.
 
@@ -9,6 +9,15 @@ Download Local Code from [getlocalcode.app](https://getlocalcode.app).
 This repository contains the source code of the app and its command-line tools, along with the libraries and vendored dependencies they are built from.
 
 ## An Agent That Does Real Work
+
+An agent that does real work needs more than an inference engine, a harness and a model. It also needs what people expect from well-made software:
+
+- **Durable tasks and threads:** tasks and chat threads are saved, so you can close the app and pick them up later.
+- **Resumable generation:** an interrupted reply, reasoning included, continues where it stopped instead of starting over.
+- **Steering:** you can send a message at any time, even while the agent is working, to change its course.
+- **Long-term context cache:** the model's context is saved to disk, including images and the recurrent state that some models keep, so a long conversation isn't read again from the start.
+
+The engine and the model still matter, and the rest of this section covers them: the models, the sandbox the agent works in, and how fast and how accurately the models run.
 
 ### Models
 
@@ -32,6 +41,40 @@ During setup, Local Code suggests a model based on the device's memory:
 - 64 GB and up: DeepSeek 4.1 Flash 1017
 
 You can switch to any model later.
+
+### The In-App Sandbox
+
+Local Code doesn't run the agent's commands as separate programs on your computer. The shell, the language runtimes and the command-line tools are compiled into the app and run in its own process, inside Apple's App Sandbox. On a Mac, the Hardened Runtime also protects the app's code. The agent has no full-disk access, and it can't launch other programs on your computer, so it can't run native programs that aren't built into the app.
+
+Each project is a folder inside a workspace that you choose. The agent starts in the project folder and can read and write anywhere in the workspace, plus the app's temporary folder. Packages and caches that the agent installs for a project stay in that project's folder. Commands that use the network, such as web search, `curl` and `ssh`, connect out when the agent runs them.
+
+The sandbox includes:
+
+- **Shell:** OSH from [Oils](https://oils.pub), with common Unix commands such as `grep`, `sed`, `awk`, `find`, `diff`, `rg`, `jq`, `zip`, `curl`, `git` and `ssh`.
+- **Python 3.14:** NumPy, pandas, Matplotlib, Pillow, lxml, openpyxl, python-docx, python-pptx and pypdf, and `pip` for more.
+- **Node.js 24:** `npm` and `npx`.
+- **Lean 4 and Z3:** to check proofs and solve constraint problems. Lean can also install Mathlib.
+- **Documents and media:** LibreOffice, through the `office` command, to convert and render Word, Excel, PowerPoint and PDF files. Also FFmpeg, plus `html2video` and `hyperframes` to make videos from HTML.
+- **Web:** web search, and a WebKit browser that the agent can drive to test pages or to use sites that need JavaScript or a sign-in.
+- **Images and video:** the Draw Things CLI, to generate images and videos.
+- **Personal data:** `calendar` to read and edit events, and `photos` to find, import, edit and organize photos and videos. On a Mac, `notes`, `mail` and `imessage` also read Notes, Mail and Messages, but they can't change or send anything. Each command works only after you grant access.
+
+Built-in skills show the agent how to use these tools for common work:
+
+| Skill | Use |
+| --- | --- |
+| [`office`](Apps/LocalCode/Resources/Skills/office) | Create, read, edit and check Word, PowerPoint and Excel files and CSV or TSV tables, and export them to PDF or images |
+| [`answers-charts`](Apps/LocalCode/Resources/Skills/answers-charts) | Draw data charts with Python and Matplotlib, shown inline in the answer |
+| [`hyperframes`](Apps/LocalCode/Resources/Skills/hyperframes) | Make motion graphics and timed HTML compositions, such as animated text, captions and slideshows, and render them to video |
+| [`use-draw-things-cli`](Apps/LocalCode/Resources/Skills/use-draw-things-cli) | Generate and edit images, and create videos, with the Draw Things CLI |
+| [`use-web-browse-cli`](Apps/LocalCode/Resources/Skills/use-web-browse-cli) | Drive the WebKit browser to test pages, or to use sites that need JavaScript or a sign-in |
+| [`deploy-static-site-with-wrangler`](Apps/LocalCode/Resources/Skills/deploy-static-site-with-wrangler) | Publish a folder of static web files to a temporary public URL with Cloudflare Wrangler |
+| [`use-mcp-with-mcporter`](Apps/LocalCode/Resources/Skills/use-mcp-with-mcporter) | Connect to Model Context Protocol servers and call their tools through MCPorter |
+| [`check_lean-and-lean-tools`](Apps/LocalCode/Resources/Skills/check_lean-and-lean-tools) | Prove non-obvious claims about code, such as ones about recursive functions or data structures, with Lean |
+| [`skill-creator`](Apps/LocalCode/Resources/Skills/skill-creator) | Create, import, update and validate skills |
+| [`introduce-local-code`](Apps/LocalCode/Resources/Skills/introduce-local-code) | Explain what Local Code is and what the agent can do |
+
+You can add your own skills to a project's `.agents/skills` folder.
 
 ### Performance on Macs
 
@@ -167,40 +210,6 @@ The faster attention doesn't cost accuracy on long inputs. On a 150-question sub
 | Local Code, 4-bit S | 106/150 (70.7%) |
 | Splash, BF16 KV cache | 107/150 (71.3%) |
 | Splash, Int8 KV cache | 107/150 (71.3%) |
-
-### The In-App Sandbox
-
-Local Code doesn't run the agent's commands as separate programs on your computer. The shell, the language runtimes and the command-line tools are compiled into the app and run in its own process, inside Apple's App Sandbox. On a Mac, the Hardened Runtime also protects the app's code. The agent has no full-disk access, and it can't launch other programs on your computer, so it can't run native programs that aren't built into the app.
-
-Each project is a folder inside a workspace that you choose. The agent starts in the project folder and can read and write anywhere in the workspace, plus the app's temporary folder. Packages and caches that the agent installs for a project stay in that project's folder. Commands that use the network, such as web search, `curl` and `ssh`, connect out when the agent runs them.
-
-The sandbox includes:
-
-- **Shell:** OSH from [Oils](https://oils.pub), with common Unix commands such as `grep`, `sed`, `awk`, `find`, `diff`, `rg`, `jq`, `zip`, `curl`, `git` and `ssh`.
-- **Python 3.14:** NumPy, pandas, Matplotlib, Pillow, lxml, openpyxl, python-docx, python-pptx and pypdf, and `pip` for more.
-- **Node.js 24:** `npm` and `npx`.
-- **Lean 4 and Z3:** to check proofs and solve constraint problems. Lean can also install Mathlib.
-- **Documents and media:** LibreOffice, through the `office` command, to convert and render Word, Excel, PowerPoint and PDF files. Also FFmpeg, plus `html2video` and `hyperframes` to make videos from HTML.
-- **Web:** web search, and a WebKit browser that the agent can drive to test pages or to use sites that need JavaScript or a sign-in.
-- **Images and video:** the Draw Things CLI, to generate images and videos.
-- **Personal data:** `calendar` to read and edit events, and `photos` to find, import, edit and organize photos and videos. On a Mac, `notes`, `mail` and `imessage` also read Notes, Mail and Messages, but they can't change or send anything. Each command works only after you grant access.
-
-Built-in skills show the agent how to use these tools for common work:
-
-| Skill | Use |
-| --- | --- |
-| [`office`](Apps/LocalCode/Resources/Skills/office) | Create, read, edit and check Word, PowerPoint and Excel files and CSV or TSV tables, and export them to PDF or images |
-| [`answers-charts`](Apps/LocalCode/Resources/Skills/answers-charts) | Draw data charts with Python and Matplotlib, shown inline in the answer |
-| [`hyperframes`](Apps/LocalCode/Resources/Skills/hyperframes) | Make motion graphics and timed HTML compositions, such as animated text, captions and slideshows, and render them to video |
-| [`use-draw-things-cli`](Apps/LocalCode/Resources/Skills/use-draw-things-cli) | Generate and edit images, and create videos, with the Draw Things CLI |
-| [`use-web-browse-cli`](Apps/LocalCode/Resources/Skills/use-web-browse-cli) | Drive the WebKit browser to test pages, or to use sites that need JavaScript or a sign-in |
-| [`deploy-static-site-with-wrangler`](Apps/LocalCode/Resources/Skills/deploy-static-site-with-wrangler) | Publish a folder of static web files to a temporary public URL with Cloudflare Wrangler |
-| [`use-mcp-with-mcporter`](Apps/LocalCode/Resources/Skills/use-mcp-with-mcporter) | Connect to Model Context Protocol servers and call their tools through MCPorter |
-| [`check_lean-and-lean-tools`](Apps/LocalCode/Resources/Skills/check_lean-and-lean-tools) | Prove non-obvious claims about code, such as ones about recursive functions or data structures, with Lean |
-| [`skill-creator`](Apps/LocalCode/Resources/Skills/skill-creator) | Create, import, update and validate skills |
-| [`introduce-local-code`](Apps/LocalCode/Resources/Skills/introduce-local-code) | Explain what Local Code is and what the agent can do |
-
-You can add your own skills to a project's `.agents/skills` folder.
 
 ## Repository Layout
 
