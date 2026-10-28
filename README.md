@@ -35,11 +35,11 @@ You can switch to any model later.
 
 ### Performance on Macs
 
-Speeds are in tokens per second, given as prefill / decode. Each column is the amount of context already in use. At each one, Local Code prefills one full chunk, and separately decodes 128 tokens. A chunk is the most Local Code prefills at once on that Mac: 4,096 tokens on the M5 Max, and 8,192 on the M5 Ultra.
+Speeds are in tokens per second, given as prefill / decode. Each column starts with that much context already in use. On top of it, Local Code prefills one more full chunk, and separately decodes 128 tokens. A chunk is the most Local Code prefills at once on that Mac: 4,096 tokens on the M5 Max, and 8,192 on the M5 Ultra.
 
 **M5 Max, 128 GB**
 
-| Model | 8K | 16K | 32K | 128K |
+| Model | 8K already in context | 16K already in context | 32K already in context | 128K already in context |
 | --- | --- | --- | --- | --- |
 | Qwen 3.8 27B (4-bit S) | 1,450 / 40.4 | 1,296 / 35.0 | 1,005 / 27.9 | 456 / 13.5 |
 | DeepSeek 4 Flash 0731 (2-bit S) | 1,361 / 42.3 | 1,316 / 41.7 | 1,237 / 40.9 | 924 / 36.7 |
@@ -49,11 +49,11 @@ On the M5 Max, the DeepSeek 4.1 Flash 1017 readings set Weights Streaming to 56 
 
 **M5 Ultra, 256 GB**
 
-| Model | 8K | 16K | 32K | 128K |
+| Model | 8K already in context | 16K already in context | 32K already in context | 128K already in context |
 | --- | --- | --- | --- | --- |
 | Qwen 3.8 27B (4-bit S) | 2,689 / 54.5 | 2,247 / 44.0 | 1,988 / 33.2 | 962 / 12.2 |
 | DeepSeek 4 Flash 0731 (2-bit S) | 3,384 / 56.2 | 3,265 / 55.9 | 3,039 / 54.7 | 2,087 / 50.4 |
-| DeepSeek 4.1 Flash 1017 (2-bit S) | 4,279 / 52.0 | 4,276 / 52.0 | 4,121 / 51.4 | 3,665 / 50.3 |
+| DeepSeek 4.1 Flash 1017 (2-bit S) | 4,600 / 58.9 | 4,507 / 58.6 | 4,431 / 57.9 | 3,840 / 56.1 |
 
 On the M5 Ultra, both DeepSeek readings are a second pass in the same session, without the 20-second cool-down before each prefill. For DeepSeek 4.1 Flash 1017, its engram entries are also already in memory.
 
@@ -69,18 +69,18 @@ bazel run -c opt //Apps/LocalCode:LocalCodeCLI -- speedometer \
 | Benchmark | [DeepSeek 4.1 Flash 0910](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash) (as reported) | DeepSeek 4.1 Flash 0910 (2-bit S) | DeepSeek 4.1 Flash 1017 (2-bit S) |
 | --- | --- | --- | --- |
 | AIME 2026 | — | 30/30 (100%) | 30/30 (100%) |
-| MathArena Apex | 65.6% | 7/12 (58.3%) | 10.5/12 (87.5%) |
+| MathArena Apex | 65.6% | 7/12 (58.3%) | 10.3/12 (86.1%) |
 | GPQA Diamond | 90.9% | 179/198 (90.4%) | 185/198 (93.4%) |
 
-Reported scores are from the model card, at maximum reasoning effort. The 2-bit S MathArena Apex scores average two runs of its 12 problems.
+Reported scores are from the model card, at maximum reasoning effort. The 2-bit S MathArena Apex scores average several runs of its 12 problems: two for 0910 and three for 1017.
 
-Average output tokens per problem, reasoning included:
+Average reasoning tokens per attempt:
 
 | Benchmark | DeepSeek 4.1 Flash 0910 (as reported) | DeepSeek 4.1 Flash 0910 (2-bit S) | DeepSeek 4.1 Flash 1017 (2-bit S) |
 | --- | --- | --- | --- |
-| AIME 2026 | — | TBD | TBD |
-| MathArena Apex | TBD | TBD | TBD |
-| GPQA Diamond | TBD | TBD | TBD |
+| AIME 2026 | — | 15,710 | 16,909 |
+| MathArena Apex | — | 161,725 | 120,657 |
+| GPQA Diamond | — | 31,042 | 22,103 |
 
 ### Quantization Quality
 
