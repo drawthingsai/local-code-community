@@ -254,6 +254,9 @@ def review_records(item, args, questions):
 def local_decider(args):
     if (Path(args.model) / "joint_config.json").exists():
         return pplx_decider(args)
+    overrides = json.loads((Path(args.model) / "config.json").read_text()).get("modeling_overrides") or {}
+    if overrides.get("readout") == "slot_lm":
+        return qev_decider(args)
     return clef_decider(args)
 
 
@@ -333,6 +336,120 @@ def pplx_decider(args):
                     # Options are false, true. The model card ranks by this margin; it does not saturate.
                     answers[key]["margin"] = logits[key][1] - logits[key][0]
             tokens = sum(chunk.length for chunk in decider.encoder.plan(request, decider.max_length))
+            results.append((answers, tokens, None))
+        return results
+
+    return decide
+
+
+QEV_SYSTEM_PROMPT = (
+    "Apply the question to the state. Choose exactly one of the listed options. "
+    "Respond with only its uppercase letter, with no explanation or reasoning."
+)
+QEV_NOUL_DEFAULTS = (
+    "Is the statement true, or is the answer to the question yes?",
+    "the statement is true / the answer is yes",
+    "the statement is false / the answer is no",
+)
+
+
+def qev_suffix(question):
+    """One question as OneJev's qev runtime renders it (prompt qev-labels-v2): the question, the options as lettered
+    `name: description` lines, and the answer line. Returns the suffix and the option keys in letter order."""
+    instructions = (question.get("instructions") or "").strip()
+    if question["type"] == "noul":
+        criteria = question.get("criteria") or {}
+        instructions = instructions or QEV_NOUL_DEFAULTS[0]
+        keys = ["true", "false"]
+        lines = [
+            f"yes: {(criteria.get('true') or QEV_NOUL_DEFAULTS[1]).strip()}",
+            f"no: {(criteria.get('false') or QEV_NOUL_DEFAULTS[2]).strip()}",
+        ]
+    elif question["type"] == "choice":
+        instructions = instructions or "Which option applies to the state?"
+        keys = list(question["criteria"])
+        lines = [f"{key}: {text.strip()}" if text else key for key, text in question["criteria"].items()]
+    else:
+        raise ValueError(f"unsupported question type {question['type']}")
+    letters = [chr(ord("A") + index) for index in range(len(keys))]
+    options = "\n".join(f"{letter}. {line}" for letter, line in zip(letters, lines))
+    return f"Question: {instructions}\n\nOptions:\n{options}\n\nAnswer with one letter: {', '.join(letters)}.", keys
+
+
+def qev_decider(args):
+    """Return decide(records) for a Base Labs checkpoint (elephant-1), served as its qev runtime serves it.
+
+    Each question is one sequence: the system turn and `<state>` block, then the question. The full-attention layers
+    attend bidirectionally within each of those two blocks and causally from the question to the state. The answer is
+    a softmax over the LM head's logits for the option letters at the last position, with the head in FP32.
+    """
+    import torch
+    from transformers import AutoConfig, AutoTokenizer, Qwen3_5ForCausalLM
+    from transformers.models.qwen3_5 import modeling_qwen3_5
+
+    started = time.time()
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    model = (
+        Qwen3_5ForCausalLM.from_pretrained(
+            args.model, config=AutoConfig.from_pretrained(args.model).get_text_config(), dtype=torch.bfloat16
+        )
+        .to(args.device)
+        .eval()
+    )
+    # As qev does: BF16 logits around 30 are quantized to 0.125, so the head runs in FP32.
+    head = model.get_output_embeddings()
+    head.weight = torch.nn.Parameter(head.weight.detach().clone().float(), requires_grad=False)
+    head.register_forward_pre_hook(lambda module, inputs: (inputs[0].float(),) + tuple(inputs[1:]))
+    letters = [tokenizer.encode(chr(ord("A") + index), add_special_tokens=False) for index in range(26)]
+    assert all(len(ids) == 1 for ids in letters)
+    letters = [ids[0] for ids in letters]
+
+    blocks = {}
+    create_causal_mask = modeling_qwen3_5.create_causal_mask
+
+    def create_block_mask(*mask_args, **mask_kwargs):
+        return create_causal_mask(*mask_args, **mask_kwargs, block_sequence_ids=blocks["ids"])
+
+    modeling_qwen3_5.create_causal_mask = create_block_mask
+    if args.device == "mps":
+        # As in load_pplx_decider: forward substitution instead of the slow torch.linalg.solve_triangular on Metal.
+        modeling_qwen3_5.is_torchdynamo_exporting = lambda: True
+    print(f"loaded in {time.time() - started:.1f} s", flush=True)
+
+    def prompt(state, suffix):
+        state = state if isinstance(state, str) else json.dumps(state, ensure_ascii=False, indent=2)
+        messages = [
+            {"role": "system", "content": QEV_SYSTEM_PROMPT},
+            {"role": "user", "content": f"<state>\n{state}\n</state>\n\n{suffix}"},
+        ]
+        return tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
+        )
+
+    def decide(records):
+        results = []
+        for record in records:
+            # The state block is the prefix up to where the question starts, as qev splits it.
+            marked = prompt(record["state"], "QEV_PREFIX_MARK")
+            prefix = tokenizer.encode(marked[: marked.index("QEV_PREFIX_MARK")], add_special_tokens=False)
+            answers = {}
+            tokens = 0
+            for key, question in record["questions"].items():
+                suffix, keys = qev_suffix(question)
+                ids = tokenizer.encode(prompt(record["state"], suffix), add_special_tokens=False)
+                shared = len(prefix)
+                while ids[:shared] != prefix[:shared]:
+                    shared -= 1
+                blocks["ids"] = torch.tensor([[0] * shared + [1] * (len(ids) - shared)], device=args.device)
+                with torch.inference_mode():
+                    logits = model(
+                        input_ids=torch.tensor([ids], device=args.device), use_cache=False, logits_to_keep=1
+                    ).logits[0, -1].cpu()
+                scores = logits[letters[: len(keys)]].double()
+                answers[key] = dict(zip(keys, scores.softmax(-1).tolist()))
+                # Probability mass on the option letters; near 1 when the prompt is what the model was trained on.
+                answers[f"{key}_letter_mass"] = float((scores.logsumexp(-1) - logits.double().logsumexp(-1)).exp())
+                tokens += len(ids)
             results.append((answers, tokens, None))
         return results
 
