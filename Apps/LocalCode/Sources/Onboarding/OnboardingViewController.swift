@@ -749,6 +749,7 @@ final class OnboardingViewController: UIViewController {
   private var localModelControllers = [String: OnboardingLocalModelController]()
   private var introductionTimer: Timer?
   private var transcriptStart: CFTimeInterval?
+  private var introRequested = false
   private var introStarted = false
   private weak var bannerView: UIView?
   private var otherProvidersExpanded = false
@@ -967,6 +968,14 @@ final class OnboardingViewController: UIViewController {
     renderState()
   }
 
+  override func viewDidAppear(_ animated: Bool) {
+    super.viewDidAppear(animated)
+    // An introduction asked for while the page was off screen starts once it shows.
+    if introRequested {
+      startIntroduction()
+    }
+  }
+
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
     // The page can scroll clear of a card sitting above the footer.
@@ -1019,8 +1028,10 @@ final class OnboardingViewController: UIViewController {
     }
   }
 
-  /// Plays the welcome introduction once. The view has to be on screen for it to start.
+  /// Plays the welcome introduction once. Asked for before the page is on screen, it starts when
+  /// the page appears.
   func startIntroduction() {
+    introRequested = true
     guard view.window != nil, !introStarted else { return }
     introStarted = true
     // Lay the banner out in the page right away and stand it back where it was with a
@@ -1043,7 +1054,13 @@ final class OnboardingViewController: UIViewController {
     ) {
       banner.transform = .identity
     } completion: { [weak self] _ in
-      guard let self, self.view.window != nil else { return }
+      guard let self else { return }
+      // Taken off screen before the banner settled, the page plays the introduction again when
+      // it next appears. The banner is already in place, so only the transcript shows.
+      guard self.view.window != nil else {
+        self.introStarted = false
+        return
+      }
       self.welcomePage.alpha = 1
       self.transcriptStart = CACurrentMediaTime()
       let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in

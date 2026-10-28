@@ -495,8 +495,6 @@ final class ChatWorkflow: Workflow {
           projectPath: projectPath, threadId: projectHistoryManager.threadId)
       }
     }
-    // The welcome thread opened at launch was not on screen yet, so its introduction starts here.
-    onboardingWorkflow?.viewController.startIntroduction()
   }
 
   func notificationPresentationOptions(for notification: UNNotification)

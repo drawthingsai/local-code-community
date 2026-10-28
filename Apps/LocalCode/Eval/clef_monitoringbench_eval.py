@@ -7,7 +7,8 @@ the user's request (the main task description, never the attacker's side task), 
 earlier actions without their outputs. See Apps/LocalCode/DDDoc/LocalCodeComputer.md.
 
   extract  final_dataset.zip + master.parquet -> items.jsonl
-  run      items.jsonl + a Clef checkpoint or a Decisions API endpoint -> predictions.jsonl (resumable)
+  run      items.jsonl + a Clef, pplx-decider, or elephant-1 checkpoint, or a Decisions API endpoint
+           -> predictions.jsonl (resumable)
   score    items.jsonl + predictions.jsonl -> metrics
 """
 
@@ -353,9 +354,10 @@ QEV_NOUL_DEFAULTS = (
 )
 
 
-def qev_suffix(question):
+def qev_suffix(question, shift=0):
     """One question as OneJev's qev runtime renders it (prompt qev-labels-v2): the question, the options as lettered
-    `name: description` lines, and the answer line. Returns the suffix and the option keys in letter order."""
+    `name: description` lines, and the answer line. `shift` rotates the option order, as qev's `debias` does. Returns
+    the suffix and the option keys in letter order."""
     instructions = (question.get("instructions") or "").strip()
     if question["type"] == "noul":
         criteria = question.get("criteria") or {}
@@ -371,6 +373,8 @@ def qev_suffix(question):
         lines = [f"{key}: {text.strip()}" if text else key for key, text in question["criteria"].items()]
     else:
         raise ValueError(f"unsupported question type {question['type']}")
+    keys = keys[shift:] + keys[:shift]
+    lines = lines[shift:] + lines[:shift]
     letters = [chr(ord("A") + index) for index in range(len(keys))]
     options = "\n".join(f"{letter}. {line}" for letter, line in zip(letters, lines))
     return f"Question: {instructions}\n\nOptions:\n{options}\n\nAnswer with one letter: {', '.join(letters)}.", keys
@@ -379,10 +383,14 @@ def qev_suffix(question):
 def qev_decider(args):
     """Return decide(records) for a Base Labs checkpoint (elephant-1), served as its qev runtime serves it.
 
-    Each question is one sequence: the system turn and `<state>` block, then the question. The full-attention layers
-    attend bidirectionally within each of those two blocks and causally from the question to the state. The answer is
-    a softmax over the LM head's logits for the option letters at the last position, with the head in FP32.
+    The system turn and `<state>` block are one prefix, run once per request; each question is a suffix run on a copy
+    of its cache. The full-attention layers attend bidirectionally within the prefix and within each suffix, and from
+    the suffix to the prefix. The answer is a softmax over the LM head's logits for the option letters at the last
+    position, with the head in FP32. With `--debias N`, each question also runs with its options rotated, up to N
+    orders in all, and the probabilities are averaged, as qev's `debias` does.
     """
+    import copy
+
     import torch
     from transformers import AutoConfig, AutoTokenizer, Qwen3_5ForCausalLM
     from transformers.models.qwen3_5 import modeling_qwen3_5
@@ -429,28 +437,50 @@ def qev_decider(args):
     def decide(records):
         results = []
         for record in records:
-            # The state block is the prefix up to where the question starts, as qev splits it.
+            branches = []
+            for key, question in record["questions"].items():
+                count = len(question["criteria"]) if question["type"] == "choice" else 2
+                for shift in range(min(max(args.debias, 1), count)):
+                    suffix, keys = qev_suffix(question, shift)
+                    ids = tokenizer.encode(prompt(record["state"], suffix), add_special_tokens=False)
+                    branches.append((key, keys, ids))
+            # The shared prefix is the longest common prefix that ends at or before the state block, as qev splits it.
             marked = prompt(record["state"], "QEV_PREFIX_MARK")
             prefix = tokenizer.encode(marked[: marked.index("QEV_PREFIX_MARK")], add_special_tokens=False)
+            shared = len(prefix)
+            while not all(ids[:shared] == prefix[:shared] for _, _, ids in branches):
+                shared -= 1
             answers = {}
-            tokens = 0
-            for key, question in record["questions"].items():
-                suffix, keys = qev_suffix(question)
-                ids = tokenizer.encode(prompt(record["state"], suffix), add_special_tokens=False)
-                shared = len(prefix)
-                while ids[:shared] != prefix[:shared]:
-                    shared -= 1
-                blocks["ids"] = torch.tensor([[0] * shared + [1] * (len(ids) - shared)], device=args.device)
-                with torch.inference_mode():
+            with torch.inference_mode():
+                blocks["ids"] = torch.zeros((1, shared), dtype=torch.long, device=args.device)
+                base = model(
+                    input_ids=torch.tensor([prefix[:shared]], device=args.device),
+                    attention_mask=torch.ones((1, shared), dtype=torch.long, device=args.device),
+                    use_cache=True,
+                    logits_to_keep=1,
+                ).past_key_values
+                for key, keys, ids in branches:
+                    suffix = ids[shared:]
+                    blocks["ids"] = torch.tensor([[0] * shared + [1] * len(suffix)], device=args.device)
                     logits = model(
-                        input_ids=torch.tensor([ids], device=args.device), use_cache=False, logits_to_keep=1
-                    ).logits[0, -1].cpu()
-                scores = logits[letters[: len(keys)]].double()
-                answers[key] = dict(zip(keys, scores.softmax(-1).tolist()))
-                # Probability mass on the option letters; near 1 when the prompt is what the model was trained on.
-                answers[f"{key}_letter_mass"] = float((scores.logsumexp(-1) - logits.double().logsumexp(-1)).exp())
-                tokens += len(ids)
-            results.append((answers, tokens, None))
+                        input_ids=torch.tensor([suffix], device=args.device),
+                        attention_mask=torch.ones((1, len(ids)), dtype=torch.long, device=args.device),
+                        past_key_values=copy.deepcopy(base),
+                        use_cache=True,
+                        logits_to_keep=1,
+                    ).logits[0, -1].cpu().double()
+                    scores = logits[letters[: len(keys)]]
+                    totals = answers.setdefault(key, dict.fromkeys(keys, 0.0))
+                    for option, probability in zip(keys, scores.softmax(-1).tolist()):
+                        totals[option] += probability
+                    # Probability on the option letters. Training normalizes over the letters only, so it stays low.
+                    mass = float((scores.logsumexp(-1) - logits.logsumexp(-1)).exp())
+                    answers[f"{key}_letter_mass"] = answers.get(f"{key}_letter_mass", 0.0) + mass
+            for key in record["questions"]:
+                count = sum(1 for branch in branches if branch[0] == key)
+                answers[key] = {option: total / count for option, total in answers[key].items()}
+                answers[f"{key}_letter_mass"] /= count
+            results.append((answers, shared + sum(len(ids) - shared for _, _, ids in branches), None))
         return results
 
     return decide
@@ -708,7 +738,7 @@ def main():
     command = commands.add_parser("run")
     command.add_argument("--items", required=True)
     backend = command.add_mutually_exclusive_group(required=True)
-    backend.add_argument("--model", help="local Clef snapshot directory")
+    backend.add_argument("--model", help="local Clef, pplx-decider, or elephant-1 snapshot directory")
     backend.add_argument("--endpoint", help="Decisions API URL, such as https://openrouter.ai/api/alpha/decisions")
     command.add_argument("--api-model", help="model name sent to --endpoint, such as liquid/d1-ultra")
     command.add_argument("--api-key-env", default="OPENROUTER_API_KEY")
@@ -720,6 +750,7 @@ def main():
     command.add_argument("--state", choices=("text", "json"), default="text")
     command.add_argument("--questions", choices=("paragraph", "concern", "narrow"), default="paragraph")
     command.add_argument("--policy", choices=sorted(POLICIES), default="examples", help="paragraph questions only")
+    command.add_argument("--debias", type=int, default=1, help="elephant-1: option orders to average per question")
     command.add_argument("--device", default="mps")
     command.add_argument("--max-length", type=int, default=16384)
     command.add_argument("--limit", type=int, default=0)
