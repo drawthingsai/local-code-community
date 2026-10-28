@@ -3,11 +3,7 @@ import Foundation
 public final class OpenAICompatibleClient: RemoteChatProviding {
   public let modelIdentity: RemoteModelIdentity
 
-  public var supportsImageInput: Bool {
-    modelIdentity.provider != RemoteProvider.localCode.rawValue
-      && (modelIdentity.provider == RemoteProvider.openRouter.rawValue
-        || configuration.baseURL.host?.lowercased() == "openrouter.ai")
-  }
+  public var supportsImageInput: Bool { true }
 
   private let configuration: OpenAICompatibleConfiguration
   private let authorization: any RemoteAuthorizationProviding
@@ -41,10 +37,6 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
     progress: @escaping (RemoteStreamProgress) -> Void,
     completion: @escaping (Result<RemoteCompletion, RemoteChatError>) -> Void
   ) -> RemoteRequestCancellable {
-    guard supportsImageInput || messages.allSatisfy({ $0.images.isEmpty }) else {
-      completion(.failure(.imageInputUnsupported))
-      return CompletedRemoteRequest.shared
-    }
     let request = OpenAICompatibleChatRequest(
       maximumOutputTokens: configuration.maximumOutputTokens,
       progress: progress, completion: completion
@@ -233,7 +225,7 @@ private final class OpenAICompatibleChatRequest: RemoteRequestCancellable {
     request = nil
     if !isCancelled, adaptationCount < 2,
       case .failure(let error) = result,
-      let affordable = Self.affordableOutputTokens(from: error),
+      let affordable = Self.adaptedOutputTokens(from: error),
       affordable >= 16, affordable < requestedOutputTokens
     {
       adaptationCount += 1
@@ -251,15 +243,35 @@ private final class OpenAICompatibleChatRequest: RemoteRequestCancellable {
     }
   }
 
-  private static func affordableOutputTokens(from error: RemoteChatError) -> Int? {
-    guard case .provider(let statusCode, let message) = error, statusCode == 402,
-      let expression = try? NSRegularExpression(
-        pattern: #"can only afford\s+([0-9][0-9,]*)"#, options: .caseInsensitive)
-    else { return nil }
+  /// The output budget a rejection allows: what OpenRouter credits can afford, or the
+  /// max_tokens limit a server states when the requested output exceeds it.
+  private static func adaptedOutputTokens(from error: RemoteChatError) -> Int? {
+    guard case .provider(let statusCode, let message) = error else { return nil }
+    let patterns: [String]
+    switch statusCode {
+    case 402:
+      patterns = [#"can only afford\s+([0-9][0-9,]*)"#]
+    case 400, 422:
+      patterns = [
+        // OpenAI: "This model supports at most 16384 completion tokens".
+        #"at most\s+([0-9][0-9,]*)\s+completion tokens"#,
+        // DeepSeek: "the valid range of max_tokens is [1, 8192]".
+        #"range of max_tokens is \[\s*1\s*,\s*([0-9][0-9,]*)\s*\]"#,
+        // Groq: "`max_tokens` must be less than or equal to `32768`".
+        #"max_(?:completion_)?tokens`?\s+must be less than or equal to\s+`?([0-9][0-9,]*)"#,
+      ]
+    default:
+      return nil
+    }
     let range = NSRange(message.startIndex..<message.endIndex, in: message)
-    guard let match = expression.firstMatch(in: message, range: range),
-      let tokenRange = Range(match.range(at: 1), in: message)
-    else { return nil }
-    return Int(message[tokenRange].replacingOccurrences(of: ",", with: ""))
+    for pattern in patterns {
+      guard
+        let expression = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+        let match = expression.firstMatch(in: message, range: range),
+        let tokenRange = Range(match.range(at: 1), in: message)
+      else { continue }
+      return Int(message[tokenRange].replacingOccurrences(of: ",", with: ""))
+    }
+    return nil
   }
 }

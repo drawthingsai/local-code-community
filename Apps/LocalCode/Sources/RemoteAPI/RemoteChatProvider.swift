@@ -37,6 +37,7 @@ final class RemoteChatProvider {
   private final class Conversation {
     var bashUserInteraction = BashUserInteraction()
     var agent: RemoteAgent?
+    var supportsImageInput = false
     var environment: Environment?
     var forceHistoryCheckpoint = false
     var preparationIdentifier: UUID?
@@ -174,8 +175,10 @@ final class RemoteChatProvider {
     }
   }
 
+  /// Images go to providers that accept them; the prompt still links them for the others.
   func send(
-    _ prompt: String, in id: ProjectThreadIdentifier, bashUserInteraction: BashUserInteraction,
+    _ prompt: String, images: [RemoteImage] = [], in id: ProjectThreadIdentifier,
+    bashUserInteraction: BashUserInteraction,
     progress: @escaping (RemoteAgentProgress) -> Void,
     completion: @escaping (
       Result<RemoteAgentCompletion, RemoteChatError>,
@@ -200,6 +203,7 @@ final class RemoteChatProvider {
       text: "", streamingToolCalls: [], tools: [])
     agent.send(
       environment.systemPromptContext.skillCatalog.prompt(for: prompt),
+      images: conversation.supportsImageInput ? images : [],
       progress: { [weak self, weak conversation, weak agent] value in
         DispatchQueue.main.async {
           guard let self, let conversation, let agent,
@@ -355,6 +359,7 @@ final class RemoteChatProvider {
         completion: completion)
     }
     conversation.agent = agent
+    conversation.supportsImageInput = provider.supportsImageInput
     conversation.environment = environment
     conversation.forceHistoryCheckpoint = forceHistoryCheckpoint
     captureCalibration(from: agent, profile: environment.profile)

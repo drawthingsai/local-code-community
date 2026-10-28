@@ -165,6 +165,54 @@ final class OpenAICompatibleClientTests: XCTestCase {
     XCTAssertEqual(completionCount, 1)
   }
 
+  func testCompatibleServersReceiveValidEffortAndEffortInstructions() throws {
+    func body(
+      _ messages: [OpenAICompatibleMessage], effort: RemoteReasoningEffort?,
+      usesOpenRouterReasoning: Bool = false
+    ) throws -> [String: Any] {
+      let request = OpenAICompatibleRequest(
+        model: "qwen3.5:9b", messages: messages, tools: [], includeUsage: false,
+        maximumOutputTokens: 512, usesMaxCompletionTokens: false, reasoningEffort: effort,
+        usesOpenRouterReasoning: usesOpenRouterReasoning)
+      return try XCTUnwrap(
+        JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+    }
+    let conversation = [
+      OpenAICompatibleMessage(role: .system, content: "System"),
+      OpenAICompatibleMessage(role: .user, content: "Hello"),
+    ]
+    for (effort, wireEffort, instruction) in [
+      (RemoteReasoningEffort.low, "low", "Reasoning effort is set to low."),
+      (.medium, "medium", nil),
+      (.high, "high", "Reasoning effort is set to high."),
+      (.max, "high", "Reasoning effort is set to max."),
+    ] {
+      let request = try body(conversation, effort: effort)
+      XCTAssertEqual(request["reasoning_effort"] as? String, wireEffort)
+      let messages = try XCTUnwrap(request["messages"] as? [[String: Any]])
+      XCTAssertEqual(messages.count, 2)
+      let system = try XCTUnwrap(messages[0]["content"] as? String)
+      if let instruction {
+        XCTAssertTrue(system.hasPrefix("System\n\n" + instruction), system)
+      } else {
+        XCTAssertEqual(system, "System")
+      }
+      XCTAssertEqual(messages[1]["content"] as? String, "Hello")
+    }
+    let withoutSystem = try XCTUnwrap(
+      body([OpenAICompatibleMessage(role: .user, content: "Hello")], effort: .low)["messages"]
+        as? [[String: Any]])
+    XCTAssertEqual(withoutSystem.compactMap { $0["role"] as? String }, ["system", "user"])
+    let noEffort = try body(conversation, effort: nil)
+    XCTAssertNil(noEffort["reasoning_effort"])
+    XCTAssertEqual((noEffort["messages"] as? [[String: Any]])?.first?["content"] as? String, "System")
+    let openRouter = try body(conversation, effort: .max, usesOpenRouterReasoning: true)
+    XCTAssertNil(openRouter["reasoning_effort"])
+    XCTAssertEqual((openRouter["reasoning"] as? [String: Any])?["effort"] as? String, "max")
+    XCTAssertEqual(
+      (openRouter["messages"] as? [[String: Any]])?.first?["content"] as? String, "System")
+  }
+
   func testLocalCodeUsesOpenRouterReasoningAndAdaptsOutputBudgetToAvailableCredits() throws {
     let expectation = expectation(description: "adapted completion")
     let configuration = try OpenAICompatibleConfiguration(
@@ -238,6 +286,85 @@ final class OpenAICompatibleClientTests: XCTestCase {
     }
     wait(for: [expectation], timeout: 2)
     XCTAssertEqual(requestCount, 2)
+  }
+
+  func testAdaptsOutputBudgetToStatedMaximumTokens() throws {
+    let configuration = try OpenAICompatibleConfiguration(
+      baseURL: XCTUnwrap(URL(string: "https://api.example.com/v1")), model: "m",
+      maximumOutputTokens: 32_768)
+    let client = OpenAICompatibleClient(
+      configuration: configuration, authorization: RemoteAPIKeyAuthorization(apiKey: "key"),
+      sessionConfiguration: mockSessionConfiguration())
+    for (message, adapted) in [
+      (
+        "max_tokens is too large: 32768. This model supports at most 16384 completion tokens, whereas you provided 32768.",
+        16_384
+      ),
+      ("Invalid max_tokens value, the valid range of max_tokens is [1, 8192]", 8_192),
+      (
+        "`max_tokens` must be less than or equal to `32768`, the maximum value for `max_tokens` is less than the `context_window` for this model",
+        nil
+      ),
+      ("`max_completion_tokens` must be less than or equal to `4096`", 4_096),
+      ("temperature must be less than or equal to 2", nil),
+    ] as [(String, Int?)] {
+      var maximumTokens = [Int]()
+      MockURLProtocol.handler = { request, protocolClient in
+        let body = try XCTUnwrap(
+          JSONSerialization.jsonObject(with: XCTUnwrap(requestBody(request))) as? [String: Any])
+        maximumTokens.append(try XCTUnwrap(body["max_tokens"] as? Int))
+        if maximumTokens.count == 1 {
+          let error = try JSONSerialization.data(withJSONObject: ["error": ["message": message]])
+          protocolClient.respond(status: 400, chunks: [error])
+        } else {
+          protocolClient.respond(
+            status: 200,
+            chunks: [
+              Data(
+                "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"OK\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+                  .utf8)
+            ])
+        }
+      }
+      let done = expectation(description: message)
+      _ = client.streamChat(messages: [.user("Hello")], tools: [], progress: { _ in }) {
+        XCTAssertEqual(try? $0.get().text, adapted == nil ? nil : "OK", message)
+        done.fulfill()
+      }
+      wait(for: [done], timeout: 2)
+      // The stated limit is retried only when it is below what was requested.
+      XCTAssertEqual(maximumTokens, [32_768] + (adapted.map { [$0] } ?? []), message)
+    }
+  }
+
+  func testStreamProgressIncludesReasoningBeforeText() throws {
+    let configuration = try OpenAICompatibleConfiguration(
+      baseURL: XCTUnwrap(URL(string: "http://localhost:11434/v1")), model: "qwen3.5:9b")
+    let client = OpenAICompatibleClient(
+      configuration: configuration, authorization: RemoteUnauthenticatedAuthorization(),
+      sessionConfiguration: mockSessionConfiguration())
+    MockURLProtocol.handler = { _, protocolClient in
+      protocolClient.respond(
+        status: 200,
+        chunks: [
+          "{\"choices\":[{\"index\":0,\"delta\":{\"reasoning\":\"Check \"}}]}",
+          "{\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"7 × 143.\"}}]}",
+          "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"No.\"},\"finish_reason\":\"stop\"}]}",
+        ].map { Data("data: \($0)\n\n".utf8) } + [Data("data: [DONE]\n\n".utf8)])
+    }
+    var snapshots = [RemoteStreamProgress]()
+    let done = expectation(description: "reasoning stream")
+    _ = client.streamChat(
+      messages: [.user("Is 1001 prime?")], tools: [], progress: { snapshots.append($0) }
+    ) { result in
+      XCTAssertEqual(try? result.get().content.remoteThinkingText, "Check 7 × 143.")
+      XCTAssertEqual(try? result.get().text, "No.")
+      done.fulfill()
+    }
+    wait(for: [done], timeout: 2)
+
+    XCTAssertEqual(snapshots.map(\.content.remoteThinkingText), ["Check ", "Check 7 × 143.", "Check 7 × 143."])
+    XCTAssertEqual(snapshots.map(\.text), ["", "", "No."])
   }
 
   func testRejectsStreamThatEndsWithoutFinishReason() throws {

@@ -136,7 +136,7 @@ struct AnthropicMessage: Encodable {
             "a tool transcript entry has no tool result")
         }
         pendingToolResults += entry.toolResults.map {
-          .toolResult(id: $0.toolCallID, content: $0.content, isError: $0.isError)
+          .toolResult(id: $0.toolCallID, content: $0.content, images: $0.images, isError: $0.isError)
         }
         continue
       }
@@ -146,8 +146,12 @@ struct AnthropicMessage: Encodable {
       }
       switch entry.role {
       case .user:
+        // Claude rejects empty text blocks, so an image-only message sends just the images.
+        let text = entry.text ?? ""
+        let images = entry.images.map(AnthropicContentBlock.image)
         converted.append(
-          AnthropicMessage(role: .user, content: [.text(entry.text ?? "")]))
+          AnthropicMessage(
+            role: .user, content: (text.isEmpty && !images.isEmpty ? [] : [.text(text)]) + images))
       case .assistant:
         var content = [AnthropicContentBlock]()
         for block in entry.content {
@@ -198,7 +202,8 @@ enum AnthropicContentBlock: Encodable {
   case thinking(text: String, signature: String)
   case redactedThinking(data: String)
   case toolUse(id: String, name: String, input: RemoteJSONValue)
-  case toolResult(id: String, content: String, isError: Bool)
+  case toolResult(id: String, content: String, images: [RemoteImage], isError: Bool)
+  case image(RemoteImage)
 
   private enum CodingKeys: String, CodingKey {
     case type
@@ -212,6 +217,19 @@ enum AnthropicContentBlock: Encodable {
     case toolUseID = "tool_use_id"
     case content
     case isError = "is_error"
+    case source
+  }
+
+  private struct ImageSource: Encodable {
+    var type = "base64"
+    var mediaType: String
+    var data: String
+
+    private enum CodingKeys: String, CodingKey {
+      case type
+      case mediaType = "media_type"
+      case data
+    }
   }
 
   func encode(to encoder: Encoder) throws {
@@ -232,13 +250,24 @@ enum AnthropicContentBlock: Encodable {
       try container.encode(id, forKey: .id)
       try container.encode(name, forKey: .name)
       try container.encode(input, forKey: .input)
-    case .toolResult(let id, let content, let isError):
+    case .toolResult(let id, let content, let images, let isError):
       try container.encode("tool_result", forKey: .type)
       try container.encode(id, forKey: .toolUseID)
-      try container.encode(content, forKey: .content)
+      if images.isEmpty {
+        try container.encode(content, forKey: .content)
+      } else {
+        try container.encode(
+          (content.isEmpty ? [] : [AnthropicContentBlock.text(content)])
+            + images.map(AnthropicContentBlock.image), forKey: .content)
+      }
       if isError {
         try container.encode(true, forKey: .isError)
       }
+    case .image(let image):
+      try container.encode("image", forKey: .type)
+      try container.encode(
+        ImageSource(mediaType: image.mediaType, data: image.data.base64EncodedString()),
+        forKey: .source)
     }
   }
 }

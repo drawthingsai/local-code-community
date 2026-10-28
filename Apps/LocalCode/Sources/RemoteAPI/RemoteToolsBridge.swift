@@ -35,7 +35,8 @@ struct RemoteToolsBridge {
     tools = RemoteToolSchema.tools.compactMap {
       guard
         $0.name != ToolsRegistry.Tool.webSearch.rawValue
-          || webSearchProvider != .disabled
+          || webSearchProvider != .disabled,
+        $0.name != ToolsRegistry.Tool.view.rawValue || supportsImageInput
       else { return nil }
       var tool = $0
       if tool.name == ToolsRegistry.Tool.webSearch.rawValue {
@@ -45,7 +46,7 @@ struct RemoteToolsBridge {
       }
       if supportsImageInput && tool.name == ToolsRegistry.Tool.read.rawValue {
         tool.description +=
-          " For PNG, JPEG, WebP, and GIF files, returns the image for visual inspection (up to 10 MiB per image). Line options do not apply to images."
+          " For PNG, JPEG, WebP, and GIF files, returns the image for visual inspection, resized to at most 1,024 pixels on its long side. Line options do not apply to images."
       }
       return tool
     }
@@ -56,10 +57,10 @@ struct RemoteToolsBridge {
     progress: @escaping (String) -> Void,
     completion: @escaping (RemoteToolExecutionResult) -> Void
   ) -> (() -> Void)? {
-    guard call.name != ToolsRegistry.Tool.view.rawValue else {
+    guard supportsImageInput || call.name != ToolsRegistry.Tool.view.rawValue else {
       completion(
         RemoteToolExecutionResult(
-          content: "View is not available for remote models yet.",
+          content: "View is not available because this provider does not accept images.",
           subtitle: LocalizedString.format(key: "could_not_run_tool", call.name),
           isError: true))
       return nil
@@ -105,7 +106,7 @@ struct RemoteToolsBridge {
         return nil
       }
       do {
-        let image = try RemoteImage(contentsOf: resolution.url)
+        let image = try RemoteImage(attachmentContentsOf: resolution.url)
         completion(
           RemoteToolExecutionResult(
             content: "Image from \(path): \(image.width)×\(image.height), \(image.mediaType).",
@@ -129,9 +130,10 @@ struct RemoteToolsBridge {
         case .text(let text):
           texts.append(text)
         case .imageDigest(let digest):
-          // Bash accepts larger images than providers do; skip one RemoteImage rejects.
+          // Bash and view return images as large as 2,048 pixels; resize them as attachments
+          // are, and skip one that cannot be read.
           let path = EmbedsFileStore(projectPath: self.projectPath).filePath(for: digest)
-          if let image = try? RemoteImage(contentsOf: URL(fileURLWithPath: path)) {
+          if let image = try? RemoteImage(attachmentContentsOf: URL(fileURLWithPath: path)) {
             images.append(image)
           }
         }

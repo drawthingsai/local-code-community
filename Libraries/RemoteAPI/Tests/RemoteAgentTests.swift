@@ -613,6 +613,40 @@ final class RemoteAgentTests: XCTestCase {
     XCTAssertFalse(try XCTUnwrap(result?.get().metrics.isOutputRateEstimated))
   }
 
+  func testProgressStreamsThinkingForTheCurrentRequest() throws {
+    let call = RemoteToolCall(id: "read-1", name: "read", arguments: "{}")
+    let provider = RecordingProvider(streamingResponse: { _, index, progress in
+      if index == 0 {
+        progress(RemoteStreamProgress(content: [.thinking(RemoteThinking(text: "Plan"))]))
+        progress(
+          RemoteStreamProgress(content: [
+            .thinking(RemoteThinking(text: "Plan the read.")), .toolCall(call),
+          ]))
+        return .success(
+          RemoteCompletion(
+            text: "", toolCalls: [call], thinking: RemoteThinking(text: "Plan the read.")))
+      }
+      progress(RemoteStreamProgress(content: [.thinking(RemoteThinking(text: "Wrap up"))]))
+      progress(
+        RemoteStreamProgress(content: [.thinking(RemoteThinking(text: "Wrap up")), .text("Done")]))
+      return .success(
+        RemoteCompletion(text: "Done", toolCalls: [], thinking: RemoteThinking(text: "Wrap up")))
+    })
+    let agent = makeAgent(provider: provider)
+    var snapshots = [RemoteAgentProgress]()
+    let completion = expectation(description: "thinking progress")
+    agent.send("Read", progress: { snapshots.append($0) }) { _ in completion.fulfill() }
+    wait(for: [completion], timeout: 1)
+
+    XCTAssertEqual(snapshots.first?.thinking, "Plan")
+    XCTAssertEqual(snapshots.first?.text, "")
+    XCTAssertTrue(snapshots.contains { $0.thinking == "Plan the read." && !$0.streamingToolCalls.isEmpty })
+    // A new request starts without the previous request's reasoning, which ends at its text.
+    XCTAssertTrue(snapshots.contains { $0.thinking == "Wrap up" && $0.text.isEmpty })
+    XCTAssertEqual(snapshots.last?.text, "Done")
+    XCTAssertEqual(snapshots.last?.thinking, "")
+  }
+
   func testAveragesTimeToFirstTokenAcrossToolRounds() throws {
     var now: TimeInterval = 10
     let provider = RecordingProvider(streamingResponse: { _, index, progress in

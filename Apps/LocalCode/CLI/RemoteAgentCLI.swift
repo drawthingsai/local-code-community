@@ -30,7 +30,7 @@ struct RemoteAgentCLI: AsyncParsableCommand {
 
   @Option(
     help:
-      "Image file to attach (PNG, JPEG, WebP, GIF). Repeat for multiple images. Direct OpenRouter only."
+      "Image file to attach (PNG, JPEG, WebP, GIF). Repeat for multiple images."
   )
   var image: [String] = []
 
@@ -89,7 +89,9 @@ struct RemoteAgentCLI: AsyncParsableCommand {
 
   mutating func run(sessionConfiguration: URLSessionConfiguration) async throws {
     let userMessage = try options.readPrompt()
-    let images = try image.map { try RemoteImage(contentsOf: AgentCLIOptions.fileURL($0)) }
+    let images = try image.map {
+      try RemoteImage(attachmentContentsOf: AgentCLIOptions.fileURL($0))
+    }
     let directories = try options.directories()
     let projectURL = directories.project
     let configuredWebSearchProvider = try options.configuredWebSearchProvider()
@@ -361,11 +363,24 @@ private final class MeasuredRemoteProvider: RemoteChatProviding {
 private final class RemoteAgentTrace {
   private let lock = NSLock()
   private var text = ""
+  private var thinking = ""
   private var toolState = [String: Bool]()
 
   func consume(_ progress: RemoteAgentProgress) {
     lock.lock()
     defer { lock.unlock() }
+    if progress.thinking != thinking {
+      let addition: String
+      if progress.thinking.isEmpty {
+        addition = "\n"
+      } else if !thinking.isEmpty, progress.thinking.hasPrefix(thinking) {
+        addition = String(progress.thinking.dropFirst(thinking.count))
+      } else {
+        addition = "\n[thinking] \(progress.thinking)"
+      }
+      FileHandle.standardError.write(Data(addition.utf8))
+      thinking = progress.thinking
+    }
     if progress.text != text {
       let addition =
         progress.text.hasPrefix(text)

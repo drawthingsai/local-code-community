@@ -152,18 +152,43 @@ struct OpenAICompatibleRequest: Encodable {
     reasoningEffort: RemoteReasoningEffort?, usesOpenRouterReasoning: Bool
   ) {
     self.model = model
-    self.messages = messages
     self.tools = tools.isEmpty ? nil : tools
     toolChoice = tools.isEmpty ? nil : "auto"
     streamOptions = includeUsage ? StreamOptions() : nil
     reasoning = usesOpenRouterReasoning ? Reasoning(effort: reasoningEffort) : nil
-    self.reasoningEffort = usesOpenRouterReasoning ? nil : reasoningEffort
+    var messages = messages
+    if !usesOpenRouterReasoning, let reasoningEffort {
+      // Chat Completions has no "max" effort, and servers drop reasoning_effort for models
+      // without effort levels (Qwen, DeepSeek, GLM). State it the way local models receive it.
+      self.reasoningEffort = reasoningEffort == .max ? .high : reasoningEffort
+      if let instructions = Self.instructions(for: reasoningEffort) {
+        if let index = messages.firstIndex(where: { $0.role == .system }) {
+          messages[index].content = (messages[index].content ?? "") + "\n\n" + instructions
+        } else {
+          messages.insert(OpenAICompatibleMessage(role: .system, content: instructions), at: 0)
+        }
+      }
+    }
+    self.messages = messages
     if usesMaxCompletionTokens {
       maxTokens = nil
       maxCompletionTokens = maximumOutputTokens
     } else {
       maxTokens = maximumOutputTokens
       maxCompletionTokens = nil
+    }
+  }
+
+  private static func instructions(for reasoningEffort: RemoteReasoningEffort) -> String? {
+    switch reasoningEffort {
+    case .low:
+      return
+        "Reasoning effort is set to low. Keep your thinking brief and focused, moving directly to the conclusion without unnecessary elaboration."
+    case .medium:
+      return nil
+    case .high, .max:
+      return
+        "Reasoning effort is set to \(reasoningEffort.rawValue). Please think carefully through the task, validate key assumptions, consider plausible alternatives, and prioritize correctness, consistency, and clarity in the final answer."
     }
   }
 

@@ -30,9 +30,14 @@ final class RemoteModelMetadataClientTests: XCTestCase {
         models.fulfill()
       }
       wait(for: [models], timeout: 2)
+      var requestedPaths = [String]()
       MockURLProtocol.handler = { request, urlProtocol in
         XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
-        XCTAssertEqual(request.url?.path, "\(prefix)/models/custom-chat")
+        requestedPaths.append(request.url?.path ?? "")
+        guard request.url?.path == "\(prefix)/models/custom-chat" else {
+          urlProtocol.respond(status: 404, chunks: [])
+          return
+        }
         urlProtocol.respond(
           status: 200,
           chunks: [
@@ -45,11 +50,183 @@ final class RemoteModelMetadataClientTests: XCTestCase {
       _ = RemoteModelMetadataClient(sessionConfiguration: mockSessionConfiguration()).fetch(
         endpoint: endpoint, authorization: RemoteUnauthenticatedAuthorization()
       ) {
-        XCTAssertEqual(try? $0.get(), .openAICompatibleFallback)
+        // Without published limits, output is a quarter of the fallback context.
+        XCTAssertEqual(
+          try? $0.get(), RemoteModelLimits(contextWindowTokens: 16_384, maximumOutputTokens: 4_096))
         limits.fulfill()
       }
       wait(for: [limits], timeout: 2)
+      // Native Ollama and LM Studio routes sit beside a /v1 API only.
+      XCTAssertEqual(
+        requestedPaths,
+        ["\(prefix)/models/custom-chat", "\(prefix)/models"]
+          + (prefix == "/v1" ? ["/api/ps", "/api/show", "/api/v0/models/custom-chat"] : []))
     }
+  }
+
+  func testCompatibleLimitsComeFromTheRouteThatReportsThem() throws {
+    let detail = "/v1/models/m"
+    let native = ["/api/ps", "/api/show", "/api/v0/models/m"]
+    let scenarios: [(String, [String: (Int, String)], RemoteModelLimits, [String])] = [
+      (
+        "vLLM", ["/v1/models": (200, #"{"data":[{"id":"m","max_model_len":32768}]}"#)],
+        RemoteModelLimits(contextWindowTokens: 32_768, maximumOutputTokens: 8_192),
+        [detail, "/v1/models"]
+      ),
+      (
+        "llama.cpp",
+        [
+          "/v1/models": (
+            200, #"{"data":[{"id":"model.gguf","meta":{"n_ctx":12288,"n_ctx_train":262144}}]}"#
+          )
+        ],
+        RemoteModelLimits(contextWindowTokens: 12_288, maximumOutputTokens: 3_072),
+        [detail, "/v1/models"]
+      ),
+      (
+        "Groq",
+        [detail: (200, #"{"id":"m","context_window":131072,"max_completion_tokens":32768}"#)],
+        RemoteModelLimits(contextWindowTokens: 131_072, maximumOutputTokens: 32_768), [detail]
+      ),
+      (
+        "Ollama with the model loaded",
+        [
+          detail: (200, #"{"id":"m","object":"model","owned_by":"library"}"#),
+          "/v1/models": (200, #"{"data":[{"id":"m"},{"id":"other"}]}"#),
+          "/api/ps": (200, #"{"models":[{"name":"m:latest","context_length":32768}]}"#),
+        ],
+        RemoteModelLimits(contextWindowTokens: 32_768, maximumOutputTokens: 8_192),
+        [detail, "/v1/models", "/api/ps"]
+      ),
+      (
+        "Ollama with a Modelfile num_ctx",
+        [
+          "/api/ps": (200, #"{"models":[]}"#),
+          "/api/show": (
+            200,
+            #"{"parameters":"temperature 1\nnum_ctx 65536","model_info":{"qwen35.context_length":262144}}"#
+          ),
+        ],
+        RemoteModelLimits(contextWindowTokens: 65_536, maximumOutputTokens: 16_384),
+        [detail, "/v1/models", "/api/ps", "/api/show"]
+      ),
+      (
+        "Ollama that cannot load the model",
+        ["/api/show": (200, #"{"model_info":{"llama.context_length":8192}}"#)],
+        RemoteModelLimits(contextWindowTokens: 8_192, maximumOutputTokens: 2_048),
+        [detail, "/v1/models", "/api/ps", "/api/show", "/api/generate", "/api/ps", "/api/v0/models/m"]
+      ),
+      (
+        "LM Studio with the model loaded",
+        [
+          "/api/v0/models/m": (
+            200,
+            #"{"id":"m","state":"loaded","max_context_length":131072,"loaded_context_length":8192}"#
+          )
+        ],
+        RemoteModelLimits(contextWindowTokens: 8_192, maximumOutputTokens: 2_048),
+        [detail, "/v1/models"] + native
+      ),
+      (
+        "LM Studio before loading the model",
+        [
+          "/api/ps": (200, #"{"error":"Unexpected endpoint or method. (GET /api/ps)"}"#),
+          "/api/v0/models/m": (
+            200, #"{"id":"m","state":"not-loaded","max_context_length":131072}"#
+          ),
+        ],
+        RemoteModelLimits(contextWindowTokens: 16_384, maximumOutputTokens: 4_096),
+        [detail, "/v1/models"] + native
+      ),
+      (
+        "Optional routes that fail",
+        ["/v1/models": (500, "{}"), "/api/show": (401, "{}")],
+        RemoteModelLimits(contextWindowTokens: 16_384, maximumOutputTokens: 4_096),
+        [detail, "/v1/models"] + native
+      ),
+    ]
+    for (name, routes, expected, paths) in scenarios {
+      var requestedPaths = [String]()
+      MockURLProtocol.handler = { request, urlProtocol in
+        let path = request.url?.path ?? ""
+        requestedPaths.append(path)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer key", name)
+        if ["/api/show", "/api/generate"].contains(path) {
+          XCTAssertEqual(request.httpMethod, "POST", name)
+          XCTAssertEqual(
+            try JSONSerialization.jsonObject(with: XCTUnwrap(requestBody(request)))
+              as? [String: String], ["model": "m"], name)
+        }
+        let (status, body) = routes[path] ?? (404, "")
+        urlProtocol.respond(status: status, chunks: [Data(body.utf8)])
+      }
+      let done = expectation(description: name)
+      _ = RemoteModelMetadataClient(sessionConfiguration: mockSessionConfiguration()).fetch(
+        endpoint: try RemoteProviderEndpoint(
+          provider: .openAICompatible, baseURL: URL(string: "http://localhost:11434/v1")!,
+          model: "m"),
+        authorization: RemoteAPIKeyAuthorization(apiKey: "key")
+      ) {
+        XCTAssertEqual(try? $0.get(), expected, name)
+        done.fulfill()
+      }
+      wait(for: [done], timeout: 2)
+      XCTAssertEqual(requestedPaths, paths, name)
+    }
+  }
+
+  func testOllamaLoadsTheModelToReportItsContext() throws {
+    var requestedPaths = [String]()
+    MockURLProtocol.handler = { request, urlProtocol in
+      let path = request.url?.path ?? ""
+      requestedPaths.append(path)
+      let body: String
+      switch path {
+      case "/api/ps":
+        // Unloaded at first; loaded once the generate request returns.
+        body =
+          requestedPaths.contains("/api/generate")
+          ? #"{"models":[{"name":"m","model":"m","context_length":32768}]}"# : #"{"models":[]}"#
+      case "/api/show":
+        body = #"{"parameters":"temperature 1","model_info":{"qwen35.context_length":262144}}"#
+      case "/api/generate":
+        XCTAssertEqual(request.timeoutInterval, 120)
+        XCTAssertEqual(
+          try JSONSerialization.jsonObject(with: XCTUnwrap(requestBody(request)))
+            as? [String: String], ["model": "m"])
+        body = #"{"model":"m","response":"","done":true,"done_reason":"load"}"#
+      default:
+        urlProtocol.respond(status: 404, chunks: [])
+        return
+      }
+      urlProtocol.respond(status: 200, chunks: [Data(body.utf8)])
+    }
+    let done = expectation(description: "loaded context")
+    _ = RemoteModelMetadataClient(sessionConfiguration: mockSessionConfiguration()).fetch(
+      endpoint: try RemoteProviderEndpoint(
+        provider: .openAICompatible, baseURL: URL(string: "http://localhost:11434/v1")!,
+        model: "m"),
+      authorization: RemoteUnauthenticatedAuthorization()
+    ) {
+      XCTAssertEqual(
+        try? $0.get(), RemoteModelLimits(contextWindowTokens: 32_768, maximumOutputTokens: 8_192))
+      done.fulfill()
+    }
+    wait(for: [done], timeout: 2)
+    XCTAssertEqual(
+      requestedPaths,
+      ["/v1/models/m", "/v1/models", "/api/ps", "/api/show", "/api/generate", "/api/ps"])
+  }
+
+  func testCompatibleOutputFollowsContextUpToFallback() {
+    let fallback = RemoteModelLimits.openAICompatibleFallback.maximumOutputTokens
+    XCTAssertEqual(
+      [4_096, 16_384, 32_768, 131_072, 262_144].map {
+        RemoteModelLimits.openAICompatibleOutputTokens(contextWindowTokens: $0, fallback: fallback)
+      }, [1_024, 4_096, 8_192, 32_768, 32_768])
+    XCTAssertEqual(
+      RemoteModelLimits.openAICompatibleOutputTokens(contextWindowTokens: 131_072, fallback: 2_048),
+      2_048)
   }
 
   func testCompatibleFallbackOnlyForMissingMetadataRoutes() throws {
@@ -131,7 +308,11 @@ final class RemoteModelMetadataClientTests: XCTestCase {
       ),
       (
         #"{"id":"m","context_length":4096}"#,
-        RemoteModelLimits(contextWindowTokens: 4_096, maximumOutputTokens: 4_096)
+        RemoteModelLimits(contextWindowTokens: 4_096, maximumOutputTokens: 1_024)
+      ),
+      (
+        #"{"id":"m","context_length":131072}"#,
+        RemoteModelLimits(contextWindowTokens: 131_072, maximumOutputTokens: 4_096)
       ),
       (
         #"{"id":"m","max_tokens":1024}"#,
@@ -173,7 +354,7 @@ final class RemoteModelMetadataClientTests: XCTestCase {
             let configuration = RemoteAgentConfiguration(
               contextWindowTokens: limits.contextWindowTokens,
               reservedOutputTokens: limits.maximumOutputTokens)
-            XCTAssertEqual(configuration.reservedOutputTokens, 1_365)
+            XCTAssertEqual(configuration.reservedOutputTokens, 1_024)
           }
         } else {
           XCTAssertEqual($0, .failure(.limitsUnavailable))
@@ -499,5 +680,34 @@ final class RemoteModelMetadataClientTests: XCTestCase {
     wait(for: [expectation], timeout: 1)
 
     XCTAssertEqual(results, [.failure(.cancelled)])
+  }
+
+  func testCancellingCompatibleLimitsBetweenProbesCompletesOnce() throws {
+    var request: RemoteRequestCancellable?
+    var requestedPaths = [String]()
+    MockURLProtocol.handler = { urlRequest, urlProtocol in
+      requestedPaths.append(urlRequest.url?.path ?? "")
+      // Cancel once the probe chain has moved past the model route.
+      if requestedPaths.count == 2 {
+        request?.cancel()
+      } else {
+        urlProtocol.respond(status: 404, chunks: [])
+      }
+    }
+    let expectation = expectation(description: "cancelled")
+    var results = [Result<RemoteModelLimits, RemoteModelMetadataError>]()
+    request = RemoteModelMetadataClient(sessionConfiguration: mockSessionConfiguration()).fetch(
+      endpoint: try RemoteProviderEndpoint(
+        provider: .openAICompatible, baseURL: URL(string: "http://localhost:11434/v1")!,
+        model: "m"),
+      authorization: RemoteUnauthenticatedAuthorization()
+    ) {
+      results.append($0)
+      expectation.fulfill()
+    }
+    wait(for: [expectation], timeout: 2)
+
+    XCTAssertEqual(results, [.failure(.cancelled)])
+    XCTAssertEqual(requestedPaths, ["/v1/models/m", "/v1/models"])
   }
 }

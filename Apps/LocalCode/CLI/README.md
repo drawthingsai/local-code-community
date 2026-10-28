@@ -73,8 +73,9 @@ date/time, and web tools. Automatic memory injection is disabled for CLI turns.
 requires `KAGI_API_KEY`; `--web-search-provider brave` requires `BRAVE_API_KEY`.
 Either can use the variable named by `--web-search-api-key-environment` instead.
 
-For remote image input, select direct OpenRouter and a model whose catalog lists
-image input and tool support. Attach files with repeatable `--image` options:
+For remote image input, select any remote provider (Cloud Compute, OpenRouter, an
+OpenAI-compatible server, OpenAI, or Anthropic) and a model with image input and tool support. Attach files with repeatable
+`--image` options:
 
 ```sh
 bazel run //Apps/LocalCode:LocalCodeCLI -- remote-agent \
@@ -84,17 +85,21 @@ bazel run //Apps/LocalCode:LocalCodeCLI -- remote-agent \
 ```
 
 The remote `read` tool can also inspect `.png`, `.jpg`, `.jpeg`, `.webp`, and `.gif`
-files in permitted directories when using OpenRouter, in both the app and CLI.
-Line options are ignored for image reads. Each image is limited to 10 MiB; direct
-OpenRouter requests are limited to 32 MiB including base64 overhead. Unsupported
+files in permitted directories when using any of those providers, in both the app and
+CLI. Those providers also get `view`, which returns images and PDF pages (rendered as
+images) for visual inspection, while `read` returns a PDF's text as Markdown for every
+provider. Line options are ignored for image reads. Each image is limited to
+10 MiB; their requests are limited to 32 MiB including base64 overhead. Unsupported
 or invalid image files return a tool error. The selected model must itself support
-vision; choosing OpenRouter does not add vision to a text-only model.
+vision; choosing a provider does not add vision to a text-only model. Images
+attached to a message, in the app or with `--image`, are sent with the long side reduced
+to 1,024 pixels and HEIC or EXIF-rotated photos re-encoded.
 
 Image bytes are embedded in saved conversations, so `--resume` works even if the
 original image changes or is removed. Result JSON files therefore contain the
 images as well as the text. Compaction sends retained visual evidence as images,
-not base64 text. The managed Local Code router and the other remote adapters do
-not yet accept images. Screenshot capture and mouse/keyboard control are separate
+not base64 text. The managed Local Code router takes inline images in user messages and
+limits requests to 16 MiB. Screenshot capture and mouse/keyboard control are separate
 from this image-input capability.
 
 Relative CLI paths resolve against the caller's original working directory,
@@ -146,8 +151,8 @@ validation. Authentication, TLS, and network failures still fail the request.
 
 ## Results and continuation
 
-Final assistant text goes to stdout; `--trace` sends progress to stderr. The
-embedded runtime may also write diagnostics to stderr.
+Final assistant text goes to stdout; `--trace` sends progress to stderr, with remote
+reasoning on `[thinking]` lines. The embedded runtime may also write diagnostics to stderr.
 
 `--result-json` atomically writes a run record. Local records include the model,
 project, timestamps, output tokens, structured tool calls, token/context counts,

@@ -17,7 +17,8 @@ final class RemoteContextBudgetTests: XCTestCase {
     let limits = RemoteModelLimits.openAICompatibleFallback
     let configuration = RemoteAgentConfiguration(
       contextWindowTokens: limits.contextWindowTokens,
-      reservedOutputTokens: limits.maximumOutputTokens)
+      reservedOutputTokens: RemoteModelLimits.openAICompatibleOutputTokens(
+        contextWindowTokens: limits.contextWindowTokens, fallback: limits.maximumOutputTokens))
     for runtime in [RemoteRuntime.mac, .iosSystem] {
       let state = RemoteAgentState(transcript: [
         .user("Inspect this project and summarize the files.")

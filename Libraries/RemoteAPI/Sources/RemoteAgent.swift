@@ -53,15 +53,18 @@ public struct RemoteAgentMetrics: Equatable, Sendable {
 
 public struct RemoteAgentProgress: Equatable, Sendable {
   public var text: String
+  /// Reasoning streamed for the current request, until that request's text begins.
+  public var thinking: String
   public var streamingToolCalls: [RemoteToolCall]
   public var tools: [RemoteAgentToolProgress]
   public var metrics: RemoteAgentMetrics
 
   public init(
-    text: String, streamingToolCalls: [RemoteToolCall], tools: [RemoteAgentToolProgress],
-    metrics: RemoteAgentMetrics = RemoteAgentMetrics()
+    text: String, thinking: String = "", streamingToolCalls: [RemoteToolCall],
+    tools: [RemoteAgentToolProgress], metrics: RemoteAgentMetrics = RemoteAgentMetrics()
   ) {
     self.text = text
+    self.thinking = thinking
     self.streamingToolCalls = streamingToolCalls
     self.tools = tools
     self.metrics = metrics
@@ -109,6 +112,7 @@ public final class RemoteAgent {
     var request: RemoteRequestCancellable?
     var completedText = [String]()
     var currentText = ""
+    var currentThinking = ""
     var streamingToolCalls = [RemoteToolCall]()
     var toolProgress = [RemoteAgentToolProgress]()
     var pendingToolCalls = [RemoteToolCall]()
@@ -166,8 +170,8 @@ public final class RemoteAgent {
 
     var progressSnapshot: RemoteAgentProgress {
       RemoteAgentProgress(
-        text: visibleText, streamingToolCalls: streamingToolCalls, tools: toolProgress,
-        metrics: metrics)
+        text: visibleText, thinking: currentThinking, streamingToolCalls: streamingToolCalls,
+        tools: toolProgress, metrics: metrics)
     }
   }
 
@@ -403,6 +407,7 @@ public final class RemoteAgent {
       generation.forceCompaction = false
     } else if immediateFailure == nil {
       generation.currentText = ""
+      generation.currentThinking = ""
       generation.streamingToolCalls = []
     }
     generation.requestIdentifier += 1
@@ -493,6 +498,7 @@ public final class RemoteAgent {
         generation.currentRequestDuration = progressAt - requestStartedAt
       }
       generation.currentText = progress.text
+      generation.currentThinking = progress.text.isEmpty ? progress.content.remoteThinkingText : ""
       generation.streamingToolCalls = progress.toolCalls
       callback = generation.progress
       snapshot = generation.progressSnapshot
@@ -696,6 +702,8 @@ public final class RemoteAgent {
     generation.bypassCompaction = false
     generation.forceCompaction = false
     generation.currentText = completion.text
+    generation.currentThinking =
+      completion.text.isEmpty ? completion.content.remoteThinkingText : ""
     generation.streamingToolCalls = completion.toolCalls
     progressCallback = generation.progress
 
@@ -756,6 +764,7 @@ public final class RemoteAgent {
           generation.completedText.append(completion.text)
         }
         generation.currentText = ""
+        generation.currentThinking = ""
         generation.streamingToolCalls = []
         generation.round -= 1
         if generation.toolArgumentRegenerationAttempts
@@ -809,6 +818,7 @@ public final class RemoteAgent {
           generation.completedText.append(completion.text)
         }
         generation.currentText = ""
+        generation.currentThinking = ""
         generation.streamingToolCalls = []
         if generation.round >= configuration.maximumRounds {
           for call in completion.toolCalls {

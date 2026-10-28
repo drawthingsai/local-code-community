@@ -22,11 +22,8 @@ public struct OpenAICompatibleConfiguration: Equatable, Sendable {
     guard !model.isEmpty else { throw RemoteChatError.missingModel }
     self.baseURL = normalizedBaseURL
     self.model = model
-    self.maximumRequestBytes = max(
-      1,
-      maximumRequestBytes
-        ?? (normalizedBaseURL.host?.lowercased() == "openrouter.ai"
-          ? 32 * 1_024 * 1_024 : 2 * 1_024 * 1_024))
+    // Room for base64 images, which are each up to RemoteImage.maximumBytes before encoding.
+    self.maximumRequestBytes = max(1, maximumRequestBytes ?? 32 * 1_024 * 1_024)
     self.maximumEventBytes = max(1, maximumEventBytes)
     self.maximumErrorBytes = max(1, maximumErrorBytes)
     self.maximumOutputTokens = max(1, maximumOutputTokens)

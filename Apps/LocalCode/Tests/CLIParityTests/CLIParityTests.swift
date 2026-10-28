@@ -554,6 +554,45 @@ final class CLIParityTests: XCTestCase {
     }
   }
 
+  func testRemoteViewSendsPDFPagesOnlyToProvidersWithImageInput() async throws {
+    let file = directory.appendingPathComponent("pages.pdf")
+    var mediaBox = CGRect(x: 0, y: 0, width: 612, height: 792)
+    let context = try XCTUnwrap(CGContext(file as CFURL, mediaBox: &mediaBox, nil))
+    for color in [CGColor(red: 1, green: 0, blue: 0, alpha: 1), CGColor(gray: 0, alpha: 1)] {
+      context.beginPDFPage(nil)
+      context.setFillColor(color)
+      context.fill(mediaBox)
+      context.endPDFPage()
+    }
+    context.closePDF()
+    func view(_ bridge: RemoteToolsBridge) async -> RemoteToolExecutionResult {
+      await withCheckedContinuation { continuation in
+        _ = bridge.execute(
+          .init(id: "view", name: "view", arguments: #"{"path":"pages.pdf","pages":2}"#),
+          bashUserInteraction: .init(), progress: { _ in }
+        ) {
+          continuation.resume(returning: $0)
+        }
+      }
+    }
+    let bridge = RemoteToolsBridge(
+      projectPath: directory.path, workspacePath: directory.path, webSearchProvider: .disabled,
+      supportsImageInput: true)
+    XCTAssertTrue(bridge.tools.contains { $0.name == "view" })
+    let result = await view(bridge)
+    XCTAssertFalse(result.isError, result.content)
+    XCTAssertTrue(result.content.contains("Page 2 from pages.pdf"), result.content)
+    // Pages render at up to 2,048 pixels and are resized as attachments are.
+    XCTAssertEqual(result.images.map { [$0.width, $0.height] }, [[791, 1_024], [791, 1_024]])
+
+    let plainBridge = RemoteToolsBridge(
+      projectPath: directory.path, workspacePath: directory.path, webSearchProvider: .disabled)
+    XCTAssertFalse(plainBridge.tools.contains { $0.name == "view" })
+    let refused = await view(plainBridge)
+    XCTAssertTrue(refused.isError)
+    XCTAssertTrue(refused.images.isEmpty)
+  }
+
   func testOpenRouterImagesSurviveToolLoopAndCLIResume() async throws {
     let environmentName = "LOCAL_CODE_CLI_IMAGE_TEST_KEY"
     setenv(environmentName, "fixture-key", 1)

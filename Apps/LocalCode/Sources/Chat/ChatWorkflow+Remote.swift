@@ -280,7 +280,7 @@ extension ChatWorkflow {
     browserWorkflows.removeValue(forKey: ProjectThreadIdentifier(thread: thread))?.close()
   }
 
-  func didTapSendRemote(_ prompt: String) {
+  func didTapSendRemote(_ prompt: String, imagePaths: [String] = []) {
     guard chatInputController.sendState == .idle,
       case .some(.remote(let remoteChatProvider)) = codeAgentWrapper
     else { return }
@@ -322,7 +322,7 @@ extension ChatWorkflow {
             remoteChatProvider.provider == provider
           else { return }
           workspace.dictionary["remote_api_disclosure_acknowledged", Bool.self] = true
-          didTapSendRemote(prompt)
+          didTapSendRemote(prompt, imagePaths: imagePaths)
         })
       presentedViewController.present(alertController, animated: true)
       return
@@ -392,6 +392,12 @@ extension ChatWorkflow {
       projectURL: projectURL, threadId: threadId)
     let conversation = ProjectRemoteConversation.load(
       history: projectHistoryManager.history(threadId: threadId), model: conversationModel)
+    // An image that cannot be read stays a link in the prompt, which tools can still open.
+    let accessed = projectURL.startAccessingSecurityScopedResource()
+    let images = imagePaths.compactMap {
+      try? RemoteImage(attachmentContentsOf: projectURL.appendingPathComponent($0))
+    }
+    if accessed { projectURL.stopAccessingSecurityScopedResource() }
 
     let webSearchIdentifier =
       workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
@@ -430,7 +436,7 @@ extension ChatWorkflow {
         return
       }
       remoteChatProvider.send(
-        prompt,
+        prompt, images: images,
         in: conversationID, bashUserInteraction: bashUserInteraction,
         progress: { [weak self] progress in
           guard let self,
@@ -727,11 +733,14 @@ extension ChatWorkflow {
       separator: "\n")
     let text = [toolHistory, progress.text, currentTools].filter { !$0.isEmpty }.joined(
       separator: "\n---\n")
+    // Like local models, show the latest reasoning until the answer text or a tool call starts.
     viewController.setLastMessage(
-      text, isTransient: true,
+      text, thinking: currentTools.isEmpty ? Self.chainOfThoughtExcerpt(progress.thinking) : "",
+      output: "", datetime: nil, duration: 0, isTransient: true,
       mode: currentTools.isEmpty
         ? .thinking(
-          progress.text.utf8.count, startTime: startTime, bashUserInteraction: bashUserInteraction)
+          (progress.thinking + progress.text).utf8.count, startTime: startTime,
+          bashUserInteraction: bashUserInteraction)
         : .working(
           progress.tools.count, startTime: startTime, bashUserInteraction: bashUserInteraction))
     // Measured after rendering, as updatePartialResult does: a render slower than the interval

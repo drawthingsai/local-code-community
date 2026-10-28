@@ -8,6 +8,7 @@ enum RemoteToolSchema {
     let data = Data(
       """
       [
+      {"type":"function","function":{"name":"view","description":"View an image or PDF. Returns images labeled with their path or page number. For PDFs, offset is the 1-based starting page (default 1) and pages is the number of pages (default 1). Use read for text files or extracted PDF Markdown.","parameters":{"type":"object","properties":{"path":{"type":"string","description":"The image or PDF file path, or photos://<id>."},"offset":{"type":"integer","minimum":1,"description":"Starting PDF page, 1-based. Defaults to 1."},"pages":{"type":"integer","minimum":1,"description":"Number of PDF pages to view. Defaults to 1."}},"required":["path"]}}},
       {"type":"function","function":{"name":"bash","description":"Run a shell command in the local workspace.","parameters":{"type":"object","properties":{"command":{"type":"string","description":"The command to execute."},"timeout_sec":{"type":"number","description":"Optional timeout in seconds."},"refresh_sec":{"type":"number","description":"Optional refresh interval in seconds for long-running commands."}},"required":["command"]}}},
       {"type":"function","function":{"name":"bash_status","description":"Report current status and new output for a running bash job.","parameters":{"type":"object","properties":{"job":{"type":"number","description":"The running job number returned by bash."},"pid":{"type":"number","description":"Optional process id for the running job."}},"required":["job"]}}},
       {"type":"function","function":{"name":"bash_wait","description":"Wait for a bash job to finish or produce another refresh.","parameters":{"type":"object","properties":{"job":{"type":"number","description":"The running job number returned by bash."},"pid":{"type":"number","description":"Optional process id for the running job."},"refresh_sec":{"type":"number","description":"Optional refresh interval in seconds."}},"required":["job"]}}},
@@ -27,8 +28,7 @@ enum RemoteToolSchema {
       """.utf8)
     let tools = try! JSONDecoder().decode([RemoteFunctionTool].self, from: data)
     precondition(
-      Set(tools.map(\.name))
-        == Set(ToolsRegistry.Tool.allCases.filter { $0 != .view }.map(\.rawValue)),
+      Set(tools.map(\.name)) == Set(ToolsRegistry.Tool.allCases.map(\.rawValue)),
       "Remote tool schemas must stay aligned with ToolsRegistry.Tool")
     return tools
   }()

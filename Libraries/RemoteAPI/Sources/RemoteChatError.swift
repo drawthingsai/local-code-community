@@ -31,7 +31,7 @@ public enum RemoteChatError: Error, Equatable, LocalizedError {
         "Use HTTPS, or HTTP with localhost, a .local hostname, or a private network IP address."
     case .imageInputUnsupported:
       return
-        "Image input is currently supported through direct OpenRouter only. Select OpenRouter and a model with image input support."
+        "The selected provider does not accept image input."
     case .missingModel:
       return "Enter the model identifier required by the remote provider."
     case .requestTooLarge(let maximumBytes):

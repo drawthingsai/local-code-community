@@ -2,6 +2,7 @@ import Foundation
 
 public final class OpenAIResponsesClient: RemoteChatProviding {
   public let modelIdentity: RemoteModelIdentity
+  public var supportsImageInput: Bool { true }
 
   private let model: String
   private let endpointURL: URL
@@ -40,7 +41,7 @@ public final class OpenAIResponsesClient: RemoteChatProviding {
   public init(
     codexModel model: String, authorization: any RemoteAuthorizationProviding,
     sessionConfiguration: URLSessionConfiguration = .ephemeral,
-    maximumRequestBytes: Int = 2 * 1_024 * 1_024,
+    maximumRequestBytes: Int = 32 * 1_024 * 1_024,
     maximumEventBytes: Int = 1 * 1_024 * 1_024, maximumErrorBytes: Int = 64 * 1_024,
     reasoningEffort: RemoteReasoningEffort? = nil
   ) {
@@ -63,10 +64,6 @@ public final class OpenAIResponsesClient: RemoteChatProviding {
     progress: @escaping (RemoteStreamProgress) -> Void,
     completion: @escaping (Result<RemoteCompletion, RemoteChatError>) -> Void
   ) -> RemoteRequestCancellable {
-    guard messages.allSatisfy({ $0.images.isEmpty }) else {
-      completion(.failure(.imageInputUnsupported))
-      return CompletedRemoteRequest.shared
-    }
     let body: Data
     do {
       body = try JSONEncoder().encode(

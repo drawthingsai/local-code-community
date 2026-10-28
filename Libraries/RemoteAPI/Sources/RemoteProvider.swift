@@ -178,7 +178,10 @@ public struct RemoteProviderEndpoint: Equatable, Sendable {
       }
       return OpenAICompatibleClient(
         configuration: try OpenAICompatibleConfiguration(
-          baseURL: baseURL, model: model, maximumOutputTokens: maximumOutputTokens),
+          baseURL: baseURL, model: model,
+          // The Local Code router accepts request bodies up to 16 MiB.
+          maximumRequestBytes: provider == .localCode ? 16 * 1_024 * 1_024 : nil,
+          maximumOutputTokens: maximumOutputTokens),
         authorization: authorization, sessionConfiguration: sessionConfiguration,
         modelIdentity: modelIdentity,
         reasoningEffort: reasoningEffort, usesOpenRouterReasoning: true)

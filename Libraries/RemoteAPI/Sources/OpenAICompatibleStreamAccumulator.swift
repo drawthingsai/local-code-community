@@ -124,7 +124,7 @@ struct OpenAICompatibleStreamAccumulator {
   }
 
   var progress: RemoteStreamProgress {
-    RemoteStreamProgress(text: text, toolCalls: toolCalls)
+    RemoteStreamProgress(content: completion.content)
   }
 
   var didFinish: Bool { stopReason != nil }

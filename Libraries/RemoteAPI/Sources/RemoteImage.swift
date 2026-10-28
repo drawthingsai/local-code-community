@@ -52,6 +52,48 @@ public struct RemoteImage: Equatable, Sendable, Codable {
     try self.init(data: Data(contentsOf: url))
   }
 
+  /// Reads an image the user attached. Photos are often larger than a model needs, rotated by
+  /// EXIF, or HEIC, so those are redrawn with the long side at most `maximumPixelSize`. At 1,024
+  /// pixels an image plans for at most 4,096 tokens, which leaves room in a small local context.
+  public init(attachmentContentsOf url: URL, maximumPixelSize: Int = 1_024) throws {
+    let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+    guard values.isRegularFile == true,
+      let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+      let type = CGImageSourceGetType(source) as String?,
+      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+      let width = properties[kCGImagePropertyPixelWidth] as? Int,
+      let height = properties[kCGImagePropertyPixelHeight] as? Int, width > 0, height > 0
+    else { throw ImageError.unsupportedImage }
+    if max(width, height) <= maximumPixelSize,
+      (properties[kCGImagePropertyOrientation] as? Int ?? 1) == 1,
+      ["public.png", "public.jpeg", "org.webmproject.webp", "com.compuserve.gif"].contains(type),
+      let image = try? RemoteImage(contentsOf: url)
+    {
+      self = image
+      return
+    }
+    guard
+      let image = CGImageSourceCreateThumbnailAtIndex(
+        source, 0,
+        [
+          kCGImageSourceCreateThumbnailFromImageAlways: true,
+          kCGImageSourceCreateThumbnailWithTransform: true,
+          kCGImageSourceThumbnailMaxPixelSize: min(maximumPixelSize, max(width, height)),
+        ] as CFDictionary)
+    else { throw ImageError.unsupportedImage }
+    let isOpaque = [.none, .noneSkipFirst, .noneSkipLast].contains(image.alphaInfo)
+    let data = NSMutableData()
+    guard
+      let destination = CGImageDestinationCreateWithData(
+        data, (isOpaque ? "public.jpeg" : "public.png") as CFString, 1, nil)
+    else { throw ImageError.unsupportedImage }
+    CGImageDestinationAddImage(
+      destination, image,
+      isOpaque ? [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary : nil)
+    guard CGImageDestinationFinalize(destination) else { throw ImageError.unsupportedImage }
+    try self.init(data: data as Data)
+  }
+
   var dataURL: String { "data:\(mediaType);base64,\(data.base64EncodedString())" }
 
   // A conservative planning allowance, not a provider billing formula. Image tokens must

@@ -32,7 +32,7 @@ private let remoteSystemPromptBody = """
 
   - Match the operation to the most specific supplied tool:
     - Use `list` to inspect one directory and `search` to locate files, symbols, text, or references across the project.
-    - Use `read` to inspect file content and `more` to continue a bounded result.
+    - Use `read` to inspect file content and `more` to continue a bounded result. `read` returns a PDF's text as Markdown; use `view`, when supplied, to see images or PDF pages.
     - Use `edit` for targeted changes to an existing file after reading the relevant content. Use `write` to create a file or intentionally replace its complete contents.
     - Use `bash` for builds, tests, package scripts, git inspection, and executable commands that are not file operations already covered by a native tool.
     - Use `bash_wait`, `bash_status`, and `bash_stop` only to manage a job returned by `bash`.

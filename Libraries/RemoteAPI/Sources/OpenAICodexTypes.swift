@@ -67,7 +67,14 @@ struct OpenAIResponsesTool: Encodable {
 enum OpenAIResponsesInputItem: Encodable {
   struct Content: Encodable {
     var type: String
-    var text: String
+    var text: String?
+    var imageURL: String?
+
+    private enum CodingKeys: String, CodingKey {
+      case type
+      case text
+      case imageURL = "image_url"
+    }
   }
 
   case message(id: String?, role: String, content: [Content], status: String?)
@@ -79,13 +86,23 @@ enum OpenAIResponsesInputItem: Encodable {
     _ transcript: [RemoteTranscriptEntry], currentModel: RemoteModelIdentity
   ) -> [OpenAIResponsesInputItem] {
     var items = [OpenAIResponsesInputItem]()
+    var pendingImages = [OpenAIResponsesInputItem]()
     for (entryIndex, entry) in transcript.enumerated() {
+      // Function call outputs carry text only, so a tool's images follow its batch of outputs
+      // as a user message, as OpenAI-compatible requests do.
+      if entry.role != .toolResult {
+        items += pendingImages
+        pendingImages.removeAll()
+      }
       switch entry.role {
       case .user:
         let text = entry.text ?? ""
         items.append(
           .message(
-            id: nil, role: "user", content: [.init(type: "input_text", text: text)], status: nil))
+            id: nil, role: "user",
+            content: (text.isEmpty && !entry.images.isEmpty
+              ? [] : [.init(type: "input_text", text: text)]) + entry.images.map(Content.init),
+            status: nil))
       case .assistant:
         if entry.source == currentModel, let outputItems = entry.providerOutputItems,
           !outputItems.isEmpty
@@ -123,12 +140,23 @@ enum OpenAIResponsesInputItem: Encodable {
       case .toolResult:
         for result in entry.toolResults {
           items.append(.functionCallOutput(callID: result.toolCallID, output: result.content))
+          if !result.images.isEmpty {
+            pendingImages.append(
+              .message(
+                id: nil, role: "user",
+                content: [
+                  .init(
+                    type: "input_text",
+                    text:
+                      "Images returned by tool \(result.toolName) (call_id: \(result.toolCallID)):")
+                ] + result.images.map(Content.init), status: nil))
+          }
         }
       case .system:
         break
       }
     }
-    return items
+    return items + pendingImages
   }
 
   private enum CodingKeys: String, CodingKey {
@@ -167,6 +195,12 @@ enum OpenAIResponsesInputItem: Encodable {
       try container.encode(callID, forKey: .callID)
       try container.encode(output, forKey: .output)
     }
+  }
+}
+
+extension OpenAIResponsesInputItem.Content {
+  init(_ image: RemoteImage) {
+    self.init(type: "input_image", imageURL: image.dataURL)
   }
 }
 

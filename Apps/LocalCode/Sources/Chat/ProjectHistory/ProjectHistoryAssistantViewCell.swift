@@ -93,16 +93,6 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
     imageView.transform = CGAffineTransform(scaleX: 0.25, y: 0.25)
     return imageView
   }()
-  private lazy var refreshButton: UIButton = {
-    let button = UIButton(type: .custom)
-    var configuration = UIButton.Configuration.plain()
-    configuration.contentInsets = .zero
-    configuration.baseForegroundColor = .senaryText
-    configuration.image = #imageLiteral(resourceName: "refresh-16").withRenderingMode(
-      .alwaysTemplate)
-    button.configuration = configuration
-    return button
-  }()
   private lazy var continueButton: UIButton = {
     let button = UIButton(type: .custom)
     var configuration = UIButton.Configuration.filled()
@@ -129,7 +119,7 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
     return button
   }()
   private lazy var metadataView = UIView(frame: .zero)
-  private var refreshButtonTrailingConstraint: Constraint?
+  private var copyButtonTrailingConstraint: Constraint?
   private var continueButtonTrailingConstraint: Constraint?
   private var remoteImageDidLoadObserver: NSObjectProtocol?
   private var copyResetTimer: Timer?
@@ -142,7 +132,6 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
     contentView.addSubview(metadataView)
     metadataView.addSubview(datetimeLabel)
     metadataView.addSubview(copyButton)
-    metadataView.addSubview(refreshButton)
     metadataView.addSubview(continueButton)
     markdownTextView.snp.makeConstraints { make in
       make.top.leading.trailing.equalToSuperview()
@@ -159,12 +148,7 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
       make.size.equalTo(24)
       make.leading.equalTo(datetimeLabel.snp.trailing).offset(8)
       make.centerY.equalToSuperview()
-    }
-    refreshButton.snp.makeConstraints { make in
-      make.size.equalTo(24)
-      make.leading.equalTo(copyButton.snp.trailing).offset(4)
-      make.centerY.equalToSuperview()
-      refreshButtonTrailingConstraint = make.trailing.equalToSuperview().constraint
+      copyButtonTrailingConstraint = make.trailing.equalToSuperview().constraint
     }
     continueButton.snp.makeConstraints { make in
       make.height.equalTo(24)
@@ -269,20 +253,19 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
   func setDatetime(_ datetime: Date, duration: TimeInterval, isIncomplete: Bool = false) {
     continueButton.isHidden = !isIncomplete
     copyButton.isHidden = isIncomplete
-    refreshButton.isHidden = isIncomplete
     if isIncomplete {
-      refreshButtonTrailingConstraint?.deactivate()
+      copyButtonTrailingConstraint?.deactivate()
       continueButtonTrailingConstraint?.activate()
       datetimeLabel.text = formatDatetime(datetime)
     } else if duration > 0 {
       continueButtonTrailingConstraint?.deactivate()
-      refreshButtonTrailingConstraint?.activate()
+      copyButtonTrailingConstraint?.activate()
       datetimeLabel.text =
         formatDatetime(datetime) + " · " + LocalizedString.forKey("worked") + " "
         + formatElapsedTime(duration)
     } else {
       continueButtonTrailingConstraint?.deactivate()
-      refreshButtonTrailingConstraint?.activate()
+      copyButtonTrailingConstraint?.activate()
       datetimeLabel.text = formatDatetime(datetime)
     }
   }

@@ -2,6 +2,7 @@ import Foundation
 
 public final class AnthropicClient: RemoteChatProviding {
   public let modelIdentity: RemoteModelIdentity
+  public var supportsImageInput: Bool { true }
 
   private let configuration: AnthropicConfiguration
   private let authorization: any RemoteAuthorizationProviding
@@ -28,11 +29,7 @@ public final class AnthropicClient: RemoteChatProviding {
     progress: @escaping (RemoteStreamProgress) -> Void,
     completion: @escaping (Result<RemoteCompletion, RemoteChatError>) -> Void
   ) -> RemoteRequestCancellable {
-    guard messages.allSatisfy({ $0.images.isEmpty }) else {
-      completion(.failure(.imageInputUnsupported))
-      return CompletedRemoteRequest.shared
-    }
-    return RemoteAuthorizedRequest(
+    RemoteAuthorizedRequest(
       authorization: authorization,
       failure: { error in
         completion(

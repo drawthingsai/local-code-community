@@ -254,6 +254,10 @@ extension Array where Element == RemoteContentBlock {
     }
   }
 
+  var remoteThinkingText: String {
+    remoteThinking.compactMap(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n")
+  }
+
   var remoteToolCalls: [RemoteToolCall] {
     compactMap { block in
       guard case .toolCall(let call) = block else { return nil }
@@ -350,7 +354,7 @@ public struct RemoteTranscriptEntry: Equatable, Sendable, Codable {
   }
 
   public var thinkingText: String? {
-    let text = thinking.compactMap(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n")
+    let text = content.remoteThinkingText
     return text.isEmpty ? nil : text
   }
 

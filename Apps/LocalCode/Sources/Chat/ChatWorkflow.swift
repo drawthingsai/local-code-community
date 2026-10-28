@@ -155,6 +155,33 @@ final class ChatWorkflow: Workflow {
   static let chainOfThoughtLineLimit = 40
   var lastPartialResultRendered: CFTimeInterval = 0
 
+  /// The live think cell's text: drop whole chunks of lines so the kept text only grows between
+  /// drops, which is what the think cell animates.
+  static func chainOfThoughtExcerpt(_ thinking: String) -> String {
+    let chainOfThought = thinking.trimmingCharacters(in: .whitespacesAndNewlines)
+    let chainOfThoughtLines = chainOfThought.components(separatedBy: .newlines)
+    let droppedLines =
+      max(chainOfThoughtLines.count - chainOfThoughtLineLimit, 0)
+      / chainOfThoughtLineLimit * chainOfThoughtLineLimit
+    guard droppedLines > 0 else { return chainOfThought }
+    // Reopen a code block the cut lands inside with its own fence, or the rest would parse inside
+    // out. A block closes only on a bare backtick run at least as long as its opener.
+    var openFence: String?
+    for line in chainOfThoughtLines.prefix(droppedLines) {
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      let fence = trimmed.prefix { $0 == "`" }
+      guard fence.count >= 3 else { continue }
+      if let opening = openFence {
+        if fence.count >= opening.count, fence.count == trimmed.count { openFence = nil }
+      } else {
+        openFence = String(fence)
+      }
+    }
+    return
+      (["..."] + (openFence.map { [$0] } ?? [])
+      + chainOfThoughtLines.dropFirst(droppedLines)).joined(separator: "\n")
+  }
+
   var viewControllable: UIViewController {
     navigationController
   }
@@ -2771,7 +2798,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       do {
         let paths = try ChatAttachment.copy(controller.attachments, into: projectURL)
         prompt = ChatAttachment.emitSections(prompt, paths: paths)
-        // Local models also see attached images directly; other files stay links.
+        // Models also see attached images directly; other files stay links.
         imagePaths = paths.filter {
           UTType(filenameExtension: ($0 as NSString).pathExtension)?.conforms(to: .image) == true
         }
@@ -2805,7 +2832,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     setTextToEmpty()
   }
 
-  /// Image paths are relative to the project and only reach local models.
+  /// Image paths are relative to the project.
   private func didTapSend(_ prompt: String, imagePaths: [String] = []) {
     guard !prompt.isEmpty else { return }
     if let projectURL, let threadId = projectHistoryManager?.threadId {
@@ -2838,7 +2865,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     }
     switch codeAgentWrapper {
     case .some(.remote):
-      didTapSendRemote(prompt)
+      didTapSendRemote(prompt, imagePaths: imagePaths)
     case .some(.local):
       didTapSendLocal(prompt, imagePaths: imagePaths, viewController: viewController)
     case nil:
@@ -3531,33 +3558,9 @@ extension ChatWorkflow: ChatInputControllerDelegate {
           $0.request, projectPath: projectPath, workspacePath: workspacePath
         )?.subtitle(for: .past)
       }.joined(separator: "\n")
-      var chainOfThought = thinkText.trimmingCharacters(in: .whitespacesAndNewlines)
-      let chainOfThoughtLines = chainOfThought.components(separatedBy: .newlines)
-      // Drop whole chunks of lines so the kept text only grows between drops, which is what the
-      // think cell animates.
-      let droppedLines =
-        max(chainOfThoughtLines.count - Self.chainOfThoughtLineLimit, 0)
-        / Self.chainOfThoughtLineLimit * Self.chainOfThoughtLineLimit
-      if droppedLines > 0 {
-        // Reopen a code block the cut lands inside with its own fence, or the rest would parse
-        // inside out. A block closes only on a bare backtick run at least as long as its opener.
-        var openFence: String?
-        for line in chainOfThoughtLines.prefix(droppedLines) {
-          let trimmed = line.trimmingCharacters(in: .whitespaces)
-          let fence = trimmed.prefix { $0 == "`" }
-          guard fence.count >= 3 else { continue }
-          if let opening = openFence {
-            if fence.count >= opening.count, fence.count == trimmed.count { openFence = nil }
-          } else {
-            openFence = String(fence)
-          }
-        }
-        chainOfThought =
-          (["..."] + (openFence.map { [$0] } ?? [])
-          + chainOfThoughtLines.dropFirst(droppedLines)).joined(separator: "\n")
-      }
       viewController.setLastMessage(
-        toolCallContext, thinking: chainOfThought, output: "", datetime: nil, duration: 0,
+        toolCallContext, thinking: Self.chainOfThoughtExcerpt(thinkText), output: "", datetime: nil,
+        duration: 0,
         isTransient: true,
         mode: .thinking(tokens, startTime: startTime, bashUserInteraction: bashUserInteraction))
     } else {

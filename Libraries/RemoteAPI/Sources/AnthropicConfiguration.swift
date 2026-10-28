@@ -10,9 +10,10 @@ public struct AnthropicConfiguration: Equatable, Sendable {
   public let maximumEventBytes: Int
   public let maximumErrorBytes: Int
 
+  /// The default request limit leaves room for base64 images, each up to RemoteImage.maximumBytes.
   public init(
     model: String, baseURL: URL = AnthropicConfiguration.defaultBaseURL,
-    maximumOutputTokens: Int = 8_192, maximumRequestBytes: Int = 2 * 1_024 * 1_024,
+    maximumOutputTokens: Int = 8_192, maximumRequestBytes: Int = 32 * 1_024 * 1_024,
     maximumEventBytes: Int = 1 * 1_024 * 1_024, maximumErrorBytes: Int = 64 * 1_024
   ) throws {
     let normalizedBaseURL = try RemoteEndpointURL.normalizedBaseURL(baseURL)
