@@ -100,6 +100,28 @@ On the M5 Max, the DeepSeek 4.1 Flash 1017 readings set Weights Streaming to 56 
 
 On the M5 Ultra, both DeepSeek readings are a second pass in the same session, without the 20-second cool-down before each prefill. For DeepSeek 4.1 Flash 1017, its engram entries are also already in memory.
 
+This chart compares DeepSeek 4.1 Flash 1017 prefill speed on the same M5 Ultra in Local Code and in MLX-Serve v26.10.3, which runs the iQ-MLX 3.0bpw checkpoint. Each reading times only the prefill of an 8,192-token chunk on top of the given amount of context. The Local Code readings come from the same runs as the table above, and the MLX-Serve readings are medians of three runs. The label above each Local Code point is how much faster it is than MLX-Serve.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/prefill-vs-mlx-serve-dark.svg">
+  <img alt="DeepSeek 4.1 Flash 1017 prefill speed on an M5 Ultra, for Local Code and for MLX-Serve. The data is in the table below the chart." src=".github/images/prefill-vs-mlx-serve-light.svg">
+</picture>
+
+<details>
+<summary>Data</summary>
+
+Speeds are in tokens per second.
+
+| Context in use | Local Code (2-bit S) | MLX-Serve (iQ-MLX 3.0bpw) |
+| --- | --- | --- |
+| 0 | 4,547 | 1,945 |
+| 8K | 4,600 | 1,900 |
+| 16K | 4,507 | 1,706 |
+| 32K | 4,431 | 1,217 |
+| 128K | 3,840 | 1,087 |
+
+</details>
+
 To measure your own Mac, open Model Speed in the app, or run the same measurements, at context lengths up to the model's limit, with the CLI:
 
 ```bash
@@ -108,6 +130,13 @@ bazel run -c opt //Apps/LocalCode:LocalCodeCLI -- speedometer \
 ```
 
 ### Benchmarks
+
+This chart compares DeepSeek 4.1 Flash 1017 (2-bit S) in Local Code with the scores DeepSeek reported for DeepSeek 4.1 Flash 0910:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/benchmarks-dark.svg">
+  <img alt="Benchmark scores of DeepSeek 4.1 Flash 1017 (2-bit S) in Local Code, and of DeepSeek 4.1 Flash 0910 as DeepSeek reported them. The data is in the table below the chart." src=".github/images/benchmarks-light.svg">
+</picture>
 
 | Benchmark | [DeepSeek 4.1 Flash 0910](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash) (as reported) | DeepSeek 4.1 Flash 0910 (2-bit S) | DeepSeek 4.1 Flash 1017 (2-bit S) |
 | --- | --- | --- | --- |

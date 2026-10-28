@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="364" viewBox="0 0 760 364" font-family='system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif' role="img" aria-labelledby="title desc">
+<title id="title">Benchmark scores, DeepSeek 4.1 Flash</title>
+<desc id="desc">Scores of Local Code's DeepSeek 4.1 Flash 1017 (2-bit S) and the scores DeepSeek reported for DeepSeek 4.1 Flash 0910 at maximum reasoning effort, on AIME 2026, MathArena Apex and GPQA Diamond. DeepSeek didn't report AIME 2026. Higher is better.</desc>
+<rect x="0.5" y="0.5" width="759" height="363" rx="12" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
+<text x="72" y="34" font-size="16" font-weight="600" fill="#0b0b0b">Benchmark scores, DeepSeek 4.1 Flash</text>
+<rect x="72" y="54" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="90" y="64.5" font-size="13" fill="#52514e">Local Code, 1017 (2-bit S)</text>
+<rect x="305.20000000000005" y="54" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="323.20000000000005" y="64.5" font-size="13" fill="#52514e">DeepSeek, 0910 (as reported)</text>
+<line x1="307.5" y1="88" x2="307.5" y2="298" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="435.0" y1="88" x2="435.0" y2="298" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="562.5" y1="88" x2="562.5" y2="298" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="690.0" y1="88" x2="690.0" y2="298" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="180" y1="88" x2="180" y2="298" stroke="#c3c2b7" stroke-width="1"/>
+<text x="180.0" y="318" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0%</text>
+<text x="307.5" y="318" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">25%</text>
+<text x="435.0" y="318" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">50%</text>
+<text x="562.5" y="318" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">75%</text>
+<text x="690.0" y="318" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">100%</text>
+<text x="435.0" y="344" font-size="12" text-anchor="middle" fill="#52514e">Score (higher is better)</text>
+<text x="168" y="127.5" font-size="13" text-anchor="end" fill="#52514e">AIME 2026</text>
+<path d="M180,102.0 H686.0 A4,4 0 0 1 690.0,106.0 V118.0 A4,4 0 0 1 686.0,122.0 H180 Z" fill="#2a78d6"/>
+<text x="696.0" y="116.0" font-size="12" fill="#52514e" style="font-variant-numeric: tabular-nums">100%</text>
+<text x="186" y="138.0" font-size="12" fill="#898781">Not reported</text>
+<text x="168" y="197.5" font-size="13" text-anchor="end" fill="#52514e">MathArena Apex</text>
+<path d="M180,172.0 H615.2 A4,4 0 0 1 619.2,176.0 V188.0 A4,4 0 0 1 615.2,192.0 H180 Z" fill="#2a78d6"/>
+<text x="625.2" y="186.0" font-size="12" fill="#52514e" style="font-variant-numeric: tabular-nums">86.1%</text>
+<path d="M180,194.0 H510.6 A4,4 0 0 1 514.6,198.0 V210.0 A4,4 0 0 1 510.6,214.0 H180 Z" fill="#eb6834"/>
+<text x="520.6" y="208.0" font-size="12" fill="#52514e" style="font-variant-numeric: tabular-nums">65.6%</text>
+<text x="168" y="267.5" font-size="13" text-anchor="end" fill="#52514e">GPQA Diamond</text>
+<path d="M180,242.0 H652.5 A4,4 0 0 1 656.5,246.0 V258.0 A4,4 0 0 1 652.5,262.0 H180 Z" fill="#2a78d6"/>
+<text x="662.5" y="256.0" font-size="12" fill="#52514e" style="font-variant-numeric: tabular-nums">93.4%</text>
+<path d="M180,264.0 H639.6 A4,4 0 0 1 643.6,268.0 V280.0 A4,4 0 0 1 639.6,284.0 H180 Z" fill="#eb6834"/>
+<text x="649.6" y="278.0" font-size="12" fill="#52514e" style="font-variant-numeric: tabular-nums">90.9%</text>
+</svg>
