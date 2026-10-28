@@ -931,6 +931,7 @@ swift_library(
     deps = [
         ":LocalCodeCLILib",
         "@SwiftArgumentParser//:ArgumentParser",
+        "@s4nnc//nnc",
     ],
 )
 

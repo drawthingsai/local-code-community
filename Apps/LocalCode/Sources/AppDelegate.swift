@@ -3,6 +3,7 @@ import BashToolContext
 import HTML2VideoCommand
 import HyperFramesCommand
 import Localization
+import NNC
 import UIKit
 import UserNotifications
 import ios_system
@@ -146,6 +147,9 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
 
   func applicationWillTerminate(_ application: UIApplication) {
     sceneDelegate?.applicationWillTerminate()
+    // The process exits next. GPU work still in flight can be waiting on CPU threads that die with
+    // it, which would keep the process from finishing exit and freeing its memory.
+    DynamicGraph.abort()
   }
 
   func application(

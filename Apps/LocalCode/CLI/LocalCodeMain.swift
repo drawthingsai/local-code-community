@@ -3,12 +3,22 @@ import Darwin
 import Dispatch
 import Foundation
 import LocalCodeCLI
+import NNC
 
 // ios_system interposes exit(), so terminate with _Exit after saving the run.
 @_cdecl("main")
 func localCodeCLIMain(
   _ argc: Int32, _ argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> Int32 {
+  // Outside an agent run, which handles SIGINT and SIGTERM itself, a kill takes the default
+  // action. Abort first: GPU work can be waiting on CPU threads that die with the process.
+  for number in [SIGINT, SIGTERM, SIGHUP] {
+    signal(number) { number in
+      DynamicGraph.abort()
+      signal(number, SIG_DFL)
+      raise(number)
+    }
+  }
   let arguments = (1..<Int(argc)).compactMap { index in
     argv?[index].map { String(cString: $0) }
   }
@@ -53,6 +63,8 @@ func localCodeCLIMain(
   // Results are already persisted; flush the CLI streams before process teardown.
   fflush(stdout)
   fflush(stderr)
+  // Same for work still in flight here: _Exit kills the CPU threads it may be waiting on.
+  DynamicGraph.abort()
   _Exit(status)
 }
 
