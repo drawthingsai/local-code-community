@@ -3,14 +3,17 @@
 <desc id="desc">KL divergence on Wiki10k, on a log scale, against the size of each checkpoint's weights without the engram table and MTP layers. Lower is better.</desc>
 <rect x="0.5" y="0.5" width="759" height="459" rx="12" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
 <text x="72" y="34" font-size="16" font-weight="600" fill="#f0efec">KL divergence on Wiki10k vs. size, DeepSeek 4.1 Flash 1017</text>
-<line x1="72" y1="60" x2="92" y2="60" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
-<circle cx="82" cy="60" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
-<text x="100" y="64.5" font-size="13" fill="#c3c2b7">Local Code (2-bit S, 3-bit S)</text>
+<line x1="72.0" y1="60" x2="92.0" y2="60" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
+<circle cx="82.0" cy="60.0" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<text x="100.0" y="64.5" font-size="13" fill="#c3c2b7">Local Code (2-bit S, 3-bit S)</text>
 <line x1="315.4" y1="60" x2="335.4" y2="60" stroke="#d95926" stroke-width="2" stroke-linecap="round"/>
-<circle cx="325.4" cy="60" r="5" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="325.4" cy="60.0" r="5" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
 <text x="343.4" y="64.5" font-size="13" fill="#c3c2b7">Unsloth GGUF</text>
-<polygon points="456.59999999999997,54 462.59999999999997,60 456.59999999999997,66 450.59999999999997,60" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
-<text x="474.59999999999997" y="64.5" font-size="13" fill="#c3c2b7">MLX (MLX-Serve, oMLX)</text>
+<polygon points="456.6,54.0 462.6,60.0 456.6,66.0 450.6,60.0" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
+<text x="474.6" y="64.5" font-size="13" fill="#c3c2b7">MLX-Serve</text>
+<line x1="558.0" y1="60" x2="578.0" y2="60" stroke="#c98500" stroke-width="2" stroke-linecap="round"/>
+<rect x="563.0" y="55.0" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
+<text x="586.0" y="64.5" font-size="13" fill="#c3c2b7">oMLX</text>
 <line x1="72" y1="326.8" x2="732" y2="326.8" stroke="#2c2c2a" stroke-width="1"/>
 <text x="62" y="330.8" font-size="12" text-anchor="end" fill="#898781" style="font-variant-numeric: tabular-nums">0.15</text>
 <line x1="72" y1="237.7" x2="732" y2="237.7" stroke="#2c2c2a" stroke-width="1"/>
@@ -30,16 +33,19 @@
 <text transform="translate(20 244.0) rotate(-90)" font-size="12" text-anchor="middle" fill="#c3c2b7">KL divergence (log scale, lower is better)</text>
 <polyline points="163.9,186.1 369.7,331.9" fill="none" stroke="#d95926" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <polyline points="209.8,127.7 429.4,256.0" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="440.7,145.9 663.7,360.4" fill="none" stroke="#c98500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <circle cx="163.9" cy="186.1" r="5" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
 <circle cx="369.7" cy="331.9" r="5" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
 <circle cx="209.8" cy="127.7" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
 <circle cx="429.4" cy="256.0" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
 <polygon points="455.5,224.7 461.5,230.7 455.5,236.7 449.5,230.7" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
-<polygon points="663.7,354.4 669.7,360.4 663.7,366.4 657.7,360.4" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
+<rect x="435.7" y="140.9" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
+<rect x="658.7" y="355.4" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
 <text x="152.9" y="190.6" text-anchor="end" font-size="12" fill="#c3c2b7">UD-IQ2_XXS</text>
 <text x="369.7" y="353.9" text-anchor="middle" font-size="12" fill="#c3c2b7">UD-Q2_K_XL</text>
 <text x="198.8" y="132.2" text-anchor="end" font-size="12" fill="#c3c2b7">2-bit S</text>
 <text x="429.4" y="278.0" text-anchor="middle" font-size="12" fill="#c3c2b7">3-bit S</text>
-<text x="466.5" y="235.2" text-anchor="start" font-size="12" fill="#c3c2b7">MLX-Serve iQ-MLX 3.0bpw</text>
+<text x="455.5" y="203.7" text-anchor="middle" font-size="12" fill="#c3c2b7">MLX-Serve<tspan x="455.5" dy="14">iQ-MLX 3.0bpw</tspan></text>
+<text x="451.7" y="150.4" text-anchor="start" font-size="12" fill="#c3c2b7">oMLX oQ2.5e</text>
 <text x="652.7" y="364.9" text-anchor="end" font-size="12" fill="#c3c2b7">oMLX oQ3e</text>
 </svg>

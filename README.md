@@ -100,11 +100,11 @@ On the M5 Max, the DeepSeek 4.1 Flash 1017 readings set Weights Streaming to 56 
 
 On the M5 Ultra, both DeepSeek readings are a second pass in the same session, without the 20-second cool-down before each prefill. For DeepSeek 4.1 Flash 1017, its engram entries are also already in memory.
 
-This chart compares DeepSeek 4.1 Flash 1017 prefill speed on the same M5 Ultra in Local Code and in MLX-Serve v26.10.3, which runs the iQ-MLX 3.0bpw checkpoint. Each reading times only the prefill of an 8,192-token chunk on top of the given amount of context. The Local Code readings come from the same runs as the table above, and the MLX-Serve readings are medians of three runs. The label above each Local Code point is how much faster it is than MLX-Serve.
+This chart compares DeepSeek 4.1 Flash 1017 prefill speed on the same M5 Ultra in Local Code, in MLX-Serve v26.10.3 with the iQ-MLX 3.0bpw checkpoint, and in oMLX 0.7.2 with the oQ2.5e checkpoint. Each reading times only the prefill of an 8,192-token chunk on top of the given amount of context. The Local Code readings come from the same runs as the table above, and the MLX-Serve and oMLX readings, both with CED on, are medians of three runs. The label above each Local Code point is how much faster it is than the faster of MLX-Serve and oMLX at that context length.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/images/prefill-vs-mlx-serve-dark.svg">
-  <img alt="DeepSeek 4.1 Flash 1017 prefill speed on an M5 Ultra, for Local Code and for MLX-Serve. The data is in the table below the chart." src=".github/images/prefill-vs-mlx-serve-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/prefill-vs-mlx-dark.svg">
+  <img alt="DeepSeek 4.1 Flash 1017 prefill speed on an M5 Ultra, for Local Code, MLX-Serve v26.10.3 and oMLX 0.7.2. The data is in the table below the chart." src=".github/images/prefill-vs-mlx-light.svg">
 </picture>
 
 <details>
@@ -112,13 +112,13 @@ This chart compares DeepSeek 4.1 Flash 1017 prefill speed on the same M5 Ultra i
 
 Speeds are in tokens per second.
 
-| Context in use | Local Code (2-bit S) | MLX-Serve (iQ-MLX 3.0bpw) |
-| --- | --- | --- |
-| 0 | 4,547 | 1,945 |
-| 8K | 4,600 | 1,900 |
-| 16K | 4,507 | 1,706 |
-| 32K | 4,431 | 1,217 |
-| 128K | 3,840 | 1,087 |
+| Context in use | Local Code (2-bit S) | MLX-Serve v26.10.3 (iQ-MLX 3.0bpw) | oMLX 0.7.2 (oQ2.5e) |
+| --- | --- | --- | --- |
+| 0 | 4,547 | 1,945 | 1,529 |
+| 8K | 4,600 | 1,900 | 1,653 |
+| 16K | 4,507 | 1,706 | 1,615 |
+| 32K | 4,431 | 1,217 | 1,558 |
+| 128K | 3,840 | 1,087 | 1,335 |
 
 </details>
 
@@ -180,6 +180,7 @@ Sizes leave out the engram table and the MTP layers. The checkpoints store the e
 | Unsloth UD-IQ2_XXS | 165.3 GB | 0.23621 | 0.034424 |
 | Unsloth UD-Q2_K_XL | 199.6 GB | 0.14755 | 0.021310 |
 | MLX-Serve iQ-MLX 3.0bpw | 213.9 GB | 0.20453 | 0.045695 |
+| oMLX oQ2.5e | 211.5 GB | 0.26888 | 0.045604 |
 | oMLX oQ3e | 248.6 GB | 0.13462 | 0.021685 |
 
 </details>

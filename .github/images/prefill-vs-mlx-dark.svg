@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" font-family='system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif' role="img" aria-labelledby="title desc">
 <title id="title">DeepSeek 4.1 Flash 1017 prefill speed, M5 Ultra (256 GB)</title>
-<desc id="desc">Prefill speed in tokens per second for Local Code (2-bit S) and MLX-Serve (iQ-MLX 3.0bpw), at each amount of context already in use. Higher is better.</desc>
+<desc id="desc">Prefill speed in tokens per second for Local Code (2-bit S), MLX-Serve v26.10.3 (iQ-MLX 3.0bpw) and oMLX 0.7.2 (oQ2.5e), at each amount of context already in use. Higher is better.</desc>
 <rect x="0.5" y="0.5" width="759" height="459" rx="12" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
 <text x="72" y="34" font-size="16" font-weight="600" fill="#f0efec">DeepSeek 4.1 Flash 1017 prefill speed, M5 Ultra (256 GB)</text>
 <line x1="72" y1="60" x2="92" y2="60" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
@@ -8,7 +8,10 @@
 <text x="100" y="64.5" font-size="13" fill="#c3c2b7">Local Code (2-bit S)</text>
 <line x1="256.0" y1="60" x2="276.0" y2="60" stroke="#199e70" stroke-width="2" stroke-linecap="round"/>
 <polygon points="266.0,54.0 272.0,60.0 266.0,66.0 260.0,60.0" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
-<text x="284.0" y="64.5" font-size="13" fill="#c3c2b7">MLX-Serve (iQ-MLX 3.0bpw)</text>
+<text x="284.0" y="64.5" font-size="13" fill="#c3c2b7">MLX-Serve v26.10.3 (iQ-MLX 3.0bpw)</text>
+<line x1="532.4" y1="60" x2="552.4" y2="60" stroke="#c98500" stroke-width="2" stroke-linecap="round"/>
+<rect x="537.4" y="55.0" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
+<text x="560.4" y="64.5" font-size="13" fill="#c3c2b7">oMLX 0.7.2 (oQ2.5e)</text>
 <text x="62" y="400.0" font-size="12" text-anchor="end" fill="#898781" style="font-variant-numeric: tabular-nums">0</text>
 <line x1="72" y1="335.2" x2="656" y2="335.2" stroke="#2c2c2a" stroke-width="1"/>
 <text x="62" y="339.2" font-size="12" text-anchor="end" fill="#898781" style="font-variant-numeric: tabular-nums">1K</text>
@@ -29,12 +32,18 @@
 <text x="364.0" y="442" font-size="12" text-anchor="middle" fill="#c3c2b7">Context already in use (tokens)</text>
 <text transform="translate(20 244.0) rotate(-90)" font-size="12" text-anchor="middle" fill="#c3c2b7">Prefill speed (tokens per second, higher is better)</text>
 <polyline points="96.0,277.7 230.0,280.5 364.0,292.3 498.0,322.0 632.0,329.9" fill="none" stroke="#199e70" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="96.0,303.0 230.0,295.5 364.0,297.8 498.0,301.3 632.0,314.8" fill="none" stroke="#c98500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <polyline points="96.0,119.5 230.0,116.3 364.0,122.0 498.0,126.6 632.0,162.5" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <polygon points="96.0,271.7 102.0,277.7 96.0,283.7 90.0,277.7" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
 <polygon points="230.0,274.5 236.0,280.5 230.0,286.5 224.0,280.5" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
 <polygon points="364.0,286.3 370.0,292.3 364.0,298.3 358.0,292.3" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
 <polygon points="498.0,316.0 504.0,322.0 498.0,328.0 492.0,322.0" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
 <polygon points="632.0,323.9 638.0,329.9 632.0,335.9 626.0,329.9" fill="#199e70" stroke="#1a1a19" stroke-width="2" stroke-linejoin="round"/>
+<rect x="91.0" y="298.0" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
+<rect x="225.0" y="290.5" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
+<rect x="359.0" y="292.8" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
+<rect x="493.0" y="296.3" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
+<rect x="627.0" y="309.8" width="10" height="10" rx="1.5" fill="#c98500" stroke="#1a1a19" stroke-width="2"/>
 <circle cx="96.0" cy="119.5" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
 <circle cx="230.0" cy="116.3" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
 <circle cx="364.0" cy="122.0" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
@@ -43,8 +52,9 @@
 <text x="96.0" y="106.5" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">2.34×</text>
 <text x="230.0" y="103.3" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">2.42×</text>
 <text x="364.0" y="109.0" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">2.64×</text>
-<text x="498.0" y="113.6" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">3.64×</text>
-<text x="632.0" y="149.5" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">3.53×</text>
+<text x="498.0" y="113.6" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">2.84×</text>
+<text x="632.0" y="149.5" font-size="12" text-anchor="middle" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">2.88×</text>
 <text x="644.0" y="334.4" font-size="12" fill="#c3c2b7">MLX-Serve</text>
+<text x="644.0" y="319.3" font-size="12" fill="#c3c2b7">oMLX</text>
 <text x="644.0" y="167.0" font-size="12" fill="#c3c2b7">Local Code</text>
 </svg>
