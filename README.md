@@ -74,13 +74,26 @@ bazel run -c opt //Apps/LocalCode:LocalCodeCLI -- speedometer \
 
 Reported scores are from the model card, at maximum reasoning effort. The 2-bit S MathArena Apex scores average two runs of its 12 problems.
 
+Average output tokens per problem, reasoning included:
+
+| Benchmark | DeepSeek 4.1 Flash 0910 (as reported) | DeepSeek 4.1 Flash 0910 (2-bit S) | DeepSeek 4.1 Flash 1017 (2-bit S) |
+| --- | --- | --- | --- |
+| AIME 2026 | — | TBD | TBD |
+| MathArena Apex | TBD | TBD | TBD |
+| GPQA Diamond | TBD | TBD | TBD |
+
 ### Quantization Quality
 
-KL divergence (KLD) measures how far a quantized model's predictions drift from the original model's. Lower is closer. This chart compares the KLD on Wiki10k of DeepSeek 4.1 Flash 1017 quantizations against the size of their weights:
+KL divergence (KLD) measures how far a quantized model's predictions drift from the original model's. Lower is closer. These charts compare the KLD of DeepSeek 4.1 Flash 1017 quantizations against the size of their weights, on two datasets: Wiki10k, and conversation traces (only assistant tokens).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/images/kld-vs-size-dark.svg">
-  <img alt="KL divergence against size for DeepSeek 4.1 Flash 1017 quantizations. The data is in the table below the chart." src=".github/images/kld-vs-size-light.svg">
+  <img alt="KL divergence on Wiki10k against size for DeepSeek 4.1 Flash 1017 quantizations. The data is in the table below the charts." src=".github/images/kld-vs-size-light.svg">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/kld-conversation-traces-vs-size-dark.svg">
+  <img alt="KL divergence on conversation traces, only assistant tokens, against size for DeepSeek 4.1 Flash 1017 quantizations. The data is in the table below the charts." src=".github/images/kld-conversation-traces-vs-size-light.svg">
 </picture>
 
 Sizes leave out the engram table and the MTP layers. The checkpoints store the engram table at different precisions, and only the MLX checkpoints include MTP layers.
@@ -88,14 +101,14 @@ Sizes leave out the engram table and the MTP layers. The checkpoints store the e
 <details>
 <summary>Data</summary>
 
-| Checkpoint | Size of weights | KLD |
-| --- | --- | --- |
-| Local Code 2-bit S | 173.0 GB | 0.28516 |
-| Local Code 3-bit S | 209.6 GB | 0.18850 |
-| Unsloth UD-IQ2_XXS | 165.3 GB | 0.23621 |
-| Unsloth UD-Q2_K_XL | 199.6 GB | 0.14755 |
-| MLX-Serve iQ-MLX 3.0bpw | 213.9 GB | 0.20453 |
-| oMLX oQ3e | 248.6 GB | 0.13462 |
+| Checkpoint | Size of weights | KLD, Wiki10k | KLD, conversation traces (only assistant tokens) |
+| --- | --- | --- | --- |
+| Local Code 2-bit S | 173.0 GB | 0.28516 | 0.050512 |
+| Local Code 3-bit S | 209.6 GB | 0.18850 | 0.027868 |
+| Unsloth UD-IQ2_XXS | 165.3 GB | 0.23621 | 0.034424 |
+| Unsloth UD-Q2_K_XL | 199.6 GB | 0.14755 | 0.021310 |
+| MLX-Serve iQ-MLX 3.0bpw | 213.9 GB | 0.20453 | 0.045695 |
+| oMLX oQ3e | 248.6 GB | 0.13462 | 0.021685 |
 
 </details>
 

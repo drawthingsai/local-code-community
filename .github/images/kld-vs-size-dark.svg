@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" font-family='system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif' role="img" aria-labelledby="title desc">
-<title id="title">KL divergence vs. size, DeepSeek 4.1 Flash 1017</title>
+<title id="title">KL divergence on Wiki10k vs. size, DeepSeek 4.1 Flash 1017</title>
 <desc id="desc">KL divergence on Wiki10k, on a log scale, against the size of each checkpoint's weights without the engram table and MTP layers. Lower is better.</desc>
 <rect x="0.5" y="0.5" width="759" height="459" rx="12" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
-<text x="72" y="34" font-size="16" font-weight="600" fill="#f0efec">KL divergence vs. size, DeepSeek 4.1 Flash 1017</text>
+<text x="72" y="34" font-size="16" font-weight="600" fill="#f0efec">KL divergence on Wiki10k vs. size, DeepSeek 4.1 Flash 1017</text>
 <line x1="72" y1="60" x2="92" y2="60" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
 <circle cx="82" cy="60" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
 <text x="100" y="64.5" font-size="13" fill="#c3c2b7">Local Code (2-bit S, 3-bit S)</text>
@@ -27,7 +27,7 @@
 <text x="612.0" y="416" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">240</text>
 <text x="732.0" y="416" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">260</text>
 <text x="402.0" y="442" font-size="12" text-anchor="middle" fill="#c3c2b7">Size of weights, without the engram table and MTP layers (GB)</text>
-<text transform="translate(20 244.0) rotate(-90)" font-size="12" text-anchor="middle" fill="#c3c2b7">KL divergence on Wiki10k (log scale, lower is better)</text>
+<text transform="translate(20 244.0) rotate(-90)" font-size="12" text-anchor="middle" fill="#c3c2b7">KL divergence (log scale, lower is better)</text>
 <polyline points="163.9,186.1 369.7,331.9" fill="none" stroke="#d95926" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <polyline points="209.8,127.7 429.4,256.0" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <circle cx="163.9" cy="186.1" r="5" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
