@@ -1664,7 +1664,7 @@ final class ChatWorkflow: Workflow {
       nil, animated: animated)
   }
 
-  func restoreSelectedThread() {
+  func restoreSelectedThread(appendingDraft draft: String? = nil) {
     restoredUserNode = nil
     guard let projectHistoryManager,
       let projectURL,
@@ -1717,7 +1717,7 @@ final class ChatWorkflow: Workflow {
             codeAgent: residentCodeAgent, projectPath: projectURL.path)
         }
       } else {
-        restoreDraftIfNeeded(from: &history)
+        restoreDraftIfNeeded(from: &history, appendingDraft: draft)
         viewController.setHistory(historyMessages(from: history))
         chatInputController.sendState = .idle
       }
@@ -1815,12 +1815,15 @@ final class ChatWorkflow: Workflow {
     codeAgentWrapper = .local(textGenerator, nil)
     settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
     setLocalContextUsed()
-    restoreDraftIfNeeded(from: &history)
+    restoreDraftIfNeeded(from: &history, appendingDraft: draft)
     viewController.setHistory(historyMessages(from: history))
     chatInputController.sendState = .idle
   }
 
-  func restoreDraftIfNeeded(from history: inout [ProjectHistoryNode]) {
+  /// A draft typed while a turn ran stays in the input after what goes back to it.
+  func restoreDraftIfNeeded(
+    from history: inout [ProjectHistoryNode], appendingDraft draft: String? = nil
+  ) {
     restoredUserNode = nil
     let queuedItems = self.queuedItems
     var prompts = queuedItems.compactMap(\.text)
@@ -1856,6 +1859,11 @@ final class ChatWorkflow: Workflow {
       }
       restoredUserNode = (threadId: node.threadId, datetime: node.datetime)
       history.remove(at: index)
+    }
+    if !prompts.isEmpty, let draft = draft?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !draft.isEmpty
+    {
+      prompts.append(draft)
     }
     if !prompts.isEmpty {
       // Sent attachments are already in the project; restore their cards from each message.
@@ -2716,6 +2724,25 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       queuedItems = steeredItems
     }
     guard !queuedItems.isEmpty else { return }
+    let isRestoringUserNode = restoredUserNode != nil && steeredItems.isEmpty
+    // Stopping without a steer hands the queue back to the input instead of sending it.
+    let isRestoringQueue = isStopping && steeredItems.isEmpty
+    // Like a new turn, sending downloads a model whose files were removed. The queue stays
+    // until then, so it goes out once the download finishes.
+    if !isRestoringUserNode, !isRestoringQueue, case .some(.local) = codeAgentWrapper,
+      let file = selectedLLM, let specification = LLMZoo.specificationForModel(file),
+      !LLMZoo.isModelDownloaded(specification)
+    {
+      let threadId = projectHistoryManager.threadId
+      downloadLLMModel(specification) { [weak self] success in
+        guard let self, success, self.chatInputController.sendState == .idle,
+          self.projectHistoryManager === projectHistoryManager,
+          self.projectHistoryManager?.threadId == threadId
+        else { return }
+        self.continueWithQueuedItems(resending: stoppedMessage)
+      }
+      return
+    }
     defer {
       projectWorkspace.performChanges([ProjectQueuedItem.self]) { transactionContext in
         let deletionRequests = queuedItems.compactMap {
@@ -2726,9 +2753,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         }
       }
     }
-    let isRestoringUserNode = restoredUserNode != nil && steeredItems.isEmpty
-    // Stopping without a steer hands the queue back to the input instead of sending it.
-    let isRestoringQueue = isStopping && steeredItems.isEmpty
     let draft = chatInputController.text
     var prompts = queuedItems.compactMap(\.text)
     var imagePaths = queuedItems.flatMap(\.imagePaths)
@@ -2746,40 +2770,47 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         prompts.append(draft)
       }
     }
-    let prompt = prompts.joined(separator: "\n\n")
-    if isRestoringUserNode || isRestoringQueue {
-      // Queued attachments are already in the project; restore their cards from each message.
-      let sections = prompts.map(ChatAttachment.parseSections)
-      let text = sections.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n")
-      let paths = sections.flatMap(\.paths)
-      if textHistoryManager.currentPositiveText != text {
+    if !isRestoringUserNode, !isRestoringQueue {
+      let prompt = prompts.joined(separator: "\n\n")
+      if textHistoryManager.currentPositiveText != prompt {
         textHistoryManager.pushChange(
           range: NSRange(
             location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
-          replacementText: text, textType: .positiveText)
+          replacementText: prompt, textType: .positiveText)
       }
-      chatInputController.setText(textHistoryManager.currentPositiveText)
-      if let projectURL {
-        chatInputController.addAttachments(
-          projectFiles: paths.map { projectURL.appendingPathComponent($0) })
+      if didTapSend(prompt, imagePaths: imagePaths) {
+        if textHistoryManager.currentPositiveText != draft {
+          textHistoryManager.pushChange(
+            range: NSRange(
+              location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
+            replacementText: draft, textType: .positiveText)
+          updateTextHistoryPointers()
+        }
+        return
       }
-      updateTextHistoryPointers()
-      return
+      // A queue that didn't go out, such as one waiting on a model download, goes back to the
+      // input like a stopped one, ahead of the draft.
+      let draft = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !draft.isEmpty {
+        prompts.append(draft)
+      }
     }
-    if textHistoryManager.currentPositiveText != prompt {
+    // Queued attachments are already in the project; restore their cards from each message.
+    let sections = prompts.map(ChatAttachment.parseSections)
+    let text = sections.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n")
+    let paths = sections.flatMap(\.paths)
+    if textHistoryManager.currentPositiveText != text {
       textHistoryManager.pushChange(
         range: NSRange(
           location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
-        replacementText: prompt, textType: .positiveText)
+        replacementText: text, textType: .positiveText)
     }
-    didTapSend(prompt, imagePaths: imagePaths)
-    if textHistoryManager.currentPositiveText != draft {
-      textHistoryManager.pushChange(
-        range: NSRange(
-          location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
-        replacementText: draft, textType: .positiveText)
-      updateTextHistoryPointers()
+    chatInputController.setText(textHistoryManager.currentPositiveText)
+    if let projectURL {
+      chatInputController.addAttachments(
+        projectFiles: paths.map { projectURL.appendingPathComponent($0) })
     }
+    updateTextHistoryPointers()
   }
 
   func chatInputController(
@@ -3080,7 +3111,9 @@ extension ChatWorkflow: ChatInputControllerDelegate {
                   )
                 })
             } else {
-              self.restoreSelectedThread()
+              // A turn without output puts its message back in the input, ahead of what was typed
+              // meanwhile.
+              self.restoreSelectedThread(appendingDraft: self.chatInputController.text)
               self.chatInputController.sendState = .idle
               if let didStopHandler = self.didStopHandler {
                 self.didStopHandler = nil
