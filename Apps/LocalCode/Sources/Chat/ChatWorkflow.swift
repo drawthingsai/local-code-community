@@ -607,7 +607,7 @@ final class ChatWorkflow: Workflow {
       projectURL: projectURL, threadId: threadId, title: thread.title ?? "", duration: duration)
   }
 
-  private func updateTextHistoryPointers() {
+  func updateTextHistoryPointers() {
     chatInputController.maxTextHistoryPointer = textHistoryManager.maxEdits
     chatInputController.textHistoryPointer = textHistoryManager.currentEdits
   }
@@ -2631,7 +2631,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     updateTextHistoryPointers()
   }
 
-  private func setTextToEmpty() {
+  func setTextToEmpty() {
     // Reset the text history.
     let _ = textHistoryManager.seek(to: 0, lineage: 0)
     textHistoryManager.pushChange(
@@ -2814,27 +2814,17 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         return
       }
     }
-    if case .some(.remote(let remoteChatProvider)) = codeAgentWrapper,
-      remoteChatProvider.profile == nil
-    {
-      didTapSend(prompt)
-      return
+    // A message that didn't go out, such as one waiting on provider setup or a model download,
+    // stays in the input to send again.
+    if didTapSend(prompt, imagePaths: imagePaths) {
+      setTextToEmpty()
     }
-    if case .some(.local) = codeAgentWrapper, let file = selectedLLM,
-      let specification = LLMZoo.specificationForModel(file),
-      !LLMZoo.isModelDownloaded(specification)
-    {
-      // Keep the draft editable while downloading, including after cancellation or failure.
-      didTapSend(prompt, imagePaths: imagePaths)
-      return
-    }
-    didTapSend(prompt, imagePaths: imagePaths)
-    setTextToEmpty()
   }
 
-  /// Image paths are relative to the project.
-  private func didTapSend(_ prompt: String, imagePaths: [String] = []) {
-    guard !prompt.isEmpty else { return }
+  /// Image paths are relative to the project. Returns whether the message was sent or queued.
+  @discardableResult
+  private func didTapSend(_ prompt: String, imagePaths: [String] = []) -> Bool {
+    guard !prompt.isEmpty else { return false }
     if let projectURL, let threadId = projectHistoryManager?.threadId {
       transientErrorMessages[
         ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId)] = nil
@@ -2844,7 +2834,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     if chatInputController.sendState != .idle || hasIncompleteResponse {
       guard let projectWorkspace, let projectHistoryManager,
         projectHistoryManager.threadId >= 0
-      else { return }
+      else { return false }
       let wallClock = Int64(Date().timeIntervalSince1970 * 1_000)
       let datetime = max(wallClock, (queuedItems.last?.datetime ?? -1) + 1)
       let queuedItem = ProjectQueuedItem(
@@ -2861,25 +2851,26 @@ extension ChatWorkflow: ChatInputControllerDelegate {
           self.continueIncompleteResponse()
         }
       }
-      return
+      return true
     }
     switch codeAgentWrapper {
     case .some(.remote):
-      didTapSendRemote(prompt, imagePaths: imagePaths)
+      return didTapSendRemote(prompt, imagePaths: imagePaths)
     case .some(.local):
-      didTapSendLocal(prompt, imagePaths: imagePaths, viewController: viewController)
+      return didTapSendLocal(prompt, imagePaths: imagePaths, viewController: viewController)
     case nil:
-      return
+      return false
     }
   }
 
   private func didTapSendLocal(
     _ prompt: String, imagePaths: [String], viewController: any ChatViewControllable
-  ) {
+  ) -> Bool {
     guard let file = selectedLLM,
       let specification = LLMZoo.specificationForModel(file)
-    else { return }
+    else { return false }
     guard LLMZoo.isModelDownloaded(specification) else {
+      // Keep the draft editable while downloading, including after cancellation or failure.
       let projectHistoryManager = self.projectHistoryManager
       let threadId = projectHistoryManager?.threadId
       let draft = chatInputController.text
@@ -2890,24 +2881,25 @@ extension ChatWorkflow: ChatInputControllerDelegate {
           self.projectHistoryManager?.threadId == threadId,
           self.chatInputController.text == draft
         else { return }
-        self.didTapSend(prompt, imagePaths: imagePaths)
-        self.setTextToEmpty()
+        if self.didTapSend(prompt, imagePaths: imagePaths) {
+          self.setTextToEmpty()
+        }
       }
-      return
+      return false
     }
-    guard let projectHistoryManager, let projectWorkspace, let projectURL else { return }
+    guard let projectHistoryManager, let projectWorkspace, let projectURL else { return false }
     var prefixTokens = [Int32]()
     var prefixEmbedSpans = [EmbedSpan]()
     if projectHistoryManager.threadId >= 0 {
       guard let thread = projectHistoryManager.thread(id: projectHistoryManager.threadId) else {
-        return
+        return false
       }
       if thread.model != file {
         let history = projectHistoryManager.history(threadId: projectHistoryManager.threadId)
         guard
           let convertedHistory = convertedHistoryForLocalModel(
             history, sourceModel: thread.model ?? file, targetModel: file)
-        else { return }
+        else { return false }
         (prefixTokens, prefixEmbedSpans) = ProjectHistoryManager.context(history: convertedHistory)
         let historyIsUnchanged = convertedHistory.elementsEqual(
           history,
@@ -2923,7 +2915,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
             id: projectHistoryManager.threadId, model: file)
           : projectHistoryManager.rewriteHistory(
             threadId: projectHistoryManager.threadId, nodes: convertedHistory, model: file)
-        guard didUpdateHistory else { return }
+        guard didUpdateHistory else { return false }
       } else {
         (prefixTokens, prefixEmbedSpans) = projectHistoryManager.context(
           threadId: projectHistoryManager.threadId)
@@ -2931,7 +2923,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     }
     guard case .some(.local(let selectedTextGenerator, let existingCodeAgent)) = codeAgentWrapper,
       URL(fileURLWithPath: selectedTextGenerator.filePath).lastPathComponent == file
-    else { return }
+    else { return false }
     let textGenerator: any TextGenerator
     let codeAgent: any CodeAgent
     if let existingCodeAgent, agentScheduler.file == file {
@@ -2946,7 +2938,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
           fromSuspension: false),
         case .local(let newTextGenerator, let newCodeAgent) = newWrapper,
         let newCodeAgent
-      else { return }
+      else { return false }
       codeAgentWrapper = newWrapper
       textGenerator = newTextGenerator
       codeAgent = newCodeAgent
@@ -2989,7 +2981,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       }
       guard let userNode else {
         restoreSelectedThread()
-        return
+        return false
       }
       userDatetime = userNode.datetime
     }
@@ -3007,6 +2999,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       imagePaths: imagePaths, threadId: threadId,
       projectURL: projectURL, projectWorkspace: projectWorkspace,
       projectHistoryManager: projectHistoryManager, startTime: startTime)
+    return true
   }
 
   private func scheduleLocalTurn(

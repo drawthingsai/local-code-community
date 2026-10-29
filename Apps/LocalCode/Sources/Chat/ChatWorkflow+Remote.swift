@@ -280,14 +280,16 @@ extension ChatWorkflow {
     browserWorkflows.removeValue(forKey: ProjectThreadIdentifier(thread: thread))?.close()
   }
 
-  func didTapSendRemote(_ prompt: String, imagePaths: [String] = []) {
+  /// Returns whether the message was sent.
+  @discardableResult
+  func didTapSendRemote(_ prompt: String, imagePaths: [String] = []) -> Bool {
     guard chatInputController.sendState == .idle,
       case .some(.remote(let remoteChatProvider)) = codeAgentWrapper
-    else { return }
+    else { return false }
     let provider = remoteChatProvider.provider
     if prompt.caseInsensitiveCompare("/status") == .orderedSame {
       sendRemoteStatus(remoteChatProvider: remoteChatProvider, viewController: viewController)
-      return
+      return true
     }
     guard let profile = remoteChatProvider.profile else {
       if provider.account(in: workspace) != nil {
@@ -295,7 +297,7 @@ extension ChatWorkflow {
       } else {
         presentRemoteProviderConfiguration(provider)
       }
-      return
+      return false
     }
     guard let projectURL, let projectHistoryManager else {
       let alertController = UIAlertController(
@@ -306,7 +308,7 @@ extension ChatWorkflow {
       alertController.addAction(
         UIAlertAction(title: LocalizedString.forKey("ok"), style: .default))
       presentedViewController.present(alertController, animated: true)
-      return
+      return false
     }
     guard workspace.dictionary["remote_api_disclosure_acknowledged", Bool.self] == true else {
       let alertController = UIAlertController(
@@ -322,10 +324,13 @@ extension ChatWorkflow {
             remoteChatProvider.provider == provider
           else { return }
           workspace.dictionary["remote_api_disclosure_acknowledged", Bool.self] = true
-          didTapSendRemote(prompt, imagePaths: imagePaths)
+          // The disclosure shows before the first remote send, which comes from the input.
+          if didTapSendRemote(prompt, imagePaths: imagePaths) {
+            setTextToEmpty()
+          }
         })
       presentedViewController.present(alertController, animated: true)
-      return
+      return false
     }
 
     let textEdits = textHistoryManager.currentEdits
@@ -349,8 +354,8 @@ extension ChatWorkflow {
       conversationModel = threadModel
     } else {
       threadId = projectHistoryManager.threadId
-      guard let thread = projectHistoryManager.thread(id: threadId) else { return }
-      guard let sourceModel = thread.model ?? selectedLLM else { return }
+      guard let thread = projectHistoryManager.thread(id: threadId) else { return false }
+      guard let sourceModel = thread.model ?? selectedLLM else { return false }
       if thread.model != threadModel {
         // Only local models store tokens; any other thread (a remote provider's, including one
         // this build no longer knows) already keeps plain text and only needs its model updated.
@@ -358,7 +363,7 @@ extension ChatWorkflow {
           || LLMZoo.specificationForModel(sourceModel) == nil
         {
           guard projectHistoryManager.updateThreadModel(id: threadId, model: threadModel) else {
-            return
+            return false
           }
         } else {
           let history = projectHistoryManager.history(threadId: threadId)
@@ -367,7 +372,7 @@ extension ChatWorkflow {
               history, sourceModel: sourceModel),
             projectHistoryManager.rewriteHistory(
               threadId: threadId, nodes: convertedHistory, model: threadModel)
-          else { return }
+          else { return false }
         }
       }
       let userNode: ProjectHistoryNode?
@@ -382,7 +387,7 @@ extension ChatWorkflow {
       }
       guard let userNode else {
         restoreRemoteConversation()
-        return
+        return false
       }
       userDatetime = userNode.datetime
       conversationModel = threadModel
@@ -506,6 +511,23 @@ extension ChatWorkflow {
           if self.isSelected(remoteChatProvider, conversation: conversationID) {
             viewController.setLastMessage(
               text, duration: duration, isTransient: false, mode: .none)
+            // A message that failed goes back to the input to send again, unless something new
+            // was typed there meanwhile. Its attachments are already in the project.
+            if case .failure = result, !wasCancelled,
+              self.chatInputController.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty,
+              self.chatInputController.attachments.isEmpty
+            {
+              let sections = ChatAttachment.parseSections(prompt)
+              self.textHistoryManager.pushChange(
+                range: NSRange(
+                  location: 0, length: self.textHistoryManager.currentPositiveText.utf16.count),
+                replacementText: sections.text, textType: .positiveText)
+              self.chatInputController.setText(self.textHistoryManager.currentPositiveText)
+              self.chatInputController.addAttachments(
+                projectFiles: sections.paths.map { projectURL.appendingPathComponent($0) })
+              self.updateTextHistoryPointers()
+            }
             self.continueWithQueuedItems()
           }
           if case .success = result, !wasCancelled, !remoteChatProvider.isActive(conversationID) {
@@ -515,6 +537,7 @@ extension ChatWorkflow {
           }
         })
     }
+    return true
   }
 
   func restoreRemoteConversation() {
