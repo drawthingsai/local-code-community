@@ -122,7 +122,7 @@ final class ModelSpeedWorkflow: Workflow {
 
   private func makeSpeedometer(model: String) -> (any Speedometer)? {
     guard let specification = LLMZoo.specificationForModel(model),
-      LLMZoo.isModelDownloaded(specification),
+      LLMZoo.isModelDownloaded(specification, required: true),
       let textGenerator = delegate?.modelSpeedWorkflow(self, textGeneratorToRun: model)
     else { return nil }
     // Runs think and sample the way the chat does.

@@ -169,10 +169,15 @@ struct SpeedometerCLI: ParsableCommand {
         throw ValidationError("Engram companion does not exist: \(engramPath)")
       }
       speedometer = DeepSeek4Speedometer(
+        // Without the drafter beside the checkpoint, decoding runs without DSpark.
         textGenerator: DeepSeek4_1TextGenerator(
           filePath: checkpoint, engramFilePath: engramPath, chunkedPrefillMaxLength: chunkLength,
           weightsStreaming: weightsStreaming.flatMap(
-            DeviceCapability.WeightsStreaming.init(rawValue:))),
+            DeviceCapability.WeightsStreaming.init(rawValue:)),
+          drafterFile: specification.draftFile.map {
+            URL(fileURLWithPath: checkpoint).deletingLastPathComponent().appendingPathComponent($0)
+              .path
+          }),
         contextLengths: contextLengths, graph: graph, streamContext: stream,
         storePath: storePath, libraryURL: libraryURL, thinkingBudget: thinkingBudget,
         deterministic: deterministic)

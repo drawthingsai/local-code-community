@@ -217,7 +217,10 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     var usesVisualRouting = false
     private var cachedVit: ModelBuilder<(height: Int, width: Int)>?
     private var cachedDrafter: ModelBuilder<(mainRows: Int, temperature: Float)>?
-    let usesDrafter: Bool
+    let drafterFile: String?
+    // Whether this load drafts, decided with its tier: the drafter's file has to be there, and the
+    // tier left beside it has to be above 16 GiB.
+    private(set) var usesDrafter = false
     private var cachedDecoder:
       ModelBuilder<
         (
@@ -235,8 +238,14 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
       >
     {
       if let cachedDecoder { return cachedDecoder }
+      usesDrafter = drafterFile.map { FileManager.default.fileExists(atPath: $0) } ?? false
       weightsStreaming = DeviceCapability.WeightsStreaming.residentTierForDeepSeek4_1(
         requested: requestedWeightsStreaming, draft: usesDrafter)
+      if usesDrafter, weightsStreaming != .disabled, weightsStreaming.rawValue <= 16 {
+        usesDrafter = false
+        weightsStreaming = DeviceCapability.WeightsStreaming.residentTierForDeepSeek4_1(
+          requested: requestedWeightsStreaming, draft: false)
+      }
       configuration.expertResidentSlots = weightsStreaming.expertResidentSlotsForDeepSeek4_1
       let config = configuration
       let decoder = ModelBuilder<
@@ -291,10 +300,10 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
 
     init(
       configuration: DeepSeek4_1ModelConfiguration,
-      weightsStreaming: DeviceCapability.WeightsStreaming?, usesDrafter: Bool
+      weightsStreaming: DeviceCapability.WeightsStreaming?, drafterFile: String?
     ) {
       self.configuration = configuration
-      self.usesDrafter = usesDrafter
+      self.drafterFile = drafterFile
       requestedWeightsStreaming = weightsStreaming
       self.weightsStreaming = weightsStreaming ?? DeviceCapability.weightsStreaming
     }
@@ -326,7 +335,8 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
   // "SWA Bounded Replay" in the paper. The final 128 positions may cross modality boundaries.
   public let boundedReplay: Bool
   /// The DSpark drafter's store. With it, each decode step drafts a block and verifies a prefix
-  /// of it, greedy or sampled.
+  /// of it, greedy or sampled. A load drafts only when the file exists and the weights tier it
+  /// leaves is above 16 GiB; otherwise it decodes without it.
   public let drafterFile: String?
   /// Verify this many rows every step (1 + drafts). When nil, steps choose their rows, except
   /// under weights streaming, which holds 4.
@@ -385,8 +395,7 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     self.drafterFile = drafterFile
     self.dsparkRows = dsparkRows
     self.storage = Storage(
-      configuration: configuration, weightsStreaming: weightsStreaming,
-      usesDrafter: drafterFile != nil)
+      configuration: configuration, weightsStreaming: weightsStreaming, drafterFile: drafterFile)
   }
 }
 
@@ -547,7 +556,14 @@ extension DeepSeek4_1TextGenerator {
     let draft = DeepSeek4_1DSparkConfiguration.deepSeekV4_1Flash
     // A step verifies the pending token and at most the whole drafted block.
     let maxDraftLength = draft.blockSize + 1
-    if drafterFile != nil, kvCache.draftCache.isEmpty {
+    // Building the decoder picks this load's tier, and with it whether the load drafts.
+    let decoder = storage.decoder
+    let drafting = storage.usesDrafter
+    if !drafting {
+      // A session continued from a load that drafted keeps no drafter state into this one.
+      kvCache.draftCache = []
+      kvCache.draftData = nil
+    } else if kvCache.draftCache.isEmpty {
       // Once a draft's view would run past the end, its window moves to the front; four windows
       // keep that copy clear of itself. Zeros keep the keys the masks close finite.
       kvCache.draftCache = (0..<draft.stages).map { _ in
@@ -569,7 +585,6 @@ extension DeepSeek4_1TextGenerator {
     let oldFlags = DynamicGraph.flags
     DynamicGraph.flags.insert(.disableMFAAttentionSpecializingC)
     defer { DynamicGraph.flags = oldFlags }
-    let decoder = storage.decoder
     let emptyTokens = graph.variable(.GPU(0), format: .NHWC, shape: [0], of: Int32.self)
     let emptyEmbeddings = graph.variable(.GPU(0), format: .NHWC, shape: [0], of: Float16.self)
     var encodedImages = [[UInt8]: DynamicGraph.Tensor<Float16>]()
@@ -700,7 +715,7 @@ extension DeepSeek4_1TextGenerator {
           cachedRawTokenLengths: compileRawTokenLengths, tokenLength: compileTokenLength,
           boundedReplayTokens: compileReplayTokens,
           // Reserve logits for a DSpark verify, which would otherwise outgrow the compiled graph.
-          logitTokenLength: drafterFile != nil ? maxDraftLength : 1
+          logitTokenLength: drafting ? maxDraftLength : 1
         ),
         inputs: [compileTokens, emptyEmbeddings] + inputs, isEager: isEager)
     }
@@ -745,7 +760,7 @@ extension DeepSeek4_1TextGenerator {
           } catch {
             preconditionFailure("Cannot load DeepSeek 4.1 weights: \(error)")
           }
-          if let drafterFile {
+          if drafting, let drafterFile = storage.drafterFile {
             let drafter = storage.drafter
             // Build at a step's longest shape, so the read below sees every parameter.
             let viewRows = config.rawWindow + maxDraftLength + draft.blockSize
@@ -958,7 +973,7 @@ extension DeepSeek4_1TextGenerator {
             rotary: prefillRotary, rotaryStart: prefillRotaryStart)
           let outputs = decoder(lengths, inputs: inputTokens, [injected] + inputs)
           let logits = outputs[0].as(of: Float16.self)
-          if end == tokenLength, drafterFile != nil {
+          if end == tokenLength, drafting {
             // The final chunk's replay covers the last rawWindow prompt positions.
             let rows = layerLengths[draft.targetLayers[0]]
             extendDraftData(

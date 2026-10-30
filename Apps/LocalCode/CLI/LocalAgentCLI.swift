@@ -207,10 +207,15 @@ struct LocalAgentCLI: ParsableCommand {
       else {
         throw ValidationError("Engram companion does not exist: \(engramPath)")
       }
+      // Without the drafter beside the checkpoint, decoding runs without DSpark.
       let generator = DeepSeek4_1TextGenerator(
         filePath: checkpoint, engramFilePath: engramPath, chunkedPrefillMaxLength: chunkLength,
         weightsStreaming: weightsStreaming.flatMap(
-          DeviceCapability.WeightsStreaming.init(rawValue:)))
+          DeviceCapability.WeightsStreaming.init(rawValue:)),
+        drafterFile: specification.draftFile.map {
+          URL(fileURLWithPath: checkpoint).deletingLastPathComponent().appendingPathComponent($0)
+            .path
+        })
       agent = DeepSeek4CodeAgent(
         textGenerator: generator, graph: graph, streamContext: stream,
         unsafeTokenizer: DeepSeek4_1TextGenerator.unsafeTokenizer,
@@ -393,11 +398,11 @@ struct LocalModelsCLI: ParsableCommand {
     for specification in LLMZoo.builtinSpecifications {
       let installed: Bool
       if let directory {
-        installed = ([specification.file] + [specification.engram].compactMap { $0 }).allSatisfy {
+        installed = specification.requiredFiles.allSatisfy {
           FileManager.default.fileExists(atPath: directory.appendingPathComponent($0).path)
         }
       } else {
-        installed = LLMZoo.isModelDownloaded(specification)
+        installed = LLMZoo.isModelDownloaded(specification, required: true)
       }
       print("\(specification.file)\t\(installed ? "installed" : "missing")\t\(specification.name)")
     }

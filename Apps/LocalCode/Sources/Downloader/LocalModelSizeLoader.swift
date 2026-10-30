@@ -25,12 +25,12 @@ final class LocalModelSizeLoader {
     for probe in probes { probe.cancel() }
   }
 
-  /// A model's total covers every file it needs, including DeepSeek's separate engram, and is only
-  /// known once the size of each is.
+  /// A model's total covers every file it downloads, including DeepSeek's separate engram and
+  /// drafter, and is only known once the size of each is.
   static func downloadSize(
     of specification: LLMZoo.Specification, in workspace: SQLiteWorkspace
   ) -> String? {
-    let files = [specification.file] + [specification.engram].compactMap { $0 }
+    let files = specification.files
     let fileSizes = files.compactMap { workspace.dictionary["model_size_\($0)", Int.self] }
     guard fileSizes.count == files.count else { return nil }
     return ByteCountFormatter.string(
@@ -39,7 +39,7 @@ final class LocalModelSizeLoader {
 
   func load(_ specifications: [LLMZoo.Specification]) {
     for specification in specifications {
-      let files = ([specification.file] + [specification.engram].compactMap { $0 }).filter {
+      let files = specification.files.filter {
         workspace.dictionary["model_size_\($0)", Int.self] == nil && !pendingFiles.contains($0)
       }
       for file in files {

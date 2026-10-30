@@ -272,7 +272,8 @@ final class ChatWorkflow: Workflow {
         textGenerator = DeepSeek4_1TextGenerator(
           filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
           engramFilePath: LLMZoo.filePathForModelDownloaded(engram),
-          chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming)
+          chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming,
+          drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
       case .deepseek_4_flash:
         textGenerator = DeepSeek4TextGenerator(
           filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
@@ -861,9 +862,8 @@ final class ChatWorkflow: Workflow {
       || ([agentScheduler] + retiringAgentSchedulers).contains {
         $0.file == specification.file && !$0.isIdle
       }
-      || downloadController?.models.contains(where: {
-        $0.file == specification.file || $0.file == specification.engram
-      }) == true
+      || downloadController?.models.contains(where: { specification.files.contains($0.file) })
+        == true
   }
 
   private func confirmRemovingDownload(
@@ -960,7 +960,8 @@ final class ChatWorkflow: Workflow {
       guard let engram = specification.engram else { return nil }
       return DeepSeek4_1TextGenerator(
         filePath: filePath, engramFilePath: LLMZoo.filePathForModelDownloaded(engram),
-        chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming)
+        chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming,
+        drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
     case .deepseek_4_flash:
       return DeepSeek4TextGenerator(
         filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength,
@@ -1143,9 +1144,7 @@ final class ChatWorkflow: Workflow {
     _ specification: LLMZoo.Specification, completionHandler: @escaping (Bool) -> Void
   ) {
     if let downloadController,
-      downloadController.models.contains(where: {
-        $0.file == specification.file || $0.file == specification.engram
-      })
+      downloadController.models.contains(where: { specification.files.contains($0.file) })
     {
       downloadController.addCompletionHandler(completionHandler)
       return
@@ -1156,7 +1155,7 @@ final class ChatWorkflow: Workflow {
         image: #imageLiteral(resourceName: "keyboard-money"), title: "", subtitle: "", file: "",
         index: 0, totalDownloads: 0, downloadedBytes: 0, totalBytes: 0, mode: .download))
     let downloadController = DownloadController<LLMZoo>(
-      models: ([specification.file] + [specification.engram].compactMap { $0 }).map { file in
+      models: specification.files.map { file in
         EmbeddedDownloadController.DownloadItem(
           name: specification.name,
           subtitle: LLMZoo.subtitleForModel(specification.file),
@@ -2254,7 +2253,7 @@ extension ChatWorkflow: ItemSelectWorkflowDelegate {
       let specification = LLMZoo.specificationForModel(file)
     else { return nil }
     // A download that stopped between a model's files leaves only some of them.
-    let fileURLs = ([specification.file] + [specification.engram].compactMap { $0 }).map {
+    let fileURLs = specification.files.map {
       URL(fileURLWithPath: LLMZoo.filePathForModelDownloaded($0))
     }.filter { FileManager.default.fileExists(atPath: $0.path) }
     guard !fileURLs.isEmpty else { return nil }
@@ -2664,7 +2663,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     let file = URL(fileURLWithPath: textGenerator.filePath).lastPathComponent
     // Like a new turn, continuing downloads a model whose files were removed.
     if let specification = LLMZoo.specificationForModel(file),
-      !LLMZoo.isModelDownloaded(specification)
+      !LLMZoo.isModelDownloaded(specification, required: true)
     {
       let threadId = thread.id
       downloadLLMModel(specification) { [weak self] success in
@@ -2731,7 +2730,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     // until then, so it goes out once the download finishes.
     if !isRestoringUserNode, !isRestoringQueue, case .some(.local) = codeAgentWrapper,
       let file = selectedLLM, let specification = LLMZoo.specificationForModel(file),
-      !LLMZoo.isModelDownloaded(specification)
+      !LLMZoo.isModelDownloaded(specification, required: true)
     {
       let threadId = projectHistoryManager.threadId
       downloadLLMModel(specification) { [weak self] success in
@@ -2900,7 +2899,8 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     guard let file = selectedLLM,
       let specification = LLMZoo.specificationForModel(file)
     else { return false }
-    guard LLMZoo.isModelDownloaded(specification) else {
+    // A missing drafter does not hold the turn; selecting the model downloads it.
+    guard LLMZoo.isModelDownloaded(specification, required: true) else {
       // Keep the draft editable while downloading, including after cancellation or failure.
       let projectHistoryManager = self.projectHistoryManager
       let threadId = projectHistoryManager?.threadId
