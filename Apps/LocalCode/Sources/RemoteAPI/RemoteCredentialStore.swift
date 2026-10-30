@@ -274,7 +274,7 @@ actor RemoteCredentialAuthorizer: RemoteAuthorizationProviding {
         refreshed = try await RemoteOAuth.refreshOpenAI(credential, session: session)
       case .anthropic:
         refreshed = try await RemoteOAuth.refreshAnthropic(credential, session: session)
-      case .localCode, .openRouter, .openAICompatible, .deviceLink:
+      case .localCode, .openRouter, .openAICompatible:
         throw AuthorizationError.unsupported
       }
       guard

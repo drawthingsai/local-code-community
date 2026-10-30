@@ -97,15 +97,11 @@ public final class ItemSelectWorkflow: Workflow {
       else { return height + cellHeight }
       return height + detailedHeight
     }
-    // The list shows a header above each titled section that has rows.
-    let sectionHeadersHeight =
-      CGFloat(viewModels.filter { $0.identifier != .noSection && !$0.items.isEmpty }.count)
-      * ItemDisplayViewController.sectionHeaderHeight
-    // Title, search field and gaps, section headers and rows, then the inset below the last row.
+    // Title, search field and gaps, rows, then the inset below the last row.
     let height =
       ItemDisplayViewController.headerHeight + ItemDisplayViewController.searchFieldTopSpacing
       + ItemDisplayViewController.searchFieldHeight + ItemDisplayViewController.listTopSpacing
-      + sectionHeadersHeight + rowsHeight + CGFloat(max(0, items.count - 1)) * minimumLineSpacing
+      + rowsHeight + CGFloat(max(0, items.count - 1)) * minimumLineSpacing
       + ItemDisplayViewController.bottomInset
     #if os(macOS) || (os(iOS) && targetEnvironment(macCatalyst))
       viewController.preferredContentSize.height = min(

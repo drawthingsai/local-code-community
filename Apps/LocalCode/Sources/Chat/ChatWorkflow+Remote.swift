@@ -1,5 +1,4 @@
 import BashToolContext
-import CryptoKit
 import Dflat
 import Foundation
 import Localization
@@ -20,32 +19,6 @@ extension ChatWorkflow {
       else { return }
       self.settingsWorkflow.setRemoteContextStatus(status)
     }
-    guard remoteChatProvider.provider == .deviceLink else { return }
-    remoteChatProvider.makeMacModelChatProvider = { [weak self] id, profile, maximumOutputTokens in
-      guard let self, let macModel = MacModel(profile.model),
-        let connection = self.deviceLink.macConnection(for: macModel.deviceID)
-      else { return nil }
-      // Names the thread for the Mac without its path.
-      let sessionID = SHA256.hash(data: Data("\(id.projectPath)\n\(id.threadId)".utf8)).prefix(16)
-        .map { String(format: "%02x", $0) }.joined()
-      return MacModelChatProvider(
-        connection: connection, model: macModel, sessionID: sessionID,
-        maximumOutputTokens: maximumOutputTokens, modelIdentity: profile.endpoint.modelIdentity)
-    }
-  }
-
-  /// Whether the provider can answer now: set up with an account, or for Remote Access, with an
-  /// online Mac that has a model it can run.
-  func isAvailable(_ provider: RemoteProvider) -> Bool {
-    provider == .deviceLink
-      ? !provider.cachedModels(in: workspace).isEmpty : provider.account(in: workspace) != nil
-  }
-
-  /// Remote Access on one of the online Macs' models: the one picked, or the first listed.
-  private func pickMacModelIfNeeded() {
-    let models = RemoteProvider.deviceLink.cachedModels(in: workspace)
-    if let model = RemoteProvider.deviceLink.model(in: workspace), models.contains(model) { return }
-    if let first = models.first { RemoteProvider.deviceLink.setModel(first, in: workspace) }
   }
 
   func remoteChatProvider(for provider: RemoteProvider) -> RemoteChatProvider {
@@ -84,30 +57,6 @@ extension ChatWorkflow {
       name: LLMZoo.humanReadableNameForModel(selectedLLM), image: Self.modelImage(for: selectedLLM))
   }
 
-  /// No model the chat can run was picked. A phone has none of its own, so it takes the first
-  /// provider that can answer of: the last used, Remote Access, Cloud Compute, the others; or Cloud
-  /// Compute, with its sign-in. Elsewhere, no model until one is picked.
-  func selectFallbackModel() {
-    guard Self.canDownloadLocalModels else {
-      let lastUsed = workspace.dictionary["where_models_run_last_used", String.self].flatMap(
-        RemoteProvider.init(rawValue:))
-      let provider =
-        ([lastUsed, .deviceLink, .localCode].compactMap { $0 } + RemoteProvider.allCases).first {
-          isAvailable($0)
-        } ?? .localCode
-      if provider == .deviceLink { pickMacModelIfNeeded() }
-      select(remoteChatProvider(for: provider))
-      return
-    }
-    codeAgentWrapper = nil
-    workspace.dictionary["chat_backend", String.self] = nil
-    settingsWorkflow.setRemoteContextStatus(nil)
-    settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
-    settingsWorkflow.setContextUsed(0, contextWindowTokens: 0)
-    chatInputController.setModel(
-      name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
-  }
-
   private func remoteConversationID() -> ProjectThreadIdentifier? {
     guard let projectURL, let projectHistoryManager, projectHistoryManager.threadId >= 0 else {
       return nil
@@ -139,48 +88,6 @@ extension ChatWorkflow {
       let model = remoteChatProvider.provider.model(in: workspace)
     else { return nil }
     return remoteThreadModelIdentifier(provider: remoteChatProvider.provider, model: model)
-  }
-
-  /// The web search the Mac's settings pick, for an agent's web tools.
-  var configuredWebSearchProvider: WebSearchProvider {
-    let identifier = workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
-    return WebSearchProvider(
-      identifier: identifier,
-      apiKey: workspace.dictionary["\(identifier)_api_key", String.self] ?? "")
-      ?? .duckDuckGo
-  }
-
-  /// A cloud turn's answer as its thread saves it: the tools' subtitles, then the answer or the
-  /// error; the answer alone, for the thread's row; and the transcript the next turn resumes from.
-  static func remoteAssistantMessage(
-    _ result: Result<RemoteAgentCompletion, RemoteChatError>,
-    history: Result<(plaintext: String, compacted: Bool), Error>
-  ) -> (text: String, response: String, log: (plaintext: String, compacted: Bool)?) {
-    let text: String
-    let response: String
-    switch result {
-    case .success(let completion):
-      let tools = completion.tools.map(\.subtitle).filter { !$0.isEmpty }.joined(separator: "\n")
-      text = [tools, completion.text].filter { !$0.isEmpty }.joined(separator: "\n---\n")
-      response = completion.text
-    case .failure(let error):
-      text = error.localizedDescription
-      response = text
-    }
-    switch history {
-    case .success(let entry):
-      return (text, response, entry)
-    case .failure(let error):
-      print("Unable to encode remote conversation history: %@", error.localizedDescription)
-      return (text, response, nil)
-    }
-  }
-
-  /// Puts the composer on `provider`'s `model`, as picking them on the Mac does.
-  func selectCloudModel(_ model: String, provider: RemoteProvider) {
-    provider.setModel(model, in: workspace)
-    select(remoteChatProvider(for: provider))
-    settingsWorkflow.refreshRemoteProviderConfiguration()
   }
 
   func remoteThreadModelIdentifier(provider: RemoteProvider, model: String) -> String {
@@ -245,10 +152,7 @@ extension ChatWorkflow {
   private func selectRemoteProvider(_ provider: RemoteProvider, sourceView: UIView) {
     guard chatInputController.sendState == .idle
     else { return }
-    // Neither needs setting up here: Cloud Compute asks to sign in when it's used, and Remote
-    // Access lists the online Macs' models.
-    if provider == .localCode || provider == .deviceLink {
-      if provider == .deviceLink { pickMacModelIfNeeded() }
+    if provider == .localCode {
       let remoteChatProvider = remoteChatProvider(for: provider)
       select(remoteChatProvider)
       settingsWorkflow.refreshRemoteProviderConfiguration()
@@ -287,15 +191,17 @@ extension ChatWorkflow {
           remoteChatProvider.provider == provider
         else { return }
         workspace.dictionary["chat_backend", String.self] = nil
-        if let selectedLLM, let specification = LLMZoo.specificationForModel(selectedLLM),
-          Self.canDownloadLocalModels || LLMZoo.isModelDownloaded(specification)
-        {
+        if let selectedLLM {
           self.selectedLLM = selectedLLM
           chatInputController.setModel(
             name: LLMZoo.humanReadableNameForModel(selectedLLM),
             image: Self.modelImage(for: selectedLLM))
         } else {
-          selectFallbackModel()
+          codeAgentWrapper = nil
+          chatInputController.setModel(
+            name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
+          settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
+          settingsWorkflow.setContextUsed(0, contextWindowTokens: 0)
         }
       }
     }
@@ -304,13 +210,8 @@ extension ChatWorkflow {
   func settingsWorkflow(
     _ workflow: SettingsWorkflow, didRequestSelect provider: RemoteProvider?, sourceView: UIView
   ) {
-    // The other providers run this device's own projects.
-    leaveMacThread()
     if let provider {
       selectRemoteProvider(provider, sourceView: sourceView)
-      if workspace.dictionary["chat_backend", String.self] == provider.rawValue {
-        workspace.dictionary["where_models_run_last_used", String.self] = provider.rawValue
-      }
     } else {
       selectLocalProvider()
       settingsWorkflow.refreshRemoteProviderConfiguration()
@@ -336,7 +237,6 @@ extension ChatWorkflow {
     else { return }
     provider.setModel(model, in: workspace)
     select(remoteChatProvider)
-    workspace.dictionary["where_models_run_last_used", String.self] = provider.rawValue
     settingsWorkflow.refreshRemoteProviderConfiguration()
   }
 
@@ -392,8 +292,7 @@ extension ChatWorkflow {
       return true
     }
     guard let profile = remoteChatProvider.profile else {
-      // Remote Access has no account to set up: its model selector lists the Macs' models.
-      if provider == .deviceLink || provider.account(in: workspace) != nil {
+      if provider.account(in: workspace) != nil {
         chatInputController.selectModel()
       } else {
         presentRemoteProviderConfiguration(provider)
@@ -441,8 +340,12 @@ extension ChatWorkflow {
     let userDatetime: Int64
     let conversationModel: String
     if projectHistoryManager.threadId == -1 {
+      let title =
+        prompt.components(separatedBy: .newlines).first {
+          !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }?.trimmingCharacters(in: .whitespacesAndNewlines) ?? prompt
       let thread = projectHistoryManager.createThread(
-        title: Self.threadTitle(prompt), model: threadModel, userTokens: [], textEdits: textEdits,
+        title: title, model: threadModel, userTokens: [], textEdits: textEdits,
         textLineage: textLineage, plaintext: prompt)
       projectHistoryManager.threadId = thread.id
       observeQueuedItems(threadId: thread.id)
@@ -451,8 +354,26 @@ extension ChatWorkflow {
       conversationModel = threadModel
     } else {
       threadId = projectHistoryManager.threadId
-      guard moveThread(threadId, toRemoteModel: threadModel, in: projectHistoryManager) else {
-        return false
+      guard let thread = projectHistoryManager.thread(id: threadId) else { return false }
+      guard let sourceModel = thread.model ?? selectedLLM else { return false }
+      if thread.model != threadModel {
+        // Only local models store tokens; any other thread (a remote provider's, including one
+        // this build no longer knows) already keeps plain text and only needs its model updated.
+        if parseRemoteThreadModelIdentifier(sourceModel) != nil
+          || LLMZoo.specificationForModel(sourceModel) == nil
+        {
+          guard projectHistoryManager.updateThreadModel(id: threadId, model: threadModel) else {
+            return false
+          }
+        } else {
+          let history = projectHistoryManager.history(threadId: threadId)
+          guard
+            let convertedHistory = convertedHistoryForRemoteModel(
+              history, sourceModel: sourceModel),
+            projectHistoryManager.rewriteHistory(
+              threadId: threadId, nodes: convertedHistory, model: threadModel)
+          else { return false }
+        }
       }
       let userNode: ProjectHistoryNode?
       if let restoredUserNode, restoredUserNode.threadId == threadId {
@@ -483,7 +404,13 @@ extension ChatWorkflow {
     }
     if accessed { projectURL.stopAccessingSecurityScopedResource() }
 
-    let webSearchProvider = configuredWebSearchProvider
+    let webSearchIdentifier =
+      workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
+    let webSearchProvider =
+      WebSearchProvider(
+        identifier: webSearchIdentifier,
+        apiKey: workspace.dictionary["\(webSearchIdentifier)_api_key", String.self] ?? "")
+      ?? .duckDuckGo
     let bashUserInteraction = BashUserInteraction()
     let startTime = CACurrentMediaTime()
     viewController.appendUser(
@@ -493,8 +420,6 @@ extension ChatWorkflow {
       mode: .reading(0, 0, startTime: startTime, bashUserInteraction: bashUserInteraction))
     chatInputController.sendState = .sending
     threadNotifications.requestAuthorizationIfNeeded()
-    // Other devices see the turn as it runs, as they see a local model's.
-    let threadsTurn = threadsTurnReporter(projectURL: projectURL, threadId: threadId)
     remoteChatProvider.bashToolContext = bashToolContext
     remoteChatProvider.prepare(
       conversationID, profile: profile, workspacePath: settingsWorkflow.workspaceFolderURL.path,
@@ -503,7 +428,6 @@ extension ChatWorkflow {
     ) { [weak self] preparationResult in
       guard let self else { return }
       if case .failure = preparationResult {
-        threadsTurn?.finish(.failed, error: "The Mac couldn't start the turn.")
         if self.isSelected(remoteChatProvider, conversation: conversationID) {
           var history = projectHistoryManager.history(threadId: threadId)
           self.restoreDraftIfNeeded(from: &history)
@@ -520,7 +444,6 @@ extension ChatWorkflow {
         prompt, images: images,
         in: conversationID, bashUserInteraction: bashUserInteraction,
         progress: { [weak self] progress in
-          threadsTurn?.report(progress)
           guard let self,
             self.isSelected(remoteChatProvider, conversation: conversationID)
           else { return }
@@ -538,32 +461,45 @@ extension ChatWorkflow {
             }
           }
           defer { self.openPendingNotificationThread() }
-          if case .success(let completion) = result,
-            self.isSelected(remoteChatProvider, conversation: conversationID)
-          {
-            self.settingsWorkflow.setRemoteMetrics(completion.metrics)
+          let text: String
+          let response: String
+          switch result {
+          case .success(let completion):
+            if self.isSelected(remoteChatProvider, conversation: conversationID) {
+              self.settingsWorkflow.setRemoteMetrics(completion.metrics)
+            }
+            let tools = completion.tools.map(\.subtitle).filter { !$0.isEmpty }.joined(
+              separator: "\n")
+            text = [tools, completion.text].filter { !$0.isEmpty }.joined(separator: "\n---\n")
+            response = completion.text
+          case .failure(let error):
+            text = error.localizedDescription
+            response = text
           }
-          let (text, response, historyEntry) = Self.remoteAssistantMessage(
-            result, history: historyResult)
+          let historyEntry: (plaintext: String, compacted: Bool)?
+          switch historyResult {
+          case .success(let entry):
+            historyEntry = entry
+          case .failure(let error):
+            historyEntry = nil
+            print("Unable to encode remote conversation history: %@", error.localizedDescription)
+          }
           let duration =
             CACurrentMediaTime() - startTime
             - bashUserInteraction.userInteractionInterval(since: startTime)
           guard
-            let assistantNode = projectHistoryManager.appendAssistant(
+            projectHistoryManager.appendAssistant(
               threadId: threadId, logTokens: [], tokens: [], toolCalls: [],
               plaintext: text, logPlaintext: historyEntry?.plaintext,
               duration: duration, compacted: historyEntry?.compacted ?? false,
-              lastMessage: response)
+              lastMessage: response) != nil
           else {
-            threadsTurn?.finish(.failed, error: "The Mac couldn't save the answer.")
             if self.isSelected(remoteChatProvider, conversation: conversationID) {
               self.restoreRemoteConversation()
               self.continueWithQueuedItems()
             }
             return
           }
-          threadsTurn?.finish(
-            result: result, wasCancelled: wasCancelled, messageDatetime: assistantNode.datetime)
           if remoteChatProvider.provider == .localCode, !wasCancelled,
             case .failure(.provider(statusCode: 429, message: _)) = result
           {
@@ -661,7 +597,13 @@ extension ChatWorkflow {
     guard let conversationModel = thread.model ?? selectedLLM else { return }
     let conversation = ProjectRemoteConversation.load(
       history: history, model: conversationModel)
-    let webSearchProvider = configuredWebSearchProvider
+    let webSearchIdentifier =
+      workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
+    let webSearchProvider =
+      WebSearchProvider(
+        identifier: webSearchIdentifier,
+        apiKey: workspace.dictionary["\(webSearchIdentifier)_api_key", String.self] ?? "")
+      ?? .duckDuckGo
     settingsWorkflow.setRemoteContextStatus(remoteChatProvider.status(for: conversationID))
     remoteChatProvider.bashToolContext = bashToolContext
     remoteChatProvider.prepare(

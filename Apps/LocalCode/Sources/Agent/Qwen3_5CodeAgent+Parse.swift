@@ -204,7 +204,7 @@ extension Qwen3_5CodeAgent {
     return tokens
   }
 
-  static func unsafeTokens(_ text: String) -> [Int32] {
+  private static func unsafeTokens(_ text: String) -> [Int32] {
     let (_, tokens, _, _, _) = Qwen3_5TextGenerator.unsafeTokenizer.tokenize(
       text: text, truncation: false, maxLength: 0, paddingToken: nil,
       addSpecialTokens: false)

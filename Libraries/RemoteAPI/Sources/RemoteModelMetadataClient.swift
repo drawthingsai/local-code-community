@@ -204,8 +204,6 @@ public final class RemoteModelMetadataClient {
     case .anthropic:
       return Self.appendPathParameter(
         endpoint.model, to: endpoint.baseURL.appendingPathComponent("models"))
-    case .deviceLink:
-      return nil
     }
   }
 
@@ -261,8 +259,6 @@ public final class RemoteModelMetadataClient {
       RemoteAuthorizationHeaders.applyBearer(authorization, to: &request)
     case .anthropic:
       RemoteAuthorizationHeaders.applyAnthropic(authorization, to: &request)
-    case .deviceLink:
-      break
     }
   }
 
@@ -563,11 +559,9 @@ public final class RemoteModelMetadataClient {
         load(index + 1)
         return
       }
-      maximumOutputTokens =
-        maximumOutputTokens
-        ?? limits.maximumOutputTokens.flatMap {
-          $0 > 0 ? $0 : nil
-        }
+      maximumOutputTokens = maximumOutputTokens ?? limits.maximumOutputTokens.flatMap {
+        $0 > 0 ? $0 : nil
+      }
       if let trained = limits.trainedContextWindowTokens, trained > 0 {
         trainedContextWindowTokens = min(trainedContextWindowTokens ?? trained, trained)
       }

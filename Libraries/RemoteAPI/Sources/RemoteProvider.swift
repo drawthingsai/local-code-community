@@ -84,9 +84,6 @@ public enum RemoteProvider: String, CaseIterable, Equatable, Sendable {
   case openAI = "openai"
   case openAICompatible = "openai-compatible"
   case anthropic
-  /// One of the account's Macs, running one of its own models over Remote Access; the app supplies
-  /// its chat provider, as it has no endpoint of its own.
-  case deviceLink = "devicelink"
 
   public static func isOpenAIAPIHost(_ url: URL) -> Bool {
     url.host?.lowercased() == "api.openai.com"
@@ -102,9 +99,6 @@ public enum RemoteProvider: String, CaseIterable, Equatable, Sendable {
       return URL(string: "https://api.openai.com")!
     case .anthropic:
       return AnthropicConfiguration.defaultBaseURL
-    case .deviceLink:
-      // Never contacted: a Mac answers over the device's link.
-      return URL(string: "https://devicelink.invalid")!
     }
   }
 
@@ -118,8 +112,6 @@ public enum RemoteProvider: String, CaseIterable, Equatable, Sendable {
       return "OPENAI_API_KEY"
     case .anthropic:
       return "ANTHROPIC_API_KEY"
-    case .deviceLink:
-      return ""
     }
   }
 }
@@ -167,9 +159,6 @@ public struct RemoteProviderEndpoint: Equatable, Sendable {
         model: model, baseURL: accountEndpoint.baseURL)
       self.baseURL = configuration.baseURL
       self.model = configuration.model
-    case .deviceLink:
-      self.baseURL = accountEndpoint.baseURL
-      self.model = model
     }
   }
 
@@ -225,9 +214,6 @@ public struct RemoteProviderEndpoint: Equatable, Sendable {
           model: model, baseURL: baseURL, maximumOutputTokens: maximumOutputTokens),
         authorization: authorization, sessionConfiguration: sessionConfiguration,
         reasoningEffort: reasoningEffort)
-    case .deviceLink:
-      // The app supplies a Mac's chat provider over the device's link.
-      throw RemoteChatError.invalidBaseURL
     }
   }
 }

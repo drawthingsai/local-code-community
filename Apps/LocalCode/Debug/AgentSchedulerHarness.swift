@@ -1,5 +1,4 @@
 import BashToolContext
-import DeviceLink
 import Dflat
 import Foundation
 import NNC
@@ -32,7 +31,6 @@ private enum Scenario: String {
   case backgroundToolWait = "background-tool-wait"
   case stop
   case completionReasons = "completion-reasons"
-  case backgroundProgress = "background-progress"
   case generatorReuse = "generator-reuse"
   case residentRestore = "resident-restore"
   case queuedContinuation = "queued-continuation"
@@ -103,7 +101,7 @@ private struct Options {
     }
     guard
       !options.modelPath.isEmpty || options.scenario == .completionReasons
-        || options.scenario == .generatorReuse || options.scenario == .backgroundProgress
+        || options.scenario == .generatorReuse
     else {
       throw HarnessError.invalidArgument("--model-path is required")
     }
@@ -206,11 +204,6 @@ private struct AgentSchedulerHarness {
       print("PASS scenario=generator-reuse")
       return
     }
-    if options.scenario == .backgroundProgress {
-      try runBackgroundProgress()
-      print("PASS scenario=background-progress")
-      return
-    }
     guard FileManager.default.fileExists(atPath: options.modelPath) else {
       throw HarnessError.missingFile(options.modelPath)
     }
@@ -277,7 +270,7 @@ private struct AgentSchedulerHarness {
 
     let workspacePath = options.workspacePath ?? projectURL.path
     switch options.scenario {
-    case .completionReasons, .generatorReuse, .backgroundProgress:
+    case .completionReasons, .generatorReuse:
       preconditionFailure("Handled before loading a model")
     case .memory:
       try runMemory(
@@ -1119,152 +1112,6 @@ private struct AgentSchedulerHarness {
     else {
       throw HarnessError.invariant("Temporary hibernation did not cancel and release the turn")
     }
-  }
-
-  /// A background turn reports progress only while its thread is watched, and a turn reporter
-  /// makes that progress the turn's events: reading, reasoning and answer streamed as they grow or
-  /// replaced when they don't, tool calls, speeds, and how it finished.
-  private static func runBackgroundProgress() throws {
-    final class Agent: CodeAgent {
-      let bashUserInteraction = BashUserInteraction()
-      var thinkingBudget: Int32 = 0
-      var deterministic = true
-      var statistics = CodeAgentStatistics()
-      var suspendedResult: CodeAgentResult? { nil }
-      var continuation: ContinuationState?
-      var toolCallStart = "<tool_call>"
-      var toolCallEnd = "</tool_call>"
-      var toolCallSpecialTokens = [Int32: String]()
-
-      func ask(
-        _ prompt: String, imagePaths: [String] = [], isMemoryEnabled: Bool, temporary: Bool,
-        allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64,
-        projectPath: String?, workspacePath: String?, webSearchProvider: WebSearchProvider,
-        progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
-      ) -> CodeAgentResult {
-        resume(progress: progress)
-      }
-
-      /// Reads, reasons, calls a tool, then answers in a new step, pausing past the reporter's
-      /// stream interval between reports.
-      func resume(
-        progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
-      ) -> CodeAgentResult {
-        let toolCall = ToolCall(
-          id: 0,
-          request: .init(function: "read", parameters: ["path": .init(string: true, value: "a")]))
-        var result = CodeAgentResult.empty
-        var steps = [CodeAgentProgress.prefill([], 10, 40)]
-        result.think = "Let me look"
-        steps.append(.generate(result))
-        result.think = "Let me look at the file"
-        steps.append(.generate(result))
-        result.output = "Reading it"
-        result.toolCalls = [toolCall]
-        steps.append(.toolsWait(result))
-        result.toolCalls = []
-        result.toolCallHistory = [toolCall]
-        result.think = ""
-        result.output = "It says hello"
-        steps.append(.generate(result))
-        for step in steps {
-          continuation = progress(step, statistics)
-          Thread.sleep(forTimeInterval: 0.15)
-        }
-        return result
-      }
-
-      func hibernate(threadId: Int64) throws {}
-      func unloadCaches() {}
-      func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool { false }
-      func canStopImmediately(with result: CodeAgentResult) -> Bool { true }
-      func isCapReachedForStopping(
-        from resultAtStop: CodeAgentResult, to result: CodeAgentResult
-      ) -> Bool { true }
-    }
-
-    let projectURL = FileManager.default.temporaryDirectory.appendingPathComponent(
-      "scheduler-background-progress-\(UUID().uuidString)", isDirectory: true)
-    try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
-    let workspace = SQLiteWorkspace(
-      filePath: projectURL.appendingPathComponent("test.sqlite3").path,
-      fileProtectionLevel: .noProtection)
-    defer {
-      workspace.shutdown(flags: [])
-      try? FileManager.default.removeItem(at: projectURL)
-    }
-    let queue = DispatchQueue(label: "agent-scheduler-harness.background-progress")
-    let scheduler = AgentScheduler(queue: queue)
-    let agent = Agent()
-    /// Runs a turn in the background and returns how many progress reports it delivered.
-    func runTurn(reporter: TurnReporter? = nil) throws -> Int {
-      var reports = 0
-      let completed = DispatchSemaphore(value: 0)
-      scheduler.ask(
-        agent, threadId: 1, "Test", isMemoryEnabled: false, projectPath: projectURL.path,
-        projectWorkspace: workspace, workspacePath: projectURL.path,
-        webSearchProvider: .disabled,
-        progress: { progress, statistics in
-          reports += 1
-          reporter?.report(progress, statistics: statistics)
-        },
-        completion: { _, _ in completed.signal() })
-      try wait(completed, timeout: 10, scenario: "background-progress turn")
-      return reports
-    }
-
-    scheduler.setForeground(nil)
-    guard try runTurn() == 0 else {
-      throw HarnessError.invariant("An unwatched background turn reported progress")
-    }
-    // Watched by its project path spelled another way.
-    scheduler.setBackgroundProgressThreads([(projectURL.path + "/", 1)])
-    var events = [TurnEvent.OneOf_Event]()
-    let reporter = TurnReporter(
-      projectPath: projectURL.path, workspacePath: projectURL.path,
-      toolCallStart: agent.toolCallStart,
-      toolCallEnd: agent.toolCallEnd, emit: { events.append($0) },
-      finished: { events.append($0) })
-    guard try runTurn(reporter: reporter) == 5 else {
-      throw HarnessError.invariant("A watched background turn didn't report all its progress")
-    }
-    reporter.finish(.completed, messageDatetime: 42)
-    let texts = events.compactMap { event -> String? in
-      switch event {
-      case .reading(let reading):
-        return "reading \(reading.finishedTokens)/\(reading.totalTokens)"
-      case .thinking(let update):
-        return "thinking \(update.replaces ? "=" : "+")\(update.text)"
-      case .answer(let update):
-        return "answer \(update.replaces ? "=" : "+")\(update.text)"
-      case .toolStarted(let started):
-        return "started \(started.callID)"
-      case .toolFinished(let finished):
-        return "finished \(finished.callID)"
-      case .finished(let finished):
-        return "finished \(finished.outcome) \(finished.messageDatetimeMs)"
-      case .metrics:
-        return nil
-      default:
-        return "unexpected"
-      }
-    }
-    let expected = [
-      "reading 10/40", "thinking +Let me look", "thinking + at the file", "started 0",
-      "answer +Reading it", "finished 0", "answer =It says hello", "finished completed 42",
-    ]
-    guard texts == expected else {
-      throw HarnessError.invariant("Unexpected turn events: \(texts)")
-    }
-    guard events.filter({ if case .metrics = $0 { return true } else { return false } }).count == 4
-    else {
-      throw HarnessError.invariant("Every streamed update should carry the speeds")
-    }
-    scheduler.setBackgroundProgressThreads([])
-    guard try runTurn() == 0 else {
-      throw HarnessError.invariant("A background turn reported progress after its watch ended")
-    }
-    scheduler.markAsCompleted(agent)
   }
 
   private static func runStop(

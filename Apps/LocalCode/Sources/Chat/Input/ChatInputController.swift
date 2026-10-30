@@ -541,13 +541,6 @@ final class ChatInputController {
     return imageView
   }()
 
-  /// Shown instead of the model icon for a Mac's model, with the Mac's status.
-  private lazy var hostStatusIconView: HostStatusIconView = {
-    let view = HostStatusIconView(frame: .zero)
-    view.isHidden = true
-    return view
-  }()
-
   private lazy var modelButton: UIButton = {
     let button = UIButton(type: .custom)
     var configuration = UIButton.Configuration.filled()
@@ -576,13 +569,6 @@ final class ChatInputController {
       make.leading.equalToSuperview().offset(10)
       make.centerY.equalToSuperview()
       make.width.height.equalTo(20)
-    }
-    button.addSubview(hostStatusIconView)
-    hostStatusIconView.snp.makeConstraints { make in
-      make.leading.equalToSuperview().offset(10)
-      make.centerY.equalToSuperview()
-      make.height.equalTo(20)
-      make.width.equalTo(hostStatusIconView.snp.height).multipliedBy(HostStatusIconView.aspectRatio)
     }
     return button
   }()
@@ -954,16 +940,6 @@ final class ChatInputController {
   func setModel(name: String, image: UIImage) {
     modelButton.configuration?.title = name
     modelIconView.image = image
-    modelIconView.isHidden = false
-    hostStatusIconView.isHidden = true
-  }
-
-  /// A Mac's model, with the Mac's status on the icon.
-  func setModel(name: String, hostStatus: HostStatusIconView.Status) {
-    modelButton.configuration?.title = name
-    modelIconView.isHidden = true
-    hostStatusIconView.isHidden = false
-    hostStatusIconView.status = hostStatus
   }
 
   func selectModel() {

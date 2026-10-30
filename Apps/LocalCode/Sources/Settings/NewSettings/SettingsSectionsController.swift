@@ -45,12 +45,6 @@ enum WorkAttitude: String, Codable, CaseIterable {
   }
 }
 
-/// What Where Models Run shows as chosen: a provider, or Remote Access for a thread on a Mac.
-private struct WhereModelsRunChoice: Equatable {
-  var provider: RemoteProvider?
-  var isRemoteAccess: Bool
-}
-
 protocol SettingsSectionsControllerDelegate: AnyObject {
   func settingsSectionsController(
     _ controller: SettingsSectionsController,
@@ -126,13 +120,6 @@ final class SettingsSectionsController {
   var isMemoryEnabled = true {
     didSet {
       guard isMemoryEnabled != oldValue else { return }
-      updateSettingsSections()
-    }
-  }
-  /// Whether the open thread is on a Mac, which runs it there: Where Models Run shows Remote Access.
-  var isMacThreadOpen = false {
-    didSet {
-      guard isMacThreadOpen != oldValue else { return }
       updateSettingsSections()
     }
   }
@@ -595,14 +582,9 @@ final class SettingsSectionsController {
   }
 
   private func whereModelsRunSection() -> SettingsSectionItem {
-    // A Mac serves Remote Access rather than using it.
     let providers: [RemoteProvider?] =
-      (isOnDeviceAvailable ? [nil] : [])
-      + RemoteProvider.allCases.filter { $0 != .deviceLink || !DeviceLinkService.canServe }.map(
-        Optional.some)
-    // No provider is On Device. A phone, which falls back to a provider, has none only while it
-    // runs a local model it downloaded earlier.
-    let noProviderTitle = LocalizedString.forKey("on_device")
+      (isOnDeviceAvailable ? [nil] : []) + RemoteProvider.allCases.map(Optional.some)
+    let noProviderTitle = LocalizedString.forKey(isOnDeviceAvailable ? "on_device" : "unspecified")
     let provider = remoteProvider ?? .openRouter
     let requiresHostedSignIn = remoteProvider == .localCode && !isHostedAccountSignedIn
     var configurationItem = SettingsSectionItem(
@@ -637,20 +619,18 @@ final class SettingsSectionsController {
       ], title: provider.title, detail: provider.configurationDetail,
       lookUpKey: "local_code_remote_provider_detail_hidden", individualSectionStyle: false,
       workspace: workspace)
-    // Remote Access only sends the work to a Mac: the model selector picks the Mac and its model.
-    configurationItem.isHidden =
-      remoteProvider == nil || remoteProvider == .deviceLink || isMacThreadOpen
+    configurationItem.isHidden = remoteProvider == nil
     return SettingsSectionItem(
       settingsItems: [
         SettingsButtonItem(
-          value: WhereModelsRunChoice(provider: remoteProvider, isRemoteAccess: isMacThreadOpen),
+          value: remoteProvider,
           showsMenuAsPrimaryAction: true,
-          makeButtonsUI: { [weak self] choice, button in
+          makeButtonsUI: { [weak self] selectedProvider, button in
             button?.menu = UIMenu(
               children: providers.map { provider in
                 UIAction(
                   title: provider?.title ?? noProviderTitle,
-                  state: !choice.isRemoteAccess && choice.provider == provider ? .on : .off
+                  state: selectedProvider == provider ? .on : .off
                 ) { [weak self, weak button] _ in
                   guard let self, let button else { return }
                   self.delegate?.settingsSectionsController(
@@ -658,9 +638,7 @@ final class SettingsSectionsController {
                 }
               })
             button?.setTitle(
-              choice.isRemoteAccess
-                ? LocalizedString.forKey("device_link") : choice.provider?.title ?? noProviderTitle,
-              for: .normal)
+              selectedProvider?.title ?? noProviderTitle, for: .normal)
           }),
         configurationItem,
       ], title: LocalizedString.forKey("where_models_run"),

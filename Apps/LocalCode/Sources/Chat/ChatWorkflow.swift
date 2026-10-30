@@ -1,8 +1,6 @@
 import BashToolContext
-import Combine
 import Components
 import DataModels
-import DeviceLink
 import Dflat
 import Downloader
 import ImageGenerator
@@ -28,14 +26,13 @@ final class ChatWorkflow: Workflow {
     case local(any TextGenerator, (any CodeAgent)?)
   }
 
-  /// The generation queue: every model's work runs on it, one piece at a time.
-  let queue: DispatchQueue
+  private let queue: DispatchQueue
   // Accessed on the main queue; record warm-up and asks before enqueueing GPU work.
   private static var warmedUpModels = Set<String>()
   let graph: DynamicGraph
   let streamContext: StreamContext
   var agentScheduler: AgentScheduler
-  private(set) var retiringAgentSchedulers = [AgentScheduler]()
+  private var retiringAgentSchedulers = [AgentScheduler]()
   private var modelIdleTimer: ModelIdleTimer?
   private var modelIdleTimeoutSubscription: Workspace.Subscription?
   private var sleepPreventionSubscription: Workspace.Subscription?
@@ -117,7 +114,7 @@ final class ChatWorkflow: Workflow {
   var remoteChatProviders = [String: RemoteChatProvider]()
   var skillCatalog = SkillCatalog.empty
   var projectContext = ProjectContext.empty
-  private(set) var projectWorkspace: SQLiteWorkspace?
+  private var projectWorkspace: SQLiteWorkspace?
   var projectHistoryManager: ProjectHistoryManager?
   var projectURL: URL?
   var restoredUserNode: (threadId: Int64, datetime: Int64)?
@@ -129,23 +126,15 @@ final class ChatWorkflow: Workflow {
   private var thinkingBudgetSubscription: Workspace.Subscription? = nil
   private var queuedItemSubscription: Workspace.Subscription?
   private var queuedItemsThreadId: Int64?
-  private(set) var activeMemoryReviews = Set<ObjectIdentifier>()
+  private var activeMemoryReviews = Set<ObjectIdentifier>()
   private(set) var queuedItems = [ProjectQueuedItem]()
   /// Queued items to send on their own once each thread's running turn stops. They outlive a
   /// thread switch, so a steered thread continues in the background.
-  var steeringQueuedItems = [ProjectThreadIdentifier: [ProjectQueuedItem]]()
+  private var steeringQueuedItems = [ProjectThreadIdentifier: [ProjectQueuedItem]]()
   var didStopHandler: (() -> Void)?
   var modelsDirectoryPickerResponder: ModelsDirectoryPickerResponder?
   var permitDirectoryPickerResponder: PermitDirectoryPickerResponder?
   var modelSelectWorkflow: ItemSelectWorkflow?
-  /// Links to the account's other devices: this Mac's host, or this phone's Macs.
-  let deviceLink: DeviceLinkService
-  /// On a Mac: what serving its threads to other devices keeps (ChatWorkflow+Threads.swift).
-  let threadsBackendState = ThreadsBackendState()
-  /// On a phone: the thread on one of the account's Macs open in the chat, in place of a project.
-  var macThread: MacThreadController?
-  /// Keeps the composer's Mac model and status current as the room's list and links change.
-  private var deviceLinkSubscription: AnyCancellable?
   private lazy var localModelSizeLoader: LocalModelSizeLoader = {
     let loader = LocalModelSizeLoader(workspace: workspace)
     loader.delegate = self
@@ -230,7 +219,6 @@ final class ChatWorkflow: Workflow {
     self.userInterfaceIdiom = userInterfaceIdiom
     self.workspace = workspace
     self.accountManager = accountManager
-    deviceLink = DeviceLinkService(accountManager: accountManager, workspace: workspace)
     let permittedDirectories = PermittedDirectories(workspace: workspace)
     self.permittedDirectories = permittedDirectories
     let initialLLM = workspace.dictionary["llm_model", String.self].flatMap { file in
@@ -244,7 +232,6 @@ final class ChatWorkflow: Workflow {
       accountManager: accountManager, accountClient: accountClient,
       permittedDirectories: permittedDirectories)
     self.settingsWorkflow = settingsWorkflow
-    settingsWorkflow.deviceLink = deviceLink
     let skillCatalog = SkillCatalog.find(
       roots: SkillCatalog.roots(
         builtInSkillsURL: Bundle.main.resourceURL?.appendingPathComponent(
@@ -490,24 +477,6 @@ final class ChatWorkflow: Workflow {
     }
     setLocalContextUsed()
     configureDynamicGraph()
-    deviceLink.delegate = self
-    if DeviceLinkService.canServe {
-      startServingThreads()
-    }
-    deviceLinkSubscription = deviceLink.state.combineLatest(deviceLink.macLinks)
-      .receive(on: DispatchQueue.main).sink { [weak self] state, _ in
-        guard let self else { return }
-        if !DeviceLinkService.canServe { self.updateMacModels(state) }
-        guard let macThread = self.macThread else { return }
-        // A Mac another device disconnected, or one off the account's list, has no threads here.
-        guard
-          state?.devices.contains(where: {
-            $0.device.id == macThread.project.deviceID && !$0.disconnected
-          }) == true
-        else { return self.leaveMacThread() }
-        self.updateMacThreadModel()
-      }
-    deviceLink.start()
     // Delay the warmup call.
     DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
       guard let self = self else { return }
@@ -669,11 +638,8 @@ final class ChatWorkflow: Workflow {
     codeAgent.deterministic = (value ?? .deterministic) == .deterministic
   }
 
-  /// The project's open database, so every user of a project shares one and sees its changes: a
-  /// running agent's, or the one kept for threads other devices watch.
-  func residentProjectWorkspace(projectPath: String) -> SQLiteWorkspace? {
+  private func residentProjectWorkspace(projectPath: String) -> SQLiteWorkspace? {
     agentScheduler.residentProjectWorkspace(projectPath: projectPath)
-      ?? threadsBackendState.projects[AgentScheduler.canonicalProjectPath(projectPath)]?.workspace
   }
 
   private func claimRetiringProjectResources(projectPath: String) -> (
@@ -688,7 +654,7 @@ final class ChatWorkflow: Workflow {
     return (nil, false)
   }
 
-  func agentSchedulerActivation(for file: String) {
+  private func agentSchedulerActivation(for file: String) {
     guard agentScheduler.file != file else { return }
     guard let specification = LLMZoo.specificationForModel(file) else { return }
     let estimatedKVCacheSize: UInt64
@@ -713,28 +679,20 @@ final class ChatWorkflow: Workflow {
           isProjectSecurityScopedResourceAccessing = true
         }
       }
-      // Threads other devices watch keep their projects' databases open.
-      for projectPath in threadsBackendState.projects.keys {
-        retiringScheduler.keepProjectWorkspace(projectPath: projectPath)
-      }
       retiringAgentSchedulers.append(retiringScheduler)
       retiringScheduler.hibernateAll { [weak self, weak retiringScheduler] _ in
         DispatchQueue.main.async {
           guard let self, let retiringScheduler else { return }
           self.retiringAgentSchedulers.removeAll { $0 === retiringScheduler }
           self.updateModelIdleState()
-          self.closeUnwatchedProjects()
         }
       }
       agentScheduler = AgentScheduler(queue: queue)
       agentScheduler.delegate = self
-      agentScheduler.setBackgroundProgressThreads(
-        threadsBackendState.watches.map { ($0.value.projectPath, $0.key.threadID) })
       settingsWorkflow.setActiveThreads([])
       // Hibernation suspends the retired turns rather than stopping them, so their steers lapse.
       steeringQueuedItems.removeAll()
       viewController.setSteeringQueuedItems([])
-      endRunningThreadsTurns()
     }
     agentScheduler.set(
       filePath: LLMZoo.filePathForModelDownloaded(file),
@@ -805,11 +763,7 @@ final class ChatWorkflow: Workflow {
     return #imageLiteral(resourceName: "cloud-compute-24").withRenderingMode(.alwaysTemplate)
   }
 
-  /// iPhones don't download local models: they work in a Mac's threads or use the cloud.
-  static var canDownloadLocalModels: Bool { UIDevice.current.userInterfaceIdiom != .phone }
-
-  /// The local models a model selector lists, marking the ones still to download. An iPhone
-  /// lists only the ones it already has.
+  /// The local models a model selector lists, marking the ones still to download.
   static func localModelSection(selectedModel: String?, workspace: SQLiteWorkspace)
     -> ItemDisplaySectionModel
   {
@@ -817,10 +771,9 @@ final class ChatWorkflow: Workflow {
       LLMZoo.builtinSpecifications.compactMap { specification in
         let isDownloaded = LLMZoo.isModelDownloaded(specification)
         guard
-          isDownloaded
-            || (canDownloadLocalModels
-              && (specification.file == selectedModel
-                || !LLMZoo.isModelDeprecated(specification.file)))
+          specification.file == selectedModel
+            || isDownloaded
+            || !LLMZoo.isModelDeprecated(specification.file)
         else { return nil }
         let title = NSMutableAttributedString(string: specification.name)
         if !isDownloaded {
@@ -853,18 +806,12 @@ final class ChatWorkflow: Workflow {
     remoteModelCatalogRequest = nil
     let selectedRemoteProvider: RemoteProvider?
     let itemSectionModels: [ItemDisplaySectionModel]
-    if let macThread {
-      selectedRemoteProvider = nil
-      itemSectionModels = [macModelSection(for: macThread)]
-      // The list as the Mac has it now; it updates the selector when it arrives.
-      macThread.loadModels()
-    } else if case .some(.remote(let remoteChatProvider)) = codeAgentWrapper {
+    if case .some(.remote(let remoteChatProvider)) = codeAgentWrapper {
       let provider = remoteChatProvider.provider
       selectedRemoteProvider = provider
-      itemSectionModels =
-        provider == .deviceLink
-        ? remoteAccessModelSections()
-        : [remoteModelSection(provider: provider, models: provider.cachedModels(in: workspace))]
+      itemSectionModels = [
+        remoteModelSection(provider: provider, models: provider.cachedModels(in: workspace))
+      ]
     } else {
       selectedRemoteProvider = nil
       itemSectionModels = [Self.localModelSection(selectedModel: selectedLLM, workspace: workspace)]
@@ -896,12 +843,7 @@ final class ChatWorkflow: Workflow {
     }
     presentedViewController.present(modelSelectWorkflow.viewControllable, animated: true)
     DispatchQueue.main.async {
-      if let macThread = self.macThread {
-        // A thread on one of the Mac's cloud providers has none of its rows picked.
-        if let model = macThread.model, model.provider.isEmpty {
-          modelSelectWorkflow.selectItem(at: .identifier(MacModelChoice(id: model.modelID)))
-        }
-      } else if let identifier = self.remoteChatProviderIdentifier {
+      if let identifier = self.remoteChatProviderIdentifier {
         modelSelectWorkflow.selectItem(at: .identifier(identifier))
       } else if let selectedLLM = self.selectedLLM {
         modelSelectWorkflow.selectItem(at: .identifier(selectedLLM))
@@ -953,7 +895,6 @@ final class ChatWorkflow: Workflow {
       for url in removingURLs {
         try? FileManager.default.removeItem(at: url)
       }
-      self.deviceLink.modelsDidChange()
       // Loaded weights and the Engram file handle keep the files' space in use until unloaded.
       let schedulers = ([self.agentScheduler] + self.retiringAgentSchedulers).filter {
         $0.file == specification.file
@@ -1038,7 +979,6 @@ final class ChatWorkflow: Workflow {
       let oldValue = selectedLLM
       guard let newValue, LLMZoo.specificationForModel(newValue) != nil else { return }
       workspace.dictionary["llm_model", String.self] = newValue
-      deviceLink.modelsDidChange()
       switch codeAgentWrapper {
       case .some(.remote):
         break
@@ -1102,11 +1042,9 @@ final class ChatWorkflow: Workflow {
       statistics.contextUsedTokens, contextWindowTokens: statistics.contextWindowTokens)
   }
 
-  func selectLocalModel(file: String) {
+  private func selectLocalModel(file: String) {
     guard chatInputController.sendState == .idle else { return }
-    guard let specification = LLMZoo.specificationForModel(file),
-      Self.canDownloadLocalModels || LLMZoo.isModelDownloaded(specification)
-    else { return }
+    guard let specification = LLMZoo.specificationForModel(file) else { return }
     selectedLLM = file
     workspace.dictionary["chat_backend", String.self] = nil
     chatInputController.setModel(
@@ -1119,14 +1057,6 @@ final class ChatWorkflow: Workflow {
     } else {
       warmupSelectedModel()
     }
-  }
-
-  private func presentModelNotOnPhone(_ specification: LLMZoo.Specification) {
-    let alertController = UIAlertController(
-      title: specification.name, message: LocalizedString.forKey("local_model_not_on_phone"),
-      preferredStyle: .alert)
-    alertController.addAction(UIAlertAction(title: LocalizedString.forKey("ok"), style: .default))
-    presentedViewController.present(alertController, animated: true)
   }
 
   private func warmupSelectedModel() {
@@ -1253,7 +1183,6 @@ final class ChatWorkflow: Workflow {
           }
         }
         self.updateChatBanner()
-        if success { self.deviceLink.modelsDidChange() }
       }
       completionHandler(success)
     }
@@ -1469,11 +1398,7 @@ final class ChatWorkflow: Workflow {
     projectHistoryManager = nil
     restoredUserNode = nil
     projectContext = .empty
-    // A running agent's scheduler takes the access over; a database kept for other devices
-    // doesn't need it.
-    if isProjectSecurityScopedResourceAccessing,
-      projectPath.flatMap({ agentScheduler.residentProjectWorkspace(projectPath: $0) }) == nil
-    {
+    if isProjectSecurityScopedResourceAccessing && residentProjectWorkspace == nil {
       projectURL?.stopAccessingSecurityScopedResource()
     }
     projectURL = nil
@@ -1496,7 +1421,6 @@ final class ChatWorkflow: Workflow {
     {
       return
     }
-    closeMacThread()
     defer {
       let message: ProjectHistoryItem.ActionableMessage?
       if let projectURL, let threadId = projectHistoryManager?.threadId {
@@ -1545,7 +1469,22 @@ final class ChatWorkflow: Workflow {
         viewController.setHistory([])
         return
       }
-      guard let metadataURL = Self.projectMetadataURL(creatingIn: url) else {
+      let metadataDirectoryURL = url.appendingPathComponent(".localc", isDirectory: true)
+      guard
+        (try? fileManager.createDirectory(
+          at: metadataDirectoryURL, withIntermediateDirectories: true)) != nil
+      else {
+        if didStartAccessing {
+          url.stopAccessingSecurityScopedResource()
+        }
+        workspace.dictionary["project", Data.self] = nil
+        viewController.setHistory([])
+        return
+      }
+      let metadataURL = metadataDirectoryURL.appendingPathComponent("metadata.sqlite3")
+      if !fileManager.fileExists(atPath: metadataURL.path),
+        !fileManager.createFile(atPath: metadataURL.path, contents: nil)
+      {
         if didStartAccessing {
           url.stopAccessingSecurityScopedResource()
         }
@@ -1616,19 +1555,29 @@ final class ChatWorkflow: Workflow {
           chatInputController.setModel(
             name: remoteChatProvider.title,
             image: Self.modelImage(for: remoteChatProvider.provider))
-        } else if let specification = LLMZoo.specificationForModel(threadModel),
-          Self.canDownloadLocalModels || LLMZoo.isModelDownloaded(specification)
-        {
+        } else if LLMZoo.specificationForModel(threadModel) != nil {
           selectedLLM = threadModel
           workspace.dictionary["chat_backend", String.self] = nil
           chatInputController.setModel(
             name: LLMZoo.humanReadableNameForModel(threadModel),
             image: Self.modelImage(for: threadModel))
         } else {
-          selectFallbackModel()
+          codeAgentWrapper = nil
+          workspace.dictionary["chat_backend", String.self] = nil
+          settingsWorkflow.setRemoteContextStatus(nil)
+          settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
+          settingsWorkflow.setContextUsed(0, contextWindowTokens: 0)
+          chatInputController.setModel(
+            name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
         }
       } else {
-        selectFallbackModel()
+        codeAgentWrapper = nil
+        workspace.dictionary["chat_backend", String.self] = nil
+        settingsWorkflow.setRemoteContextStatus(nil)
+        settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
+        settingsWorkflow.setContextUsed(0, contextWindowTokens: 0)
+        chatInputController.setModel(
+          name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
       }
     }
     if !didResolveThreadModel {
@@ -1641,15 +1590,18 @@ final class ChatWorkflow: Workflow {
         chatInputController.setModel(
           name: remoteChatProvider.title,
           image: Self.modelImage(for: provider))
-      } else if let selectedLLM, let specification = LLMZoo.specificationForModel(selectedLLM),
-        Self.canDownloadLocalModels || LLMZoo.isModelDownloaded(specification)
-      {
+      } else if let selectedLLM {
         self.selectedLLM = selectedLLM
         chatInputController.setModel(
           name: LLMZoo.humanReadableNameForModel(selectedLLM),
           image: Self.modelImage(for: selectedLLM))
       } else {
-        selectFallbackModel()
+        codeAgentWrapper = nil
+        settingsWorkflow.setRemoteContextStatus(nil)
+        settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
+        settingsWorkflow.setContextUsed(0, contextWindowTokens: 0)
+        chatInputController.setModel(
+          name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
       }
     }
     switch codeAgentWrapper {
@@ -1966,34 +1918,21 @@ final class ChatWorkflow: Workflow {
       let model =
         history.last.flatMap { projectHistoryManager?.thread(id: $0.threadId)?.model }
         ?? selectedLLM
-      (safeTokenizer, toolCallSpecialTokens) = Self.tokenizers(forModel: model)
+      switch model.flatMap({ LLMZoo.specificationForModel($0) })?.version {
+      case .deepseek_4_flash:
+        safeTokenizer = DeepSeek4TextGenerator.safeTokenizer
+        toolCallSpecialTokens = DeepSeek4ToolCallParser.toolCallSpecialTokens
+      case .deepseek_4_1_flash:
+        safeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
+        toolCallSpecialTokens = DeepSeek4ToolCallParser.toolCallSpecialTokens
+      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
+        safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
+        toolCallSpecialTokens = Qwen3_5ToolCallParser.toolCallSpecialTokens
+      }
     case nil:
       return []
     }
-    return Self.historyMessages(
-      from: history, safeTokenizer: safeTokenizer, toolCallSpecialTokens: toolCallSpecialTokens,
-      projectPath: projectPath, workspacePath: workspacePath)
-  }
-
-  /// The tokenizer and tool-call tokens for a thread's local model, as its saved turns use them.
-  static func tokenizers(forModel model: String?) -> (TiktokenTokenizer, [Int32: String]) {
-    switch model.flatMap({ LLMZoo.specificationForModel($0) })?.version {
-    case .deepseek_4_flash:
-      return (DeepSeek4TextGenerator.safeTokenizer, DeepSeek4ToolCallParser.toolCallSpecialTokens)
-    case .deepseek_4_1_flash:
-      return (DeepSeek4_1TextGenerator.safeTokenizer, DeepSeek4ToolCallParser.toolCallSpecialTokens)
-    case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
-      return (Qwen3_5TextGenerator.safeTokenizer, Qwen3_5ToolCallParser.toolCallSpecialTokens)
-    }
-  }
-
-  /// A thread's saved nodes as the chat shows them: the user's text, and each answer with its tool
-  /// subtitles above it.
-  static func historyMessages(
-    from history: [ProjectHistoryNode], safeTokenizer: TiktokenTokenizer,
-    toolCallSpecialTokens: [Int32: String], projectPath: String?, workspacePath: String
-  ) -> [ChatHistoryMessage] {
-    history.compactMap { node in
+    return history.compactMap { node in
       let datetime = Date(timeIntervalSince1970: Double(node.datetime) / 1_000)
       switch node.role {
       case .memory:
@@ -2050,112 +1989,9 @@ final class ChatWorkflow: Workflow {
     return url
   }
 
-  /// On a phone: shows a thread on one of the account's Macs in place of a project, or, with no
-  /// thread, an empty chat whose first message starts one in that project.
-  func openMacThread(in project: MacProject, threadID: Int64?) {
-    dispatchPrecondition(condition: .onQueue(.main))
-    guard let connection = deviceLink.macConnection(for: project.deviceID),
-      let mac = deviceLink.state.value?.devices.first(where: { $0.device.id == project.deviceID })
-    else {
-      presentMacThreadAlert(LocalizedString.forKey("device_link_mac_unavailable"))
-      return
-    }
-    if let projectURL,
-      remoteChatProviders.values.contains(where: {
-        $0.hasActiveConversations(projectPath: projectURL.path)
-      })
-    {
-      return
-    }
-    closeMacThread()
-    closeWelcomeThread()
-    if case .some(.local) = codeAgentWrapper {
-      agentScheduler.setForeground(nil)
-    }
-    cancelRemoteStatusRequests()
-    stopProjectSecurityScopedResourceAccess()
-    // As opening a project does: no Model Speed page, and no banner of the project left.
-    closeModelSpeed(animated: false)
-    updateChatBanner()
-    setTextToEmpty()
-    let macThread = MacThreadController(
-      project: project, threadID: threadID, macName: mac.device.record.name,
-      connection: connection, viewController: viewController,
-      chatInputController: chatInputController)
-    macThread.delegate = self
-    self.macThread = macThread
-    projectBarController.projectName =
-      deviceLink.macProjects.value[project.deviceID]?.first { $0.id == project.projectID }?.title
-    settingsWorkflow.openMacThread = ProjectController.Thread(
-      projectPath: project.path, threadId: threadID ?? -1)
-    settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
-    settingsWorkflow.setContextUsed(0, contextWindowTokens: 0)
-    updateMacThreadModel()
-  }
-
-  /// The project's database file, created empty when the project is new; nil when the folder
-  /// can't hold it.
-  static func projectMetadataURL(creatingIn projectURL: URL) -> URL? {
-    let fileManager = FileManager.default
-    let metadataDirectoryURL = projectURL.appendingPathComponent(".localc", isDirectory: true)
-    guard
-      (try? fileManager.createDirectory(
-        at: metadataDirectoryURL, withIntermediateDirectories: true)) != nil
-    else { return nil }
-    let metadataURL = metadataDirectoryURL.appendingPathComponent("metadata.sqlite3")
-    guard
-      fileManager.fileExists(atPath: metadataURL.path)
-        || fileManager.createFile(atPath: metadataURL.path, contents: nil)
-    else { return nil }
-    return metadataURL
-  }
-
-  /// A new thread's title: the first line of its first message that isn't blank.
-  static func threadTitle(_ prompt: String) -> String {
-    prompt.components(separatedBy: .newlines).first {
-      !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }?.trimmingCharacters(in: .whitespacesAndNewlines) ?? prompt
-  }
-
-  /// Back from a thread on a Mac to this device's last project, on its last thread.
-  func leaveMacThread() {
-    guard macThread != nil else { return }
-    openProject(
-      at: workspace.dictionary["project", Data.self].flatMap(resolveProjectURL)
-        ?? settingsWorkflow.workspaceFolderURL, threadId: nil)
-  }
-
-  /// Leaves the Mac thread on screen, if there's one; its turns go on on the Mac.
-  func closeMacThread() {
-    guard let macThread else { return }
-    macThread.close()
-    self.macThread = nil
-    settingsWorkflow.openMacThread = nil
-    settingsWorkflow.isMacThreadOpen = false
-    chatInputController.sendState = .idle
-    viewController.setQueuedItems([], animated: false)
-    viewController.setSteeringQueuedItems([])
-    switch codeAgentWrapper {
-    case .some(.remote(let remoteChatProvider)):
-      chatInputController.setModel(
-        name: remoteChatProvider.title, image: Self.modelImage(for: remoteChatProvider.provider))
-    case .some(.local(let textGenerator, _)):
-      let file = URL(fileURLWithPath: textGenerator.filePath).lastPathComponent
-      chatInputController.setModel(
-        name: LLMZoo.humanReadableNameForModel(file), image: Self.modelImage(for: file))
-    case nil:
-      chatInputController.setModel(
-        name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
-    }
-  }
-
   private func selectThread(_ thread: ProjectController.Thread) {
     let openThread: () -> Void = { [weak self] in
       guard let self else { return }
-      if let macProject = MacProject(path: thread.projectPath) {
-        self.openMacThread(in: macProject, threadID: thread.threadId >= 0 ? thread.threadId : nil)
-        return
-      }
       guard thread.threadId != OnboardingState.threadIdentifier else {
         self.openWelcomeThread(animated: true)
         return
@@ -2164,8 +2000,7 @@ final class ChatWorkflow: Workflow {
         at: URL(fileURLWithPath: thread.projectPath, isDirectory: true),
         threadId: thread.threadId)
     }
-    // A local agent's turn goes on in the background, and a Mac's on the Mac.
-    if codeAgentWrapper != nil || macThread != nil {
+    if codeAgentWrapper != nil {
       openThread()
       return
     }
@@ -2213,7 +2048,7 @@ extension ChatWorkflow: OnboardingWorkflowDelegate {
   func onboardingWorkflow(
     _ workflow: OnboardingWorkflow, didRequestDownloadOfLocalModel file: String
   ) {
-    guard Self.canDownloadLocalModels, let specification = LLMZoo.specificationForModel(file),
+    guard let specification = LLMZoo.specificationForModel(file),
       !LLMZoo.isModelDownloaded(specification)
     else { return }
     // Selecting the model later joins this download instead of starting another.
@@ -2239,9 +2074,6 @@ extension ChatWorkflow: OnboardingWorkflowDelegate {
     _ workflow: OnboardingWorkflow, didFinishWith provider: RemoteProvider?
   ) {
     workspace.dictionary["chat_backend", String.self] = provider?.rawValue
-    if let provider {
-      workspace.dictionary["where_models_run_last_used", String.self] = provider.rawValue
-    }
     openProject(at: projectURL ?? settingsWorkflow.workspaceFolderURL, threadId: -1)
     chatInputController.focus()
   }
@@ -2355,8 +2187,6 @@ extension ChatWorkflow: AgentSchedulerDelegate {
     guard scheduler === agentScheduler else { return }
     settingsWorkflow.setActiveThreads(
       activeThreads.map { (projectPath: $0.projectPath, threadId: $0.threadId) })
-    // Another device's thread may be waiting for the Mac to load another model.
-    if activeThreads.isEmpty { startThreadsWaitingForModel() }
   }
 }
 
@@ -2396,17 +2226,6 @@ extension ChatWorkflow: ItemSelectWorkflowDelegate {
       return
     }
     guard workflow === modelSelectWorkflow else { return }
-    if case .identifier(let choice as MacModelChoice) = item {
-      workflow.viewControllable.dismiss(animated: true) { [weak self] in
-        guard let macThread = self?.macThread,
-          let model = macThread.models?.providers.first(where: { $0.id.isEmpty })?.models.first(
-            where: { $0.modelID == choice.id })
-        else { return }
-        macThread.pick(model)
-      }
-      modelSelectWorkflow = nil
-      return
-    }
     guard case .identifier(let identifier as String) = item else {
       remoteModelCatalogRequest?.cancel()
       remoteModelCatalogRequest = nil
@@ -2644,20 +2463,14 @@ extension ChatWorkflow: ChatViewControllableDelegate {
     _ viewController: UIViewController,
     didSteerQueuedItem queuedItem: ProjectQueuedItem
   ) {
-    if let macThread {
-      macThread.steer(queuedItem)
-      return
-    }
-    guard queuedItems.contains(queuedItem) else { return }
-    steerQueuedItem(queuedItem)
-  }
-
-  /// Stops the open thread's turn and sends the item at once, with any others steered.
-  func steerQueuedItem(_ queuedItem: ProjectQueuedItem) {
     guard let projectURL else { return }
     let threadIdentifier = ProjectThreadIdentifier(
       projectURL: projectURL, threadId: queuedItem.threadId)
-    guard steeringQueuedItems[threadIdentifier]?.contains(queuedItem) != true else { return }
+    guard queuedItems.contains(queuedItem),
+      steeringQueuedItems[threadIdentifier]?.contains(queuedItem) != true
+    else {
+      return
+    }
     steeringQueuedItems[threadIdentifier, default: []].append(queuedItem)
     self.viewController.setSteeringQueuedItems(steeringQueuedItems[threadIdentifier] ?? [])
     // While stopping, the stop under way sends this item along with the others steered.
@@ -2674,10 +2487,6 @@ extension ChatWorkflow: ChatViewControllableDelegate {
     _ viewController: UIViewController,
     didDeleteQueuedItem queuedItem: ProjectQueuedItem
   ) {
-    if let macThread {
-      macThread.remove(queuedItem)
-      return
-    }
     guard let projectWorkspace,
       projectHistoryManager?.threadId == queuedItem.threadId,
       let item = queuedItems.first(where: {
@@ -2841,44 +2650,15 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     updateTextHistoryPointers()
   }
 
-  /// Whether the open thread is marked incomplete with a paused turn to go on with. A thread can
-  /// stay marked with none, as when its turn paused on a model that's no longer here; while no
-  /// turn runs, that mark is cleared, so the thread's messages go out instead of waiting on it.
-  func hasIncompleteResponseToContinue() -> Bool {
-    guard let projectHistoryManager,
-      let thread = projectHistoryManager.thread(id: projectHistoryManager.threadId),
-      thread.hasIncompleteResponse
-    else { return false }
-    if case .some(.local(_, let codeAgent?)) = codeAgentWrapper, codeAgent.suspendedResult != nil {
-      return true
-    }
-    // A running turn marks its thread too, until it ends, as does one a retiring scheduler is
-    // still pausing.
-    let isRunning =
-      projectURL.map { projectURL in
-        ([agentScheduler] + retiringAgentSchedulers).contains { scheduler in
-          scheduler.residentCodeAgent(projectPath: projectURL.path, threadId: thread.id).map(
-            scheduler.hasActiveTurn) == true
-        }
-      } ?? false
-    guard chatInputController.sendState == .idle, !isRunning else { return true }
-    projectHistoryManager.setThreadHasIncompleteResponse(
-      id: thread.id, hasIncompleteResponse: false)
-    return false
-  }
-
   private func continueIncompleteResponse() {
-    guard chatInputController.sendState == .idle else { return }
-    // Nothing to go on with: what waited behind the mark goes out now.
-    guard hasIncompleteResponseToContinue() else {
-      continueWithQueuedItems()
-      return
-    }
-    guard let projectHistoryManager,
+    guard chatInputController.sendState == .idle,
+      let projectHistoryManager,
       let projectWorkspace,
       let projectURL,
       let thread = projectHistoryManager.thread(id: projectHistoryManager.threadId),
-      case .some(.local(let textGenerator, let codeAgent?)) = codeAgentWrapper,
+      thread.hasIncompleteResponse,
+      case .some(.local(let textGenerator, let codeAgent)) = codeAgentWrapper,
+      let codeAgent,
       let suspendedResult = codeAgent.suspendedResult
     else { return }
     let file = URL(fileURLWithPath: textGenerator.filePath).lastPathComponent
@@ -2886,10 +2666,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     if let specification = LLMZoo.specificationForModel(file),
       !LLMZoo.isModelDownloaded(specification)
     {
-      guard Self.canDownloadLocalModels else {
-        presentModelNotOnPhone(specification)
-        return
-      }
       let threadId = thread.id
       downloadLLMModel(specification) { [weak self] success in
         guard let self, success, self.projectHistoryManager === projectHistoryManager,
@@ -2952,10 +2728,8 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     // Stopping without a steer hands the queue back to the input instead of sending it.
     let isRestoringQueue = isStopping && steeredItems.isEmpty
     // Like a new turn, sending downloads a model whose files were removed. The queue stays
-    // until then, so it goes out once the download finishes. An iPhone doesn't download: the
-    // send says so, and the queue goes back to the input.
-    if !isRestoringUserNode, !isRestoringQueue, Self.canDownloadLocalModels,
-      case .some(.local) = codeAgentWrapper,
+    // until then, so it goes out once the download finishes.
+    if !isRestoringUserNode, !isRestoringQueue, case .some(.local) = codeAgentWrapper,
       let file = selectedLLM, let specification = LLMZoo.specificationForModel(file),
       !LLMZoo.isModelDownloaded(specification)
     {
@@ -3046,20 +2820,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
   }
 
   func chatInputControllerDidTapSend(_ controller: ChatInputController) {
-    guard !controller.isImportingAttachments else { return }
-    if let macThread {
-      let prompt = controller.text.trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !prompt.isEmpty || !controller.attachments.isEmpty else { return }
-      macThread.send(prompt, attachments: controller.attachments)
-      setTextToEmpty()
-      return
-    }
-    // An iPhone has no local agent until a local model is picked.
-    guard codeAgentWrapper != nil else { return }
-    if case .some(.remote(let remoteChatProvider)) = codeAgentWrapper {
-      workspace.dictionary["where_models_run_last_used", String.self] =
-        remoteChatProvider.provider.rawValue
-    }
+    guard codeAgentWrapper != nil, !controller.isImportingAttachments else { return }
     var prompt = controller.text.trimmingCharacters(in: .whitespacesAndNewlines)
     var imagePaths = [String]()
     if let projectURL, !controller.attachments.isEmpty {
@@ -3092,19 +2853,15 @@ extension ChatWorkflow: ChatInputControllerDelegate {
   }
 
   /// Image paths are relative to the project. Returns whether the message was sent or queued.
-  /// `onQueued` gets the queued item, on the main queue once saved, when a running turn queues the
-  /// message.
   @discardableResult
-  func didTapSend(
-    _ prompt: String, imagePaths: [String] = [],
-    onQueued: ((ProjectQueuedItem) -> Void)? = nil
-  ) -> Bool {
+  private func didTapSend(_ prompt: String, imagePaths: [String] = []) -> Bool {
     guard !prompt.isEmpty else { return false }
     if let projectURL, let threadId = projectHistoryManager?.threadId {
       transientErrorMessages[
         ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId)] = nil
     }
-    let hasIncompleteResponse = hasIncompleteResponseToContinue()
+    let hasIncompleteResponse =
+      projectHistoryManager.flatMap { $0.thread(id: $0.threadId) }?.hasIncompleteResponse == true
     if chatInputController.sendState != .idle || hasIncompleteResponse {
       guard let projectWorkspace, let projectHistoryManager,
         projectHistoryManager.threadId >= 0
@@ -3117,10 +2874,9 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       projectWorkspace.performChanges([ProjectQueuedItem.self]) { transactionContext in
         transactionContext.try(submit: ProjectQueuedItemChangeRequest.upsertRequest(queuedItem))
       } completionHandler: { [weak self, weak projectWorkspace] success in
-        guard success else { return }
+        guard success, hasIncompleteResponse else { return }
         DispatchQueue.main.async {
-          onQueued?(queuedItem)
-          guard hasIncompleteResponse, let self, self.projectWorkspace === projectWorkspace,
+          guard let self, self.projectWorkspace === projectWorkspace,
             self.projectHistoryManager?.threadId == queuedItem.threadId
           else { return }
           self.continueIncompleteResponse()
@@ -3145,10 +2901,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       let specification = LLMZoo.specificationForModel(file)
     else { return false }
     guard LLMZoo.isModelDownloaded(specification) else {
-      guard Self.canDownloadLocalModels else {
-        presentModelNotOnPhone(specification)
-        return false
-      }
       // Keep the draft editable while downloading, including after cancellation or failure.
       let projectHistoryManager = self.projectHistoryManager
       let threadId = projectHistoryManager?.threadId
@@ -3170,12 +2922,35 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     var prefixTokens = [Int32]()
     var prefixEmbedSpans = [EmbedSpan]()
     if projectHistoryManager.threadId >= 0 {
-      guard
-        moveThread(
-          projectHistoryManager.threadId, toLocalModel: file, in: projectHistoryManager)
-      else { return false }
-      (prefixTokens, prefixEmbedSpans) = projectHistoryManager.context(
-        threadId: projectHistoryManager.threadId)
+      guard let thread = projectHistoryManager.thread(id: projectHistoryManager.threadId) else {
+        return false
+      }
+      if thread.model != file {
+        let history = projectHistoryManager.history(threadId: projectHistoryManager.threadId)
+        guard
+          let convertedHistory = convertedHistoryForLocalModel(
+            history, sourceModel: thread.model ?? file, targetModel: file)
+        else { return false }
+        (prefixTokens, prefixEmbedSpans) = ProjectHistoryManager.context(history: convertedHistory)
+        let historyIsUnchanged = convertedHistory.elementsEqual(
+          history,
+          by: { lhs, rhs in
+            lhs.threadId == rhs.threadId && lhs.datetime == rhs.datetime
+              && lhs.logTokens == rhs.logTokens && lhs.embedSpans == rhs.embedSpans
+              && lhs.tokens == rhs.tokens
+              && lhs.plaintext == rhs.plaintext && lhs.logPlaintext == rhs.logPlaintext
+          })
+        let didUpdateHistory =
+          historyIsUnchanged
+          ? projectHistoryManager.updateThreadModel(
+            id: projectHistoryManager.threadId, model: file)
+          : projectHistoryManager.rewriteHistory(
+            threadId: projectHistoryManager.threadId, nodes: convertedHistory, model: file)
+        guard didUpdateHistory else { return false }
+      } else {
+        (prefixTokens, prefixEmbedSpans) = projectHistoryManager.context(
+          threadId: projectHistoryManager.threadId)
+      }
     }
     guard case .some(.local(let selectedTextGenerator, let existingCodeAgent)) = codeAgentWrapper,
       URL(fileURLWithPath: selectedTextGenerator.filePath).lastPathComponent == file
@@ -3211,8 +2986,12 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     let threadId: Int64
     let userDatetime: Int64
     if projectHistoryManager.threadId == -1 {
+      let title =
+        prompt.components(separatedBy: .newlines).first {
+          !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }?.trimmingCharacters(in: .whitespacesAndNewlines) ?? prompt
       let thread = projectHistoryManager.createThread(
-        title: Self.threadTitle(prompt), model: file, userTokens: userTokens, textEdits: textEdits,
+        title: title, model: file, userTokens: userTokens, textEdits: textEdits,
         textLineage: textLineage, imagePaths: imagePaths, lastMessage: prompt)
       projectHistoryManager.threadId = thread.id
       observeQueuedItems(threadId: thread.id)
@@ -3254,7 +3033,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     return true
   }
 
-  func scheduleLocalTurn(
+  private func scheduleLocalTurn(
     codeAgent: any CodeAgent, safeTokenizer: TiktokenTokenizer, prompt: String?,
     imagePaths: [String] = [], threadId: Int64,
     projectURL: URL, projectWorkspace: SQLiteWorkspace,
@@ -3264,14 +3043,16 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     threadNotifications.requestAuthorizationIfNeeded()
     let scheduler = agentScheduler
     let projectPath = projectURL.path
-    // Other devices see the turn as it runs, whether or not the Mac shows it.
-    let threadsTurn = threadsTurnReporter(
-      projectURL: projectURL, threadId: threadId, codeAgent: codeAgent)
     let workspacePath = settingsWorkflow.workspaceFolderURL.path
-    let webSearchProvider = configuredWebSearchProvider
+    let webSearchIdentifier =
+      workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
+    let webSearchProvider =
+      WebSearchProvider(
+        identifier: webSearchIdentifier,
+        apiKey: workspace.dictionary["\(webSearchIdentifier)_api_key", String.self] ?? "")
+      ?? .duckDuckGo
     let progress: (CodeAgentProgress, CodeAgentStatistics) -> Void = {
       [weak self, weak scheduler] partialResult, statistics in
-      threadsTurn?.report(partialResult, statistics: statistics)
       let bashUserInteraction = codeAgent.bashUserInteraction
       DispatchQueue.main.async {
         guard let self, let scheduler,
@@ -3289,7 +3070,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       [weak self, weak scheduler] result, reason in
       guard !result.isEmpty else {
         DispatchQueue.main.async {
-          threadsTurn?.finish(.stopped)
           guard let scheduler else { return }
           if projectHistoryManager.setThreadHasIncompleteResponse(
             id: threadId, hasIncompleteResponse: false)
@@ -3365,10 +3145,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         CACurrentMediaTime() - startTime
         - codeAgent.bashUserInteraction.userInteractionInterval(since: startTime)
       DispatchQueue.main.async {
-        guard let self, let scheduler else {
-          threadsTurn?.finish(.failed)
-          return
-        }
+        guard let self, let scheduler else { return }
         defer { self.openPendingNotificationThread() }
         let isDisplayed = self.isDisplayed(
           codeAgent: codeAgent, scheduler: scheduler, projectPath: projectPath,
@@ -3388,7 +3165,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
             memoryContext: result.memoryContext,
             systemSeenMemoryContext: result.systemSeenMemoryContext, lastMessage: response)
         else {
-          threadsTurn?.finish(.failed, error: "The Mac couldn't save the answer.")
           if projectHistoryManager.setThreadHasIncompleteResponse(
             id: threadId, hasIncompleteResponse: false)
           {
@@ -3407,8 +3183,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
           scheduler.markAsCompleted(codeAgent)
           return
         }
-        threadsTurn?.finish(
-          reason == .finished ? .completed : .stopped, messageDatetime: node.datetime)
         if projectHistoryManager.setThreadHasIncompleteResponse(
           id: threadId, hasIncompleteResponse: false)
         {
@@ -3715,7 +3489,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
 
   /// A steer that stopped the turn before any output resends the stopped node, with its images,
   /// joined with the steered items in its place.
-  func continueBackgroundQueuedItems(
+  private func continueBackgroundQueuedItems(
     codeAgent: any CodeAgent, safeTokenizer: TiktokenTokenizer, threadId: Int64,
     projectURL: URL, projectWorkspace: SQLiteWorkspace,
     projectHistoryManager: ProjectHistoryManager, resending stoppedNode: ProjectHistoryNode? = nil
@@ -3777,10 +3551,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
   }
 
   func chatInputControllerDidTapStop(_ controller: ChatInputController) {
-    if let macThread {
-      macThread.stop()
-      return
-    }
     guard !didTapStopRemote(controller) else { return }
     guard controller.sendState == .sending else { return }
     guard case .some(.local(_, let codeAgent)) = codeAgentWrapper, let codeAgent else { return }

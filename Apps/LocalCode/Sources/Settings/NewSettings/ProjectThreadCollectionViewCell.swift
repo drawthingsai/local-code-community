@@ -48,8 +48,7 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
         FontMetrics.default.scaleFont(
           .systemFont(ofSize: 14, weight: item.status == .new ? .bold : .regular),
           bindTo: titleLabel)
-        // The Mac renames and deletes its own threads.
-        button.isHidden = item.isOnMac
+        button.isHidden = false
         button.menu = UIMenu(children: [
           UIAction(
             title: LocalizedString.forKey("rename_thread_dot"),

@@ -1291,7 +1291,7 @@ public final class Qwen3_5CodeAgent: CodeAgent {
     tokensSinceLastCompact = prefixTokens.count
   }
 
-  static func systemTokens(
+  private static func systemTokens(
     systemPromptTemplate: String, reasoningEffort: ReasoningEffort, memoryContext: MemoryContext,
     skillCatalog: SkillCatalog,
     projectContext: ProjectContext, environmentContext: EnvironmentContext,

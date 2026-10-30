@@ -49,8 +49,6 @@ struct LocalPathResolver: Equatable, Sendable {
   let temporaryURL: URL
   let appBundleURL: URL
   let permittedDirectoryURLs: [URL]
-  /// Moves on when files appear under its folders, so rendered messages look for them again.
-  var revision = 0
 
   init(projectPath: String?, workspacePath: String?, permittedDirectoryURLs: [URL] = []) {
     let projectPath =
@@ -117,7 +115,7 @@ struct LocalPathResolver: Equatable, Sendable {
 
   var fingerprint: AnyHashable {
     "\(projectURL.path)\0\(workspaceURL.path)\0\(temporaryURL.path)\0\(appBundleURL.path)\0"
-      + permittedDirectoryURLs.map(\.path).sorted().joined(separator: "\0") + "\0\(revision)"
+      + permittedDirectoryURLs.map(\.path).sorted().joined(separator: "\0")
   }
 
   private func resolve(

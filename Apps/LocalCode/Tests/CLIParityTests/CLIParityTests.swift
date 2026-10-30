@@ -1250,10 +1250,7 @@ final class CLIParityTests: XCTestCase {
       unsetenv(environmentName)
     }
     let endpoints =
-      // OpenAI signs in, and Remote Access reaches a Mac over a device's link.
-      RemoteProvider.allCases.filter { $0 != .openAI && $0 != .deviceLink }.map {
-        ($0, "https://cli-parity.invalid/v1")
-      }
+      RemoteProvider.allCases.filter { $0 != .openAI }.map { ($0, "https://cli-parity.invalid/v1") }
       + [(.openAICompatible, "https://api.openai.com")]
     for (provider, baseURL) in endpoints {
       var requests = 0

@@ -7,54 +7,6 @@ import RemoteAPI
 import Tokenizer
 
 extension ChatWorkflow {
-  /// Moves a thread to a local model, converting its history for the model, and returns whether
-  /// the thread is on it. Its next turn's context then comes from the converted history.
-  func moveThread(
-    _ threadId: Int64, toLocalModel file: String, in projectHistoryManager: ProjectHistoryManager
-  ) -> Bool {
-    guard let thread = projectHistoryManager.thread(id: threadId) else { return false }
-    guard thread.model != file else { return true }
-    let history = projectHistoryManager.history(threadId: threadId)
-    guard
-      let convertedHistory = convertedHistoryForLocalModel(
-        history, sourceModel: thread.model ?? file, targetModel: file)
-    else { return false }
-    let historyIsUnchanged = convertedHistory.elementsEqual(
-      history,
-      by: { lhs, rhs in
-        lhs.threadId == rhs.threadId && lhs.datetime == rhs.datetime
-          && lhs.logTokens == rhs.logTokens && lhs.embedSpans == rhs.embedSpans
-          && lhs.tokens == rhs.tokens
-          && lhs.plaintext == rhs.plaintext && lhs.logPlaintext == rhs.logPlaintext
-      })
-    return historyIsUnchanged
-      ? projectHistoryManager.updateThreadModel(id: threadId, model: file)
-      : projectHistoryManager.rewriteHistory(
-        threadId: threadId, nodes: convertedHistory, model: file)
-  }
-
-  /// Moves a thread to a cloud model (`remoteThreadModelIdentifier`), and returns whether the
-  /// thread is on it. Its history becomes plain text, which cloud models read.
-  func moveThread(
-    _ threadId: Int64, toRemoteModel threadModel: String,
-    in projectHistoryManager: ProjectHistoryManager
-  ) -> Bool {
-    guard let thread = projectHistoryManager.thread(id: threadId) else { return false }
-    guard thread.model != threadModel else { return true }
-    guard let sourceModel = thread.model ?? selectedLLM else { return false }
-    // Only local models store tokens; any other thread (a remote provider's, including one this
-    // build no longer knows) already keeps plain text and only needs its model updated.
-    guard parseRemoteThreadModelIdentifier(sourceModel) == nil,
-      LLMZoo.specificationForModel(sourceModel) != nil
-    else { return projectHistoryManager.updateThreadModel(id: threadId, model: threadModel) }
-    guard
-      let convertedHistory = convertedHistoryForRemoteModel(
-        projectHistoryManager.history(threadId: threadId), sourceModel: sourceModel)
-    else { return false }
-    return projectHistoryManager.rewriteHistory(
-      threadId: threadId, nodes: convertedHistory, model: threadModel)
-  }
-
   func convertedHistoryForLocalModel(
     _ history: [ProjectHistoryNode], sourceModel: String, targetModel: String
   ) -> [ProjectHistoryNode]? {
@@ -236,18 +188,12 @@ extension ChatWorkflow {
     }
   }
 
-  /// - Parameter project: A project other than the open one, such as one whose thread another
-  ///   device works in, with its context and skills.
   func codeAgentWrapper(
     model: String, prefixTokens: [Int32], prefixEmbedSpans: [EmbedSpan],
-    history: [ProjectHistoryNode], fromSuspension: Bool,
-    project: (url: URL, context: ProjectContext, skillCatalog: SkillCatalog)? = nil
+    history: [ProjectHistoryNode], fromSuspension: Bool
   ) -> CodeAgentWrapper? {
     guard let textGenerator = textGenerator(for: model) else { return nil }
     let codeAgent: any CodeAgent
-    let projectURL = project?.url ?? self.projectURL
-    let projectContext = project?.context ?? self.projectContext
-    let skillCatalog = project?.skillCatalog ?? self.skillCatalog
     let memoryContext =
       (workspace.dictionary["is_memory_enabled", Bool.self] ?? true)
       ? MemoryContext.load(projectPath: projectURL?.path) : .empty

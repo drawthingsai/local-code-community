@@ -121,8 +121,8 @@ final class EmptyBannerController {
     // sparkles keep their place around it.
     for (subview, rect) in [
       (wordmarkView, CGRect(x: 200.397, y: 31.577, width: 892.022, height: 149.860)),
-      (neutralView, Self.monkeyRect),
-      (sparklesView, Self.sparklesRect),
+      (neutralView, CGRect(x: 3.148, y: -4.461, width: 188.065, height: 193.289)),
+      (sparklesView, CGRect(x: -20.489, y: -4.461, width: 1144.830, height: 211.701)),
     ] {
       // Locate centers so artwork can extend above or beside the background.
       let centerGuide = UILayoutGuide()
@@ -267,49 +267,6 @@ final class EmptyBannerController {
     }
   }
 
-  /// The monkey and its sparkles in the 1114 × 206 composition.
-  static let monkeyRect = CGRect(x: 3.148, y: -4.461, width: 188.065, height: 193.289)
-  static let sparklesRect = CGRect(x: -20.489, y: -4.461, width: 1144.830, height: 211.701)
-
-  /// The banner background's color cycle, after its starting red.
-  // Reviewed Lab palette, converted to sRGB for each appearance.
-  // Follow neighboring hues to reduce RGB interpolation drift from Lab,
-  // returning to adaptive Draw Things red after seven transitions.
-  static let cycleColors: [UIColor] = [
-    UIColor { traitCollection in  // Orange: #EC9711 / #E69105
-      if traitCollection.userInterfaceStyle == .dark {
-        return UIColor(red: 230.0 / 255, green: 145.0 / 255, blue: 5.0 / 255, alpha: 1)
-      }
-      return UIColor(red: 236.0 / 255, green: 151.0 / 255, blue: 17.0 / 255, alpha: 1)
-    },
-    UIColor { traitCollection in  // Lime: #80BC1B / #7BB612
-      if traitCollection.userInterfaceStyle == .dark {
-        return UIColor(red: 123.0 / 255, green: 182.0 / 255, blue: 18.0 / 255, alpha: 1)
-      }
-      return UIColor(red: 128.0 / 255, green: 188.0 / 255, blue: 27.0 / 255, alpha: 1)
-    },
-    UIColor { traitCollection in  // Mint: #00B782 / #009F71
-      if traitCollection.userInterfaceStyle == .dark {
-        return UIColor(red: 0, green: 159.0 / 255, blue: 113.0 / 255, alpha: 1)
-      }
-      return UIColor(red: 0, green: 183.0 / 255, blue: 130.0 / 255, alpha: 1)
-    },
-    UIColor { traitCollection in  // Cyan: #00B4B4 / #009C9D
-      if traitCollection.userInterfaceStyle == .dark {
-        return UIColor(red: 0, green: 156.0 / 255, blue: 157.0 / 255, alpha: 1)
-      }
-      return UIColor(red: 0, green: 180.0 / 255, blue: 180.0 / 255, alpha: 1)
-    },
-    UIColor(red: 143.0 / 255, green: 102.0 / 255, blue: 1, alpha: 1),
-    UIColor { traitCollection in  // Pink: #F47DC1 / #EB74B8
-      if traitCollection.userInterfaceStyle == .dark {
-        return UIColor(red: 235.0 / 255, green: 116.0 / 255, blue: 184.0 / 255, alpha: 1)
-      }
-      return UIColor(red: 244.0 / 255, green: 125.0 / 255, blue: 193.0 / 255, alpha: 1)
-    },
-    .primaryColor,
-  ]
-
   private func updateBackgroundAnimation(colorIndex: Int = 0) {
     guard animatesBackground else { return }
     guard isVisible, view.window != nil,
@@ -324,7 +281,43 @@ final class EmptyBannerController {
     if colorIndex == 0 {
       backgroundView.tintColor = .primaryColor
     }
-    let colors = Self.cycleColors
+    // Reviewed Lab palette, converted to sRGB for each appearance.
+    // Follow neighboring hues to reduce RGB interpolation drift from Lab,
+    // returning to adaptive Draw Things red after seven transitions.
+    let colors: [UIColor] = [
+      UIColor { traitCollection in  // Orange: #EC9711 / #E69105
+        if traitCollection.userInterfaceStyle == .dark {
+          return UIColor(red: 230.0 / 255, green: 145.0 / 255, blue: 5.0 / 255, alpha: 1)
+        }
+        return UIColor(red: 236.0 / 255, green: 151.0 / 255, blue: 17.0 / 255, alpha: 1)
+      },
+      UIColor { traitCollection in  // Lime: #80BC1B / #7BB612
+        if traitCollection.userInterfaceStyle == .dark {
+          return UIColor(red: 123.0 / 255, green: 182.0 / 255, blue: 18.0 / 255, alpha: 1)
+        }
+        return UIColor(red: 128.0 / 255, green: 188.0 / 255, blue: 27.0 / 255, alpha: 1)
+      },
+      UIColor { traitCollection in  // Mint: #00B782 / #009F71
+        if traitCollection.userInterfaceStyle == .dark {
+          return UIColor(red: 0, green: 159.0 / 255, blue: 113.0 / 255, alpha: 1)
+        }
+        return UIColor(red: 0, green: 183.0 / 255, blue: 130.0 / 255, alpha: 1)
+      },
+      UIColor { traitCollection in  // Cyan: #00B4B4 / #009C9D
+        if traitCollection.userInterfaceStyle == .dark {
+          return UIColor(red: 0, green: 156.0 / 255, blue: 157.0 / 255, alpha: 1)
+        }
+        return UIColor(red: 0, green: 180.0 / 255, blue: 180.0 / 255, alpha: 1)
+      },
+      UIColor(red: 143.0 / 255, green: 102.0 / 255, blue: 1, alpha: 1),
+      UIColor { traitCollection in  // Pink: #F47DC1 / #EB74B8
+        if traitCollection.userInterfaceStyle == .dark {
+          return UIColor(red: 235.0 / 255, green: 116.0 / 255, blue: 184.0 / 255, alpha: 1)
+        }
+        return UIColor(red: 244.0 / 255, green: 125.0 / 255, blue: 193.0 / 255, alpha: 1)
+      },
+      .primaryColor,
+    ]
     // Ease each 3-second transition separately, with a 2-second hold on red:
     // 2 + 7 * 3 = 23 seconds per loop.
     let animator = UIViewPropertyAnimator(
@@ -362,8 +355,7 @@ final class EmptyBannerController {
     guard restTimer == nil else { return }
     if sleep == .loading {
       // Every expression starts and ends on the neutral pose, as does sleepy.
-      if let sleepy = sleepAnimations?.sleepy,
-        let sleepFrame = sleepy.frameTime(forMarker: "sleepy")
+      if let sleepy = sleepAnimations?.sleepy, let sleepFrame = sleepy.frameTime(forMarker: "sleepy")
       {
         sleep = .dozing
         isBetweenExpressions = false

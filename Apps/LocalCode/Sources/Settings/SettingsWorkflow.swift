@@ -4,7 +4,6 @@ import CLICloudAuth
 import Combine
 import Components
 import Darwin
-import DeviceLink
 import Dflat
 import Dispatch
 import EventKit
@@ -94,36 +93,6 @@ final class SettingsWorkflow: Workflow {
   private let viewController: SettingsViewController
   private let projectsController: ProjectController
   private let settingsSectionsController: SettingsSectionsController
-  /// Links to other devices: Activities shows their connection and the account's devices,
-  /// and a Mac's rail its hosting status.
-  var deviceLink: DeviceLinkService? {
-    didSet {
-      deviceLinkSubscription = deviceLink.map { deviceLink in
-        deviceLink.state.combineLatest(
-          deviceLink.threadsHub.isBusy, deviceLink.threadsHub.answeringDevices,
-          deviceLink.macLinks
-        )
-        .receive(on: DispatchQueue.main).sink { [weak self] _ in self?.updateDeviceLink() }
-      }
-      macProjectsSubscription = deviceLink.map { deviceLink in
-        deviceLink.state.combineLatest(deviceLink.macProjects)
-          .receive(on: DispatchQueue.main).sink { [weak self] state, macProjects in
-            self?.updateMacSections(state: state, macProjects: macProjects)
-          }
-      }
-    }
-  }
-  private var deviceLinkSubscription: AnyCancellable?
-  private var macProjectsSubscription: AnyCancellable?
-  /// On a phone: the Mac thread open in the chat, for the drawer to show as selected.
-  var openMacThread: ProjectController.Thread? {
-    didSet { updateActiveProjectSelection() }
-  }
-  /// Whether the open thread is on a Mac, for Where Models Run.
-  var isMacThreadOpen: Bool {
-    get { settingsSectionsController.isMacThreadOpen }
-    set { settingsSectionsController.isMacThreadOpen = newValue }
-  }
   private let kitSectionsController: KitSectionsController
   private let activitiesSectionsController: ActivitiesSectionsController
   private let accountWorkflow: AccountWorkflow
@@ -588,11 +557,6 @@ final class SettingsWorkflow: Workflow {
     projectsController.threads
   }
 
-  /// `projectThreads`, sent whole on every change.
-  var listedProjectThreads: CurrentValueSubject<[ProjectController.Thread], Never> {
-    projectsController.listedThreads
-  }
-
   private func updateActiveProjectThreads(_ projectThreads: [ProjectThread]) {
     dispatchPrecondition(condition: .onQueue(.main))
     guard let projectHistoryManager, let projectHistoryProjectURL else {
@@ -650,7 +614,7 @@ final class SettingsWorkflow: Workflow {
       return
     }
     guard let projectHistoryManager, let projectHistoryProjectURL else {
-      projectsController.selectedThread = openMacThread
+      projectsController.selectedThread = nil
       return
     }
     let activeThreadId = projectHistoryManager.threadId
@@ -749,35 +713,6 @@ final class SettingsWorkflow: Workflow {
     projectsController.setThreads(threads, animated: false)
   }
 
-  /// Lists a thread another device started in a project that isn't open, first in the project as
-  /// its newest.
-  func addInactiveProjectThread(_ thread: ProjectThread, projectPath: String) {
-    dispatchPrecondition(condition: .onQueue(.main))
-    let projectURL = URL(fileURLWithPath: projectPath, isDirectory: true)
-    if let projectHistoryProjectURL,
-      isSameProjectURL(projectURL, projectHistoryProjectURL)
-    {
-      return
-    }
-    var threads = projectsController.threads
-    guard
-      let index = threads.firstIndex(where: {
-        isSameProjectURL(URL(fileURLWithPath: $0.projectPath, isDirectory: true), projectURL)
-      })
-    else { return }
-    let listedPath = threads[index].projectPath
-    guard !threads.contains(where: { $0.threadId == thread.id && $0.projectPath == listedPath })
-    else { return }
-    threads.insert(
-      ProjectController.Thread(
-        projectPath: listedPath, threadId: thread.id, title: thread.title,
-        updatedAt: thread.updatedAt, model: thread.model, lastMessage: thread.lastMessage,
-        status: threadStatus(
-          projectPath: listedPath, threadId: thread.id, hasUnreadResponse: false,
-          hasIncompleteResponse: false)), at: index)
-    projectsController.setThreads(threads, animated: true)
-  }
-
   func setRemoteContextStatus(_ status: RemoteAgentStatus?) {
     dispatchPrecondition(condition: .onQueue(.main))
     if let status {
@@ -791,8 +726,6 @@ final class SettingsWorkflow: Workflow {
 
   func refreshRemoteProviderConfiguration() {
     settingsSectionsController.refreshRemoteProviderConfiguration()
-    // Activities shows the Mac model Remote Access picked.
-    updateDeviceLink()
   }
 
   func setProjectHistoryManager(
@@ -1146,129 +1079,6 @@ final class SettingsWorkflow: Workflow {
     workspace.dictionary["settings_selected_index", Int.self] = 3
   }
 
-  /// On a phone: a drawer section for each project of each online Mac, titled with the project
-  /// and the Mac.
-  private func updateMacSections(state: RoomState?, macProjects: [String: [ProjectSummary]]) {
-    let macs = (state?.devices ?? []).filter { $0.online && macProjects[$0.device.id] != nil }
-    projectsController.macSections = macs.flatMap { mac in
-      (macProjects[mac.device.id] ?? []).map { project in
-        let macProject = MacProject(deviceID: mac.device.id, projectID: project.id)
-        return ProjectController.MacSection(
-          project: macProject, title: "\(project.title) · \(mac.device.record.name)",
-          threads: project.threads.map { thread in
-            let status: ProjectController.Thread.Status
-            switch thread.status {
-            case .inProgress: status = .inProgress
-            case .incomplete: status = .incomplete
-            case .new: status = .new
-            case .idle, .unspecified, .UNRECOGNIZED: status = .idle
-            }
-            return ProjectController.Thread(
-              projectPath: macProject.path, threadId: thread.ref.threadID, title: thread.title,
-              updatedAt: thread.updatedAtMs, lastMessage: thread.lastMessage,
-              hasUnreadResponse: thread.status == .new,
-              hasIncompleteResponse: thread.status == .incomplete, status: status)
-          })
-      }
-    }
-  }
-
-  /// Links in Activities (this device's connection, and a phone's Macs or a Mac's phones and
-  /// iPads) and, on a Mac, the rail's status icon.
-  private func updateDeviceLink() {
-    guard let deviceLink else { return }
-    let state = deviceLink.state.value
-    let isServing = deviceLink.isServing
-    let isBusy = deviceLink.threadsHub.isBusy.value
-    let statusKey: String
-    switch state?.connection {
-    case nil:
-      statusKey =
-        DeviceLinkService.canServe && !isServing
-        ? "device_link_status_off" : "device_link_status_signed_out"
-    case .connecting?: statusKey = "device_link_status_connecting"
-    case .waitingToReconnect?: statusKey = "device_link_status_reconnecting"
-    case .connected?: statusKey = "device_link_status_connected"
-    case .signInRejected?: statusKey = "device_link_status_sign_in_rejected"
-    case .waiting?: statusKey = "device_link_status_waiting"
-    case .disconnected?: statusKey = "device_link_status_disconnected"
-    case .replaced?: statusKey = "device_link_status_replaced"
-    case .tooManyDevices?: statusKey = "device_link_status_too_many_devices"
-    }
-    let status = LocalizedString.forKey(statusKey)
-    let answeringDevices = deviceLink.threadsHub.answeringDevices.value
-    // On a phone, the Mac and model Remote Access runs its own threads on.
-    let macModel = RemoteProvider.deviceLink.model(in: workspace).flatMap(MacModel.init)
-    // A phone lists the Macs that serve it, a Mac the phones and iPads it serves. A device waiting
-    // to join or disconnected shows on every device, to be let in or back.
-    let devices = (state?.devices ?? []).filter {
-      $0.waiting || $0.disconnected
-        || ($0.device.record.platform == .mac) != DeviceLinkService.canServe
-    }.map { device -> SettingsLinkedDevicesItem.Device in
-      let record = device.device.record
-      // On a phone, how its Macs answer.
-      let link = deviceLink.macLinks.value[device.device.id]
-      var deviceStatus: String
-      if device.disconnected {
-        deviceStatus = LocalizedString.forKey("device_link_disconnected")
-      } else if device.waiting {
-        deviceStatus = LocalizedString.forKey("device_link_wants_to_join")
-      } else if !device.online {
-        deviceStatus = LocalizedString.forKey("device_link_offline")
-      } else if link == .lost {
-        deviceStatus = LocalizedString.forKey("device_link_not_responding")
-      } else if device.status?.busy == true || answeringDevices.contains(device.device.id) {
-        // A Mac answering, or, on the Mac, a device it's answering.
-        deviceStatus =
-          LocalizedString.forKey("device_link_online") + " · "
-          + LocalizedString.forKey("device_link_status_busy")
-      } else {
-        deviceStatus = LocalizedString.forKey("device_link_online")
-      }
-      if let macModel, macModel.deviceID == device.device.id, device.online,
-        let model = device.status?.models.first(where: { $0.id == macModel.file })
-      {
-        deviceStatus += " · " + model.name
-      }
-      let symbolName: String
-      switch record.platform {
-      case .mac: symbolName = "desktopcomputer"
-      case .ipad: symbolName = "ipad"
-      default: symbolName = "iphone"
-      }
-      // Other devices only act on the list while this one is in the room.
-      var actions = [SettingsLinkedDevicesItem.Action]()
-      if state?.connection == .connected {
-        if device.disconnected {
-          actions = [.reconnect]
-        } else if device.waiting {
-          actions = [.allow, .deny]
-        } else {
-          actions = [.disconnect]
-        }
-      }
-      return SettingsLinkedDevicesItem.Device(
-        id: device.device.id, name: record.name, status: deviceStatus, symbolName: symbolName,
-        actions: actions)
-    }
-    activitiesSectionsController.setDeviceLink(
-      DeviceLinkActivity(
-        isServing: DeviceLinkService.canServe ? isServing : nil, status: status,
-        canRejoin: state?.connection == .disconnected, devices: devices))
-    guard DeviceLinkService.canServe else { return }
-    let iconStatus: HostStatusIconView.Status
-    if !isServing || state?.connection != .connected {
-      iconStatus = .offline
-    } else if isBusy {
-      iconStatus = .busy
-    } else {
-      iconStatus = .available
-    }
-    viewController.setHostStatus(
-      iconStatus,
-      description: iconStatus == .busy ? LocalizedString.forKey("device_link_status_busy") : status)
-  }
-
   /// A browser tab opened, closed, or changed; Activities lists the tabs again.
   func browserTabsDidChange() {
     dispatchPrecondition(condition: .onQueue(.main))
@@ -1553,10 +1363,6 @@ extension SettingsWorkflow: SettingsViewControllerDelegate {
 
   func settingsViewControllerDidTapMachineSettings(_ viewController: SettingsViewController) {
     presentMachineSettings()
-  }
-
-  func settingsViewControllerDidTapHostStatus(_ viewController: SettingsViewController) {
-    selectActivitiesTab()
   }
 
   func settingsViewControllerDidTapAccount(
@@ -2479,50 +2285,6 @@ extension SettingsWorkflow: CommunityTemplateWorkflowDelegate {
 }
 
 extension SettingsWorkflow: ActivitiesSectionsControllerDelegate {
-  func activitiesSectionsController(
-    _ controller: ActivitiesSectionsController, didChangeServing isServing: Bool
-  ) {
-    deviceLink?.isServing = isServing
-    updateDeviceLink()
-  }
-
-  func activitiesSectionsControllerDidSelectRejoin(_ controller: ActivitiesSectionsController) {
-    deviceLink?.rejoin()
-  }
-
-  func activitiesSectionsController(
-    _ controller: ActivitiesSectionsController, didSelect action: SettingsLinkedDevicesItem.Action,
-    forDevice deviceID: String
-  ) {
-    guard let deviceLink,
-      let name = deviceLink.state.value?.devices.first(where: { $0.device.id == deviceID })?
-        .device.record.name
-    else { return }
-    switch action {
-    case .allow, .reconnect:
-      // Nothing to undo: Disconnect is there if it was a mistake.
-      deviceLink.allow(deviceID)
-      return
-    case .deny:
-      // It stays listed as disconnected, so Reconnect can still let it in.
-      deviceLink.disconnect(deviceID)
-      return
-    case .disconnect:
-      break
-    }
-    let alertController = UIAlertController(
-      title: String(format: LocalizedString.forKey("device_link_disconnect_device_title"), name),
-      message: LocalizedString.forKey("device_link_disconnect_device_detail"),
-      preferredStyle: .alert)
-    alertController.addAction(
-      UIAlertAction(
-        title: LocalizedString.forKey("device_link_disconnect_device"), style: .destructive
-      ) { _ in deviceLink.disconnect(deviceID) })
-    alertController.addAction(
-      UIAlertAction(title: LocalizedString.forKey("cancel"), style: .cancel))
-    viewController.present(alertController, animated: true)
-  }
-
   func activitiesSectionsController(
     _ controller: ActivitiesSectionsController, didOpenBrowserTab id: String
   ) {

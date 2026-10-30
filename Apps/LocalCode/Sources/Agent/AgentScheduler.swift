@@ -105,9 +105,6 @@ final class AgentScheduler {
   private var foregroundIdentifier: ObjectIdentifier?
   private var stopRequests = Set<ObjectIdentifier>()
   private var isHibernateRequested = false
-  /// Threads whose turns report progress while they're in the background, as the threads another
-  /// device watches; by canonical project path and thread ID.
-  private var backgroundProgressThreads = Set<String>()
   private var hibernateCompletions = [(Result<Void, Swift.Error>) -> Void]()
   private var maximumHotCodeAgentCount: Int
 
@@ -314,40 +311,10 @@ final class AgentScheduler {
     dispatchPrecondition(condition: .onQueue(.main))
     let identifier = ObjectIdentifier(codeAgent)
     os_unfair_lock_lock(&lock)
-    // Also a background turn with one in progress, such as another device's.
-    if foregroundIdentifier == identifier || activeTurnIdentifiers.contains(identifier) {
+    if foregroundIdentifier == identifier {
       stopRequests.insert(identifier)
     }
     os_unfair_lock_unlock(&lock)
-  }
-
-  /// Turns in these threads report progress even in the background, as for threads another device
-  /// watches; the set replaces the last one.
-  func setBackgroundProgressThreads(_ threads: [(projectPath: String, threadId: Int64)]) {
-    dispatchPrecondition(condition: .onQueue(.main))
-    let keys = Set(
-      threads.map {
-        Self.threadKey(
-          projectPath: Self.canonicalProjectPath($0.projectPath), threadId: $0.threadId)
-      })
-    os_unfair_lock_lock(&lock)
-    backgroundProgressThreads = keys
-    os_unfair_lock_unlock(&lock)
-  }
-
-  /// Leaves the project's database open when this scheduler retires, for an owner that keeps
-  /// using it.
-  func keepProjectWorkspace(projectPath: String) {
-    dispatchPrecondition(condition: .onQueue(.main))
-    let canonicalProjectPath = Self.canonicalProjectPath(projectPath)
-    os_unfair_lock_lock(&lock)
-    projectResources.first { $0.projectPath == canonicalProjectPath }?
-      .shouldShutdownProjectWorkspace = false
-    os_unfair_lock_unlock(&lock)
-  }
-
-  private static func threadKey(projectPath: String, threadId: Int64) -> String {
-    "\(projectPath)\n\(threadId)"
   }
 
   func residentCodeAgent(projectPath: String, threadId: Int64) -> (any CodeAgent)? {
@@ -555,10 +522,8 @@ final class AgentScheduler {
       entry.latestProgress = progress
       entry.latestStatistics = statistics
       let foregroundIdentifier = self.foregroundIdentifier
-      let isWatched = self.backgroundProgressThreads.contains(
-        Self.threadKey(projectPath: entry.projectPath, threadId: entry.threadId))
       os_unfair_lock_unlock(&self.lock)
-      if foregroundIdentifier == entry.identifier || isWatched {
+      if foregroundIdentifier == entry.identifier {
         turn.progress(progress, statistics)
       }
 
@@ -762,7 +727,7 @@ final class AgentScheduler {
     return isHibernateRequested
   }
 
-  static func canonicalProjectPath(_ projectPath: String) -> String {
+  private static func canonicalProjectPath(_ projectPath: String) -> String {
     URL(fileURLWithPath: projectPath, isDirectory: true)
       .standardizedFileURL.resolvingSymlinksInPath().path
   }
