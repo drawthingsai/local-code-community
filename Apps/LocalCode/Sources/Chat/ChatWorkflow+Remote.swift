@@ -278,6 +278,10 @@ extension ChatWorkflow {
       threadId: thread.threadId)
     remoteChatProviders.values.forEach { $0.remove(conversationID) }
     browserWorkflows.removeValue(forKey: ProjectThreadIdentifier(thread: thread))?.close()
+    // A later thread can reuse this identifier, and must not restore the deleted thread's turn.
+    if let storePath = contextCacheStorePath(projectPath: thread.projectPath) {
+      removeContextCacheSuspension(storePath: storePath, threadId: thread.threadId)
+    }
   }
 
   /// Returns whether the message was sent.

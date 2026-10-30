@@ -78,10 +78,8 @@ public final class DeepSeek4ContextCache: DeepSeekContextCache {
   }
 
   func removeSuspension(threadId: Int64) {
-    guard let storePath, FileManager.default.fileExists(atPath: storePath) else { return }
-    DynamicGraph().openStore(storePath, flags: []) { store in
-      store.remove("suspension/\(threadId)/state")
-    }
+    guard let storePath else { return }
+    removeContextCacheSuspension(storePath: storePath, threadId: threadId)
   }
 
   func restore(

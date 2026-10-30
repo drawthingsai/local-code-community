@@ -153,6 +153,19 @@ final class DeepSeek4ContextCacheTests: XCTestCase {
     }
   }
 
+  func testRemovingSuspensionLeavesOtherThreads() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let contextCache = DeepSeek4ContextCache(projectPath: directory.path, checkpointStride: 4_096)
+    contextCache.saveSuspension(Data([1]), threadId: 1)
+    contextCache.saveSuspension(Data([2]), threadId: 2)
+    removeContextCacheSuspension(
+      storePath: try XCTUnwrap(contextCacheStorePath(projectPath: directory.path)), threadId: 1)
+    XCTAssertNil(contextCache.loadSuspension(threadId: 1))
+    XCTAssertEqual(contextCache.loadSuspension(threadId: 2), Data([2]))
+  }
+
   func testMissingSliceStopsRestore() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }

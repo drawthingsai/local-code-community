@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import NNC
 import ProjectHistoryManager
 
 public protocol ContextCache {
@@ -73,4 +74,12 @@ func contextCacheStorePath(projectPath: String?) -> String? {
     return nil
   }
   return metadataURL.appendingPathComponent("context_cache.sqlite3").path
+}
+
+/// Every model keeps a thread's suspended turn under the same key.
+func removeContextCacheSuspension(storePath: String, threadId: Int64) {
+  guard FileManager.default.fileExists(atPath: storePath) else { return }
+  DynamicGraph().openStore(storePath, flags: []) { store in
+    store.remove("suspension/\(threadId)/state")
+  }
 }
