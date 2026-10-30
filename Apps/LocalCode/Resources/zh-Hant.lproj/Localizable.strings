@@ -2556,10 +2556,11 @@
 "remote_performance" = "遠端效能";
 "avg_time_to_first_token" = "平均首權杖時間";
 "observed_output" = "實測輸出";
-"shared_balance" = "共享餘額：%@";
+"top_up_balance" = "餘額：%@";
 "top_up" = "儲值";
 "top_up_description" = "為 Local Code 遠端模型和 Draw Things 雲端影像生成儲值額度。";
 "purchase_pending_approval" = "購買正在等待核准。額度將自動加入。";
+"complete_purchase_on_stripe" = "請在 Stripe 上完成購買。購買成功後餘額將更新。";
 "credit" = "額度";
 "finishing_sign_in" = "正在完成 %@ 登入…";
 "refreshing_cloud_compute" = "正在重新整理雲計算…";

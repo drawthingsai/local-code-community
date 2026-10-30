@@ -2582,10 +2582,11 @@
 "remote_performance" = "원격 성능";
 "avg_time_to_first_token" = "첫 토큰까지 평균 시간";
 "observed_output" = "관측된 출력";
-"shared_balance" = "공유 잔액: %@";
+"top_up_balance" = "잔액: %@";
 "top_up" = "충전";
 "top_up_description" = "Local Code 원격 모델과 Draw Things 클라우드 이미지 생성에 사용할 크레딧을 충전합니다.";
 "purchase_pending_approval" = "구매 승인 대기 중입니다. 크레딧은 자동으로 추가됩니다.";
+"complete_purchase_on_stripe" = "Stripe에서 구매를 완료하세요. 완료되면 잔액이 업데이트됩니다.";
 "credit" = "크레딧";
 "finishing_sign_in" = "%@ 로그인을 완료하는 중…";
 "refreshing_cloud_compute" = "클라우드 컴퓨팅 새로 고치는 중…";

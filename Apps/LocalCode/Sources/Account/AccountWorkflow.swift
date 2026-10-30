@@ -262,13 +262,21 @@ final class AccountWorkflow: Workflow {
     else { return }
     var presenter = presentingViewController
     while let presented = presenter.presentedViewController { presenter = presented }
-    let storeProducts = Dictionary(
-      uniqueKeysWithValues: ProductsManager.shared.localCodeCreditProducts.map { ($0.id, $0) })
-    let products = ProductsManager.localCodeCredits.map { product in
-      TopUpViewController.Product(
-        id: product.id, amount: AccountViewController.credit(product.microUsd),
-        displayPrice: storeProducts[product.id]?.displayPrice)
-    }
+    #if DIRECT_DISTRIBUTION
+      // Developer ID builds have no App Store. Stripe credit funds the same shared balance.
+      let products = AccountManager.StripePaygCreditSKU.allCases.map { sku in
+        TopUpViewController.Product(
+          id: sku.rawValue, amount: AccountViewController.credit(sku.microUsd), displayPrice: nil)
+      }
+    #else
+      let storeProducts = Dictionary(
+        uniqueKeysWithValues: ProductsManager.shared.localCodeCreditProducts.map { ($0.id, $0) })
+      let products = ProductsManager.localCodeCredits.map { product in
+        TopUpViewController.Product(
+          id: product.id, amount: AccountViewController.credit(product.microUsd),
+          displayPrice: storeProducts[product.id]?.displayPrice)
+      }
+    #endif
     let topUpViewController = TopUpViewController(
       balance: balance ?? "—", products: products,
       hasConsent: workspace.dictionary["localcode_consumption_consent", Bool.self] ?? false,
@@ -835,44 +843,72 @@ extension AccountWorkflow: TopUpViewControllerDelegate {
     _ viewController: TopUpViewController, didRequestPurchase productID: String,
     hasConsent: Bool
   ) {
-    workspace.dictionary["localcode_consumption_consent", Bool.self] = hasConsent
-    viewController.purchaseStatus = .purchasing(productID)
-    let generation = purchaseGeneration
-    accountManager.purchaseLocalCodeCredit(productId: productID) { [weak self] result in
-      DispatchQueue.main.async {
-        guard let self else { return }
-        // StoreKit may finish after sign-out. Keep it pending for its owning account.
-        if case .success(let transaction) = result {
-          if self.purchaseGeneration == generation, self.topUpViewController === viewController {
-            self.topUpPurchaseID = transaction.id
-          }
-          self.workspace.dictionary["localcode_purchase_consent_\(transaction.id)", Bool.self] =
-            hasConsent
-          ProductsManager.shared.recordLocalCodeTransaction(transaction)
-        }
-        guard self.purchaseGeneration == generation else { return }
-        switch result {
-        case .success(let transaction):
-          self.attemptedPurchaseIDs.remove(transaction.id)
-          self.deliverPendingPurchases()
-        case .failure(let error):
-          if let purchaseError = error as? PurchaseError,
-            case .userCancelled = purchaseError
-          {
-            viewController.purchaseStatus = .ready
-          } else if let purchaseError = error as? PurchaseError,
-            case .pending = purchaseError
-          {
-            viewController.purchaseStatus = .pending
-          } else if error is PurchaseError {
+    #if DIRECT_DISTRIBUTION
+      // The purchase finishes in the browser. Stripe's webhook credits the shared balance, which
+      // Account Balance shows on its next refresh.
+      guard let sku = AccountManager.StripePaygCreditSKU(rawValue: productID) else { return }
+      viewController.purchaseStatus = .completeOnStripe
+      let generation = purchaseGeneration
+      accountManager.createStripePaygCreditPurchaseURL(sku: sku) { [weak self] result in
+        DispatchQueue.main.async {
+          guard let self, self.purchaseGeneration == generation,
+            self.topUpViewController === viewController
+          else { return }
+          switch result {
+          case .success(let checkoutURL):
+            UIApplication.shared.open(checkoutURL) { opened in
+              guard !opened else { return }
+              viewController.purchaseStatus = .error(
+                LocalizedString.forKey("could_not_open_browser"))
+            }
+          case .failure(let error):
+            // Connection errors explain themselves. Any other failure means no checkout exists.
             viewController.purchaseStatus = .error(
-              LocalizedString.forKey("purchase_failure_message"))
-          } else {
-            viewController.purchaseStatus = .error(error.localizedDescription)
+              error is URLError
+                ? error.localizedDescription : LocalizedString.forKey("purchase_failure_message"))
           }
         }
       }
-    }
+    #else
+      workspace.dictionary["localcode_consumption_consent", Bool.self] = hasConsent
+      viewController.purchaseStatus = .purchasing(productID)
+      let generation = purchaseGeneration
+      accountManager.purchaseLocalCodeCredit(productId: productID) { [weak self] result in
+        DispatchQueue.main.async {
+          guard let self else { return }
+          // StoreKit may finish after sign-out. Keep it pending for its owning account.
+          if case .success(let transaction) = result {
+            if self.purchaseGeneration == generation, self.topUpViewController === viewController {
+              self.topUpPurchaseID = transaction.id
+            }
+            self.workspace.dictionary["localcode_purchase_consent_\(transaction.id)", Bool.self] =
+              hasConsent
+            ProductsManager.shared.recordLocalCodeTransaction(transaction)
+          }
+          guard self.purchaseGeneration == generation else { return }
+          switch result {
+          case .success(let transaction):
+            self.attemptedPurchaseIDs.remove(transaction.id)
+            self.deliverPendingPurchases()
+          case .failure(let error):
+            if let purchaseError = error as? PurchaseError,
+              case .userCancelled = purchaseError
+            {
+              viewController.purchaseStatus = .ready
+            } else if let purchaseError = error as? PurchaseError,
+              case .pending = purchaseError
+            {
+              viewController.purchaseStatus = .pending
+            } else if error is PurchaseError {
+              viewController.purchaseStatus = .error(
+                LocalizedString.forKey("purchase_failure_message"))
+            } else {
+              viewController.purchaseStatus = .error(error.localizedDescription)
+            }
+          }
+        }
+      }
+    #endif
   }
 }
 

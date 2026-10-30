@@ -2579,10 +2579,11 @@
 "remote_performance" = "リモートパフォーマンス";
 "avg_time_to_first_token" = "最初のトークンまでの平均時間";
 "observed_output" = "実測出力";
-"shared_balance" = "共有残高: %@";
+"top_up_balance" = "残高: %@";
 "top_up" = "チャージ";
 "top_up_description" = "Local Code のリモートモデルと Draw Things のクラウド画像生成に使えるクレジットをチャージします。";
 "purchase_pending_approval" = "購入は承認待ちです。クレジットは自動的に追加されます。";
+"complete_purchase_on_stripe" = "Stripeで購入を完了してください。完了すると残高が更新されます。";
 "credit" = "クレジット";
 "finishing_sign_in" = "%@ サインインを完了しています…";
 "refreshing_cloud_compute" = "クラウド計算を更新中…";

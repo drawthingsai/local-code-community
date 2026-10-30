@@ -25,7 +25,7 @@ final class TopUpViewController: UIViewController {
   weak var delegate: TopUpViewControllerDelegate?
 
   var balance: String {
-    didSet { balanceLabel.text = LocalizedString.format(key: "shared_balance", balance) }
+    didSet { balanceLabel.text = LocalizedString.format(key: "top_up_balance", balance) }
   }
   private let products: [Product]
   private var hasConsent: Bool
@@ -43,6 +43,9 @@ final class TopUpViewController: UIViewController {
     case pending
     case succeeded(String)
     case error(String)
+    #if DIRECT_DISTRIBUTION
+      case completeOnStripe
+    #endif
   }
   var purchaseStatus: PurchaseStatus = .ready {
     didSet {
@@ -168,7 +171,7 @@ final class TopUpViewController: UIViewController {
 
   private lazy var balanceLabel: UILabel = {
     let label = UILabel()
-    label.text = LocalizedString.format(key: "shared_balance", balance)
+    label.text = LocalizedString.format(key: "top_up_balance", balance)
     label.textColor = .secondaryText
     label.numberOfLines = 0
     FontMetrics.default.scaleFont(.systemFont(ofSize: 18, weight: .medium), bindTo: label)
@@ -364,7 +367,12 @@ final class TopUpViewController: UIViewController {
     let titleDivider = SettingsViewFactory.makeDividerView()
     view.addSubview(titleDivider)
     view.addSubview(scrollView)
-    let contentStack = UIStackView(arrangedSubviews: [subtitleLabel, consentView, walletView])
+    #if DIRECT_DISTRIBUTION
+      // The consent covers App Store consumption requests, which Stripe purchases don't have.
+      let contentStack = UIStackView(arrangedSubviews: [subtitleLabel, walletView])
+    #else
+      let contentStack = UIStackView(arrangedSubviews: [subtitleLabel, consentView, walletView])
+    #endif
     contentStack.axis = .vertical
     contentStack.spacing = 16
     scrollView.addSubview(contentStack)
@@ -442,6 +450,11 @@ final class TopUpViewController: UIViewController {
       message = error
       isError = true
       iconName = "warning-filled-24"
+    #if DIRECT_DISTRIBUTION
+      case .completeOnStripe:
+        message = LocalizedString.forKey("complete_purchase_on_stripe")
+        iconName = "credit-card-filled-24"
+    #endif
     }
     purchaseStatusLabel.text = message
     let statusColor: UIColor =

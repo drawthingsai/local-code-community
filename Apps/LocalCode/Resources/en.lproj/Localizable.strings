@@ -2858,10 +2858,11 @@
 "remote_performance" = "Remote Performance";
 "avg_time_to_first_token" = "Avg. Time to First Token";
 "observed_output" = "Observed Output";
-"shared_balance" = "Shared Balance: %@";
+"top_up_balance" = "Balance: %@";
 "top_up" = "Top Up";
 "top_up_description" = "Add credit for Local Code remote models and Draw Things cloud image generation.";
 "purchase_pending_approval" = "Purchase pending approval. Credit will be added automatically.";
+"complete_purchase_on_stripe" = "Complete your purchase on Stripe. Your balance updates once it succeeds.";
 "credit" = "credit";
 "finishing_sign_in" = "Finishing %@ sign-in…";
 "refreshing_cloud_compute" = "Refreshing Cloud Compute…";

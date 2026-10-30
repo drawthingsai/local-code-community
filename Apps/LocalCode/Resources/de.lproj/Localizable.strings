@@ -2581,10 +2581,11 @@
 "remote_performance" = "Remote-Leistung";
 "avg_time_to_first_token" = "Durchschn. Zeit bis zum ersten Token";
 "observed_output" = "Beobachtete Ausgabe";
-"shared_balance" = "Gemeinsames Guthaben: %@";
+"top_up_balance" = "Guthaben: %@";
 "top_up" = "Aufladen";
 "top_up_description" = "Laden Sie Guthaben für Remote-Modelle in Local Code und die Cloud-Bildgenerierung in Draw Things auf.";
 "purchase_pending_approval" = "Kauf wartet auf Genehmigung. Das Guthaben wird automatisch hinzugefügt.";
+"complete_purchase_on_stripe" = "Schließe den Kauf bei Stripe ab. Dein Guthaben aktualisiert sich danach.";
 "credit" = "Guthaben";
 "finishing_sign_in" = "%@-Anmeldung wird abgeschlossen…";
 "refreshing_cloud_compute" = "Cloud-Rechenleistung wird aktualisiert…";

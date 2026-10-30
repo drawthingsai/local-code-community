@@ -2541,10 +2541,11 @@
 "remote_performance" = "Rendimiento remoto";
 "avg_time_to_first_token" = "Tiempo medio hasta el primer token";
 "observed_output" = "Salida observada";
-"shared_balance" = "Saldo compartido: %@";
+"top_up_balance" = "Saldo: %@";
 "top_up" = "Recargar";
 "top_up_description" = "Añade crédito para los modelos remotos de Local Code y la generación de imágenes en la nube de Draw Things.";
 "purchase_pending_approval" = "Compra pendiente de aprobación. El crédito se añadirá automáticamente.";
+"complete_purchase_on_stripe" = "Completa la compra en Stripe. Tu saldo se actualizará cuando se complete.";
 "credit" = "crédito";
 "finishing_sign_in" = "Completando el inicio de sesión con %@…";
 "refreshing_cloud_compute" = "Actualizando Cómputo en la Nube…";

@@ -61,7 +61,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
       at: applicationSupportURL, withIntermediateDirectories: true)
     let configURL = applicationSupportURL.appendingPathComponent("config.sqlite3")
     let workspace = SQLiteWorkspace(filePath: configURL.path, fileProtectionLevel: .noProtection)
-    ProductsManager.shared.configure()
+    #if !DIRECT_DISTRIBUTION
+      // Developer ID builds have no App Store; they buy credit through Stripe.
+      ProductsManager.shared.configure()
+    #endif
     let accountManager = AccountManager(workspace: workspace, product: .localCode)
     let accountClient = AccountClient(baseURL: AccountRouterConfiguration.baseURL)
     let workflow = ChatWorkflow(
@@ -96,6 +99,11 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     #if targetEnvironment(macCatalyst)
+      // Switching to another Mac app leaves the scene active, so coming back, say after paying
+      // in the browser, never reaches sceneDidBecomeActive. Treat the app's activation as it.
+      NotificationCenter.default.addObserver(
+        self, selector: #selector(applicationDidBecomeActive),
+        name: NSNotification.Name("NSApplicationDidBecomeActiveNotification"), object: nil)
       windowScene.sizeRestrictions?.minimumSize = CGSize(width: 1024, height: 640)
       if let titlebar = windowScene.titlebar {
         titlebar.titleVisibility = .hidden
@@ -196,6 +204,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   }
 
   #if targetEnvironment(macCatalyst)
+    @objc private func applicationDidBecomeActive() {
+      workflow?.sceneDidBecomeActive()
+    }
+
     func sceneDidDisconnect(_ scene: UIScene) {
       // Supporting multiple scenes keeps the app running after its last window closes, or with
       // only browser windows left. Closing the chat window quits instead, as Quit does.

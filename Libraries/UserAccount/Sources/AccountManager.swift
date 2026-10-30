@@ -1051,7 +1051,7 @@ extension Account {
 }
 
 extension AccountManager {
-  #if targetEnvironment(macCatalyst)
+  #if DIRECT_DISTRIBUTION
     private func startStripeSubscriptionPurchase(
       sku: StripeSubscriptionSKU, completion: @escaping () -> Void
     ) {

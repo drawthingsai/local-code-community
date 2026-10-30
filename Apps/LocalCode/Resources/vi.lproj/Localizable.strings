@@ -2858,10 +2858,11 @@
 "remote_performance" = "Hiệu năng từ xa";
 "avg_time_to_first_token" = "Thời gian TB đến token đầu tiên";
 "observed_output" = "Đầu ra quan sát được";
-"shared_balance" = "Số dư dùng chung: %@";
+"top_up_balance" = "Số dư: %@";
 "top_up" = "Nạp tiền";
 "top_up_description" = "Nạp tín dụng cho các mô hình từ xa của Local Code và tính năng tạo ảnh trên đám mây của Draw Things.";
 "purchase_pending_approval" = "Giao dịch mua đang chờ phê duyệt. Tín dụng sẽ được cộng tự động.";
+"complete_purchase_on_stripe" = "Hoàn tất giao dịch trên Stripe. Số dư sẽ được cập nhật khi thành công.";
 "credit" = "tín dụng";
 "finishing_sign_in" = "Đang hoàn tất đăng nhập %@…";
 "refreshing_cloud_compute" = "Đang làm mới Điện toán đám mây…";
