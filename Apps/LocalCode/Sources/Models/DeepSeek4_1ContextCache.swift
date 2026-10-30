@@ -145,6 +145,37 @@ public final class DeepSeek4_1ContextCache: DeepSeekContextCache {
           }
           kvCache.layers[layer].rawTokenLength = rawLengths[layer]
         }
+        // The drafter's state saved with this snapshot, restored into an allocated draft cache only
+        // when every part is present; a later snapshot without it clears an earlier one's.
+        kvCache.draftData = nil
+        if !kvCache.draftCache.isEmpty {
+          let width =
+            DeepSeek4_1DSparkConfiguration.deepSeekV4_1Flash.targetLayers.count
+            * configuration.hiddenSize
+          let keys = kvCache.draftCache.indices.compactMap {
+            store.read("\(key)/dspark/keys/\($0)", kind: .CPU)
+          }
+          if let targets = store.read("\(key)/dspark/targets", kind: .CPU),
+            targets.dataType == .Float32, (1...configuration.rawWindow).contains(targets.shape[0]),
+            Array(targets.shape) == [targets.shape[0], width],
+            keys.count == kvCache.draftCache.count,
+            keys.allSatisfy({
+              $0.dataType == .Float16
+                && Array($0.shape) == [configuration.rawWindow, configuration.attentionHeadDim]
+            })
+          {
+            let rows = targets.shape[0]
+            for (stage, keys) in keys.enumerated() {
+              var cache = kvCache.draftCache[stage]
+              cache[0..<configuration.rawWindow, 0..<configuration.attentionHeadDim] =
+                graph.variable(Tensor<Float16>(keys).toGPU(0))
+            }
+            kvCache.draftCacheOrigin = segmentEnd - rows - configuration.rawWindow
+            kvCache.draftData = (
+              graph.variable(Tensor<Float>(targets).toGPU(0)), rows, segmentEnd - rows
+            )
+          }
+        }
         restoredTokenLength = segmentEnd
         hasher = segmentHasher
       }
@@ -229,6 +260,25 @@ public final class DeepSeek4_1ContextCache: DeepSeekContextCache {
           } else {
             store.remove("\(key)/raw/\(layerIndex)/kv")
           }
+        }
+        // The drafter's state when it reaches the checkpoint: each stage's keys of the rawWindow
+        // positions before the target rows, then the target rows.
+        if let draftData = kvCache.draftData, draftData.first + draftData.rows == checkpointLength {
+          let base = draftData.first - configuration.rawWindow - kvCache.draftCacheOrigin
+          for (stage, keys) in kvCache.draftCache.enumerated() {
+            let window = keys.reshaped(
+              .WC(configuration.rawWindow, configuration.attentionHeadDim), offset: [base, 0],
+              strides: [configuration.attentionHeadDim, 1]
+            ).toCPU()
+            graph.joined()
+            store.write("\(key)/dspark/keys/\(stage)", tensor: window.rawValue)
+          }
+          let width = draftData.targets.shape[1]
+          let targets = draftData.targets.reshaped(
+            .WC(draftData.rows, width), offset: [0, 0], strides: [width, 1]
+          ).toCPU()
+          graph.joined()
+          store.write("\(key)/dspark/targets", tensor: targets.rawValue)
         }
       }
     }
