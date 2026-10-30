@@ -77,6 +77,8 @@ final class OnboardingWorkflow: Workflow {
     self.workspace = workspace
     self.accountManager = accountManager
     viewController.delegate = self
+    // iPhones don't download local models, so they start on Local Code's cloud.
+    if !ChatWorkflow.canDownloadLocalModels { state.selection = .remote(.localCode) }
     viewController.localModels = localModelOptions
     accountSubscription = accountManager.accountValueSubject.receive(on: DispatchQueue.main).sink {
       [weak self] _ in self?.refresh()
@@ -148,8 +150,9 @@ final class OnboardingWorkflow: Workflow {
       selection: .local, title: LocalizedString.forKey("local_model"),
       detail: LocalizedString.format(key: "onboarding_local_model_detail", defaultModelName),
       badge: LocalizedString.forKey("recommended"), isBadgeHighlighted: true)
-    return [localOption]
-      + RemoteProvider.allCases.map { provider in
+    return (ChatWorkflow.canDownloadLocalModels ? [localOption] : [])
+      // Before sign-in no Mac is linked, so Remote Access isn't one of them.
+      + RemoteProvider.allCases.filter { $0 != .deviceLink }.map { provider in
         let account = provider.account(in: workspace)
         let badge: String
         if provider == .localCode {
@@ -176,7 +179,7 @@ final class OnboardingWorkflow: Workflow {
         case .anthropic:
           title = provider.title
           detail = LocalizedString.forKey("anthropic_detail")
-        case .openAI, .openRouter:
+        case .openAI, .openRouter, .deviceLink:
           title = provider.title
           detail = provider.configurationDetail
         }

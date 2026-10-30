@@ -72,6 +72,12 @@ final class RemoteChatProvider {
     baseURL: RemoteProvider.openRouter.defaultBaseURL!)
   var statusRequest: StatusRequest?
   var statusDidChange: ((ProjectThreadIdentifier, RemoteAgentStatus?) -> Void)?
+  /// For `.deviceLink`: the Mac's model as a conversation's chat provider, over the device's link.
+  var makeMacModelChatProvider:
+    (
+      (ProjectThreadIdentifier, RemoteProviderProfile, _ maximumOutputTokens: Int) ->
+        RemoteChatProviding?
+    )?
 
   private let workspace: SQLiteWorkspace
   private let metadataClient = RemoteModelMetadataClient()
@@ -324,10 +330,19 @@ final class RemoteChatProvider {
       contextWindowTokens: limits.contextWindowTokens,
       reservedOutputTokens: limits.maximumOutputTokens,
       compactionThreshold: environment.profile.compactionThreshold)
-    let provider = try environment.profile.endpoint.makeChatProvider(
-      authorization: environment.profile.authorization,
-      maximumOutputTokens: configuration.reservedOutputTokens,
-      reasoningEffort: environment.profile.reasoningEffort)
+    let provider: RemoteChatProviding
+    if environment.profile.endpoint.provider == .deviceLink {
+      guard
+        let macModelProvider = makeMacModelChatProvider?(
+          id, environment.profile, configuration.reservedOutputTokens)
+      else { throw RemoteChatError.sessionUnavailable }
+      provider = macModelProvider
+    } else {
+      provider = try environment.profile.endpoint.makeChatProvider(
+        authorization: environment.profile.authorization,
+        maximumOutputTokens: configuration.reservedOutputTokens,
+        reasoningEffort: environment.profile.reasoningEffort)
+    }
     let bridge = RemoteToolsBridge(
       projectPath: id.projectPath, workspacePath: environment.workspacePath,
       webSearchProvider: environment.webSearchProvider,
@@ -370,6 +385,11 @@ final class RemoteChatProvider {
     profile: RemoteProviderProfile,
     completion: @escaping (Result<RemoteModelLimits, RemoteModelMetadataError>) -> Void
   ) {
+    // A Mac's model has the limits of its agent there.
+    if profile.endpoint.provider == .deviceLink {
+      completion(.success(profile.fallbackLimits))
+      return
+    }
     let key = ProviderKey(profile)
     if cachedLimits?.key == key, let limits = cachedLimits?.limits {
       completion(.success(limits))

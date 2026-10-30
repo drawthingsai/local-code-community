@@ -4,7 +4,17 @@ import Foundation
 import RemoteAPI
 import WebSearch
 
-extension RemoteProvider: @retroactive ExpressibleByArgument {}
+// Remote Access reaches a Mac over the app's link, which the command line doesn't have.
+extension RemoteProvider: @retroactive ExpressibleByArgument {
+  public static var allValueStrings: [String] {
+    allCases.filter { $0 != .deviceLink }.map(\.rawValue)
+  }
+
+  public init?(argument: String) {
+    guard argument != Self.deviceLink.rawValue else { return nil }
+    self.init(rawValue: argument)
+  }
+}
 extension RemoteRuntime: ExpressibleByArgument {}
 extension RemoteReasoningEffort: @retroactive ExpressibleByArgument {}
 

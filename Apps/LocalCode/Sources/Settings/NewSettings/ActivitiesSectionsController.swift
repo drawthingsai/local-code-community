@@ -6,11 +6,30 @@ import Style
 import UIKit
 
 private enum ActivitiesSection: CaseIterable, Hashable {
+  case deviceLink
   case browserTabs
   case processes
 }
 
+/// What Activities shows for links: on a Mac, whether it serves; this device's connection; and
+/// the devices it works with, a phone's Macs or a Mac's phones and iPads.
+struct DeviceLinkActivity: Equatable {
+  /// Whether this Mac serves its threads; nil on devices that can't serve.
+  var isServing: Bool?
+  var status: String
+  /// Another device disconnected this one; it can ask to connect again.
+  var canRejoin = false
+  var devices: [SettingsLinkedDevicesItem.Device]
+}
+
 protocol ActivitiesSectionsControllerDelegate: AnyObject {
+  func activitiesSectionsController(
+    _ controller: ActivitiesSectionsController, didChangeServing isServing: Bool)
+  /// This device was disconnected and its user asked to connect again.
+  func activitiesSectionsControllerDidSelectRejoin(_ controller: ActivitiesSectionsController)
+  func activitiesSectionsController(
+    _ controller: ActivitiesSectionsController, didSelect action: SettingsLinkedDevicesItem.Action,
+    forDevice deviceID: String)
   func activitiesSectionsController(
     _ controller: ActivitiesSectionsController, didOpenBrowserTab id: String)
   func activitiesSectionsController(
@@ -19,14 +38,15 @@ protocol ActivitiesSectionsControllerDelegate: AnyObject {
     _ controller: ActivitiesSectionsController, didSelectStopProcess id: Int)
 }
 
-/// The Activities page of the rail: what agents keep running, browser tabs and shell commands.
+/// The Activities page of the rail: links to other devices, and what agents keep
+/// running, browser tabs and shell commands.
 final class ActivitiesSectionsController {
   let view = UIView(frame: .zero)
   weak var delegate: ActivitiesSectionsControllerDelegate?
   private let workspace: SQLiteWorkspace
   private var isViewLoaded = false
   private var verticalScrollIndicatorController: VerticalScrollIndicatorController? = nil
-  private let sections: [ActivitiesSection] = [.browserTabs, .processes]
+  private let sections: [ActivitiesSection] = [.deviceLink, .browserTabs, .processes]
   private var displayingSections: [ActivitiesSection: any SettingsViewObservable] = [:]
   private var sectionViewModifiers: [ActivitiesSection: any SettingsViewModifying] = [:]
   /// The open chat's tabs.
@@ -37,6 +57,7 @@ final class ActivitiesSectionsController {
   private var currentProcesses = [SettingsProcessesItem.Process]()
   /// Every other chat's running commands.
   private var otherProcesses = [SettingsProcessesItem.Process]()
+  private var deviceLink = DeviceLinkActivity(isServing: nil, status: "", devices: [])
 
   private lazy var scrollView: UIScrollView = {
     let scrollView = UIScrollView(frame: .zero)
@@ -70,6 +91,12 @@ final class ActivitiesSectionsController {
     guard current != currentBrowserTabs || others != otherBrowserTabs else { return }
     currentBrowserTabs = current
     otherBrowserTabs = others
+    updateSections()
+  }
+
+  func setDeviceLink(_ deviceLink: DeviceLinkActivity) {
+    guard deviceLink != self.deviceLink else { return }
+    self.deviceLink = deviceLink
     updateSections()
   }
 
@@ -123,6 +150,8 @@ final class ActivitiesSectionsController {
 
   private func makeSection(_ section: ActivitiesSection) -> SettingsSectionItem {
     switch section {
+    case .deviceLink:
+      return deviceLinkSection()
     case .browserTabs:
       return browserTabsSection()
     case .processes:
@@ -139,6 +168,62 @@ final class ActivitiesSectionsController {
       else { continue }
       displayingSections[section] = viewModifier.updateViews(displayingSection, with: sectionItem)
     }
+  }
+
+  private func deviceLinkSection() -> SettingsSectionItem {
+    var serve = SettingsSwitchItem(
+      value: deviceLink.isServing ?? false, title: LocalizedString.forKey("device_link_serve"),
+      handleValueChange: { [weak self] value in
+        guard let self else { return }
+        self.delegate?.activitiesSectionsController(self, didChangeServing: value)
+      })
+    serve.isHidden = deviceLink.isServing == nil
+    return SettingsSectionItem(
+      settingsItems: [
+        serve,
+        SettingsPlainTextItem(
+          leadingText: LocalizedString.forKey("device_link_status"),
+          trailingText: deviceLink.status,
+          fontSize: 13),
+        rejoinItem(),
+        SettingsLinkedDevicesItem(
+          devices: deviceLink.devices,
+          perform: { [weak self] action, id in
+            guard let self else { return }
+            self.delegate?.activitiesSectionsController(self, didSelect: action, forDevice: id)
+          }),
+      ], title: LocalizedString.forKey("device_link"),
+      detail: LocalizedString.forKey(
+        deviceLink.isServing == nil ? "device_link_devices_detail" : "device_link_serve_detail"),
+      lookUpKey: "local_code_device_link_detail_hidden", workspace: workspace)
+  }
+
+  /// Connect, for a device another one disconnected; hidden otherwise.
+  private func rejoinItem() -> SettingsActionItem<String> {
+    var item = SettingsActionItem(
+      value: LocalizedString.forKey("device_link_connect"),
+      buttonAction: { [weak self] _, _ in
+        guard let self else { return }
+        self.delegate?.activitiesSectionsControllerDidSelectRejoin(self)
+      },
+      makeButtonsUI: { title, button in
+        var configuration = UIButton.Configuration.borderless()
+        configuration.titleAlignment = .leading
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+          top: 0, leading: 12, bottom: 8, trailing: 0)
+        configuration.baseBackgroundColor = .clear
+        configuration.baseForegroundColor = .secondaryText
+        configuration.title = title
+        configuration.image = #imageLiteral(resourceName: "arrow-right-16").withRenderingMode(
+          .alwaysTemplate)
+        configuration.imagePlacement = .trailing
+        configuration.imagePadding = 4
+        button.contentHorizontalAlignment = .leading
+        button.configuration = configuration
+        FontMetrics.default.scaleFont(.systemFont(ofSize: 11, weight: .regular), bindTo: button)
+      })
+    item.isHidden = !deviceLink.canRejoin
+    return item
   }
 
   private func browserTabsSection() -> SettingsSectionItem {

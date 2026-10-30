@@ -597,7 +597,7 @@ extension ItemDisplayViewController: UICollectionViewDelegateFlowLayout {
     case .noSection:
       return .zero
     case .section(_, _, _, _, _):
-      return CGSize(width: 0, height: 40)
+      return CGSize(width: 0, height: Self.sectionHeaderHeight)
     }
   }
 
@@ -813,6 +813,8 @@ extension ItemDisplayViewController {
   static let searchFieldHeight: CGFloat = 32
   static let listTopSpacing: CGFloat = 9
   static let bottomInset: CGFloat = 8
+  /// A titled section's header, above its rows.
+  static let sectionHeaderHeight: CGFloat = 40
 }
 
 extension ItemDisplayViewController: ItemDisplayViewControllerSectionHeaderViewDelegate {

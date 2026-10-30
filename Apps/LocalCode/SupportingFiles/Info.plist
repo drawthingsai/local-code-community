@@ -57,7 +57,7 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Local Code connects to SSH, SFTP, and AI servers that you choose on your local network.</string>
+	<string>Local Code connects to your Macs, and to SSH, SFTP, and AI servers that you choose, on your local network.</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>UIFileSharingEnabled</key>

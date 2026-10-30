@@ -7,6 +7,7 @@ import UIKit
 protocol SettingsViewControllerDelegate: AnyObject {
   func settingsViewController(_ viewController: SettingsViewController, didSelectIndex index: Int)
   func settingsViewControllerDidTapMachineSettings(_ viewController: SettingsViewController)
+  func settingsViewControllerDidTapHostStatus(_ viewController: SettingsViewController)
   func settingsViewControllerDidTapAccount(
     _ viewController: SettingsViewController, sourceView: UIView)
   func settingsViewControllerDidTapNewProject(_ viewController: SettingsViewController)
@@ -236,6 +237,33 @@ final class SettingsViewController: UIViewController {
       }, for: .touchUpInside)
     return button
   }()
+
+  /// Hosting status, above Machine Settings on a Mac: gray when not serving or not in the room,
+  /// mint while serving, and cycling colors while it runs a turn. Opens Activities, where serving
+  /// is turned on and off.
+  private let hostStatusIconView = HostStatusIconView(frame: .zero)
+
+  private lazy var hostStatusButton: UIButton = {
+    let button = UIButton(type: .custom)
+    button.addSubview(hostStatusIconView)
+    hostStatusIconView.snp.makeConstraints { make in
+      make.edges.equalToSuperview()
+    }
+    button.addAction(
+      UIAction { [weak self] _ in
+        guard let self else { return }
+        self.delegate?.settingsViewControllerDidTapHostStatus(self)
+      }, for: .touchUpInside)
+    return button
+  }()
+
+  /// Shows the Mac's hosting status.
+  func setHostStatus(_ status: HostStatusIconView.Status, description: String) {
+    hostStatusIconView.status = status
+    let label = "\(LocalizedString.forKey("device_link")): \(description)"
+    hostStatusButton.accessibilityLabel = label
+    hostStatusButton.toolTip = label
+  }
 
   private lazy var accountButton: UIButton = {
     let button = UIButton(type: .custom)
@@ -591,6 +619,15 @@ final class SettingsViewController: UIViewController {
       } else {
         make.size.equalTo(32)
         make.bottom.equalTo(accountButton.snp.top).offset(-8)
+      }
+    }
+    if DeviceLinkService.canServe {
+      view.addSubview(hostStatusButton)
+      hostStatusButton.snp.makeConstraints { make in
+        make.centerX.equalTo(menuControl.view)
+        make.width.equalTo(40)
+        make.height.equalTo(hostStatusButton.snp.width).dividedBy(HostStatusIconView.aspectRatio)
+        make.bottom.equalTo(machineSettingsButton.snp.top).offset(-12)
       }
     }
     view.addSubview(configurationView)

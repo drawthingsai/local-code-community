@@ -1,3 +1,4 @@
+import Combine
 import Components
 import FBShimmer
 import Localization
@@ -55,6 +56,10 @@ struct ProjectItem: Hashable {
   var isRecent: Bool
   var newThread: Bool {
     return threadId == -1
+  }
+  /// A thread on one of the account's Macs, which only that Mac renames or deletes.
+  var isOnMac: Bool {
+    MacProject(path: projectPath) != nil
   }
 
   init(thread: ProjectController.Thread, isRecent: Bool) {
@@ -127,6 +132,21 @@ final class ProjectController {
   private var verticalScrollIndicatorController: VerticalScrollIndicatorController? = nil
   private var displayingSections: [ProjectSection] = []
   private(set) var threads = [Thread]()
+  /// On a phone: each Mac project's section, after this device's own projects.
+  struct MacSection: Equatable {
+    let project: MacProject
+    let title: String
+    /// With `project.path` as their project path.
+    let threads: [Thread]
+  }
+  var macSections = [MacSection]() {
+    didSet {
+      guard macSections != oldValue else { return }
+      applyThreadsSnapshot(animated: true)
+    }
+  }
+  /// `threads`, sent whole on every change, for the devices that watch this Mac's drawer.
+  let listedThreads = CurrentValueSubject<[Thread], Never>([])
   var projects: [(path: String, title: String)] {
     orderedProjectPaths().map {
       (
@@ -364,6 +384,10 @@ final class ProjectController {
           withReuseIdentifier: ProjectSectionHeaderView.reusableIdentifier,
           for: indexPath) as! ProjectSectionHeaderView
       header.delegate = self
+      if let macSection = self.macSections.first(where: { $0.project.path == projectPath }) {
+        header.configureForMac(title: macSection.title)
+        return header
+      }
       header.configure(
         projectPath: projectPath,
         title: Self.displayTitle(
@@ -427,6 +451,7 @@ final class ProjectController {
   func setThreads(_ threads: [Thread], animated: Bool) {
     guard threads != self.threads else { return }
     self.threads = threads
+    listedThreads.send(threads)
     applyThreadsSnapshot(animated: animated)
   }
 
@@ -472,6 +497,20 @@ final class ProjectController {
             ProjectItem(thread: Thread(projectPath: projectPath, threadId: -1), isRecent: false)
           ],
           toSection: .project(path: projectPath))
+      }
+      for macSection in macSections {
+        let section = ProjectSection.project(path: macSection.project.path)
+        displayingSections.append(section)
+        snapshot.appendSections([section])
+        snapshot.appendItems(
+          macSection.threads.sorted(by: isMoreRecent).map {
+            ProjectItem(thread: $0, isRecent: false)
+          }
+            + [
+              ProjectItem(
+                thread: Thread(projectPath: macSection.project.path, threadId: -1),
+                isRecent: false)
+            ], toSection: section)
       }
     }
     collectionViewDiffableDataSource.apply(snapshot, animatingDifferences: animated) {

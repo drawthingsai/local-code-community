@@ -18,7 +18,7 @@ enum RemoteOAuthLogin {
       presentOpenAI(on: viewController, completion: completion)
     case .anthropic:
       presentAnthropic(on: viewController, completion: completion)
-    case .localCode, .openRouter, .openAICompatible:
+    case .localCode, .openRouter, .openAICompatible, .deviceLink:
       completion(.failure(RemoteOAuthError.invalidAuthorizationResponse))
     }
   }

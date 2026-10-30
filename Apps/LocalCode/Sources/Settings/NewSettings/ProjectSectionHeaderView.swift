@@ -27,6 +27,7 @@ final class ProjectSectionHeaderView: UICollectionReusableView {
     titleLabel.text = title
     imageView.image = UIImage(named: isBotModeEnabled ? "monkey-filled-16" : "folder-filled-16")?
       .withRenderingMode(.alwaysTemplate)
+    button.isHidden = false
     var actions: [UIMenuElement] = [
       UIAction(
         title: revealTitle,
@@ -85,6 +86,16 @@ final class ProjectSectionHeaderView: UICollectionReusableView {
         })
     }
     button.menu = UIMenu(children: actions)
+  }
+
+  /// A project on one of the account's Macs: its folder is the Mac's, so there's nothing to do
+  /// with it here.
+  func configureForMac(title: String) {
+    projectPath = nil
+    titleLabel.text = title
+    imageView.image = UIImage(systemName: "desktopcomputer")
+    button.isHidden = true
+    button.menu = nil
   }
 
   private lazy var imageView: UIImageView = {

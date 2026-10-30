@@ -5,6 +5,8 @@ implemented contract, and the invariants future changes preserve.
 
 | Document | Status | Decision |
 | --- | --- | --- |
+| [Remote Access](RemoteAccess.md) | Implemented (v0); verified end to end through staging | Work in a Mac's threads from an iPhone or iPad on the same Local Code account, over a WebRTC data channel the two open through a per-account room. |
+| [Remote Access Services](RemoteAccessServices.md) | Implemented | Run gRPC over the Remote Access link, with one service for the Mac's projects and threads, worked on from a phone as on the Mac. |
 | [CodeAgent Scheduling](CodeAgentScheduling.md) | Implemented | Cooperatively pause, resume, and hibernate local CodeAgents while one model-specific scheduler prioritizes the foreground thread and preserves bounded background work. |
 | [Context Compaction](ContextCompaction.md) | Implemented | Keep model continuation within a useful context budget through model-family-specific deterministic reduction and semantic checkpoints; currently documents the Qwen 3.5 family. |
 | [Project History Persistence](ProjectHistoryPersistence.md) | Implemented | Store each project's thread history and adjacent pending prompts in a project-local Dflat/SQLite database. |

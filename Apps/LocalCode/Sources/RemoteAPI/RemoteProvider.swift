@@ -1,4 +1,5 @@
 import Localization
+import ModelZoo
 import RemoteAPI
 import SQLiteDflat
 import UIKit
@@ -81,6 +82,16 @@ extension RemoteProvider {
         titleKey: "claude_api", detailKey: "claude_api_configuration_detail",
         invalidKey: "claude_api_invalid_configuration",
         keyRequiredKey: "claude_api_key_required")
+    case .deviceLink:
+      return RemoteProviderAppConfiguration(
+        title: LocalizedString.forKey("device_link"),
+        profileTitle: LocalizedString.forKey("device_link"),
+        modelDictionaryKey: "devicelink_model", modelsDictionaryKey: "devicelink_models",
+        baseURLDictionaryKey: nil,
+        compactionThresholdDictionaryKey: "devicelink_compaction_threshold",
+        titleKey: "device_link", detailKey: "device_link_model_detail",
+        invalidKey: "remote_api_invalid_configuration",
+        keyRequiredKey: "remote_api_key_required")
     }
   }
 
@@ -110,8 +121,25 @@ extension RemoteProvider {
         provider: self, account: endpoint.baseURL.absoluteString, credential: credential))
   }
 
-  func profile(in workspace: SQLiteWorkspace) -> RemoteProviderProfile? {
-    guard let account = account(in: workspace), let model = model(in: workspace),
+  /// On `model`, or the model picked for the provider.
+  func profile(in workspace: SQLiteWorkspace, model: String? = nil) -> RemoteProviderProfile? {
+    // A Mac's model needs no account: the device's link reaches the Mac.
+    if self == .deviceLink {
+      guard let model = model ?? self.model(in: workspace), let macModel = MacModel(model),
+        let endpoint = try? RemoteProviderEndpoint(provider: self, model: model)
+      else { return nil }
+      let reasoningEffort =
+        workspace.dictionary["reasoning_effort", ReasoningEffort.self] ?? .high
+      return RemoteProviderProfile(
+        endpoint: endpoint, modelDisplayName: modelDisplayName(model, in: workspace),
+        credentialIdentifier: "", authorization: RemoteUnauthenticatedAuthorization(),
+        compactionThreshold: compactionThreshold(in: workspace),
+        reasoningEffort: RemoteReasoningEffort(rawValue: reasoningEffort.rawValue) ?? .high,
+        fallbackLimits: RemoteModelLimits(
+          contextWindowTokens: ChatWorkflow.inferenceContextWindow(forModel: macModel.file),
+          maximumOutputTokens: 32_768))
+    }
+    guard let account = account(in: workspace), let model = model ?? self.model(in: workspace),
       let endpoint = try? RemoteProviderEndpoint(
         provider: self, baseURL: account.endpoint.baseURL, model: model)
     else { return nil }
@@ -134,6 +162,10 @@ extension RemoteProvider {
   }
 
   func configurationStatus(in workspace: SQLiteWorkspace) -> String {
+    guard self != .deviceLink else {
+      return model(in: workspace).map { modelDisplayName($0, in: workspace) }
+        ?? LocalizedString.forKey("no_model_selected")
+    }
     guard account(in: workspace) != nil else {
       return LocalizedString.forKey("remote_api_not_configured")
     }
@@ -144,6 +176,11 @@ extension RemoteProvider {
   }
 
   func modelDisplayName(_ model: String, in workspace: SQLiteWorkspace) -> String {
+    if self == .deviceLink {
+      // As the model selector listed it: the model, then the Mac.
+      return workspace.dictionary["devicelink_model_names", [String: String].self]?[model]
+        ?? MacModel(model).map { LLMZoo.humanReadableNameForModel($0.file) } ?? model
+    }
     guard self == .localCode else { return model }
     return workspace.dictionary["localcode_model_names", [String: String].self]?[model] ?? model
   }

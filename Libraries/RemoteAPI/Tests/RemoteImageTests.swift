@@ -351,7 +351,8 @@ final class RemoteImageTests: XCTestCase {
   }
 
   func testEveryAdapterAcceptsImagesWithinItsRequestLimit() throws {
-    for provider in RemoteProvider.allCases {
+    // The app supplies Remote Access's chat provider; it has no adapter here.
+    for provider in RemoteProvider.allCases where provider != .deviceLink {
       let endpoint = try RemoteProviderEndpoint(
         provider: provider,
         baseURL: provider == .localCode ? URL(string: "https://router.invalid/v1") : nil,
