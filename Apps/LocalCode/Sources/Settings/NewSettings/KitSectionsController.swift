@@ -198,7 +198,7 @@ final class KitSectionsController {
         self.delegate?.kitSectionsController(self, didRemoveDirectory: path)
       })
     directories.isHidden = !isPermitEnabled || permittedDirectories.isEmpty
-    return SettingsSectionItem(
+    var section = SettingsSectionItem(
       settingsItems: [
         SettingsSwitchItem(value: isPermitEnabled, title: LocalizedString.forKey("enable")) {
           [weak self] value in
@@ -209,6 +209,10 @@ final class KitSectionsController {
       ], title: LocalizedString.forKey("permitted_folders"),
       detail: LocalizedString.forKey("permitted_folders_detail"),
       lookUpKey: "local_code_permitted_folders_detail_hidden", workspace: workspace)
+    // With Enable off the switch stays visible even with no folders, because permit refuses
+    // every request until it is turned back on.
+    section.isHidden = isPermitEnabled && permittedDirectories.isEmpty
+    return section
   }
 
   private func appDataPermissionSection(_ directory: AppDataDirectory) -> SettingsSectionItem {

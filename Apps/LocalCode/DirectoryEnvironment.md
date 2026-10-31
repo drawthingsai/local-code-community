@@ -117,7 +117,9 @@ being interpreted relative to the project.
 Kit's **Permitted Folders** section starts with an **Enable** switch, on by default.
 Turning it off hides the folder rows, releases active grants, and makes `permit`
 refuse requests. Bookmarks and individual folder choices are preserved. Turning
-it back on restores the list and reactivates enabled grants.
+it back on restores the list and reactivates enabled grants. The section is hidden
+while no folder is saved and the switch is on; with the switch off it stays
+visible, since the switch is the only way to turn `permit` back on.
 
 Each folder has a dropdown containing its full path and **Disabled**, plus a
 minus button. Disabled retains the bookmark but releases its active grant;

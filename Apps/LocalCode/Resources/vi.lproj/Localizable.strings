@@ -2827,7 +2827,7 @@
 
 "permit_folder_access" = "Cho phép truy cập thư mục";
 "permitted_folders" = "Thư mục được cho phép";
-"permitted_folders_detail" = "Các thư mục được phê duyệt qua permit sẽ được lưu ở đây. Chọn “Đã tắt” để tạm dừng quyền truy cập của một thư mục, hoặc dùng nút dấu trừ để gỡ bỏ thư mục đó. Tắt “Bật” sẽ tạm dừng mọi quyền đã lưu và từ chối các yêu cầu mới mà không làm mất danh sách thư mục của bạn.";
+"permitted_folders_detail" = "Liệt kê các thư mục bên ngoài dự án mà bạn đã chọn khi lệnh permit yêu cầu quyền truy cập. Chọn “Đã tắt” để tạm dừng một thư mục, hoặc dùng nút dấu trừ để gỡ bỏ thư mục đó. Tắt “Bật” để tạm dừng tất cả và chặn các yêu cầu mới; danh sách vẫn được giữ lại.";
 
 // Idle model unloading
 "unload_models_when_idle" = "Giải phóng mô hình khi nhàn rỗi";

@@ -2827,7 +2827,7 @@
 
 "permit_folder_access" = "Allow Folder Access";
 "permitted_folders" = "Permitted Folders";
-"permitted_folders_detail" = "Folders approved through permit are saved here. Choose Disabled to pause a folder's access, or use the minus button to remove it. Turning Enable off pauses all saved grants and rejects new requests without forgetting your folders.";
+"permitted_folders_detail" = "Lists the folders outside your project that you chose when the permit command asked for access. Choose Disabled to pause a folder, or use the minus button to remove it. Turn off Enable to pause them all and block new requests; the list is kept.";
 
 // Idle model unloading
 "unload_models_when_idle" = "Unload Models When Idle";
