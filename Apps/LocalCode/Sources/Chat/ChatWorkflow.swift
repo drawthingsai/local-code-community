@@ -2503,7 +2503,7 @@ extension ChatWorkflow: ChatViewControllableDelegate {
 
 extension ChatWorkflow: ProjectBarControllerDelegate {
   func projectBarControllerDidTapSettings(_ controller: ProjectBarController) {
-    workspace.dictionary["settings_selected_index", Int.self] = 0
+    // Settings comes back on whichever tab was last visited.
     guard userInterfaceIdiom == .phone else { return }
     presentSettings(interactive: false)
   }
