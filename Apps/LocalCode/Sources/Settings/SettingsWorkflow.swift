@@ -55,6 +55,9 @@ protocol SettingsWorkflowDelegate: AnyObject {
     _ workflow: SettingsWorkflow, didRequestSelect provider: RemoteProvider?, sourceView: UIView)
   func settingsWorkflow(
     _ workflow: SettingsWorkflow, didRequestConfigure provider: RemoteProvider, sourceView: UIView)
+  func settingsWorkflow(
+    _ workflow: SettingsWorkflow, didRequest action: RemoteAccountAction,
+    forRemoteProvider provider: RemoteProvider)
   func settingsWorkflowDidUpdateHostedProvider(_ workflow: SettingsWorkflow)
   func settingsWorkflowDidRequestModelSpeed(_ workflow: SettingsWorkflow)
 }
@@ -1905,6 +1908,13 @@ extension SettingsWorkflow: SettingsSectionsControllerDelegate {
       return
     }
     delegate?.settingsWorkflow(self, didRequestConfigure: provider, sourceView: sourceView)
+  }
+
+  func settingsSectionsController(
+    _ controller: SettingsSectionsController, didRequest action: RemoteAccountAction,
+    forRemoteProvider provider: RemoteProvider
+  ) {
+    delegate?.settingsWorkflow(self, didRequest: action, forRemoteProvider: provider)
   }
 
   func settingsSectionsController(

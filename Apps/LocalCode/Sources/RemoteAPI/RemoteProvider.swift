@@ -577,7 +577,7 @@ enum RemoteProviderConfiguration {
     viewController.present(formController, animated: true)
   }
 
-  private static func presentError(on viewController: UIViewController, message: String) {
+  static func presentError(on viewController: UIViewController, message: String) {
     let alertController = UIAlertController(
       title: LocalizedString.forKey("remote_api_error"), message: message,
       preferredStyle: .alert)

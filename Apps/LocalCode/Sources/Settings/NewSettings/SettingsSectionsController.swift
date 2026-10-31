@@ -45,6 +45,21 @@ enum WorkAttitude: String, Codable, CaseIterable {
   }
 }
 
+/// The provider's row under Where Models Run, with its account for the gear's menu.
+private struct RemoteProviderConfigurationRow: Equatable {
+  var provider: RemoteProvider
+  var status: String
+  /// Nil while signed out.
+  var authenticationKind: RemoteAuthenticationKind?
+}
+
+/// From the gear's menu on a provider's row.
+enum RemoteAccountAction {
+  /// Signs in again, or changes the key.
+  case configure
+  case signOut
+}
+
 protocol SettingsSectionsControllerDelegate: AnyObject {
   func settingsSectionsController(
     _ controller: SettingsSectionsController,
@@ -65,6 +80,9 @@ protocol SettingsSectionsControllerDelegate: AnyObject {
   func settingsSectionsController(
     _ controller: SettingsSectionsController, didTapRemoteProvider provider: RemoteProvider,
     sourceView: UIView)
+  func settingsSectionsController(
+    _ controller: SettingsSectionsController, didRequest action: RemoteAccountAction,
+    forRemoteProvider provider: RemoteProvider)
   func settingsSectionsController(
     _ controller: SettingsSectionsController, didChangeRemoteCompactionThreshold value: Double,
     provider: RemoteProvider)
@@ -589,22 +607,54 @@ final class SettingsSectionsController {
     let requiresHostedSignIn = remoteProvider == .localCode && !isHostedAccountSignedIn
     var configurationItem = SettingsSectionItem(
       settingsItems: [
+        // Signed in, the row picks the provider's model, and the gear has the account.
         SettingsButtonItem(
-          value: provider,
+          value: RemoteProviderConfigurationRow(
+            provider: provider,
+            status: requiresHostedSignIn
+              ? LocalizedString.forKey("sign_in_to_local_code")
+              : provider.configurationStatus(in: workspace),
+            authenticationKind: provider == .localCode
+              ? nil : provider.account(in: workspace)?.authorization.kind),
           buttonImage: UIImage(
             systemName: requiresHostedSignIn ? "person.crop.circle" : "gearshape")?
             .withRenderingMode(.alwaysTemplate),
-          buttonAction: { [weak self] sourceView, provider in
+          buttonAction: { [weak self] sourceView, row in
             guard let self else { return }
             self.delegate?.settingsSectionsController(
-              self, didTapRemoteProvider: provider, sourceView: sourceView)
+              self, didTapRemoteProvider: row.provider, sourceView: sourceView)
           },
-          makeButtonsUI: { [weak self, workspace] provider, button in
-            button?.setTitle(
-              provider == .localCode && self?.isHostedAccountSignedIn == false
-                ? LocalizedString.forKey("sign_in_to_local_code")
-                : provider.configurationStatus(in: workspace),
-              for: .normal)
+          makeButtonsUI: { row, button in
+            button?.setTitle(row.status, for: .normal)
+          },
+          accessoryMenu: { [weak self] row in
+            guard let authenticationKind = row.authenticationKind else { return nil }
+            let configureTitle: String
+            if row.provider == .openAI {
+              configureTitle = LocalizedString.forKey("remote_oauth_openai_action")
+            } else if row.provider == .anthropic && authenticationKind == .oauth {
+              configureTitle = LocalizedString.forKey("remote_oauth_anthropic_action")
+            } else {
+              configureTitle = LocalizedString.forKey("api_key")
+            }
+            return UIMenu(
+              title: row.provider.title,
+              children: [
+                UIAction(title: configureTitle) { [weak self] _ in
+                  guard let self else { return }
+                  self.delegate?.settingsSectionsController(
+                    self, didRequest: .configure, forRemoteProvider: row.provider)
+                },
+                UIAction(
+                  title: LocalizedString.forKey(
+                    authenticationKind == .oauth ? "sign_out" : "remove_api_key"),
+                  attributes: .destructive
+                ) { [weak self] _ in
+                  guard let self else { return }
+                  self.delegate?.settingsSectionsController(
+                    self, didRequest: .signOut, forRemoteProvider: row.provider)
+                },
+              ])
           }),
         SettingsSliderItem(
           title: LocalizedString.forKey("remote_compaction_trigger"),

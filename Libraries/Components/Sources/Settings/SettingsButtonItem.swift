@@ -16,6 +16,8 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
     public var stackView: UIStackView?
     public var button: UIButton?
     public var buttonImageView: UIImageView?
+    /// Over the trailing image, with its own menu, while the rest of the button keeps its action.
+    public var accessoryButton: UIButton?
     public var incompatibleView: UIView?
     public var titleLabel: UILabel?
     public var toolTipController: ToolTipController?
@@ -24,14 +26,17 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
     public var currentValue: T?
     public var buttonAction: ((UIView, T) -> Void)?
     public var makeButtonsUI: ((T, UIButton?) -> Void)? = nil
+    public var accessoryMenu: ((T) -> UIMenu?)? = nil
 
     public init(
       buttonAction: ((UIView, T) -> Void)? = nil,
       buttonImage: UIImage? = nil,
-      makeButtonsUI: ((T, UIButton?) -> Void)? = nil
+      makeButtonsUI: ((T, UIButton?) -> Void)? = nil,
+      accessoryMenu: ((T) -> UIMenu?)? = nil
     ) {
       self.buttonAction = buttonAction
       self.makeButtonsUI = makeButtonsUI
+      self.accessoryMenu = accessoryMenu
       if let buttonImage {
         self.buttonImage = buttonImage
       }
@@ -90,6 +95,18 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
           }), for: .touchUpInside)
       }
       makeButtonsUI?(item.value, button)
+      if accessoryMenu != nil {
+        let accessoryButton = UIButton(type: .custom)
+        accessoryButton.showsMenuAsPrimaryAction = true
+        button.addSubview(accessoryButton)
+        accessoryButton.snp.makeConstraints { make in
+          make.top.bottom.trailing.equalToSuperview()
+          // Centered on the image, which is its margin in from the trailing edge.
+          make.width.equalTo(Theme.current.sectionContentMargin * 2 + 16)
+        }
+        self.accessoryButton = accessoryButton
+        updateAccessoryMenu(item.value)
+      }
       if item.showsTooltip {
         let toolTip = ToolTipController(
           control: button, containerView: stackView, toolTip: button.title(for: .normal) ?? "",
@@ -114,6 +131,7 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
         buttonImageView?.image = newModifier.buttonImage
       }
       makeButtonsUI?(newItem.value, button)
+      updateAccessoryMenu(newItem.value)
       if updatingItem.isHidden != newItem.isHidden {
         hideView = newItem.isHidden
         updatingItem.isHidden = newItem.isHidden
@@ -127,6 +145,13 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
       return updatingItem
     }
 
+    /// With no menu for the value, a tap on the image is the button's.
+    private func updateAccessoryMenu(_ value: T) {
+      let menu = accessoryMenu?(value)
+      accessoryButton?.menu = menu
+      accessoryButton?.isHidden = menu == nil
+      accessoryButton?.accessibilityLabel = menu?.title
+    }
   }
 
   public var isHidden: Bool = false
@@ -145,7 +170,8 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
     showsMenuAsPrimaryAction: Bool = false, extraTopPadding: CGFloat = 0,
     showsTooltip: Bool = false,
     buttonAction: ((UIView, T) -> Void)? = nil,
-    makeButtonsUI: ((T, UIButton?) -> Void)? = nil
+    makeButtonsUI: ((T, UIButton?) -> Void)? = nil,
+    accessoryMenu: ((T) -> UIMenu?)? = nil
   ) {
     self.value = value
     self.title = title
@@ -155,7 +181,7 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
     self.showsTooltip = showsTooltip
     self.viewModifying = ViewModifier(
       buttonAction: buttonAction, buttonImage: buttonImage,
-      makeButtonsUI: makeButtonsUI)
+      makeButtonsUI: makeButtonsUI, accessoryMenu: accessoryMenu)
   }
 
   public func isEquivalent(to other: any SettingsViewObservable) -> Bool {

@@ -179,30 +179,37 @@ extension ChatWorkflow {
     ) { [weak self] change in
       guard let self else { return }
       guard chatInputController.sendState == .idle else { return }
-      settingsWorkflow.refreshRemoteProviderConfiguration()
-      switch change {
-      case .saved:
-        let remoteChatProvider = remoteChatProvider(for: provider)
-        guard !remoteChatProvider.hasActiveConversations() else { return }
-        select(remoteChatProvider)
-      case .removed:
-        remoteChatProviders[provider.rawValue]?.unload()
-        guard case .some(.remote(let remoteChatProvider)) = codeAgentWrapper,
-          remoteChatProvider.provider == provider
-        else { return }
-        workspace.dictionary["chat_backend", String.self] = nil
-        if let selectedLLM {
-          self.selectedLLM = selectedLLM
-          chatInputController.setModel(
-            name: LLMZoo.humanReadableNameForModel(selectedLLM),
-            image: Self.modelImage(for: selectedLLM))
-        } else {
-          codeAgentWrapper = nil
-          chatInputController.setModel(
-            name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
-          settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
-          settingsWorkflow.setContextUsed(0, contextWindowTokens: 0)
-        }
+      remoteProviderConfigurationDidChange(change, provider: provider)
+    }
+  }
+
+  /// A provider saved picks it, unless it's busy; one removed leaves for a local model.
+  private func remoteProviderConfigurationDidChange(
+    _ change: RemoteProviderConfigurationChange, provider: RemoteProvider
+  ) {
+    settingsWorkflow.refreshRemoteProviderConfiguration()
+    switch change {
+    case .saved:
+      let remoteChatProvider = remoteChatProvider(for: provider)
+      guard !remoteChatProvider.hasActiveConversations() else { return }
+      select(remoteChatProvider)
+    case .removed:
+      remoteChatProviders[provider.rawValue]?.unload()
+      guard case .some(.remote(let remoteChatProvider)) = codeAgentWrapper,
+        remoteChatProvider.provider == provider
+      else { return }
+      workspace.dictionary["chat_backend", String.self] = nil
+      if let selectedLLM {
+        self.selectedLLM = selectedLLM
+        chatInputController.setModel(
+          name: LLMZoo.humanReadableNameForModel(selectedLLM),
+          image: Self.modelImage(for: selectedLLM))
+      } else {
+        codeAgentWrapper = nil
+        chatInputController.setModel(
+          name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
+        settingsWorkflow.setPrefillTokensPerSecond(0, tokenGeneratedPerSecond: 0)
+        settingsWorkflow.setContextUsed(0, contextWindowTokens: 0)
       }
     }
   }
@@ -222,11 +229,34 @@ extension ChatWorkflow {
     _ workflow: SettingsWorkflow, didRequestConfigure provider: RemoteProvider,
     sourceView: UIView
   ) {
-    if provider == .localCode {
+    // Signed in, the row picks a model; the gear's menu has the account.
+    if provider == .localCode || provider.account(in: workspace) != nil {
       didTapModelSelector(sourceView: sourceView)
       return
     }
     presentRemoteProviderConfiguration(provider, sourceView: sourceView)
+  }
+
+  func settingsWorkflow(
+    _ workflow: SettingsWorkflow, didRequest action: RemoteAccountAction,
+    forRemoteProvider provider: RemoteProvider
+  ) {
+    switch action {
+    case .configure:
+      presentRemoteProviderConfiguration(provider)
+    case .signOut:
+      guard chatInputController.sendState == .idle, let account = provider.account(in: workspace)
+      else { return }
+      do {
+        try RemoteCredentialStore.delete(
+          account: account.endpoint.baseURL.absoluteString, provider: provider)
+      } catch {
+        RemoteProviderConfiguration.presentError(
+          on: presentedViewController, message: error.localizedDescription)
+        return
+      }
+      remoteProviderConfigurationDidChange(.removed, provider: provider)
+    }
   }
 
   func selectRemoteModel(_ model: String, provider: RemoteProvider) {
