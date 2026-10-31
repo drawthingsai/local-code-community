@@ -628,21 +628,94 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
     func browserViewControllerDidTapDone(_ viewController: BrowserViewController)
   }
 
-  /// A browser sheet's content: the address, and the live tab that commands drive, which the
-  /// person can inspect or interact with.
+  /// A browser sheet's content: the live tab that commands drive, which the person can inspect
+  /// or interact with, under the page's title and a down arrow back to the chat. Like Safari on
+  /// iPhone, back and the address float in glass over the page's bottom, and shrink to the
+  /// page's domain while the person scrolls down it. Editing the address lifts it above the
+  /// keyboard beside Cancel; Go opens the page.
   final class BrowserViewController: UIViewController {
+    private static let addressHeight: CGFloat = 48
+    private static let collapsedAddressHeight: CGFloat = 32
+    private static let addressBarPadding: CGFloat = 8
+
     weak var delegate: BrowserViewControllerDelegate?
     private let webView: WKWebView
-    private var urlObservation: NSKeyValueObservation?
+    private var observations = [NSKeyValueObservation]()
+    private var isAddressCollapsed = false
+    /// Active while the address is edited. Otherwise the address sits above the home indicator,
+    /// and the keyboard for a field on the page covers it.
+    private var addressAboveKeyboardConstraint: Constraint?
+    /// Active while the address shows only the domain; the full row is their fallback.
+    private var collapsedAddressConstraints = [Constraint]()
 
-    private lazy var doneButtonItem = UIBarButtonItem(
-      barButtonSystemItem: .done, target: self, action: #selector(didTapDone))
+    private lazy var doneButtonItem: UIBarButtonItem = {
+      let item = UIBarButtonItem(
+        image: UIImage(systemName: "chevron.down"), style: .plain, target: self,
+        action: #selector(didTapDone))
+      item.accessibilityLabel = LocalizedString.forKey("close")
+      return item
+    }()
+
+    private lazy var addressRow: UIStackView = {
+      let stackView = UIStackView(arrangedSubviews: [backButton, addressBarView, cancelButton])
+      stackView.axis = .horizontal
+      stackView.alignment = .fill
+      stackView.spacing = Self.addressBarPadding
+      return stackView
+    }()
+
+    private lazy var backButton: UIButton = {
+      var configuration = Self.barButtonConfiguration()
+      configuration.image = UIImage(
+        systemName: "chevron.left",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
+      let button = UIButton(configuration: configuration)
+      button.isEnabled = false
+      button.accessibilityLabel = LocalizedString.forKey("back")
+      button.addAction(UIAction { [weak self] _ in self?.webView.goBack() }, for: .touchUpInside)
+      // Round at the row's height, yielding to the stack view's zero width while hidden.
+      button.snp.makeConstraints { make in
+        make.width.equalTo(Self.addressHeight).priority(999)
+      }
+      return button
+    }()
+
+    private lazy var addressBarView: UIVisualEffectView = {
+      let view: UIVisualEffectView
+      if #available(iOS 26.0, *) {
+        view = UIVisualEffectView(effect: UIGlassEffect(style: .regular))
+        view.cornerConfiguration = .capsule()
+      } else {
+        view = UIVisualEffectView(effect: UIBlurEffect(style: .systemChromeMaterial))
+        view.layer.cornerRadius = Self.addressHeight / 2
+        view.clipsToBounds = true
+      }
+      view.contentView.addSubview(addressField)
+      addressField.snp.makeConstraints { make in
+        make.top.bottom.equalToSuperview()
+        make.leading.trailing.equalToSuperview().inset(12)
+      }
+      return view
+    }()
+
+    private lazy var reloadButton: UIButton = {
+      var configuration = UIButton.Configuration.plain()
+      configuration.image = UIImage(
+        systemName: "arrow.clockwise",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .medium))
+      configuration.baseForegroundColor = .label
+      let button = UIButton(configuration: configuration)
+      button.frame = CGRect(x: 0, y: 0, width: 36, height: 36)
+      button.accessibilityLabel = LocalizedString.forKey("reload")
+      button.addAction(UIAction { [weak self] _ in self?.webView.reload() }, for: .touchUpInside)
+      return button
+    }()
+
+    /// Balances the reload button so the domain stays centered.
+    private let addressBalanceView = UIView(frame: CGRect(x: 0, y: 0, width: 36, height: 36))
 
     private lazy var addressField: UITextField = {
-      // The navigation bar narrows it to fit beside Done.
-      let textField = UITextField(frame: CGRect(x: 0, y: 0, width: 480, height: 36))
-      textField.backgroundColor = .tertiarySystemFill
-      textField.layer.cornerRadius = 10
+      let textField = UITextField(frame: .zero)
       textField.textAlignment = .center
       textField.font = .systemFont(ofSize: 16)
       textField.keyboardType = .URL
@@ -650,8 +723,27 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
       textField.autocapitalizationType = .none
       textField.autocorrectionType = .no
       textField.clearButtonMode = .whileEditing
+      textField.leftView = addressBalanceView
+      textField.leftViewMode = .always
+      textField.rightView = reloadButton
+      textField.rightViewMode = .always
       textField.delegate = self
       return textField
+    }()
+
+    private lazy var cancelButton: UIButton = {
+      var configuration = Self.barButtonConfiguration()
+      configuration.title = LocalizedString.forKey("cancel")
+      configuration.contentInsets = NSDirectionalEdgeInsets(
+        top: 0, leading: 16, bottom: 0, trailing: 16)
+      let button = UIButton(configuration: configuration)
+      button.isHidden = true
+      button.setContentHuggingPriority(.required, for: .horizontal)
+      button.setContentCompressionResistancePriority(.required, for: .horizontal)
+      button.addAction(
+        UIAction { [weak self] _ in self?.addressField.resignFirstResponder() },
+        for: .touchUpInside)
+      return button
     }()
 
     init(webView: WKWebView) {
@@ -668,12 +760,54 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
       super.viewDidLoad()
       view.backgroundColor = .systemBackground
       navigationItem.rightBarButtonItem = doneButtonItem
-      navigationItem.titleView = addressField
       view.addSubview(webView)
-      webView.snp.makeConstraints { $0.edges.equalTo(view.safeAreaLayoutGuide) }
-      urlObservation = webView.observe(\.url, options: [.initial]) { [weak self] _, _ in
-        self?.updateAddress()
+      view.addSubview(addressRow)
+      setContentScrollView(webView.scrollView)
+      // The page runs under the address, and can scroll its end above it.
+      webView.snp.makeConstraints { make in
+        make.edges.equalToSuperview()
       }
+      webView.scrollView.contentInset.bottom = Self.addressHeight + Self.addressBarPadding
+      // Across the bottom, or hugging the domain while collapsed.
+      addressRow.snp.makeConstraints { make in
+        make.centerX.equalTo(view.safeAreaLayoutGuide)
+        make.leading.greaterThanOrEqualTo(view.safeAreaLayoutGuide).offset(16)
+        make.width.equalTo(view.safeAreaLayoutGuide).offset(-32).priority(700)
+        make.height.equalTo(Self.addressHeight).priority(700)
+        make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-Self.addressBarPadding)
+          .priority(250)
+        addressAboveKeyboardConstraint =
+          make.bottom.equalTo(view.keyboardLayoutGuide.snp.top).offset(-Self.addressBarPadding)
+          .constraint
+        // Narrower than the domain gives way to the domain's compression resistance (750).
+        collapsedAddressConstraints = [
+          make.width.equalTo(0).priority(740).constraint,
+          make.height.equalTo(Self.collapsedAddressHeight).priority(740).constraint,
+          make.bottom.equalTo(view.safeAreaLayoutGuide).offset(Self.addressBarPadding)
+            .priority(740).constraint,
+        ]
+      }
+      addressAboveKeyboardConstraint?.deactivate()
+      collapsedAddressConstraints.forEach { $0.deactivate() }
+      observations = [
+        webView.observe(\.url, options: [.initial]) { [weak self] _, _ in
+          self?.updateAddress()
+          self?.setAddressCollapsed(false)
+        },
+        webView.observe(\.canGoBack, options: [.initial]) { [weak self] webView, _ in
+          self?.backButton.isEnabled = webView.canGoBack
+        },
+        // Collapses while the person scrolls down the page, and comes back as they scroll up
+        // or reach the top.
+        webView.scrollView.observe(\.contentOffset, options: [.old, .new]) {
+          [weak self] scrollView, change in
+          guard scrollView.isDragging || scrollView.isDecelerating,
+            let old = change.oldValue, let new = change.newValue, new.y != old.y
+          else { return }
+          self?.setAddressCollapsed(
+            new.y > old.y && new.y > -scrollView.adjustedContentInset.top)
+        },
+      ]
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -682,6 +816,19 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
       if webView.url == nil {
         addressField.becomeFirstResponder()
       }
+    }
+
+    /// Glass where the system has it.
+    private static func barButtonConfiguration() -> UIButton.Configuration {
+      var configuration: UIButton.Configuration
+      if #available(iOS 26.0, *) {
+        configuration = .glass()
+      } else {
+        configuration = .gray()
+        configuration.cornerStyle = .capsule
+      }
+      configuration.baseForegroundColor = .label
+      return configuration
     }
 
     /// The host and port while not editing, like Safari.
@@ -693,6 +840,27 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
       } else {
         addressField.text = nil
       }
+      addressField.invalidateIntrinsicContentSize()
+    }
+
+    private func setAddressCollapsed(_ isCollapsed: Bool) {
+      guard isCollapsed != isAddressCollapsed, !addressField.isEditing else { return }
+      isAddressCollapsed = isCollapsed
+      if isCollapsed {
+        collapsedAddressConstraints.forEach { $0.activate() }
+      } else {
+        collapsedAddressConstraints.forEach { $0.deactivate() }
+      }
+      addressField.font = .systemFont(ofSize: isCollapsed ? 13 : 16)
+      addressField.leftViewMode = isCollapsed ? .never : .always
+      addressField.rightViewMode = isCollapsed ? .never : .always
+      UIView.animate(
+        withDuration: 0.3, delay: 0, usingSpringWithDamping: 1, initialSpringVelocity: 0
+      ) {
+        self.backButton.isHidden = isCollapsed
+        self.backButton.alpha = isCollapsed ? 0 : 1
+        self.view.layoutIfNeeded()
+      }
     }
 
     @objc private func didTapDone() {
@@ -701,13 +869,43 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
   }
 
   extension BrowserViewController: UITextFieldDelegate {
+    /// A tap on the domain alone brings the address back first, as in Safari.
+    func textFieldShouldBeginEditing(_ textField: UITextField) -> Bool {
+      guard !isAddressCollapsed else {
+        setAddressCollapsed(false)
+        return false
+      }
+      // Out while editing: an empty field keeps showing them whatever their modes say.
+      textField.leftView = nil
+      textField.rightView = nil
+      return true
+    }
+
     func textFieldDidBeginEditing(_ textField: UITextField) {
       textField.text = webView.url?.absoluteString
+      textField.textAlignment = .natural
       textField.selectAll(nil)
+      addressAboveKeyboardConstraint?.activate()
+      UIView.animate(withDuration: 0.25) {
+        self.backButton.isHidden = true
+        self.backButton.alpha = 0
+        self.cancelButton.isHidden = false
+        self.view.layoutIfNeeded()
+      }
     }
 
     func textFieldDidEndEditing(_ textField: UITextField) {
+      textField.textAlignment = .center
+      textField.leftView = addressBalanceView
+      textField.rightView = reloadButton
       updateAddress()
+      addressAboveKeyboardConstraint?.deactivate()
+      UIView.animate(withDuration: 0.25) {
+        self.backButton.isHidden = false
+        self.backButton.alpha = 1
+        self.cancelButton.isHidden = true
+        self.view.layoutIfNeeded()
+      }
     }
 
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
