@@ -2789,6 +2789,7 @@
 "forward" = "Vorwärts";
 "reload" = "Neu laden";
 "open_a_tab_for_local_code" = "Tab für Local Code öffnen";
+"new_browser_tab" = "Neuer Tab";
 "activities" = "Aktivitäten";
 "browser_tabs" = "Browser-Tabs";
 "browser_tabs_detail" = "Tabs, die Agenten mit web-browse-cli öffnen; die dieses Threads stehen oben. Öffnen Sie einen, um ihn anzusehen und zu verwenden. Die Minustaste schließt ihn und beendet jeden Befehl, der ihn noch verwendet.";

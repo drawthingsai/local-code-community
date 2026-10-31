@@ -2789,6 +2789,7 @@
 "forward" = "Avancer";
 "reload" = "Recharger";
 "open_a_tab_for_local_code" = "Ouvrir un onglet pour Local Code";
+"new_browser_tab" = "Nouvel onglet";
 "activities" = "Activités";
 "browser_tabs" = "Onglets du navigateur";
 "browser_tabs_detail" = "Onglets que les agents ouvrent avec web-browse-cli, ceux de ce fil d’abord. Ouvrez-en un pour le voir et l’utiliser. Le bouton moins le ferme et arrête toute commande qui l’utilise encore.";

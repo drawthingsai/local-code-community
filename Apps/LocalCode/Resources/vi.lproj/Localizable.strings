@@ -3063,6 +3063,7 @@
 "forward" = "Tiến tới";
 "reload" = "Tải lại";
 "open_a_tab_for_local_code" = "Mở một tab cho Local Code";
+"new_browser_tab" = "Tab mới";
 "activities" = "Hoạt động";
 "browser_tabs" = "Tab trình duyệt";
 "browser_tabs_detail" = "Các tab mà tác tử mở bằng web-browse-cli, tab của cuộc trò chuyện này được xếp trước. Mở một tab để xem và sử dụng. Nút dấu trừ sẽ đóng tab và dừng mọi lệnh vẫn đang dùng tab đó.";

@@ -5,8 +5,9 @@ import Style
 import UIKit
 
 /// Open browser tabs: this chat's first, then a divider and every other chat's. A row opens its
-/// tab's window; the minus button closes the tab. With no tabs, the item offers to open one for
-/// Local Code, where the person can sign in before agents use it.
+/// tab's window; the minus button closes the tab, and the New Tab row under them opens a blank
+/// one in this chat. With no tabs, the item offers to open one for Local Code, where the person
+/// can sign in before agents use it.
 struct SettingsBrowserTabsItem: SettingsViewObservable {
   struct Tab: Equatable {
     let id: String
@@ -79,6 +80,18 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
       return button
     }()
 
+    /// Under the tabs, styled as one, its title in italics like the thread list's new thread.
+    private lazy var newTabView: UIView = {
+      let button = Self.makeRowButton(
+        font: .italicSystemFont(ofSize: Theme.current.primaryContentFont.pointSize))
+      button.configuration?.title = LocalizedString.forKey("new_browser_tab")
+      button.addAction(UIAction { [weak self] _ in self?.openNew?() }, for: .touchUpInside)
+      button.snp.makeConstraints { make in
+        make.height.equalTo(Theme.current.buttonHeight)
+      }
+      return button
+    }()
+
     func makeViews(from item: Item) -> ([UIView], any SettingsViewModifying) {
       stackView.axis = .vertical
       stackView.alignment = .fill
@@ -121,9 +134,7 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
       for tab in item.otherTabs {
         views.append(row(for: tab, isEnabled: item.isEnabled).view)
       }
-      if tabs.isEmpty {
-        views.append(emptyView)
-      }
+      views.append(tabs.isEmpty ? emptyView : newTabView)
       // Rows keep their views; only the order and the divider change.
       guard stackView.arrangedSubviews != views else { return }
       stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -136,9 +147,7 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
         row = existing
       } else {
         let view = UIView()
-        let button = SettingsViewFactory.makeDropdownButton(
-          alternativeImage: #imageLiteral(resourceName: "browser-tab-24").withRenderingMode(
-            .alwaysTemplate), titleLineBreakMode: .byTruncatingHead)
+        let button = Self.makeRowButton()
         let minus = UIButton(type: .custom)
         var configuration = UIButton.Configuration.filled()
         configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
@@ -178,6 +187,30 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
       row.minus.accessibilityValue = tab.title
       row.view.isUserInteractionEnabled = isEnabled
       return row
+    }
+
+    /// Styled as Settings' dropdowns, with a tab's icon before the title.
+    private static func makeRowButton(font: UIFont = Theme.current.primaryContentFont)
+      -> UIButton
+    {
+      let button = UIButton(type: .custom)
+      button.layer.cornerRadius = Theme.current.itemCornerRadius
+      var configuration = UIButton.Configuration.bordered()
+      configuration.image = #imageLiteral(resourceName: "browser-tab-24")
+        .withRenderingMode(.alwaysTemplate)
+      configuration.imagePadding = 8
+      configuration.titleAlignment = .leading
+      configuration.contentInsets = NSDirectionalEdgeInsets(
+        top: 0, leading: 12, bottom: 0, trailing: 12)
+      configuration.background.cornerRadius = Theme.current.itemCornerRadius
+      configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
+      configuration.baseForegroundColor = Theme.current.primaryContentColor
+      configuration.titleLineBreakMode = .byTruncatingHead
+      button.configuration = configuration
+      button.contentHorizontalAlignment = .leading
+      button.tintColor = .systemBackground
+      FontMetrics.default.scaleFont(font, bindTo: button)
+      return button
     }
   }
 }

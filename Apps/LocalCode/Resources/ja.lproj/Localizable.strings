@@ -2787,6 +2787,7 @@
 "forward" = "進む";
 "reload" = "再読み込み";
 "open_a_tab_for_local_code" = "Local Code 用のタブを開く";
+"new_browser_tab" = "新規タブ";
 "activities" = "アクティビティ";
 "browser_tabs" = "ブラウザのタブ";
 "browser_tabs_detail" = "エージェントが web-browse-cli で開いたタブです。このスレッドのタブが先に表示されます。開くと表示・操作できます。マイナスボタンで閉じると、そのタブを使用中のコマンドも停止します。";
