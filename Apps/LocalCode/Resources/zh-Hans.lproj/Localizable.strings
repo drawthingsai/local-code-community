@@ -2770,8 +2770,8 @@
 "full_screen" = "全屏";
 "forward" = "前进";
 "reload" = "重新载入";
-"open_a_tab_for_local_code" = "为 Local Code 打开标签页";
-"new_browser_tab" = "新标签页";
+"no_open_tabs" = "没有打开的标签页。";
+"open_a_tab" = "打开标签页";
 "activities" = "活动";
 "browser_tabs" = "浏览器标签页";
 "browser_tabs_detail" = "代理用 web-browse-cli 打开的标签页，此会话的排在前面。打开即可查看和使用。减号按钮会关闭标签页，并停止仍在使用它的命令。";

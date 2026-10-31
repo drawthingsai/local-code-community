@@ -2769,8 +2769,8 @@
 "full_screen" = "全螢幕";
 "forward" = "向前";
 "reload" = "重新載入";
-"open_a_tab_for_local_code" = "為 Local Code 開啟標籤頁";
-"new_browser_tab" = "新分頁";
+"no_open_tabs" = "沒有開啟的標籤頁。";
+"open_a_tab" = "開啟標籤頁";
 "activities" = "活動";
 "browser_tabs" = "瀏覽器標籤頁";
 "browser_tabs_detail" = "代理用 web-browse-cli 開啟的標籤頁，此對話的排在前面。開啟即可檢視和使用。減號按鈕會關閉標籤頁，並停止仍在使用它的指令。";

@@ -74,7 +74,14 @@ public struct SettingsSectionItem: SettingsViewObservable {
         let (borderView, stackView) = SettingsViewFactory.makeSectionStackView(
           individualSectionStyle: item.individualSectionStyle)
         stackView.spacing = Theme.current.sectionItemInternalSpacing
-        stackView.addArrangedSubview(titleView)
+        if let titleAccessoryView = item.titleAccessoryView {
+          let titleRow = UIStackView(arrangedSubviews: [titleView, titleAccessoryView])
+          titleRow.axis = .horizontal
+          titleRow.spacing = 4
+          stackView.addArrangedSubview(titleRow)
+        } else {
+          stackView.addArrangedSubview(titleView)
+        }
         if let detailView {
           stackView.addArrangedSubview(detailView)
         }
@@ -217,16 +224,19 @@ public struct SettingsSectionItem: SettingsViewObservable {
 
   private var title: String
   private var detail: String
+  /// At the end of the title row, for the individual section style.
+  private let titleAccessoryView: UIView?
   private let viewModifier: ViewModifier
 
   public init(
     settingsItems: [any SettingsViewObservable], title: String, detail: String, lookUpKey: String,
-    individualSectionStyle: Bool = true, workspace: Workspace
+    individualSectionStyle: Bool = true, titleAccessoryView: UIView? = nil, workspace: Workspace
   ) {
     self.title = title
     self.detail = detail
     self.settingsItems = settingsItems
     self.individualSectionStyle = individualSectionStyle
+    self.titleAccessoryView = titleAccessoryView
     viewModifier = ViewModifier(
       lookUpKey: lookUpKey, workspace: workspace)
   }

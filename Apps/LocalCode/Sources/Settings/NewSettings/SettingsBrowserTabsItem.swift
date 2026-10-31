@@ -5,9 +5,7 @@ import Style
 import UIKit
 
 /// Open browser tabs: this chat's first, then a divider and every other chat's. A row opens its
-/// tab's window; the minus button closes the tab, and the New Tab row under them opens a blank
-/// one in this chat. With no tabs, the item offers to open one for Local Code, where the person
-/// can sign in before agents use it.
+/// tab's window; the minus button closes the tab. With no tabs, the item says so.
 struct SettingsBrowserTabsItem: SettingsViewObservable {
   struct Tab: Equatable {
     let id: String
@@ -21,8 +19,6 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
   var currentTabs: [Tab]
   var otherTabs: [Tab]
   var open: (String) -> Void
-  /// Opens a blank tab in this chat.
-  var openNew: () -> Void
   var close: (String) -> Void
   private let viewModifier = ViewModifier()
   var viewModifying: any SettingsViewModifying { viewModifier }
@@ -45,7 +41,6 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
     var view: UIView? { stackView }
     private var rows = [String: Row]()
     private var open: ((String) -> Void)?
-    private var openNew: (() -> Void)?
     private var close: ((String) -> Void)?
 
     private lazy var dividerView: UIView = {
@@ -61,35 +56,29 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
     }()
 
     private lazy var emptyView: UIView = {
-      let button = UIButton(type: .custom)
-      var configuration = UIButton.Configuration.filled()
-      configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
-      configuration.baseForegroundColor = Theme.current.primaryContentColor
-      configuration.background.cornerRadius = Theme.current.itemCornerRadius
-      configuration.image = #imageLiteral(resourceName: "browser-tab-24").withRenderingMode(
-        .alwaysTemplate)
-      configuration.imagePlacement = .top
-      configuration.imagePadding = 8
-      configuration.title = LocalizedString.forKey("open_a_tab_for_local_code")
-      button.configuration = configuration
-      FontMetrics.default.scaleFont(.systemFont(ofSize: 13), bindTo: button)
-      button.addAction(UIAction { [weak self] _ in self?.openNew?() }, for: .touchUpInside)
-      button.snp.makeConstraints { make in
+      let iconView = UIImageView(
+        image: #imageLiteral(resourceName: "browser-tab-24").withRenderingMode(.alwaysTemplate))
+      iconView.tintColor = Theme.current.primaryContentColor
+      let label = UILabel(frame: .zero)
+      label.text = LocalizedString.forKey("no_open_tabs")
+      label.textColor = Theme.current.primaryContentColor
+      label.textAlignment = .center
+      FontMetrics.default.scaleFont(.systemFont(ofSize: 13), bindTo: label)
+      let stackView = UIStackView(arrangedSubviews: [iconView, label])
+      stackView.axis = .vertical
+      stackView.alignment = .center
+      stackView.spacing = 8
+      let view = UIView(frame: .zero)
+      view.addSubview(stackView)
+      stackView.snp.makeConstraints { make in
+        make.center.equalToSuperview()
+        make.top.greaterThanOrEqualToSuperview().offset(16)
+        make.leading.greaterThanOrEqualToSuperview()
+      }
+      view.snp.makeConstraints { make in
         make.height.equalTo(88)
       }
-      return button
-    }()
-
-    /// Under the tabs, styled as one, its title in italics like the thread list's new thread.
-    private lazy var newTabView: UIView = {
-      let button = Self.makeRowButton(
-        font: .italicSystemFont(ofSize: Theme.current.primaryContentFont.pointSize))
-      button.configuration?.title = LocalizedString.forKey("new_browser_tab")
-      button.addAction(UIAction { [weak self] _ in self?.openNew?() }, for: .touchUpInside)
-      button.snp.makeConstraints { make in
-        make.height.equalTo(Theme.current.buttonHeight)
-      }
-      return button
+      return view
     }()
 
     func makeViews(from item: Item) -> ([UIView], any SettingsViewModifying) {
@@ -110,14 +99,12 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
       item.isEnabled = newItem.isEnabled
       item.isHidden = newItem.isHidden
       item.open = newItem.open
-      item.openNew = newItem.openNew
       item.close = newItem.close
       return item
     }
 
     private func updateRows(_ item: Item) {
       open = item.open
-      openNew = item.openNew
       close = item.close
       let tabs = item.currentTabs + item.otherTabs
       let ids = Set(tabs.map(\.id))
@@ -134,7 +121,9 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
       for tab in item.otherTabs {
         views.append(row(for: tab, isEnabled: item.isEnabled).view)
       }
-      views.append(tabs.isEmpty ? emptyView : newTabView)
+      if tabs.isEmpty {
+        views.append(emptyView)
+      }
       // Rows keep their views; only the order and the divider change.
       guard stackView.arrangedSubviews != views else { return }
       stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -147,7 +136,23 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
         row = existing
       } else {
         let view = UIView()
-        let button = Self.makeRowButton()
+        let button = UIButton(type: .custom)
+        button.layer.cornerRadius = Theme.current.itemCornerRadius
+        var buttonConfiguration = UIButton.Configuration.bordered()
+        buttonConfiguration.image = #imageLiteral(resourceName: "browser-tab-24")
+          .withRenderingMode(.alwaysTemplate)
+        buttonConfiguration.imagePadding = 8
+        buttonConfiguration.titleAlignment = .leading
+        buttonConfiguration.contentInsets = NSDirectionalEdgeInsets(
+          top: 0, leading: 12, bottom: 0, trailing: 12)
+        buttonConfiguration.background.cornerRadius = Theme.current.itemCornerRadius
+        buttonConfiguration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
+        buttonConfiguration.baseForegroundColor = Theme.current.primaryContentColor
+        buttonConfiguration.titleLineBreakMode = .byTruncatingHead
+        button.contentHorizontalAlignment = .leading
+        button.tintColor = .systemBackground
+        button.configuration = buttonConfiguration
+        FontMetrics.default.scaleFont(Theme.current.primaryContentFont, bindTo: button)
         let minus = UIButton(type: .custom)
         var configuration = UIButton.Configuration.filled()
         configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
@@ -187,30 +192,6 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
       row.minus.accessibilityValue = tab.title
       row.view.isUserInteractionEnabled = isEnabled
       return row
-    }
-
-    /// Styled as Settings' dropdowns, with a tab's icon before the title.
-    private static func makeRowButton(font: UIFont = Theme.current.primaryContentFont)
-      -> UIButton
-    {
-      let button = UIButton(type: .custom)
-      button.layer.cornerRadius = Theme.current.itemCornerRadius
-      var configuration = UIButton.Configuration.bordered()
-      configuration.image = #imageLiteral(resourceName: "browser-tab-24")
-        .withRenderingMode(.alwaysTemplate)
-      configuration.imagePadding = 8
-      configuration.titleAlignment = .leading
-      configuration.contentInsets = NSDirectionalEdgeInsets(
-        top: 0, leading: 12, bottom: 0, trailing: 12)
-      configuration.background.cornerRadius = Theme.current.itemCornerRadius
-      configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
-      configuration.baseForegroundColor = Theme.current.primaryContentColor
-      configuration.titleLineBreakMode = .byTruncatingHead
-      button.configuration = configuration
-      button.contentHorizontalAlignment = .leading
-      button.tintColor = .systemBackground
-      FontMetrics.default.scaleFont(font, bindTo: button)
-      return button
     }
   }
 }

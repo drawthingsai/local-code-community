@@ -60,6 +60,27 @@ final class ActivitiesSectionsController {
     stackView.spacing = Theme.current.individualStackViewItemSpacing
     return stackView
   }()
+  /// Ends Browser Tabs' title row and opens a blank tab in this chat.
+  private lazy var newBrowserTabButton: UIButton = {
+    let button = UIButton(type: .custom)
+    var configuration = UIButton.Configuration.filled()
+    configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
+    configuration.baseForegroundColor = Theme.current.primaryContentColor
+    configuration.background.cornerRadius = Theme.current.itemCornerRadius
+    configuration.image = #imageLiteral(resourceName: "plus-large").withTintColor(
+      Theme.current.primaryContentColor)
+    button.configuration = configuration
+    button.accessibilityLabel = LocalizedString.forKey("open_a_tab")
+    button.addAction(
+      UIAction { [weak self] _ in
+        guard let self else { return }
+        self.delegate?.activitiesSectionsControllerDidOpenNewBrowserTab(self)
+      }, for: .touchUpInside)
+    button.snp.makeConstraints { make in
+      make.size.equalTo(Theme.current.buttonHeight)
+    }
+    return button
+  }()
 
   init(workspace: SQLiteWorkspace) {
     self.workspace = workspace
@@ -151,17 +172,14 @@ final class ActivitiesSectionsController {
             guard let self else { return }
             self.delegate?.activitiesSectionsController(self, didOpenBrowserTab: id)
           },
-          openNew: { [weak self] in
-            guard let self else { return }
-            self.delegate?.activitiesSectionsControllerDidOpenNewBrowserTab(self)
-          },
           close: { [weak self] id in
             guard let self else { return }
             self.delegate?.activitiesSectionsController(self, didCloseBrowserTab: id)
           })
       ], title: LocalizedString.forKey("browser_tabs"),
       detail: LocalizedString.forKey("browser_tabs_detail"),
-      lookUpKey: "local_code_browser_tabs_detail_hidden", workspace: workspace)
+      lookUpKey: "local_code_browser_tabs_detail_hidden",
+      titleAccessoryView: newBrowserTabButton, workspace: workspace)
   }
 
   private func processesSection() -> SettingsSectionItem {

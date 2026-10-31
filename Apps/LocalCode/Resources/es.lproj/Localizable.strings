@@ -2754,8 +2754,8 @@
 "full_screen" = "Pantalla completa";
 "forward" = "Adelante";
 "reload" = "Volver a cargar";
-"open_a_tab_for_local_code" = "Abrir una pestaña para Local Code";
-"new_browser_tab" = "Nueva pestaña";
+"no_open_tabs" = "No hay pestañas abiertas.";
+"open_a_tab" = "Abrir una pestaña";
 "activities" = "Actividades";
 "browser_tabs" = "Pestañas del navegador";
 "browser_tabs_detail" = "Pestañas que los agentes abren con web-browse-cli, primero las de este hilo. Abre una para verla y usarla. El botón de menos la cierra y detiene cualquier comando que aún la esté usando.";

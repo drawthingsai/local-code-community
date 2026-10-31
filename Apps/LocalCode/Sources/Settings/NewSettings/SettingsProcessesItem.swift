@@ -135,8 +135,8 @@ struct SettingsProcessesItem: SettingsViewObservable {
         row = existing
       } else {
         let view = UIView()
-        // Styled like the browser tab buttons, but there is nothing to open: no trailing image
-        // and no interaction.
+        // Styled like the browser tab buttons, but there is nothing to open: no icon and no
+        // interaction.
         let label = UIButton(type: .custom)
         label.layer.cornerRadius = Theme.current.itemCornerRadius
         var labelConfiguration = UIButton.Configuration.bordered()
