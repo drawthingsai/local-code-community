@@ -103,6 +103,14 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
     RemoteAuthorizationHeaders.applyBearer(authorization, to: &request)
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+    if configuration.sendsAppAttribution {
+      // OpenRouter ranks apps by these headers. Keep them in step with providerHeaders in
+      // Cloudflare/local-code-router, so hosted and own-key usage count as one app.
+      request.setValue("https://getlocalcode.app", forHTTPHeaderField: "HTTP-Referer")
+      request.setValue("Local Code", forHTTPHeaderField: "X-OpenRouter-Title")
+      request.setValue(
+        "programming-app,personal-agent", forHTTPHeaderField: "X-OpenRouter-Categories")
+    }
 
     var accumulator = OpenAICompatibleStreamAccumulator()
     let stream = RemoteStreamingRequest(

@@ -367,6 +367,45 @@ final class OpenAICompatibleClientTests: XCTestCase {
     XCTAssertEqual(snapshots.map(\.text), ["", "", "No."])
   }
 
+  func testOnlyOpenRouterRequestsCarryAppAttribution() throws {
+    for (baseURL, isOpenRouter) in [
+      ("https://openrouter.ai/api/v1", true),
+      ("https://router.example.com/v1/openrouter", false),
+      ("https://example.com/v1", false),
+    ] {
+      let completion = expectation(description: baseURL)
+      let configuration = try OpenAICompatibleConfiguration(
+        baseURL: XCTUnwrap(URL(string: baseURL)), model: "test-model")
+      let client = OpenAICompatibleClient(
+        configuration: configuration, authorization: RemoteAPIKeyAuthorization(apiKey: "key"),
+        sessionConfiguration: mockSessionConfiguration())
+      MockURLProtocol.handler = { request, protocolClient in
+        XCTAssertEqual(
+          request.value(forHTTPHeaderField: "HTTP-Referer"),
+          isOpenRouter ? "https://getlocalcode.app" : nil, baseURL)
+        XCTAssertEqual(
+          request.value(forHTTPHeaderField: "X-OpenRouter-Title"),
+          isOpenRouter ? "Local Code" : nil, baseURL)
+        XCTAssertEqual(
+          request.value(forHTTPHeaderField: "X-OpenRouter-Categories"),
+          isOpenRouter ? "programming-app,personal-agent" : nil, baseURL)
+        protocolClient.respond(
+          status: 200,
+          chunks: [
+            Data(
+              "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+                .utf8),
+            Data("data: [DONE]\n\n".utf8),
+          ])
+      }
+      _ = client.streamChat(messages: [.user("Hello")], tools: [], progress: { _ in }) { result in
+        XCTAssertNotNil(try? result.get(), baseURL)
+        completion.fulfill()
+      }
+      wait(for: [completion], timeout: 2)
+    }
+  }
+
   func testRejectsStreamThatEndsWithoutFinishReason() throws {
     let expectation = expectation(description: "incomplete stream")
     let configuration = try OpenAICompatibleConfiguration(

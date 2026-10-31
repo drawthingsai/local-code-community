@@ -11,6 +11,7 @@ public struct OpenAICompatibleConfiguration: Equatable, Sendable {
   let usesMaxCompletionTokens: Bool
   let supportsReasoningMessageFields: Bool
   let preservesReasoningAcrossTurns: Bool
+  let sendsAppAttribution: Bool
 
   public init(
     baseURL: URL, model: String, maximumRequestBytes: Int? = nil,
@@ -31,6 +32,7 @@ public struct OpenAICompatibleConfiguration: Equatable, Sendable {
     usesMaxCompletionTokens = ["api.openai.com", "openrouter.ai"].contains(host)
     supportsReasoningMessageFields = host != "api.openai.com"
     preservesReasoningAcrossTurns = host == "openrouter.ai"
+    sendsAppAttribution = host == "openrouter.ai"
     self.includeUsageInStream =
       includeUsageInStream ?? usesMaxCompletionTokens
   }
