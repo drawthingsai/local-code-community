@@ -3,6 +3,7 @@ import MarkdownEngine
 import MarkdownEngineCodeBlocks
 import MarkdownEngineLatex
 import Nuke
+import Style
 import UIKit
 import UniformTypeIdentifiers
 
@@ -135,6 +136,18 @@ struct ProjectDirectoryLinkResolver: MarkdownLinkResolver {
 }
 
 enum ProjectHistoryMarkdownConfiguration {
+  // In-progress text sits below the finished text's label color; markers one step below that. Kept
+  // in one instance because the text view restyles when the theme's color identities change.
+  private static let transientTheme = MarkdownEditorTheme(
+    bodyText: .tertiaryText,
+    mutedText: .senaryText,
+    disabledText: .senaryText,
+    headingMarker: .senaryText,
+    latexLightModeText: .tertiaryText,
+    latexDarkModeText: .tertiaryText,
+    strikethroughColor: .tertiaryText
+  )
+
   static func make(
     localPathResolver: LocalPathResolver?, isTransient: Bool = false,
     allowsEmbeddedMedia: Bool = true
@@ -146,6 +159,7 @@ enum ProjectHistoryMarkdownConfiguration {
       syntaxHighlighter = MarkdownSyntaxHighlighter.shared
     }
     return MarkdownEditorConfiguration(
+      theme: isTransient ? transientTheme : .default,
       services: MarkdownEditorServices(
         links: ProjectDirectoryLinkResolver(localPathResolver: localPathResolver),
         images: ProjectDirectoryImageProvider(localPathResolver: localPathResolver),

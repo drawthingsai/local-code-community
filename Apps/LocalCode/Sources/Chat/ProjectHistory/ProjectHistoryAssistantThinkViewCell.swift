@@ -110,10 +110,11 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
   }()
   private lazy var shimmerContentView: UIView = {
     let view = UIView(frame: .zero)
-    view.addSubview(textStackView)
     view.addSubview(modeLabel)
     return view
   }()
+  // Only the status row shimmers. It still spans the chat, so the band passes at the same pace as
+  // the Model Speed page's.
   private lazy var shimmerView: FBShimmeringView = {
     let view = FBShimmeringView(frame: .zero)
     view.contentView = shimmerContentView
@@ -158,6 +159,7 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
     imageView.isUserInteractionEnabled = false
     imageView.backgroundColor = .quattuordecenaryBackground
     imageView.layer.cornerRadius = 6
+    contentView.addSubview(textStackView)
     contentView.addSubview(shimmerView)
     contentView.addSubview(divider)
     contentView.addSubview(imageView)
@@ -181,14 +183,16 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
       make.leading.equalTo(imageView.snp.trailing).offset(8)
     }
     shimmerView.snp.makeConstraints { make in
-      make.top.trailing.equalToSuperview()
+      make.centerY.equalTo(imageView)
+      make.trailing.equalToSuperview()
       make.leading.equalTo(divider.snp.trailing).offset(6)
     }
     shimmerContentView.snp.makeConstraints { make in
       make.edges.equalToSuperview()
     }
     textStackView.snp.makeConstraints { make in
-      make.top.leading.trailing.equalToSuperview()
+      make.top.trailing.equalToSuperview()
+      make.leading.equalTo(divider.snp.trailing).offset(6)
       make.bottom.equalTo(imageView.snp.top).offset(-12).priority(.high)
     }
     thinkingClipView.snp.makeConstraints { make in
@@ -199,9 +203,8 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
       make.leading.trailing.bottom.equalToSuperview()
     }
     modeLabel.snp.makeConstraints { make in
-      make.centerY.equalTo(imageView)
+      make.top.bottom.equalToSuperview()
       make.leading.equalTo(activityIndicator.snp.trailing).offset(4)
-      make.bottom.equalToSuperview()
     }
     remoteImageDidLoadObserver = NotificationCenter.default.addObserver(
       forName: .projectHistoryRemoteImageDidLoad, object: nil, queue: .main
