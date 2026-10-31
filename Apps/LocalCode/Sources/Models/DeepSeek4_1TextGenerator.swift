@@ -216,7 +216,8 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     var visualRoutingBiases = [Tensor<Float>]()
     var usesVisualRouting = false
     private var cachedVit: ModelBuilder<(height: Int, width: Int)>?
-    private var cachedDrafter: ModelBuilder<(mainRows: Int, temperature: Float)>?
+    private var cachedDrafter:
+      ModelBuilder<(mainRows: Int, temperature: Float, sequenceLength: Int)>?
     let drafterFile: String?
     // Whether this load drafts, decided with its tier: the drafter's file has to be there, and the
     // tier left beside it has to be above 16 GiB.
@@ -272,15 +273,16 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
       return decoder
     }
 
-    /// The DSpark drafter, keyed by its main-row count and its sampling temperature; temperature 0
-    /// drafts greedily.
-    var drafter: ModelBuilder<(mainRows: Int, temperature: Float)> {
+    /// The DSpark drafter, keyed by its main-row count, its sampling temperature, and the longest
+    /// step it serves; temperature 0 drafts greedily.
+    var drafter: ModelBuilder<(mainRows: Int, temperature: Float, sequenceLength: Int)> {
       if let cachedDrafter { return cachedDrafter }
       let config = configuration
-      let drafter = ModelBuilder<(mainRows: Int, temperature: Float)> {
+      let drafter = ModelBuilder<(mainRows: Int, temperature: Float, sequenceLength: Int)> {
         key, _ in
         DeepSeek4_1DSpark(
           Float16.self, mainRows: key.mainRows, temperature: key.temperature,
+          sequenceLength: key.sequenceLength,
           configuration: config)
       }
       drafter.maxConcurrency = .limit(4)
@@ -338,8 +340,8 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
   /// of it, greedy or sampled. A load drafts only when the file exists and the weights tier it
   /// leaves is above 16 GiB; otherwise it decodes without it.
   public let drafterFile: String?
-  /// Verify this many rows every step (1 + drafts). When nil, steps choose their rows, except
-  /// under weights streaming, which holds 4.
+  /// Verify this many rows every step (1 + drafts). When nil, steps choose their rows, at most 4
+  /// under weights streaming.
   public let dsparkRows: Int?
 
   public var statistics: DeepSeekGenerationStatistics {
@@ -559,6 +561,10 @@ extension DeepSeek4_1TextGenerator {
     // Building the decoder picks this load's tier, and with it whether the load drafts.
     let decoder = storage.decoder
     let drafting = storage.usesDrafter
+    // Under weights streaming a step verifies at most 4 rows: every row adds its pool misses, so
+    // rows past that gain little. The drafter picks only the positions a step can verify.
+    let draftSequenceLength = max(
+      2, dsparkRows ?? (storage.weightsStreaming == .disabled ? maxDraftLength : 4))
     if !drafting {
       // A session continued from a load that drafted keeps no drafter state into this one.
       kvCache.draftCache = []
@@ -765,7 +771,7 @@ extension DeepSeek4_1TextGenerator {
             // Build at a step's longest shape, so the read below sees every parameter.
             let viewRows = config.rawWindow + maxDraftLength + draft.blockSize
             drafter.compile(
-              (mainRows: maxDraftLength, temperature: 0),
+              (mainRows: maxDraftLength, temperature: 0, sequenceLength: draftSequenceLength),
               inputs: [
                 graph.variable(
                   .GPU(0), .WC(maxDraftLength, draft.targetLayers.count * config.hiddenSize),
@@ -1075,9 +1081,7 @@ extension DeepSeek4_1TextGenerator {
       // With draft data, a step drafts a block after the pending token, then verifies the pending
       // token and a prefix of the block in one forward and keeps the drafts the trunk's own picks
       // reproduce. A draft is one token, so sampling each row and keeping a matching draft is exact
-      // speculative sampling. Under weights streaming a verify costs what its pool misses cost,
-      // which the per-length estimates below do not follow, so streaming holds 4 rows.
-      let heldSequenceLength = dsparkRows ?? (storage.weightsStreaming == .disabled ? nil : 4)
+      // speculative sampling.
       // Wall milliseconds of a verify by sequence length, from a linear prior, of a draft, and of
       // compiling a verify, which a draft overlaps only at the length it prepares.
       var verifyMilliseconds = (0...maxDraftLength).map { 16 + 6 * Double(max(0, $0 - 1)) }
@@ -1085,7 +1089,7 @@ extension DeepSeek4_1TextGenerator {
       var compileMilliseconds = 3.0
       // Only a new main-row count changes the drafter's input shapes, so a new temperature
       // compiles it explicitly.
-      var drafterLastInputs: (mainRows: Int, temperature: Float)?
+      var drafterLastInputs: (mainRows: Int, temperature: Float, sequenceLength: Int)?
       // The drafter's min-p windows while thinking and for answers; a greedy draft takes either.
       let minPWindows = (kvCache.draftData == nil ? [] : [4.605_170_2, 2.097_012_5]).map {
         graph.variable(Tensor<Float>([$0], kind: .CPU, format: .NHWC, shape: [1, 1]).toGPU(0))
@@ -1180,7 +1184,10 @@ extension DeepSeek4_1TextGenerator {
                 draftMasks[maskKey]!, minPWindows[thinking ? 0 : 1],
               ]
               + kvCache.draftCache.map { $0[base..<(base + viewRows), 0..<config.attentionHeadDim] }
-            let key = (mainRows: mainRows, temperature: sampling?.temperature ?? 0)
+            let key = (
+              mainRows: mainRows, temperature: sampling?.temperature ?? 0,
+              sequenceLength: draftSequenceLength
+            )
             if drafterLastInputs.map({ $0 != key }) ?? true {
               drafterLastInputs = key
               storage.drafter.compile(key, inputs: draftInputs, isEager: false)
@@ -1223,13 +1230,13 @@ extension DeepSeek4_1TextGenerator {
             let draftTokenCPU = draftOutputs[0].as(of: Int32.self).toCPU()
             let confidence = draftOutputs[1].as(of: Float.self).toCPU()
             withExtendedLifetime(blockTokens) { confidence.joined() }
-            draftTokens = (0..<draft.blockSize).map { draftTokenCPU[$0] }
+            draftTokens = (0..<(draftSequenceLength - 1)).map { draftTokenCPU[$0] }
             draftLogits = draftOutputs[2].as(of: Float.self)
             let draftSeconds = CACurrentMediaTime() - draftStart
             draftMilliseconds =
               0.8 * draftMilliseconds + 0.2 * min(1000 * draftSeconds, 2 * draftMilliseconds)
-            if let heldSequenceLength {
-              sequenceLength = heldSequenceLength
+            if let dsparkRows {
+              sequenceLength = dsparkRows
             } else {
               // Maximize expected tokens per millisecond; a draft is kept only if every one before
               // it is, so E(R) = 1 + sum of the running products of their probabilities. Rows are
@@ -1243,12 +1250,12 @@ extension DeepSeek4_1TextGenerator {
                   + (nextInputs?.tokenLength == sequenceLength ? 0 : compileMilliseconds)
               }
               var rate = expected / milliseconds(1)
-              for candidate in 2...maxDraftLength {
+              for candidate in 2...draftSequenceLength {
                 let probability = 1 / (1 + exp(-Double(confidence[candidate - 2, 0])))
                 var projectedExpected = expected
                 var projectedPrefix = prefix
                 var projectedRate = 0.0
-                for length in candidate...maxDraftLength {
+                for length in candidate...draftSequenceLength {
                   projectedPrefix *= probability
                   projectedExpected += projectedPrefix
                   projectedRate = max(projectedRate, projectedExpected / milliseconds(length))
