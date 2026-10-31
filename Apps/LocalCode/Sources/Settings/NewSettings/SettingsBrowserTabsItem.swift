@@ -5,7 +5,8 @@ import Style
 import UIKit
 
 /// Open browser tabs: this chat's first, then a divider and every other chat's. A row opens its
-/// tab's window; the minus button closes the tab. With no tabs, the item says so.
+/// tab's window; the minus button closes the tab. With no tabs, the item offers to open one for
+/// Local Code, where the person can sign in before agents use it.
 struct SettingsBrowserTabsItem: SettingsViewObservable {
   struct Tab: Equatable {
     let id: String
@@ -19,6 +20,8 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
   var currentTabs: [Tab]
   var otherTabs: [Tab]
   var open: (String) -> Void
+  /// Opens a blank tab in this chat.
+  var openNew: () -> Void
   var close: (String) -> Void
   private let viewModifier = ViewModifier()
   var viewModifying: any SettingsViewModifying { viewModifier }
@@ -41,6 +44,7 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
     var view: UIView? { stackView }
     private var rows = [String: Row]()
     private var open: ((String) -> Void)?
+    private var openNew: (() -> Void)?
     private var close: ((String) -> Void)?
 
     private lazy var dividerView: UIView = {
@@ -56,29 +60,23 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
     }()
 
     private lazy var emptyView: UIView = {
-      let iconView = UIImageView(
-        image: #imageLiteral(resourceName: "browser-tab-24").withRenderingMode(.alwaysTemplate))
-      iconView.tintColor = Theme.current.primaryContentColor
-      let label = UILabel(frame: .zero)
-      label.text = LocalizedString.forKey("no_open_tabs")
-      label.textColor = Theme.current.primaryContentColor
-      label.textAlignment = .center
-      FontMetrics.default.scaleFont(.systemFont(ofSize: 13), bindTo: label)
-      let stackView = UIStackView(arrangedSubviews: [iconView, label])
-      stackView.axis = .vertical
-      stackView.alignment = .center
-      stackView.spacing = 8
-      let view = UIView(frame: .zero)
-      view.addSubview(stackView)
-      stackView.snp.makeConstraints { make in
-        make.center.equalToSuperview()
-        make.top.greaterThanOrEqualToSuperview().offset(16)
-        make.leading.greaterThanOrEqualToSuperview()
-      }
-      view.snp.makeConstraints { make in
+      let button = UIButton(type: .custom)
+      var configuration = UIButton.Configuration.filled()
+      configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
+      configuration.baseForegroundColor = Theme.current.primaryContentColor
+      configuration.background.cornerRadius = Theme.current.itemCornerRadius
+      configuration.image = #imageLiteral(resourceName: "browser-tab-24").withRenderingMode(
+        .alwaysTemplate)
+      configuration.imagePlacement = .top
+      configuration.imagePadding = 8
+      configuration.title = LocalizedString.forKey("open_a_tab_for_local_code")
+      button.configuration = configuration
+      FontMetrics.default.scaleFont(.systemFont(ofSize: 13), bindTo: button)
+      button.addAction(UIAction { [weak self] _ in self?.openNew?() }, for: .touchUpInside)
+      button.snp.makeConstraints { make in
         make.height.equalTo(88)
       }
-      return view
+      return button
     }()
 
     func makeViews(from item: Item) -> ([UIView], any SettingsViewModifying) {
@@ -99,12 +97,14 @@ struct SettingsBrowserTabsItem: SettingsViewObservable {
       item.isEnabled = newItem.isEnabled
       item.isHidden = newItem.isHidden
       item.open = newItem.open
+      item.openNew = newItem.openNew
       item.close = newItem.close
       return item
     }
 
     private func updateRows(_ item: Item) {
       open = item.open
+      openNew = item.openNew
       close = item.close
       let tabs = item.currentTabs + item.otherTabs
       let ids = Set(tabs.map(\.id))

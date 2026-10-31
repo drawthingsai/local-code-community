@@ -2995,6 +2995,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         textLineage: textLineage, imagePaths: imagePaths, lastMessage: prompt)
       projectHistoryManager.threadId = thread.id
       observeQueuedItems(threadId: thread.id)
+      moveNewChatBrowser(to: thread.id)
       threadId = thread.id
       userDatetime = thread.updatedAt
     } else {
@@ -3683,24 +3684,13 @@ extension ChatWorkflow {
     isCancelled: @escaping () -> Bool, completion: @escaping (Result<String, Error>) -> Void
   ) {
     dispatchPrecondition(condition: .onQueue(.main))
-    let identifier = ProjectThreadIdentifier(
-      projectURL: projectURL ?? directory, threadId: threadId ?? -1)
     let workflow: BrowserWorkflow
-    if let existing = browserWorkflows[identifier] {
-      workflow = existing
-    } else {
-      do {
-        workflow = BrowserWorkflow(
-          scripts: try BrowserScripts(
-            directory: Resources.appBundleURL.appendingPathComponent("Browser")),
-          dataStore: browserDataStores.dataStore(
-            forProjectAt: URL(fileURLWithPath: identifier.projectPath, isDirectory: true)))
-      } catch {
-        completion(.failure(error))
-        return
-      }
-      workflow.delegate = self
-      browserWorkflows[identifier] = workflow
+    do {
+      workflow = try browserWorkflow(
+        for: ProjectThreadIdentifier(projectURL: projectURL ?? directory, threadId: threadId ?? -1))
+    } catch {
+      completion(.failure(error))
+      return
     }
     let resolver = LocalPathResolver(
       projectPath: directory.path, workspacePath: settingsWorkflow.workspaceFolderURL.path,
@@ -3709,6 +3699,39 @@ extension ChatWorkflow {
       arguments: arguments,
       resolvePath: { path in resolver.resolve(path).map { ($0.url, $0.rootURL) } },
       isCancelled: isCancelled, completion: completion)
+  }
+
+  /// The chat's browser, made on first use.
+  private func browserWorkflow(for identifier: ProjectThreadIdentifier) throws -> BrowserWorkflow {
+    if let existing = browserWorkflows[identifier] {
+      return existing
+    }
+    let workflow = BrowserWorkflow(
+      scripts: try BrowserScripts(
+        directory: Resources.appBundleURL.appendingPathComponent("Browser")),
+      dataStore: browserDataStores.dataStore(
+        forProjectAt: URL(fileURLWithPath: identifier.projectPath, isDirectory: true)))
+    workflow.delegate = self
+    browserWorkflows[identifier] = workflow
+    return workflow
+  }
+
+  /// Tabs the person opened in a new chat move to the thread its first message created, where
+  /// its agents look for them.
+  func moveNewChatBrowser(to threadId: Int64) {
+    guard let projectURL,
+      let workflow = browserWorkflows.removeValue(
+        forKey: ProjectThreadIdentifier(projectURL: projectURL, threadId: -1))
+    else { return }
+    browserWorkflows[ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId)] = workflow
+  }
+
+  func settingsWorkflowDidOpenNewBrowserTab(_ workflow: SettingsWorkflow) {
+    guard let projectURL, let projectHistoryManager else { return }
+    // A new chat's thread is -1 until its first message; moveNewChatBrowser follows it then.
+    try? browserWorkflow(
+      for: ProjectThreadIdentifier(projectURL: projectURL, threadId: projectHistoryManager.threadId)
+    ).openTab()
   }
 
   func settingsWorkflow(

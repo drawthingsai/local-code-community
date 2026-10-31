@@ -141,6 +141,15 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
     #endif
   }
 
+  /// The page an address the person typed names. A bare host is a web address; local servers
+  /// default to http, like web-browse-cli.
+  fileprivate static func url(forAddress address: String) -> URL? {
+    let text = address.trimmingCharacters(in: .whitespaces)
+    guard !text.isEmpty else { return nil }
+    let isLocal = text.hasPrefix("localhost") || text.hasPrefix("127.0.0.1")
+    return URL(string: text.contains("://") ? text : (isLocal ? "http://" : "https://") + text)
+  }
+
   private func observeTitle(_ update: @escaping (String?) -> Void) {
     titleObservation = webView.observe(\.title, options: [.initial]) { webView, _ in
       update(webView.title.flatMap { $0.isEmpty ? nil : $0 } ?? webView.url?.host)
@@ -543,6 +552,14 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
       ]
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+      super.viewDidAppear(animated)
+      // A tab the person opened starts blank, waiting for an address.
+      if webView.url == nil {
+        addressField.becomeFirstResponder()
+      }
+    }
+
     /// The host and port while not editing, like Safari.
     private func updateAddress() {
       guard !addressField.isEditing else { return }
@@ -593,12 +610,7 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
     }
 
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-      let text = (textField.text ?? "").trimmingCharacters(in: .whitespaces)
-      // A bare host is a web address; local servers default to http, like web-browse-cli.
-      let isLocal = text.hasPrefix("localhost") || text.hasPrefix("127.0.0.1")
-      if let url = URL(
-        string: text.contains("://") ? text : (isLocal ? "http://" : "https://") + text)
-      {
+      if let url = UnifiedBrowserWindowWorkflow.url(forAddress: textField.text ?? "") {
         webView.load(URLRequest(url: url))
       }
       textField.resignFirstResponder()
@@ -616,14 +628,31 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
     func browserViewControllerDidTapDone(_ viewController: BrowserViewController)
   }
 
-  /// A browser sheet's content: the live tab that commands drive, which the person can inspect
-  /// or interact with.
+  /// A browser sheet's content: the address, and the live tab that commands drive, which the
+  /// person can inspect or interact with.
   final class BrowserViewController: UIViewController {
     weak var delegate: BrowserViewControllerDelegate?
     private let webView: WKWebView
+    private var urlObservation: NSKeyValueObservation?
 
     private lazy var doneButtonItem = UIBarButtonItem(
       barButtonSystemItem: .done, target: self, action: #selector(didTapDone))
+
+    private lazy var addressField: UITextField = {
+      // The navigation bar narrows it to fit beside Done.
+      let textField = UITextField(frame: CGRect(x: 0, y: 0, width: 480, height: 36))
+      textField.backgroundColor = .tertiarySystemFill
+      textField.layer.cornerRadius = 10
+      textField.textAlignment = .center
+      textField.font = .systemFont(ofSize: 16)
+      textField.keyboardType = .URL
+      textField.returnKeyType = .go
+      textField.autocapitalizationType = .none
+      textField.autocorrectionType = .no
+      textField.clearButtonMode = .whileEditing
+      textField.delegate = self
+      return textField
+    }()
 
     init(webView: WKWebView) {
       self.webView = webView
@@ -639,12 +668,54 @@ final class UnifiedBrowserWindowWorkflow: Workflow {
       super.viewDidLoad()
       view.backgroundColor = .systemBackground
       navigationItem.rightBarButtonItem = doneButtonItem
+      navigationItem.titleView = addressField
       view.addSubview(webView)
       webView.snp.makeConstraints { $0.edges.equalTo(view.safeAreaLayoutGuide) }
+      urlObservation = webView.observe(\.url, options: [.initial]) { [weak self] _, _ in
+        self?.updateAddress()
+      }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+      super.viewDidAppear(animated)
+      // A tab the person opened starts blank, waiting for an address.
+      if webView.url == nil {
+        addressField.becomeFirstResponder()
+      }
+    }
+
+    /// The host and port while not editing, like Safari.
+    private func updateAddress() {
+      guard !addressField.isEditing else { return }
+      if let url = webView.url {
+        addressField.text =
+          url.host.map { host in url.port.map { "\(host):\($0)" } ?? host } ?? url.absoluteString
+      } else {
+        addressField.text = nil
+      }
     }
 
     @objc private func didTapDone() {
       delegate?.browserViewControllerDidTapDone(self)
+    }
+  }
+
+  extension BrowserViewController: UITextFieldDelegate {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+      textField.text = webView.url?.absoluteString
+      textField.selectAll(nil)
+    }
+
+    func textFieldDidEndEditing(_ textField: UITextField) {
+      updateAddress()
+    }
+
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+      if let url = UnifiedBrowserWindowWorkflow.url(forAddress: textField.text ?? "") {
+        webView.load(URLRequest(url: url))
+      }
+      textField.resignFirstResponder()
+      return true
     }
   }
 #endif

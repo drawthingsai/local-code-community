@@ -13,6 +13,7 @@ private enum ActivitiesSection: CaseIterable, Hashable {
 protocol ActivitiesSectionsControllerDelegate: AnyObject {
   func activitiesSectionsController(
     _ controller: ActivitiesSectionsController, didOpenBrowserTab id: String)
+  func activitiesSectionsControllerDidOpenNewBrowserTab(_ controller: ActivitiesSectionsController)
   func activitiesSectionsController(
     _ controller: ActivitiesSectionsController, didCloseBrowserTab id: String)
   func activitiesSectionsController(
@@ -149,6 +150,10 @@ final class ActivitiesSectionsController {
           open: { [weak self] id in
             guard let self else { return }
             self.delegate?.activitiesSectionsController(self, didOpenBrowserTab: id)
+          },
+          openNew: { [weak self] in
+            guard let self else { return }
+            self.delegate?.activitiesSectionsControllerDidOpenNewBrowserTab(self)
           },
           close: { [weak self] id in
             guard let self else { return }

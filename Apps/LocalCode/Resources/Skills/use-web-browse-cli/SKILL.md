@@ -32,6 +32,10 @@ them, and `close` closes the selected one. `--tab <id>` addresses another tab an
 it; `tabs --tab <id>` switches tabs without acting on a page. A window the page opens becomes the selected tab and is listed under `openedTabs`; when
 the page closes it, its opener is selected again.
 
+The user can open a tab for you too, usually to sign in to a site with their own credentials
+first. It becomes the selected tab, so commands reach it without `--tab`; run `tabs` to find
+it when they mention one.
+
 `reload` loads the selected tab again. When a page shows stale content, `reload --from-origin`
 fetches the page and its scripts, styles, and images from their servers instead of the cache.
 `clear-cache` empties the cache for every tab and keeps cookies and sign-ins; tabs that are

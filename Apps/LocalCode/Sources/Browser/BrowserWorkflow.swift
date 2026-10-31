@@ -51,6 +51,13 @@ final class BrowserWorkflow {
     present(tab) { _ in }
   }
 
+  /// Opens a blank tab in its window and selects it, so the person can sign in to a site with
+  /// their own credentials before agents use the tab.
+  func openTab() {
+    attachHostView()
+    present(session.openTab()) { _ in }
+  }
+
   func closeTab(id: String) {
     session.close(tabId: id)
   }
@@ -59,11 +66,7 @@ final class BrowserWorkflow {
     arguments: [String], resolvePath: @escaping (String) -> (URL, URL)?,
     isCancelled: @escaping () -> Bool, completion: @escaping (Result<String, Error>) -> Void
   ) {
-    if hostView.window == nil,
-      let window = delegate?.browserWorkflowPresentingViewController(self)?.viewIfLoaded?.window
-    {
-      window.insertSubview(hostView, at: 0)
-    }
+    attachHostView()
     session.execute(
       arguments: arguments, resolvePath: resolvePath, isCancelled: isCancelled,
       completion: completion)
@@ -78,6 +81,14 @@ final class BrowserWorkflow {
     windowWorkflows.removeAll()
     session.close()
     hostView.removeFromSuperview()
+  }
+
+  /// Puts the hidden tabs' host in the chat's window, where WebKit keeps their pages running.
+  private func attachHostView() {
+    guard hostView.window == nil,
+      let window = delegate?.browserWorkflowPresentingViewController(self)?.viewIfLoaded?.window
+    else { return }
+    window.insertSubview(hostView, at: 0)
   }
 
   private func hide(_ webView: BrowserWebView) {

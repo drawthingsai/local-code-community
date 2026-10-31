@@ -3062,7 +3062,7 @@
 "full_screen" = "Full Screen";
 "forward" = "Forward";
 "reload" = "Reload";
-"no_open_tabs" = "No open tabs.";
+"open_a_tab_for_local_code" = "Open a tab for Local Code";
 "activities" = "Activities";
 "browser_tabs" = "Browser Tabs";
 "browser_tabs_detail" = "Tabs that agents open with web-browse-cli, this thread's first. Open one to see and use it. The minus button closes it and stops any command still using it.";

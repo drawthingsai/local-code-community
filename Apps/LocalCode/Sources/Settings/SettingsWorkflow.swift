@@ -48,6 +48,8 @@ protocol SettingsWorkflowDelegate: AnyObject {
     _ workflow: SettingsWorkflow, didConfirmCloseBrowserFor thread: ProjectController.Thread)
   func settingsWorkflowBrowserTabs(_ workflow: SettingsWorkflow) -> [SettingsWorkflow.BrowserTab]
   func settingsWorkflow(_ workflow: SettingsWorkflow, didOpenBrowserTab id: String)
+  /// Opens a blank tab in the open chat's browser.
+  func settingsWorkflowDidOpenNewBrowserTab(_ workflow: SettingsWorkflow)
   func settingsWorkflow(_ workflow: SettingsWorkflow, didCloseBrowserTab id: String)
   func settingsWorkflow(
     _ workflow: SettingsWorkflow, didRequestSelect provider: RemoteProvider?, sourceView: UIView)
@@ -2289,6 +2291,11 @@ extension SettingsWorkflow: ActivitiesSectionsControllerDelegate {
     _ controller: ActivitiesSectionsController, didOpenBrowserTab id: String
   ) {
     delegate?.settingsWorkflow(self, didOpenBrowserTab: id)
+  }
+
+  func activitiesSectionsControllerDidOpenNewBrowserTab(_ controller: ActivitiesSectionsController)
+  {
+    delegate?.settingsWorkflowDidOpenNewBrowserTab(self)
   }
 
   func activitiesSectionsController(

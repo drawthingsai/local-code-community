@@ -353,6 +353,7 @@ extension ChatWorkflow {
         textLineage: textLineage, plaintext: prompt)
       projectHistoryManager.threadId = thread.id
       observeQueuedItems(threadId: thread.id)
+      moveNewChatBrowser(to: thread.id)
       threadId = thread.id
       userDatetime = thread.updatedAt
       conversationModel = threadModel

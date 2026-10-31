@@ -58,6 +58,15 @@ final class BrowserSession {
     startNext()
   }
 
+  /// Adds a blank tab the person opened, for example to sign in to a site before agents use it,
+  /// and selects it so commands without --tab reach it.
+  func openTab() -> BrowserTab {
+    precondition(Thread.isMainThread)
+    let tab = BrowserTab(configuration: configuration, client: scripts.client)
+    add(tab)
+    return tab
+  }
+
   /// Closes a tab the person closed, failing a command that is running against it.
   func close(tabId: String) {
     precondition(Thread.isMainThread)
