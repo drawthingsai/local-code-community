@@ -17,6 +17,13 @@ protocol ProjectControllerDelegate: AnyObject {
   func projectController(
     _ controller: ProjectController, didSelectDeleteThread thread: ProjectController.Thread)
   func projectController(
+    _ controller: ProjectController, canMoveThread thread: ProjectController.Thread
+  )
+    -> Bool
+  func projectController(
+    _ controller: ProjectController, didSelectMoveThread thread: ProjectController.Thread,
+    toProjectAt projectPath: String)
+  func projectController(
     _ controller: ProjectController, hasBrowserFor thread: ProjectController.Thread
   ) -> Bool
   func projectController(
@@ -560,6 +567,11 @@ final class ProjectController {
     delegate?.projectController(self, didSelectThread: item.thread)
   }
 
+  private func moveDestinations(for item: ProjectItem) -> [(path: String, title: String)] {
+    guard delegate?.projectController(self, canMoveThread: item.thread) == true else { return [] }
+    return projects.filter { $0.path != item.projectPath }
+  }
+
   static func displayTitle(forProjectPath projectPath: String, rootProjectPath: String?)
     -> String
   {
@@ -735,6 +747,20 @@ extension ProjectController: ProjectSectionHeaderViewDelegate {
 }
 
 extension ProjectController: ProjectThreadCollectionViewCellDelegate {
+  func projectThreadCollectionViewCellMoveDestinations(_ cell: ProjectThreadCollectionViewCell)
+    -> [(path: String, title: String)]
+  {
+    guard let item = cell.item, !item.newThread else { return [] }
+    return moveDestinations(for: item)
+  }
+
+  func projectThreadCollectionViewCell(
+    _ cell: ProjectThreadCollectionViewCell, didSelectMoveToProjectAt projectPath: String
+  ) {
+    guard let item = cell.item, !item.newThread else { return }
+    delegate?.projectController(self, didSelectMoveThread: item.thread, toProjectAt: projectPath)
+  }
+
   func projectThreadCollectionViewCellDidSelectRename(
     _ cell: ProjectThreadCollectionViewCell
   ) {
@@ -770,6 +796,24 @@ extension ProjectController: ProjectThreadCollectionViewCellDelegate {
 }
 
 extension ProjectController: RecentThreadCollectionViewCellDelegate {
+  func recentThreadCollectionViewCellMoveDestinations(_ cell: RecentThreadCollectionViewCell)
+    -> [(path: String, title: String)]
+  {
+    guard let indexPath = collectionView.indexPath(for: cell),
+      let item = collectionViewDiffableDataSource.itemIdentifier(for: indexPath)
+    else { return [] }
+    return moveDestinations(for: item)
+  }
+
+  func recentThreadCollectionViewCell(
+    _ cell: RecentThreadCollectionViewCell, didSelectMoveToProjectAt projectPath: String
+  ) {
+    guard let indexPath = collectionView.indexPath(for: cell),
+      let item = collectionViewDiffableDataSource.itemIdentifier(for: indexPath)
+    else { return }
+    delegate?.projectController(self, didSelectMoveThread: item.thread, toProjectAt: projectPath)
+  }
+
   func recentThreadCollectionViewCellDidSelectRename(
     _ cell: RecentThreadCollectionViewCell
   ) {

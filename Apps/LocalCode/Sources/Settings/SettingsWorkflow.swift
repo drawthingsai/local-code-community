@@ -35,6 +35,9 @@ protocol SettingsWorkflowDelegate: AnyObject {
     _ workflow: SettingsWorkflow, didSelectThread thread: ProjectController.Thread)
   func settingsWorkflow(
     _ workflow: SettingsWorkflow, didDeleteThread thread: ProjectController.Thread)
+  func settingsWorkflow(
+    _ workflow: SettingsWorkflow, isRemoteConversationActiveFor thread: ProjectController.Thread
+  ) -> Bool
   func settingsWorkflow(_ workflow: SettingsWorkflow, willDeleteProjectAt url: URL)
   func settingsWorkflow(
     _ workflow: SettingsWorkflow, hasBrowserDataForProjectAt url: URL,
@@ -97,6 +100,12 @@ final class SettingsWorkflow: Workflow {
   private let projectsUpdateVersion = ManagedAtomic<Int>(0)
   private let viewController: SettingsViewController
   private let projectsController: ProjectController
+  private var movingProjects = [
+    (
+      projectURL: URL, projectWorkspace: SQLiteWorkspace,
+      projectHistoryManager: ProjectHistoryManager
+    )
+  ]()
   private let settingsSectionsController: SettingsSectionsController
   private let kitSectionsController: KitSectionsController
   private let activitiesSectionsController: ActivitiesSectionsController
@@ -1053,6 +1062,15 @@ final class SettingsWorkflow: Workflow {
     viewController.present(alertController, animated: true)
   }
 
+  private func presentCannotMoveThreadAlert() {
+    let alertController = UIAlertController(
+      title: LocalizedString.forKey("cannot_move_thread"),
+      message: LocalizedString.forKey("cannot_move_thread_detail"),
+      preferredStyle: .alert)
+    alertController.addAction(UIAlertAction(title: LocalizedString.forKey("ok"), style: .default))
+    viewController.present(alertController, animated: true)
+  }
+
   private func presentCannotCreateDirectoryAlert() {
     let alertController = UIAlertController(
       title: LocalizedString.forKey(
@@ -1641,6 +1659,206 @@ extension SettingsWorkflow: ProjectControllerDelegate {
     alertController.addAction(
       UIAlertAction(title: LocalizedString.forKey("cancel"), style: .cancel))
     viewController.present(alertController, animated: true)
+  }
+
+  /// Only a thread at rest can move: a running one belongs to the agent scheduler or its remote
+  /// provider under its current project, and an incomplete one can have a suspension stored in that
+  /// project. The status reflects only the agent scheduler.
+  func projectController(
+    _ controller: ProjectController, canMoveThread thread: ProjectController.Thread
+  ) -> Bool {
+    (thread.status == .idle || thread.status == .new)
+      && delegate?.settingsWorkflow(self, isRemoteConversationActiveFor: thread) != true
+  }
+
+  /// The workspace and manager a move in flight holds for an inactive project. Opening that project
+  /// meanwhile shares them, so the move sees what it writes.
+  func movingProject(at projectURL: URL) -> (
+    projectWorkspace: SQLiteWorkspace, projectHistoryManager: ProjectHistoryManager
+  )? {
+    dispatchPrecondition(condition: .onQueue(.main))
+    return movingProjects.first { isSameProjectURL($0.projectURL, projectURL) }.map {
+      ($0.projectWorkspace, $0.projectHistoryManager)
+    }
+  }
+
+  func projectController(
+    _ controller: ProjectController, didSelectMoveThread thread: ProjectController.Thread,
+    toProjectAt projectPath: String
+  ) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    let sourceURL = URL(fileURLWithPath: thread.projectPath, isDirectory: true)
+    let destinationURL = URL(fileURLWithPath: projectPath, isDirectory: true)
+    // A turn can start between offering the move and choosing it.
+    guard !isSameProjectURL(sourceURL, destinationURL),
+      let currentThread = projectsController.threads.first(where: {
+        $0.projectPath == thread.projectPath && $0.threadId == thread.threadId
+      }), projectController(controller, canMoveThread: currentThread)
+    else { return }
+    let rootURL = workspaceFolderURL
+    let didStartAccessing = rootURL.startAccessingSecurityScopedResource()
+    var openedWorkspaces = [SQLiteWorkspace]()
+    let finish = {
+      self.movingProjects.removeAll {
+        self.isSameProjectURL($0.projectURL, sourceURL)
+          || self.isSameProjectURL($0.projectURL, destinationURL)
+      }
+      // Opening the project meanwhile made it the open project's workspace.
+      openedWorkspaces.filter { $0 !== self.projectHistoryProject }.forEach {
+        $0.shutdown(flags: [])
+      }
+      if didStartAccessing {
+        rootURL.stopAccessingSecurityScopedResource()
+      }
+    }
+    /// The open project's manager, or one over its resident workspace, or else one over a workspace
+    /// opened here, which the caller shuts down.
+    func projectHistoryManagerAndWorkspace(forProjectAt projectURL: URL) -> (
+      manager: ProjectHistoryManager, openedWorkspace: SQLiteWorkspace?
+    ) {
+      if let projectHistoryManager, let projectHistoryProjectURL,
+        isSameProjectURL(projectURL, projectHistoryProjectURL)
+      {
+        return (projectHistoryManager, nil)
+      }
+      if let movingProject = movingProject(at: projectURL) {
+        return (movingProject.projectHistoryManager, nil)
+      }
+      let residentProjectWorkspace = delegate?.settingsWorkflow(
+        self, residentProjectWorkspace: projectURL.path)
+      let projectWorkspace =
+        residentProjectWorkspace
+        ?? SQLiteWorkspace(
+          filePath: projectURL.appendingPathComponent(".localc/metadata.sqlite3").path,
+          fileProtectionLevel: .noProtection)
+      let projectHistoryManager = ProjectHistoryManager(project: projectWorkspace)
+      movingProjects.append((projectURL, projectWorkspace, projectHistoryManager))
+      return (projectHistoryManager, residentProjectWorkspace == nil ? projectWorkspace : nil)
+    }
+    let source = projectHistoryManagerAndWorkspace(forProjectAt: sourceURL)
+    if let openedWorkspace = source.openedWorkspace {
+      openedWorkspaces.append(openedWorkspace)
+    }
+    // A folder has no metadata directory until it first opens. Dflat creates the database in it on
+    // the first write.
+    guard
+      (try? FileManager.default.createDirectory(
+        at: destinationURL.appendingPathComponent(".localc", isDirectory: true),
+        withIntermediateDirectories: true)) != nil
+    else {
+      finish()
+      presentCannotMoveThreadAlert()
+      return
+    }
+    let destination = projectHistoryManagerAndWorkspace(forProjectAt: destinationURL)
+    if let openedWorkspace = destination.openedWorkspace {
+      openedWorkspaces.append(openedWorkspace)
+    }
+    copyThreadFiles(
+      threadId: thread.threadId, from: source.manager, sourceURL: sourceURL,
+      destinationURL: destinationURL)
+    let isSourceActive = projectHistoryProjectURL.map { isSameProjectURL(sourceURL, $0) } ?? false
+    let isDestinationActive =
+      projectHistoryProjectURL.map { isSameProjectURL(destinationURL, $0) } ?? false
+    let wasOpen = isSourceActive && projectHistoryManager?.threadId == thread.threadId
+    source.manager.moveThread(id: thread.threadId, to: destination.manager) {
+      [weak self] newThreadId in
+      defer { finish() }
+      guard let self else { return }
+      guard let newThreadId else {
+        self.presentCannotMoveThreadAlert()
+        return
+      }
+      self.delegate?.settingsWorkflow(self, didDeleteThread: thread)
+      let movedThread = ProjectController.Thread(
+        projectPath: projectPath, threadId: newThreadId, title: thread.title,
+        updatedAt: thread.updatedAt, model: thread.model, lastMessage: thread.lastMessage,
+        hasUnreadResponse: thread.hasUnreadResponse,
+        hasIncompleteResponse: thread.hasIncompleteResponse, status: currentThread.status)
+      // Selecting the moved thread below replaces the source's subscription before it reports the
+      // delete, so this removes the row itself. The destination's subscription, when it is open,
+      // reports the new row.
+      var threads = self.projectsController.threads
+      threads.removeAll {
+        $0.projectPath == thread.projectPath && $0.threadId == thread.threadId
+      }
+      if !isDestinationActive {
+        threads.append(movedThread)
+      }
+      self.projectsController.setThreads(threads, animated: true)
+      if wasOpen {
+        self.delegate?.settingsWorkflow(self, didSelectThread: movedThread)
+      }
+    }
+  }
+
+  /// Copies what the thread's history reads from its project folder, as far as it can. The history
+  /// is the thread: a file it mentions may be long gone, and one that fails to copy stays in the
+  /// source project. Media and tool responses are named by their content, and an attachment already
+  /// there keeps the destination's file.
+  private func copyThreadFiles(
+    threadId: Int64, from manager: ProjectHistoryManager, sourceURL: URL, destinationURL: URL
+  ) {
+    let nodes = manager.history(threadId: threadId)
+    let sourceStore = EmbedsFileStore(projectPath: sourceURL.path)
+    let destinationStore = EmbedsFileStore(projectPath: destinationURL.path)
+    var files = nodes.flatMap(\.embedSpans).filter { $0.digest.count == 32 }.map {
+      (
+        source: sourceStore.filePath(for: Data($0.digest)),
+        destination: destinationStore.filePath(for: Data($0.digest))
+      )
+    }
+    let queuedItems = manager.queuedItems(threadId: threadId)
+    // Other attachments are only links in the text, which a local message keeps as tokens, and a
+    // remote message records its images there too.
+    let safeTokenizer: TiktokenTokenizer
+    switch manager.thread(id: threadId)?.model.flatMap({ LLMZoo.specificationForModel($0) })?
+      .version
+    {
+    case .deepseek_4_flash:
+      safeTokenizer = DeepSeek4TextGenerator.safeTokenizer
+    case .deepseek_4_1_flash:
+      safeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
+    case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
+      safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
+    }
+    let messages =
+      nodes.filter { $0.role == .user }.map { $0.plaintext ?? safeTokenizer.decode($0.tokens) }
+      + queuedItems.compactMap(\.text)
+    // Links come from text a user can type, so they must not reach outside the project.
+    var relativePaths =
+      (nodes.flatMap(\.imagePaths) + queuedItems.flatMap(\.imagePaths)
+      + messages.flatMap(ChatAttachment.attachedPaths(in:))).filter {
+        !$0.hasPrefix("/") && !$0.split(separator: "/").contains("..")
+      }
+    let fileManager = FileManager.default
+    let toolResponsesPath = ".localc/tool_responses"
+    relativePaths +=
+      ((try? fileManager.contentsOfDirectory(
+        atPath: sourceURL.appendingPathComponent(toolResponsesPath).path)) ?? []).map {
+        toolResponsesPath + "/" + $0
+      }
+    files += relativePaths.map {
+      (
+        source: sourceURL.appendingPathComponent($0).path,
+        destination: destinationURL.appendingPathComponent($0).path
+      )
+    }
+    for file in files
+    where fileManager.fileExists(atPath: file.source)
+      && !fileManager.fileExists(atPath: file.destination)
+    {
+      do {
+        try fileManager.createDirectory(
+          at: URL(fileURLWithPath: file.destination).deletingLastPathComponent(),
+          withIntermediateDirectories: true)
+        try fileManager.copyItem(atPath: file.source, toPath: file.destination)
+      } catch {
+        print("Warning: Cannot copy \(file.source) for a moved thread: \(error)")
+        // A partial copy would pass for the file later.
+        try? fileManager.removeItem(atPath: file.destination)
+      }
+    }
   }
 
   func projectController(

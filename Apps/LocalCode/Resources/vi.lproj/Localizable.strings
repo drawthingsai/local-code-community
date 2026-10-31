@@ -50,6 +50,8 @@
 
 "rename_thread_dot" = "Đổi tên cuộc trò chuyện...";
 
+"move_to_dot" = "Di chuyển đến...";
+
 "delete_thread_dot" = "Xóa cuộc trò chuyện...";
 
 "delete_thread" = "Xóa cuộc trò chuyện";
@@ -716,6 +718,10 @@
 "cannot_rename" = "Không thể đổi tên";
 
 "cannot_rename_message" = "Đã có một dự án với tên đó. Bạn có thể xóa tệp dự án trước đó hoặc đổi tên dự án mới.";
+
+"cannot_move_thread" = "Không thể di chuyển cuộc trò chuyện";
+
+"cannot_move_thread_detail" = "Không thể sao chép lịch sử của cuộc trò chuyện, nên cuộc trò chuyện vẫn ở vị trí cũ.";
 
 "enter_new_name" = "Vui lòng nhập tên mới";
 

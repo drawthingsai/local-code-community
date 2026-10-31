@@ -371,13 +371,91 @@ public final class ProjectHistoryManager {
     return true
   }
 
+  public func queuedItems(threadId: Int64) -> [ProjectQueuedItem] {
+    dispatchPrecondition(condition: .onQueue(.main))
+    return Array(
+      project.fetch(for: ProjectQueuedItem.self).where(ProjectQueuedItem.threadId == threadId))
+  }
+
+  /// Writes the thread to `destination` under a new identifier, and deletes it here only once that
+  /// write succeeds and the thread has not changed meanwhile; a change takes the copy back out, so
+  /// nothing written during the move is lost. That check sees this manager's writes, so anything
+  /// opening the project meanwhile must share this manager. Both workspaces must stay open until
+  /// `completion`, which receives the new identifier, or nil if the thread stayed here.
+  public func moveThread(
+    id: Int64, to destination: ProjectHistoryManager, completion: @escaping (Int64?) -> Void
+  ) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    guard let thread = thread(id: id) else {
+      completion(nil)
+      return
+    }
+    let nodes = history(threadId: id)
+    let queuedItems = self.queuedItems(threadId: id)
+    let newId = destination.newThreadId()
+    var threadBuilder = ProjectThreadBuilder(from: thread)
+    threadBuilder.id = newId
+    let movedThread = threadBuilder.build()
+    let movedNodes = nodes.map { node -> ProjectHistoryNode in
+      var builder = ProjectHistoryNodeBuilder(from: node)
+      builder.threadId = newId
+      return builder.build()
+    }
+    let movedQueuedItems = queuedItems.map { queuedItem -> ProjectQueuedItem in
+      var builder = ProjectQueuedItemBuilder(from: queuedItem)
+      builder.threadId = newId
+      return builder.build()
+    }
+    let version = destination.uniqueCacheVersion()
+    destination.threadCache[newId] = (movedThread, version)
+    let nodeIdentifiers = movedNodes.map {
+      NodeIdentifier(threadId: $0.threadId, datetime: $0.datetime)
+    }
+    for (nodeIdentifier, node) in zip(nodeIdentifiers, movedNodes) {
+      destination.nodeCache[nodeIdentifier] = (node, version)
+    }
+    destination.project.performChanges([
+      ProjectThread.self, ProjectHistoryNode.self, ProjectQueuedItem.self,
+    ]) { transactionContext in
+      transactionContext.try(submit: ProjectThreadChangeRequest.upsertRequest(movedThread))
+      for node in movedNodes {
+        transactionContext.try(submit: ProjectHistoryNodeChangeRequest.upsertRequest(node))
+      }
+      for queuedItem in movedQueuedItems {
+        transactionContext.try(submit: ProjectQueuedItemChangeRequest.upsertRequest(queuedItem))
+      }
+    } completionHandler: { success in
+      DispatchQueue.main.async {
+        if destination.threadCache[newId]?.version == version {
+          destination.threadCache[newId] = nil
+        }
+        for nodeIdentifier in nodeIdentifiers
+        where destination.nodeCache[nodeIdentifier]?.version == version {
+          destination.nodeCache[nodeIdentifier] = nil
+        }
+        guard success else {
+          completion(nil)
+          return
+        }
+        guard self.thread(id: id) == thread, self.history(threadId: id) == nodes,
+          self.queuedItems(threadId: id) == queuedItems
+        else {
+          destination.deleteThread(id: newId)
+          completion(nil)
+          return
+        }
+        self.deleteThread(id: id)
+        completion(newId)
+      }
+    }
+  }
+
   @discardableResult
   public func deleteThread(id: Int64) -> Bool {
     dispatchPrecondition(condition: .onQueue(.main))
     guard let thread = thread(id: id) else { return false }
     let nodes = history(threadId: id)
-    let queuedItems = Array(
-      project.fetch(for: ProjectQueuedItem.self).where(ProjectQueuedItem.threadId == id))
+    let queuedItems = self.queuedItems(threadId: id)
     let wasSelected = threadId == id
     let version = uniqueCacheVersion()
     threadCache[id] = (nil, version)

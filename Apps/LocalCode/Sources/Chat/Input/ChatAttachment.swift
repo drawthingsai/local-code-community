@@ -65,6 +65,12 @@ struct ChatAttachment {
     return (paragraphs.joined(separator: "\n\n"), paths)
   }
 
+  /// Every path attached in a message. Queued messages sent together each keep their own line, so
+  /// these are not only at the end.
+  static func attachedPaths(in text: String) -> [String] {
+    text.components(separatedBy: "\n\n").compactMap(linkedPaths(in:)).flatMap { $0 }
+  }
+
   /// The paths of an "**Attached**: [name](path), [name](<path>)" line, or nil for anything else.
   private static func linkedPaths(in line: String) -> [String]? {
     let prefix = "**Attached**: "

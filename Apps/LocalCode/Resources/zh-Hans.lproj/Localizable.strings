@@ -55,6 +55,8 @@
 
 "rename_thread_dot" = "重命名对话...";
 
+"move_to_dot" = "移动到...";
+
 "delete_thread_dot" = "删除对话...";
 
 "delete_thread" = "删除对话";
@@ -678,6 +680,10 @@
 "cannot_rename" = "无法重命名";
 
 "cannot_rename_message" = "项目名称已存在，你可以在重命名之前删除文件。";
+
+"cannot_move_thread" = "无法移动对话";
+
+"cannot_move_thread_detail" = "无法复制对话的历史记录，因此对话仍保留在原处。";
 
 "enter_new_name" = "请输入新名称";
 

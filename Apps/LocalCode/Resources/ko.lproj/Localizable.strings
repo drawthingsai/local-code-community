@@ -50,6 +50,8 @@
 
 "rename_thread_dot" = "대화 이름 변경...";
 
+"move_to_dot" = "다음으로 이동...";
+
 "delete_thread_dot" = "대화 삭제...";
 
 "delete_thread" = "대화 삭제";
@@ -707,6 +709,10 @@
 "cannot_rename" = "이름 변경 불가";
 
 "cannot_rename_message" = "해당 이름의 프로젝트가 이미 존재합니다. 기존 프로젝트 파일을 삭제하거나 새 파일의 이름을 변경하세요.";
+
+"cannot_move_thread" = "대화를 이동할 수 없음";
+
+"cannot_move_thread_detail" = "대화 기록을 복사할 수 없어 대화가 원래 위치에 그대로 있습니다.";
 
 "enter_new_name" = "새 이름을 입력하세요";
 

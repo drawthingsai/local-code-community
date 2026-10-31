@@ -50,6 +50,8 @@
 
 "rename_thread_dot" = "会話の名前を変更...";
 
+"move_to_dot" = "移動先...";
+
 "delete_thread_dot" = "会話を削除...";
 
 "delete_thread" = "会話を削除";
@@ -707,6 +709,10 @@
 "cannot_rename" = "名前を変更できません";
 
 "cannot_rename_message" = "その名前のプロジェクトは既に存在します。既存のプロジェクトファイルを削除するか、新しい名前に変更してください。";
+
+"cannot_move_thread" = "会話を移動できません";
+
+"cannot_move_thread_detail" = "会話の履歴をコピーできなかったため、会話は元の場所に残ります。";
 
 "enter_new_name" = "新しい名前を入力してください";
 

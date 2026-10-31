@@ -55,6 +55,15 @@ final class ChatAttachmentTests: XCTestCase {
     XCTAssertEqual(ChatAttachment.emitSections("Fix this", paths: []), "Fix this")
   }
 
+  func testAttachedPathsFindsEveryAttachmentLine() {
+    let first = ChatAttachment.emitSections("First", paths: ["report.pdf"])
+    let second = ChatAttachment.emitSections("Second", paths: ["my notes.txt", "sub/data.csv"])
+    XCTAssertEqual(
+      ChatAttachment.attachedPaths(in: first + "\n\n" + second),
+      ["report.pdf", "my notes.txt", "sub/data.csv"])
+    XCTAssertEqual(ChatAttachment.attachedPaths(in: "No attachments here"), [])
+  }
+
   func testParseSectionsRestoresTheTrailingAttachmentLine() {
     let paths = ["a.png", "notes (2).txt", "Sources/main.swift"]
     let text = "Fix this\n\n**Attached**: [x.png](x.png)\n\nkeep it"

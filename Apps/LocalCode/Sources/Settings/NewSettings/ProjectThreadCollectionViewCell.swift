@@ -7,6 +7,10 @@ import UIKit
 protocol ProjectThreadCollectionViewCellDelegate: AnyObject {
   func projectThreadCollectionViewCellDidSelectRename(_ cell: ProjectThreadCollectionViewCell)
   func projectThreadCollectionViewCellDidSelectDelete(_ cell: ProjectThreadCollectionViewCell)
+  func projectThreadCollectionViewCellMoveDestinations(_ cell: ProjectThreadCollectionViewCell)
+    -> [(path: String, title: String)]
+  func projectThreadCollectionViewCell(
+    _ cell: ProjectThreadCollectionViewCell, didSelectMoveToProjectAt projectPath: String)
   func projectThreadCollectionViewCellHasBrowser(_ cell: ProjectThreadCollectionViewCell) -> Bool
   func projectThreadCollectionViewCellDidSelectCloseBrowser(
     _ cell: ProjectThreadCollectionViewCell)
@@ -56,6 +60,28 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
           ) { [weak self] _ in
             guard let self else { return }
             self.delegate?.projectThreadCollectionViewCellDidSelectRename(self)
+          },
+          // Lists the projects as they are when the menu opens, and only for a thread that can move.
+          UIDeferredMenuElement.uncached { [weak self] completion in
+            guard let self,
+              let destinations = self.delegate?.projectThreadCollectionViewCellMoveDestinations(
+                self), !destinations.isEmpty
+            else {
+              completion([])
+              return
+            }
+            completion([
+              UIMenu(
+                title: LocalizedString.forKey("move_to_dot"),
+                image: UIImage(systemName: "arrow.forward.folder"),
+                children: destinations.map { destination in
+                  UIAction(title: destination.title) { [weak self] _ in
+                    guard let self else { return }
+                    self.delegate?.projectThreadCollectionViewCell(
+                      self, didSelectMoveToProjectAt: destination.path)
+                  }
+                })
+            ])
           },
           // Shown only while the thread has a browser, so the menu asks each time it opens.
           UIDeferredMenuElement.uncached { [weak self] completion in

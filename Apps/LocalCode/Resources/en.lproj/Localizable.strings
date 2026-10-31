@@ -50,6 +50,8 @@
 
 "rename_thread_dot" = "Rename thread...";
 
+"move_to_dot" = "Move to...";
+
 "delete_thread_dot" = "Delete thread...";
 
 "delete_thread" = "Delete thread";
@@ -716,6 +718,10 @@
 "cannot_rename" = "Cannot Rename";
 
 "cannot_rename_message" = "A project with that name already exists. You can either delete the prior project file or rename the new one.";
+
+"cannot_move_thread" = "Cannot Move Thread";
+
+"cannot_move_thread_detail" = "The thread's history could not be copied, so it stays where it was.";
 
 "enter_new_name" = "Please Enter a New Name";
 

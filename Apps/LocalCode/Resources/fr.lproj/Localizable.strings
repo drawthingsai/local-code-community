@@ -50,6 +50,8 @@
 
 "rename_thread_dot" = "Renommer la discussion...";
 
+"move_to_dot" = "Déplacer vers...";
+
 "delete_thread_dot" = "Supprimer la discussion...";
 
 "delete_thread" = "Supprimer la discussion";
@@ -707,6 +709,10 @@
 "cannot_rename" = "Renommage impossible";
 
 "cannot_rename_message" = "Un projet portant ce nom existe déjà. Veuillez supprimer l'ancien projet ou renommer le nouveau.";
+
+"cannot_move_thread" = "Impossible de déplacer la discussion";
+
+"cannot_move_thread_detail" = "L'historique de la discussion n'a pas pu être copié. Elle reste à son emplacement actuel.";
 
 "enter_new_name" = "Veuillez saisir un nouveau nom";
 

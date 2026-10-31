@@ -1497,11 +1497,13 @@ final class ChatWorkflow: Workflow {
         projectPath: url.path, workspacePath: settingsWorkflow.workspaceFolderURL.path)
       viewController.setLocalPathResolver(
         localPathResolver, refreshVisibleCells: false)
+      let movingProject = settingsWorkflow.movingProject(at: url)
       let projectWorkspace =
-        residentProjectWorkspace
+        movingProject?.projectWorkspace ?? residentProjectWorkspace
         ?? SQLiteWorkspace(filePath: metadataURL.path, fileProtectionLevel: .noProtection)
       self.projectWorkspace = projectWorkspace
-      projectHistoryManager = ProjectHistoryManager(project: projectWorkspace)
+      projectHistoryManager =
+        movingProject?.projectHistoryManager ?? ProjectHistoryManager(project: projectWorkspace)
     }
     workspace.dictionary["project", Data.self] = bookmarkData
     projectBarController.projectName = ProjectController.displayTitle(

@@ -55,6 +55,8 @@
 
 "rename_thread_dot" = "Renombrar conversación...";
 
+"move_to_dot" = "Mover a...";
+
 "delete_thread_dot" = "Eliminar conversación...";
 
 "delete_thread" = "Eliminar conversación";
@@ -678,6 +680,10 @@
 "cannot_rename" = "No se puede renombrar";
 
 "cannot_rename_message" = "El nombre del proyecto ya existe, puede eliminar el archivo antes de renombrar.";
+
+"cannot_move_thread" = "No se puede mover la conversación";
+
+"cannot_move_thread_detail" = "No se pudo copiar el historial de la conversación, por lo que permanece donde estaba.";
 
 "enter_new_name" = "Por favor, introduzca un nuevo nombre";
 

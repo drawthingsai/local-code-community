@@ -50,6 +50,8 @@
 
 "rename_thread_dot" = "Thread umbenennen...";
 
+"move_to_dot" = "Verschieben nach...";
+
 "delete_thread_dot" = "Thread löschen...";
 
 "delete_thread" = "Thread löschen";
@@ -707,6 +709,10 @@
 "cannot_rename" = "Umbenennen nicht möglich";
 
 "cannot_rename_message" = "Ein Projekt mit diesem Namen existiert bereits. Löschen oder umbenennen?";
+
+"cannot_move_thread" = "Thread kann nicht verschoben werden";
+
+"cannot_move_thread_detail" = "Der Verlauf des Threads konnte nicht kopiert werden. Er bleibt daher an seinem bisherigen Ort.";
 
 "enter_new_name" = "Neuen Namen eingeben";
 

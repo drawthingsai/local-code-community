@@ -55,6 +55,8 @@
 
 "rename_thread_dot" = "重新命名對話...";
 
+"move_to_dot" = "移動到...";
+
 "delete_thread_dot" = "刪除對話...";
 
 "delete_thread" = "刪除對話";
@@ -678,6 +680,10 @@
 "cannot_rename" = "無法重命名";
 
 "cannot_rename_message" = "該項目名稱已存在，您可以在重新命名前刪除該文件。";
+
+"cannot_move_thread" = "無法移動對話";
+
+"cannot_move_thread_detail" = "無法複製對話的記錄，因此對話仍保留在原處。";
 
 "enter_new_name" = "請輸入新名稱";
 

@@ -787,6 +787,129 @@ final class ProjectHistoryManagerTests: XCTestCase {
       ).isEmpty)
   }
 
+  func testMoveThreadCopiesEverythingUnderNewIdentifierAndDeletesSource() throws {
+    let manager = ProjectHistoryManager(project: workspace)
+    let moved = createThread(manager, title: "Moved", model: "one.ckpt", tokens: [1])
+    let kept = createThread(manager, title: "Kept", model: "two.ckpt", tokens: [2])
+    _ = appendAssistant(manager, threadId: moved.id, logTokens: [3], tokens: [4], compacted: false)
+    let didQueue = expectation(description: "queued")
+    workspace.performChanges([ProjectQueuedItem.self]) { transactionContext in
+      transactionContext.try(
+        submit: ProjectQueuedItemChangeRequest.upsertRequest(
+          ProjectQueuedItem(threadId: moved.id, datetime: 10, text: "queued")))
+    } completionHandler: { _ in
+      didQueue.fulfill()
+    }
+    wait(for: [didQueue], timeout: 5)
+    manager.threadId = moved.id
+    let expectedThread = try XCTUnwrap(manager.thread(id: moved.id))
+    let expectedHistory = manager.history(threadId: moved.id)
+    XCTAssertEqual(manager.queuedItems(threadId: moved.id).map(\.text), ["queued"])
+
+    let destinationURL = temporaryDirectory.appendingPathComponent("destination.sqlite3")
+    var destinationWorkspace = SQLiteWorkspace(
+      filePath: destinationURL.path, fileProtectionLevel: .noProtection)
+    // Identifier 1 is taken in the destination, so the moved thread cannot keep its own.
+    let existing = createThread(
+      ProjectHistoryManager(project: destinationWorkspace), title: "Existing",
+      model: "three.ckpt", tokens: [5])
+    XCTAssertEqual(existing.id, moved.id)
+    destinationWorkspace.shutdown(flags: [])
+    destinationWorkspace = SQLiteWorkspace(
+      filePath: destinationURL.path, fileProtectionLevel: .noProtection)
+    defer { destinationWorkspace.shutdown(flags: .truncate) }
+    let destination = ProjectHistoryManager(project: destinationWorkspace)
+
+    let didMove = expectation(description: "moved")
+    var newThreadId: Int64?
+    manager.moveThread(id: moved.id, to: destination) {
+      newThreadId = $0
+      didMove.fulfill()
+    }
+    wait(for: [didMove], timeout: 5)
+    let newId = try XCTUnwrap(newThreadId)
+    XCTAssertNotEqual(newId, existing.id)
+
+    XCTAssertEqual(destination.history(threadId: existing.id).map(\.tokens), [[5]])
+    let movedThread = try XCTUnwrap(destination.thread(id: newId))
+    XCTAssertEqual(movedThread.title, expectedThread.title)
+    XCTAssertEqual(movedThread.updatedAt, expectedThread.updatedAt)
+    XCTAssertEqual(movedThread.model, expectedThread.model)
+    let movedHistory = destination.history(threadId: newId)
+    XCTAssertEqual(movedHistory.map(\.threadId), expectedHistory.map { _ in newId })
+    XCTAssertEqual(movedHistory.map(\.datetime), expectedHistory.map(\.datetime))
+    XCTAssertEqual(movedHistory.map(\.tokens), expectedHistory.map(\.tokens))
+    XCTAssertEqual(movedHistory.map(\.logTokens), expectedHistory.map(\.logTokens))
+    XCTAssertEqual(destination.queuedItems(threadId: newId).map(\.text), ["queued"])
+
+    XCTAssertNil(manager.thread(id: moved.id))
+    XCTAssertEqual(manager.history(threadId: moved.id), [])
+    XCTAssertEqual(manager.threads.map(\.id), [kept.id])
+    XCTAssertEqual(manager.threadId, kept.id)
+
+    // The source's queued items are not cached, so check them once its delete has persisted.
+    workspace.shutdown(flags: [])
+    workspace = SQLiteWorkspace(
+      filePath: temporaryDirectory.appendingPathComponent("metadata.sqlite3").path,
+      fileProtectionLevel: .noProtection)
+    XCTAssertEqual(
+      ProjectHistoryManager(project: workspace).queuedItems(threadId: moved.id), [])
+  }
+
+  func testMoveThreadIntoProjectWithoutThreads() throws {
+    let manager = ProjectHistoryManager(project: workspace)
+    let moved = createThread(manager, title: "Moved", model: "one.ckpt", tokens: [1])
+    let destinationWorkspace = SQLiteWorkspace(
+      filePath: temporaryDirectory.appendingPathComponent("destination.sqlite3").path,
+      fileProtectionLevel: .noProtection)
+    defer { destinationWorkspace.shutdown(flags: .truncate) }
+    let destination = ProjectHistoryManager(project: destinationWorkspace)
+
+    let didMove = expectation(description: "moved")
+    var newThreadId: Int64?
+    manager.moveThread(id: moved.id, to: destination) {
+      newThreadId = $0
+      didMove.fulfill()
+    }
+    wait(for: [didMove], timeout: 5)
+
+    XCTAssertEqual(destination.thread(id: try XCTUnwrap(newThreadId))?.title, "Moved")
+    XCTAssertEqual(destination.threads.count, 1)
+    XCTAssertNil(manager.thread(id: moved.id))
+  }
+
+  func testMoveKeepsThreadThatChangesDuringTheMove() throws {
+    let manager = ProjectHistoryManager(project: workspace)
+    let thread = createThread(manager, title: "Thread", model: "one.ckpt", tokens: [1])
+    let destinationWorkspace = SQLiteWorkspace(
+      filePath: temporaryDirectory.appendingPathComponent("destination.sqlite3").path,
+      fileProtectionLevel: .noProtection)
+    defer { destinationWorkspace.shutdown(flags: .truncate) }
+    let destination = ProjectHistoryManager(project: destinationWorkspace)
+
+    let didMove = expectation(description: "moved")
+    var newThreadId: Int64? = 0
+    manager.moveThread(id: thread.id, to: destination) {
+      newThreadId = $0
+      didMove.fulfill()
+    }
+    // The main queue cannot run the move's completion before this write.
+    _ = appendUser(manager, threadId: thread.id, tokens: [2])
+    wait(for: [didMove], timeout: 5)
+
+    XCTAssertNil(newThreadId)
+    XCTAssertEqual(manager.history(threadId: thread.id).map(\.tokens), [[1], [2]])
+    XCTAssertTrue(destination.threads.isEmpty)
+  }
+
+  func testMoveMissingThreadReportsNoIdentifier() {
+    let manager = ProjectHistoryManager(project: workspace)
+    let destination = ProjectHistoryManager(project: workspace)
+    var newThreadId: Int64? = 0
+    manager.moveThread(id: 42, to: destination) { newThreadId = $0 }
+    XCTAssertNil(newThreadId)
+  }
+
   func testDraftSelectionPersistsAcrossWorkspaceReopen() {
     let databaseURL = temporaryDirectory.appendingPathComponent("metadata.sqlite3")
     let manager = ProjectHistoryManager(project: workspace)

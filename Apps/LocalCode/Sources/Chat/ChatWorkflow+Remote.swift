@@ -314,6 +314,13 @@ extension ChatWorkflow {
     }
   }
 
+  func settingsWorkflow(
+    _ workflow: SettingsWorkflow, isRemoteConversationActiveFor thread: ProjectController.Thread
+  ) -> Bool {
+    let id = ProjectThreadIdentifier(thread: thread)
+    return remoteChatProviders.values.contains { $0.isActive(id) }
+  }
+
   /// Returns whether the message was sent.
   @discardableResult
   func didTapSendRemote(_ prompt: String, imagePaths: [String] = []) -> Bool {
