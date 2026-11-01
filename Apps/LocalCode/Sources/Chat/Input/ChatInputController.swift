@@ -934,6 +934,7 @@ final class ChatInputController {
       UIAction { [weak self] _ in
         self?.selectModel()
       }, for: .touchUpInside)
+    attachmentController.setChatInputDropInteraction(on: view)
     updateSendControl(animated: false)
   }
 
@@ -963,7 +964,8 @@ final class ChatInputController {
     attachmentController.removeAll()
   }
 
-  /// Files dropped anywhere in the view become attachments; the rim glow stays on the composer.
+  /// Files and text dropped anywhere in the view become attachments, except text dragged within the
+  /// app, which only does on the composer itself; the rim glow stays on the composer.
   func addAttachmentDropInteraction(to view: UIView) {
     attachmentController.addDropInteraction(to: view)
   }

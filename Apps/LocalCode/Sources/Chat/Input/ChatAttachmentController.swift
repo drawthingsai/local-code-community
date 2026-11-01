@@ -32,6 +32,7 @@ final class ChatAttachmentController {
   private var cards = [(attachment: ChatAttachment, view: UIView)]()
   private var importCount = 0
   private var dropTargets = Set<ObjectIdentifier>()
+  fileprivate var chatInputDropInteraction: UIDropInteraction?
   fileprivate var previewAttachment: ChatAttachment?
 
   private lazy var stackView: UIStackView = {
@@ -72,13 +73,22 @@ final class ChatAttachmentController {
     try? FileManager.default.removeItem(at: directory)
   }
 
+  /// The composer takes files and text from anywhere, including text dragged within the app.
+  func setChatInputDropInteraction(on view: UIView) {
+    let interaction = UIDropInteraction(delegate: objCResponder)
+    chatInputDropInteraction = interaction
+    view.addInteraction(interaction)
+  }
+
+  /// Around the composer, text dragged within the app is refused: selecting and dragging the
+  /// conversation's own text is not asking to attach it.
   func addDropInteraction(to view: UIView) {
     view.addInteraction(UIDropInteraction(delegate: objCResponder))
   }
 
   /// A collection view installs its own drop destination, which refuses file drops before they
   /// reach an ancestor's drop interaction, even with drag interaction disabled; handle its drops
-  /// as its drop delegate instead.
+  /// as its drop delegate instead. It refuses in-app text like the views around it.
   func setDropDelegate(of collectionView: UICollectionView) {
     collectionView.dropDelegate = objCResponder
   }
@@ -141,6 +151,19 @@ final class ChatAttachmentController {
   fileprivate static func accepts(_ session: UIDropSession) -> Bool {
     session.items.contains {
       fileType(of: $0.itemProvider) != nil || $0.itemProvider.canLoadObject(ofClass: String.self)
+    }
+  }
+
+  /// Around the composer, anything it accepts except text dragged within the app. `fileType(of:)`
+  /// alone can't tell text apart, since an attributed string also offers RTFD data; what marks it
+  /// is loading as a string without a name.
+  fileprivate static func acceptsAroundChatInput(_ session: UIDropSession) -> Bool {
+    guard session.localDragSession != nil else { return accepts(session) }
+    return session.items.contains {
+      let provider = $0.itemProvider
+      let isText =
+        provider.canLoadObject(ofClass: String.self) && provider.suggestedName?.isEmpty != false
+      return !isText && fileType(of: provider) != nil
     }
   }
 
@@ -377,7 +400,9 @@ extension ChatAttachmentController {
 
 extension ChatAttachmentController.ObjCResponder: UIDropInteractionDelegate {
   func dropInteraction(_ interaction: UIDropInteraction, canHandle session: UIDropSession) -> Bool {
-    ChatAttachmentController.accepts(session)
+    interaction === controller?.chatInputDropInteraction
+      ? ChatAttachmentController.accepts(session)
+      : ChatAttachmentController.acceptsAroundChatInput(session)
   }
 
   func dropInteraction(_ interaction: UIDropInteraction, sessionDidEnter session: UIDropSession) {
@@ -407,7 +432,7 @@ extension ChatAttachmentController.ObjCResponder: UIDropInteractionDelegate {
 extension ChatAttachmentController.ObjCResponder: UICollectionViewDropDelegate {
   func collectionView(_ collectionView: UICollectionView, canHandle session: UIDropSession) -> Bool
   {
-    ChatAttachmentController.accepts(session)
+    ChatAttachmentController.acceptsAroundChatInput(session)
   }
 
   func collectionView(
