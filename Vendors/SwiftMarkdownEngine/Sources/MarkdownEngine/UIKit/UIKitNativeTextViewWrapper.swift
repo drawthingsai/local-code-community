@@ -957,6 +957,18 @@
       super.paste(sender)
     }
 
+    /// UIKit disables Paste when the pasteboard holds no text, whatever `pasteConfiguration` says;
+    /// honor the configuration so a `pasteDelegate` can take other content, such as files.
+    public override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+      if action == #selector(paste(_:)), isEditable,
+        let types = pasteConfiguration?.acceptableTypeIdentifiers,
+        NSPasteboard.general.contains(pasteboardTypes: types)
+      {
+        return true
+      }
+      return super.canPerformAction(action, withSender: sender)
+    }
+
     public override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
       if presses.contains(where: { $0.key?.modifierFlags == .shift }) {
         isShiftPressed = true

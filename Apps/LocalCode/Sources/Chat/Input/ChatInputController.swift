@@ -935,6 +935,7 @@ final class ChatInputController {
         self?.selectModel()
       }, for: .touchUpInside)
     attachmentController.setChatInputDropInteraction(on: view)
+    attachmentController.setPasteDelegate(of: textView)
     updateSendControl(animated: false)
   }
 

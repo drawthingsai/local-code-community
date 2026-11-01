@@ -93,6 +93,13 @@ final class ChatAttachmentController {
     collectionView.dropDelegate = objCResponder
   }
 
+  /// Pasting a file or image into the text view attaches it; text still pastes as text.
+  func setPasteDelegate(of textView: UITextView) {
+    textView.pasteDelegate = objCResponder
+    textView.pasteConfiguration = UIPasteConfiguration(
+      acceptableTypeIdentifiers: [UTType.data.identifier])
+  }
+
   func removeAll() {
     attachments.forEach(remove)
   }
@@ -191,16 +198,59 @@ final class ChatAttachmentController {
     delegate?.chatAttachmentControllerDidChangeDropTarget(self, animated: false)
   }
 
+  /// Attaches a pasted file or image, or else lets the text view paste the item as usual. Text wins
+  /// over an image offered alongside it, as when copying cells from a spreadsheet.
+  fileprivate func paste(_ item: UITextPasteItem) {
+    let provider = item.itemProvider
+    if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+      // A file copied in Finder offers its name as text and its icon as an image, so only its URL
+      // gives the file. A folder, or a file that can't be read, pastes as usual.
+      importCount += 1
+      _ = provider.loadObject(ofClass: URL.self) { [weak self, directory] url, _ in
+        let attachment = url.flatMap {
+          $0.hasDirectoryPath ? nil : try? Self.snapshot($0, sourceURL: $0, in: directory)
+        }
+        DispatchQueue.main.async {
+          if attachment == nil {
+            item.setDefaultResult()
+          } else {
+            item.setNoResult()
+          }
+          self?.finishImport(attachment)
+        }
+      }
+      delegate?.chatAttachmentControllerDidChange(self)
+      return
+    }
+    // Only plain text counts: a browser copying an image also offers HTML that just references it.
+    let hasText = provider.registeredTypeIdentifiers.contains {
+      UTType($0)?.conforms(to: .plainText) == true
+    }
+    guard Self.fileType(of: provider) != nil, !hasText || provider.suggestedName?.isEmpty == false
+    else {
+      item.setDefaultResult()
+      return
+    }
+    importProviders([provider])
+    item.setNoResult()
+  }
+
   fileprivate func importProviders(_ providers: [NSItemProvider]) {
     for provider in providers {
       if let type = Self.fileType(of: provider) {
         importCount += 1
+        // A temporary representation of an unnamed item is named by a hash of its contents.
+        let unnamedTitle =
+          provider.suggestedName?.isEmpty == false
+          ? nil : UTType(type)?.conforms(to: .image) == true ? "image" : "file"
         // In place, the URL is the dropped file itself, which tells whether it is in the project.
         provider.loadInPlaceFileRepresentation(forTypeIdentifier: type) {
           [weak self, directory] url, isInPlace, _ in
           // Copy before returning: a temporary representation is deleted once this returns.
           let attachment = url.flatMap {
-            try? Self.snapshot($0, sourceURL: isInPlace ? $0 : nil, in: directory)
+            try? Self.snapshot(
+              $0, sourceURL: isInPlace ? $0 : nil, title: isInPlace ? nil : unnamedTitle,
+              in: directory)
           }
           DispatchQueue.main.async { self?.finishImport(attachment) }
         }
@@ -215,14 +265,15 @@ final class ChatAttachmentController {
     delegate?.chatAttachmentControllerDidChange(self)
   }
 
-  private static func snapshot(_ url: URL, sourceURL: URL?, in directory: URL) throws
-    -> ChatAttachment
+  private static func snapshot(_ url: URL, sourceURL: URL?, title: String? = nil, in directory: URL)
+    throws -> ChatAttachment
   {
     let accessed = url.startAccessingSecurityScopedResource()
     defer { if accessed { url.stopAccessingSecurityScopedResource() } }
     let folder = directory.appendingPathComponent(UUID().uuidString, isDirectory: true)
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    let copy = folder.appendingPathComponent(url.lastPathComponent)
+    let copy = folder.appendingPathComponent(
+      title.map { "\($0).\(url.pathExtension)" } ?? url.lastPathComponent)
     try FileManager.default.copyItem(at: url, to: copy)
     return ChatAttachment(url: copy, sourceURL: sourceURL)
   }
@@ -464,6 +515,19 @@ extension ChatAttachmentController.ObjCResponder: UICollectionViewDropDelegate {
   ) {
     controller?.endDropTargetForDrop()
     controller?.importProviders(coordinator.session.items.map(\.itemProvider))
+  }
+}
+
+extension ChatAttachmentController.ObjCResponder: UITextPasteDelegate {
+  func textPasteConfigurationSupporting(
+    _ textPasteConfigurationSupporting: UITextPasteConfigurationSupporting,
+    transform item: UITextPasteItem
+  ) {
+    guard let controller else {
+      item.setDefaultResult()
+      return
+    }
+    controller.paste(item)
   }
 }
 
