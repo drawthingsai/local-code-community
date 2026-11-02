@@ -195,12 +195,19 @@ would otherwise schedule last rather than maintaining an independent LRU policy.
 
 Each TextGenerator supplies a conservative static KV-cache estimate: 7 GiB for Qwen3.5 at the
 suggested roughly 100K-token context, covering the 27B configuration, and 4 GiB for DeepSeek 4
-Flash at roughly 400K tokens. The scheduler reads the checkpoint size directly from its file path
-and computes its fixed hot limit as:
+Flash at roughly 400K tokens. Each also reports `residentWeightsSize`, the most memory its weights
+hold once loaded, and the scheduler computes its fixed hot limit as:
 
 ```
-max(1, floor((physicalMemory - modelFileSize) / estimatedKVCacheSize) - 2)
+max(1, floor((physicalMemory - residentWeightsSize) / estimatedKVCacheSize) - 2)
 ```
+
+Qwen3.5 loads every weight, so it reports its checkpoint size. DeepSeek 4 and 4.1 stream weights,
+so they report the size of their requested or automatic tier, as their tier selection budgets it,
+plus the DSpark drafter when 4.1 drafts at that tier. The scheduler is set before the weights load,
+and a load picks the largest tier at or below that ceiling that fits the memory available then, so
+this size is an upper bound. Subtracting the whole checkpoint instead left a 161 GiB DeepSeek 4.1
+checkpoint on a 128 GiB Mac with a limit of one, where its 72 GiB tier and drafter allow ten.
 
 The foreground CodeAgent is always hot. Background entries admitted to the hot set continue using
 the existing scheduling rules, while cold entries do not rotate into that set merely because a hot

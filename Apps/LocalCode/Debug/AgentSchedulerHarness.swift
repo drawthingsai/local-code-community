@@ -859,6 +859,7 @@ private struct AgentSchedulerHarness {
   private static func runGeneratorReuse() throws {
     final class Generator: TextGenerator {
       static var estimatedKVCacheSize: UInt64 { 1 }
+      var residentWeightsSize: UInt64 { 0 }
       var safeTokenizer: TiktokenTokenizer { fatalError("No tokenization in this scenario") }
       let filePath: String
       let onRelease: () -> Void
@@ -888,11 +889,13 @@ private struct AgentSchedulerHarness {
       }
       originalGenerator = generatorA
       retiringScheduler?.set(
-        filePath: generatorA.filePath, estimatedKVCacheSize: Generator.estimatedKVCacheSize)
+        filePath: generatorA.filePath, residentWeightsSize: generatorA.residentWeightsSize,
+        estimatedKVCacheSize: Generator.estimatedKVCacheSize)
       retiringScheduler?.textGenerator = generatorA
       // An empty scheduler can still be configured again with its original API.
       retiringScheduler?.set(
-        filePath: generatorA.filePath, estimatedKVCacheSize: Generator.estimatedKVCacheSize)
+        filePath: generatorA.filePath, residentWeightsSize: generatorA.residentWeightsSize,
+        estimatedKVCacheSize: Generator.estimatedKVCacheSize)
     }
     guard originalGenerator != nil else {
       throw HarnessError.invariant("scheduler did not retain the generator")
@@ -906,7 +909,8 @@ private struct AgentSchedulerHarness {
         throw HarnessError.invariant("lost storage during scheduler retirement")
       }
       successorScheduler?.set(
-        filePath: reused.filePath, estimatedKVCacheSize: Generator.estimatedKVCacheSize)
+        filePath: reused.filePath, residentWeightsSize: reused.residentWeightsSize,
+        estimatedKVCacheSize: Generator.estimatedKVCacheSize)
       successorScheduler?.textGenerator = reused
     }
     proceed.signal()

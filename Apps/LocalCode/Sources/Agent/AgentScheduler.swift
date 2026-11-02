@@ -131,19 +131,16 @@ final class AgentScheduler {
     }
   }
 
-  func set(filePath: String, estimatedKVCacheSize: UInt64) {
+  func set(filePath: String, residentWeightsSize: UInt64, estimatedKVCacheSize: UInt64) {
     dispatchPrecondition(condition: .onQueue(.main))
     precondition(estimatedKVCacheSize > 0)
     os_unfair_lock_lock(&lock)
     precondition(entries.isEmpty && pendingTurns.isEmpty && activeTurnIdentifiers.isEmpty)
     file = URL(fileURLWithPath: filePath).lastPathComponent
     if maximumHotCodeAgentCount == Int.max {
-      let modelFileSize =
-        (try? URL(fileURLWithPath: filePath).resourceValues(
-          forKeys: [.fileSizeKey]))?.fileSize ?? 0
       let physicalMemory = ProcessInfo.processInfo.physicalMemory
       let availableMemory =
-        physicalMemory > UInt64(modelFileSize) ? physicalMemory - UInt64(modelFileSize) : 0
+        physicalMemory > residentWeightsSize ? physicalMemory - residentWeightsSize : 0
       maximumHotCodeAgentCount = max(
         1, Int(availableMemory / estimatedKVCacheSize) - 2)
     }

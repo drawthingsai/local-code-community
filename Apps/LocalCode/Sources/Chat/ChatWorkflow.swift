@@ -655,18 +655,9 @@ final class ChatWorkflow: Workflow {
     return (nil, false)
   }
 
-  private func agentSchedulerActivation(for file: String) {
+  private func agentSchedulerActivation(for textGenerator: any TextGenerator) {
+    let file = URL(fileURLWithPath: textGenerator.filePath).lastPathComponent
     guard agentScheduler.file != file else { return }
-    guard let specification = LLMZoo.specificationForModel(file) else { return }
-    let estimatedKVCacheSize: UInt64
-    switch specification.version {
-    case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b:
-      estimatedKVCacheSize = Qwen3_5TextGenerator.estimatedKVCacheSize
-    case .deepseek_4_flash:
-      estimatedKVCacheSize = DeepSeek4TextGenerator.estimatedKVCacheSize
-    case .deepseek_4_1_flash:
-      estimatedKVCacheSize = DeepSeek4_1TextGenerator.estimatedKVCacheSize
-    }
     if agentScheduler.file != nil {
       let retiringScheduler = agentScheduler
       retiringScheduler.setForeground(nil)
@@ -696,8 +687,8 @@ final class ChatWorkflow: Workflow {
       viewController.setSteeringQueuedItems([])
     }
     agentScheduler.set(
-      filePath: LLMZoo.filePathForModelDownloaded(file),
-      estimatedKVCacheSize: estimatedKVCacheSize)
+      filePath: textGenerator.filePath, residentWeightsSize: textGenerator.residentWeightsSize,
+      estimatedKVCacheSize: type(of: textGenerator).estimatedKVCacheSize)
   }
 
   private func updateQueuedItems(_ queuedItems: [ProjectQueuedItem], animated: Bool) {
@@ -2676,7 +2667,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       }
       return
     }
-    agentSchedulerActivation(for: file)
+    agentSchedulerActivation(for: textGenerator)
     guard agentScheduler.file == file else { return }
     if agentScheduler.textGenerator == nil {
       agentScheduler.textGenerator = textGenerator
@@ -2963,7 +2954,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       textGenerator = selectedTextGenerator
       codeAgent = existingCodeAgent
     } else {
-      agentSchedulerActivation(for: file)
+      agentSchedulerActivation(for: selectedTextGenerator)
       guard
         let newWrapper = codeAgentWrapper(
           model: file, prefixTokens: prefixTokens, prefixEmbedSpans: prefixEmbedSpans,

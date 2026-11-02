@@ -51,24 +51,25 @@ extension DeviceCapability.WeightsStreaming {
     }
   }
 
+  // What the weights hold at this tier.
+  var residentSizeForDeepSeek4: UInt64 {
+    switch self {
+    case ._8GiB, ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB:
+      return UInt64(rawValue) * 1_024 * 1_024 * 1_024
+    case ._56GiB, ._64GiB:
+      return 48 * 1_024 * 1_024 * 1_024
+    case ._72GiB, .disabled:
+      return 89_414_598_656  // The whole deepseek_4_flash_0731_i2x.ckpt, about 83.27 GiB.
+    }
+  }
+
   // Treat this tier as a ceiling: pick the largest tier at or below it whose resident weights
   // fit in 72% of available memory, falling back to the smallest tier when none fits.
   func residentTierForDeepSeek4(availableMemory: UInt64) -> Self {
     let budget = availableMemory / 25 * 18
     // allCases ascends by resident size, ending with .disabled.
     let ceiling = Self.allCases.firstIndex(of: self)!
-    return Self.allCases[...ceiling].last { tier in
-      let size: UInt64
-      switch tier {
-      case ._8GiB, ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB:
-        size = UInt64(tier.rawValue) * 1_024 * 1_024 * 1_024
-      case ._56GiB, ._64GiB:
-        size = 48 * 1_024 * 1_024 * 1_024
-      case ._72GiB, .disabled:
-        size = 89_414_598_656  // The whole deepseek_4_flash_0731_i2x.ckpt, about 83.27 GiB.
-      }
-      return size <= budget
-    } ?? ._8GiB
+    return Self.allCases[...ceiling].last { $0.residentSizeForDeepSeek4 <= budget } ?? ._8GiB
   }
 
   // An explicit .disabled always loads every weight. Otherwise the requested tier, or the automatic
@@ -355,6 +356,11 @@ extension DeepSeek4TextGenerator {
   /// Drops only shared model weights, waiting for an active decode to return.
   /// Safe from a tool worker; graph-owned conversation caches stay with the agent.
   public func unload() { storage.reset() }
+
+  /// At the requested or automatic tier. A load settles on that tier or a smaller one.
+  public var residentWeightsSize: UInt64 {
+    (weightsStreaming ?? DeviceCapability.weightsStreaming).residentSizeForDeepSeek4
+  }
 
   public mutating func decode(
     graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,

@@ -1985,4 +1985,11 @@ extension Qwen3_5TextGenerator {
 
 extension Qwen3_5TextGenerator: TextGenerator {
   public var safeTokenizer: TiktokenTokenizer { Self.safeTokenizer }
+
+  // Every weight loads.
+  public var residentWeightsSize: UInt64 {
+    let fileSize =
+      (try? URL(fileURLWithPath: filePath).resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+    return UInt64(fileSize)
+  }
 }

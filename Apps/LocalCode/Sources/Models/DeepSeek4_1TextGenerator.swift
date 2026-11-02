@@ -77,26 +77,32 @@ extension DeviceCapability.WeightsStreaming {
     }
   }
 
-  // Treat this tier as a ceiling: pick the largest tier at or below it whose resident weights,
-  // with the DSpark drafter when it loads, fit in 75% of available memory, falling back to the
-  // smallest tier when none fits.
-  func residentTierForDeepSeek4_1(availableMemory: UInt64, draft: Bool) -> Self {
-    let budget = availableMemory / 4 * 3
+  // What the weights hold at this tier, with the DSpark drafter when it loads.
+  func residentSizeForDeepSeek4_1(draft: Bool) -> UInt64 {
+    // The 8 GiB tier shares the 16 GiB allocation.
+    // TODO: Fully resident, this is the 2-bit checkpoint's size even for the 3-bit checkpoint, so
+    // the tier selection and the hot limit undercount it. Use the selected checkpoint's size.
+    let weightsSize =
+      self == .disabled
+      ? 172_970_156_032  // deepseek_4.1_flash_1017_i2x.ckpt, about 161.09 GiB.
+      : UInt64(max(16, rawValue)) * 1_024 * 1_024 * 1_024
     // The drafter loads whole at every tier.
     let drafterSize: UInt64 =
       draft
       ? 7_370_686_464  // deepseek_4.1_flash_1017_dspark_i3xxs_w2q4k_trailer.ckpt, 6.86 GiB.
       : 0
+    return weightsSize + drafterSize
+  }
+
+  // Treat this tier as a ceiling: pick the largest tier at or below it whose resident weights,
+  // with the DSpark drafter when it loads, fit in 75% of available memory, falling back to the
+  // smallest tier when none fits.
+  func residentTierForDeepSeek4_1(availableMemory: UInt64, draft: Bool) -> Self {
+    let budget = availableMemory / 4 * 3
     // allCases ascends by resident size, ending with .disabled, which maps the whole checkpoint.
     let ceiling = Self.allCases.firstIndex(of: self)!
-    return Self.allCases[...ceiling].last { tier in
-      // The 8 GiB tier shares the 16 GiB allocation.
-      let weightsSize =
-        tier == .disabled
-        ? 172_970_156_032  // deepseek_4.1_flash_1017_i2x.ckpt, about 161.09 GiB.
-        : UInt64(max(16, tier.rawValue)) * 1_024 * 1_024 * 1_024
-      let size = weightsSize + drafterSize
-      return size <= budget
+    return Self.allCases[...ceiling].last {
+      $0.residentSizeForDeepSeek4_1(draft: draft) <= budget
     } ?? ._8GiB
   }
 
@@ -473,6 +479,21 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
 
 extension DeepSeek4_1TextGenerator {
   public func unload() { storage.reset() }
+
+  /// At the requested or automatic tier, with the drafter when that tier drafts. A load settles on
+  /// that tier or a smaller one.
+  public var residentWeightsSize: UInt64 {
+    let tier = weightsStreaming ?? DeviceCapability.weightsStreaming
+    // As when the decoder is built: a tier at or below 16 GiB decodes without the drafter.
+    // TODO: A drafter still downloading counts as absent, though chat can generate meanwhile. The
+    // next weights load drafts, but the scheduler keeps the limit it set without the drafter: 12
+    // hot agents instead of 10 at the 72 GiB tier on 128 GiB. Reserve space for a configured
+    // drafter, or update the limit when residency changes.
+    let draft =
+      (drafterFile.map { FileManager.default.fileExists(atPath: $0) } ?? false)
+      && (tier == .disabled || tier.rawValue > 16)
+    return tier.residentSizeForDeepSeek4_1(draft: draft)
+  }
 
   /// The tier the loaded weights use, or nil before they load.
   public var residentWeightsStreaming: DeviceCapability.WeightsStreaming? {
