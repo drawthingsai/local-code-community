@@ -1107,7 +1107,6 @@ extension Qwen3_5TextGenerator {
         for i in 0..<advanceCount {
           if Self.eosTokenIds.contains(oldDecodedTokenCPU[i]) {
             commitCount = i + 1
-            shouldAppendPendingToken = false
             break
           }
         }
