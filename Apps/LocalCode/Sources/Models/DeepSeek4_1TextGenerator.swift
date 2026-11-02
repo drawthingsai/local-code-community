@@ -166,6 +166,9 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
 
   private static let maximumContextLength = 1_024 * 1_024
   private static let cachePageSize = 512
+  // Positions of RoPE a decode table covers. On the CPU, 64K positions of the three tables take
+  // about 0.1s.
+  private static let decodeRotaryLength = 512
   private static let recentStatisticsLimit = 3
 
   public static let unsafeTokenizer = TiktokenTokenizer(
@@ -293,7 +296,7 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     var usesVisualRouting = false
     private var cachedVit: ModelBuilder<(height: Int, width: Int)>?
     private var cachedDrafter:
-      ModelBuilder<(mainRows: Int, temperature: Float, sequenceLength: Int)>?
+      ModelBuilder<(mainRows: Int, temperature: Float, sequenceLength: Int, historyOffset: Int)>?
     let drafterFile: String?
     // Whether this load drafts, decided with its tier: the drafter's file has to be there, and the
     // tier left beside it has to be above 16 GiB.
@@ -349,16 +352,21 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
       return decoder
     }
 
-    /// The DSpark drafter, keyed by its main-row count, its sampling temperature, and the longest
-    /// step it serves; temperature 0 drafts greedily.
-    var drafter: ModelBuilder<(mainRows: Int, temperature: Float, sequenceLength: Int)> {
+    /// The DSpark drafter, keyed by its main-row count, its sampling temperature, the longest
+    /// step it serves, and the row its view starts at in each stage's key cache; temperature 0
+    /// drafts greedily.
+    var drafter:
+      ModelBuilder<(mainRows: Int, temperature: Float, sequenceLength: Int, historyOffset: Int)>
+    {
       if let cachedDrafter { return cachedDrafter }
       let config = configuration
-      let drafter = ModelBuilder<(mainRows: Int, temperature: Float, sequenceLength: Int)> {
+      let drafter = ModelBuilder<
+        (mainRows: Int, temperature: Float, sequenceLength: Int, historyOffset: Int)
+      > {
         key, _ in
         DeepSeek4_1DSpark(
           Float16.self, mainRows: key.mainRows, temperature: key.temperature,
-          sequenceLength: key.sequenceLength,
+          sequenceLength: key.sequenceLength, historyOffset: key.historyOffset,
           configuration: config)
       }
       drafter.maxConcurrency = .limit(4)
@@ -649,6 +657,8 @@ extension DeepSeek4_1TextGenerator {
     let draft = DeepSeek4_1DSparkConfiguration.deepSeekV4_1Flash
     // A step verifies the pending token and at most the whole drafted block.
     let maxDraftLength = draft.blockSize + 1
+    // Each stage's key cache, which the drafter binds whole.
+    let draftCacheRows = 4 * config.rawWindow
     // Building the decoder picks this load's tier, and with it whether the load drafts.
     let decoder = storage.decoder
     let drafting = storage.usesDrafter
@@ -665,7 +675,7 @@ extension DeepSeek4_1TextGenerator {
       // keep that copy clear of itself. Zeros keep the keys the masks close finite.
       kvCache.draftCache = (0..<draft.stages).map { _ in
         let keys = graph.variable(
-          .GPU(0), .WC(4 * config.rawWindow, config.attentionHeadDim), of: Float16.self)
+          .GPU(0), .WC(draftCacheRows, config.attentionHeadDim), of: Float16.self)
         keys.full(0)
         return keys
       }
@@ -863,7 +873,10 @@ extension DeepSeek4_1TextGenerator {
             // Build at a step's longest shape, so the read below sees every parameter.
             let viewRows = config.rawWindow + maxDraftLength + draft.blockSize
             drafter.compile(
-              (mainRows: maxDraftLength, temperature: 0, sequenceLength: draftSequenceLength),
+              (
+                mainRows: maxDraftLength, temperature: 0, sequenceLength: draftSequenceLength,
+                historyOffset: 0
+              ),
               inputs: [
                 graph.variable(
                   .GPU(0), .WC(maxDraftLength, draft.targetLayers.count * config.hiddenSize),
@@ -879,7 +892,8 @@ extension DeepSeek4_1TextGenerator {
                 graph.variable(.GPU(0), .WC(1, 1), of: Float.self),
               ]
                 + (0..<draft.stages).map { _ in
-                  graph.variable(.GPU(0), .WC(viewRows, config.attentionHeadDim), of: Float16.self)
+                  graph.variable(
+                    .GPU(0), .WC(draftCacheRows, config.attentionHeadDim), of: Float16.self)
                 }, isEager: false)
             do {
               try graph.openStore(drafterFile, flags: .readOnly) { store in
@@ -1156,13 +1170,11 @@ extension DeepSeek4_1TextGenerator {
         compilePrefillHeadroom(cacheCapacity: capacity)
         graph.joined()
       }
-      // Drafts also read the RoPE of the prefill's replay rows, and of a block past the cache.
-      var decodeRotaryStart =
-        (kvCache.draftData?.first ?? kvCache.tokenLength) / rotaryAlignment * rotaryAlignment
-      var decodeRotary = rotaryEmbeddings(
-        cachedTokenLength: decodeRotaryStart,
-        tokenLength: min(capacity, decodeEnd) - decodeRotaryStart
-          + (kvCache.draftData != nil ? draft.blockSize : 0))
+      // Built at the first step and whenever a step would run past them. A request that yields
+      // decodes again every slice, so a table out to the cache's capacity, at least 64K rows,
+      // would be built again every slice too.
+      var decodeRotaryStart = 0
+      var decodeRotary = [DynamicGraph.Tensor<Float16>]()
       // Inputs built ahead for a step, by the step before it or by its draft, with where its Engram
       // rows sit.
       var nextInputs:
@@ -1179,9 +1191,10 @@ extension DeepSeek4_1TextGenerator {
       var verifyMilliseconds = (0...maxDraftLength).map { 16 + 6 * Double(max(0, $0 - 1)) }
       var draftMilliseconds = 4.0
       var compileMilliseconds = 3.0
-      // Only a new main-row count changes the drafter's input shapes, so a new temperature
-      // compiles it explicitly.
-      var drafterLastInputs: (mainRows: Int, temperature: Float, sequenceLength: Int)?
+      // Only a new main-row count changes the drafter's input shapes, so a new temperature or a
+      // view moved along the key caches compiles it explicitly.
+      var drafterLastInputs:
+        (mainRows: Int, temperature: Float, sequenceLength: Int, historyOffset: Int)?
       // The drafter's min-p windows while thinking and for answers; a greedy draft takes either.
       let minPWindows = (kvCache.draftData == nil ? [] : [4.605_170_2, 2.097_012_5]).map {
         graph.variable(Tensor<Float>([$0], kind: .CPU, format: .NHWC, shape: [1, 1]).toGPU(0))
@@ -1211,6 +1224,18 @@ extension DeepSeek4_1TextGenerator {
         var commitCount = 0
         autoreleasepool {
           let position = kvCache.tokenLength
+          // A step reads RoPE rows from its draft's first, which is the last verify's or the
+          // prefill's replay rows, up to the end of its verify or of its drafted block.
+          let rotaryFirst = min(position, kvCache.draftData?.first ?? position)
+          if decodeRotary.isEmpty || rotaryFirst < decodeRotaryStart
+            || position + maxDraftLength > decodeRotaryStart + decodeRotary[0].shape[0]
+          {
+            decodeRotaryStart = rotaryFirst / rotaryAlignment * rotaryAlignment
+            decodeRotary = rotaryEmbeddings(
+              cachedTokenLength: decodeRotaryStart,
+              tokenLength: max(
+                Self.decodeRotaryLength, position + maxDraftLength - decodeRotaryStart))
+          }
           // The fed token decides the sampling mode: greedy answers take none, thinking and sampled
           // answers its temperature and min-p.
           let samplingThinkingEnded = thinkingEnded || nextToken == 128_822
@@ -1275,10 +1300,10 @@ extension DeepSeek4_1TextGenerator {
                 pre.reshaped(.WC(draft.blockSize, config.hcCount)).copied(),
                 draftMasks[maskKey]!, minPWindows[thinking ? 0 : 1],
               ]
-              + kvCache.draftCache.map { $0[base..<(base + viewRows), 0..<config.attentionHeadDim] }
+              + kvCache.draftCache
             let key = (
               mainRows: mainRows, temperature: sampling?.temperature ?? 0,
-              sequenceLength: draftSequenceLength
+              sequenceLength: draftSequenceLength, historyOffset: base
             )
             if drafterLastInputs.map({ $0 != key }) ?? true {
               drafterLastInputs = key
@@ -1377,11 +1402,6 @@ extension DeepSeek4_1TextGenerator {
               graph: graph, kvCache: &kvCache, cacheCapacity: capacity,
               workingCacheCapacity: workingCacheCapacity, configuration: config)
             compilePrefillHeadroom(cacheCapacity: capacity)
-            decodeRotaryStart = position / rotaryAlignment * rotaryAlignment
-            decodeRotary = rotaryEmbeddings(
-              cachedTokenLength: decodeRotaryStart,
-              tokenLength: min(capacity, decodeEnd) - decodeRotaryStart
-                + (kvCache.draftData != nil ? draft.blockSize : 0))
           }
           let ids = [nextToken] + draftTokens.prefix(sequenceLength - 1)
           let verifyStart = CACurrentMediaTime()
