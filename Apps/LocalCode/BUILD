@@ -659,6 +659,30 @@ swift_test(
 )
 
 swift_test(
+    name = "DeepSeek4_1ResidentMappingTests",
+    srcs = [
+        "Sources/Agent/DeepSeekTextGenerator.swift",
+        "Sources/Agent/TextGenerator.swift",
+        "Sources/Models/ContextCache.swift",
+        "Sources/Models/DeepSeek4ContextCache.swift",
+        "Sources/Models/DeepSeek4TextGenerator.swift",
+        "Sources/Models/DeepSeek4_1ContextCache.swift",
+        "Sources/Models/DeepSeek4_1EngramCache.swift",
+        "Sources/Models/DeepSeek4_1Image.swift",
+        "Sources/Models/DeepSeek4_1TextGenerator.swift",
+    ] + glob(["Tests/DeepSeek4_1ResidentMappingTests/**/*.swift"]),
+    deps = [
+        "//Libraries/BinaryResources",
+        "//Libraries/DataModels",
+        "//Libraries/ProjectHistoryManager",
+        "//Libraries/SwiftDiffusion",
+        "//Libraries/SwiftLLM",
+        "//Libraries/Tokenizer",
+        "@s4nnc//nnc",
+    ],
+)
+
+swift_test(
     name = "FileToolsTests",
     srcs = [
         "Sources/Agent/DeepSeek4ToolCallParser.swift",

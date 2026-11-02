@@ -7,6 +7,7 @@ import LLM
 import NNC
 import ProjectHistoryManager
 import QuartzCore
+import SQLite3
 import Tokenizer
 import os.lock
 
@@ -185,15 +186,84 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
         == DeepSeek4_1EngramConfiguration.deepSeekV4_1Flash.compressedVocabularySize)
     return map
   }()
-  private var residentMappingSize: Int {
-    switch storage.weightsStreaming {
-    case ._8GiB, ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB, ._56GiB, ._64GiB:
-      return 9_813_229_568  // Fixed weights only.
-    case ._72GiB:
-      return 28_644_343_808  // Fixed weights and expert banks for layers 0–4.
-    case .disabled:
-      return 0  // Map the whole checkpoint.
+  /// The layer whose expert banks `name` belongs to, or nil if it isn't one of them.
+  private static func expertLayer(of name: String) -> Int? {
+    guard name.contains(".ffn.experts") else { return nil }
+    return name.components(separatedBy: "layers.").last?.components(separatedBy: ".").first
+      .flatMap(Int.init)
+  }
+
+  /// How much of the checkpoint to map: up to the end of the last tensor loaded whole, which is
+  /// everything but the expert banks that stream. A tensor past this gets a mapping of its own, and
+  /// generation is then far slower, so the end comes from the file: every quantization lays its
+  /// tensors out differently. 0 maps the whole checkpoint.
+  static func residentMappingSize(
+    filePath: String, expertResidentSlots: [Int], expertCount: Int
+  ) -> Int {
+    guard
+      expertResidentSlots.contains(where: { $0 < expertCount })
+    else { return 0 }
+    let end = endOfExternalTensors(inCheckpoint: filePath) { name in
+      guard name.hasPrefix("__text_model__[") else { return false }
+      return expertLayer(of: name).map { expertResidentSlots[$0] == expertCount } ?? true
     }
+    guard let end else {
+      print("Warning: Cannot read where the tensors of \(filePath) end.")
+      // Too small to hold any tensor, so each gets a mapping of its own. Slow, but it works.
+      return 1
+    }
+    // A tensor's buffer takes up whole pages, however short its stored bytes are, and has to fit.
+    let pageSize = Int(vm_page_size)
+    return (end + pageSize - 1) & -pageSize
+  }
+
+  /// Where the last of the tensors `isIncluded` picks ends in the file, or nil if that can't be told.
+  /// A tensor kept outside SQLite records its position past the trailer, and s4nnc keeps where the
+  /// trailer starts in the header's user version.
+  /// TODO: This is not ideal. In s4nnc, ideally, there should be a way to poke this information.
+  static func endOfExternalTensors(
+    inCheckpoint filePath: String, where isIncluded: (String) -> Bool
+  ) -> Int? {
+    var database: OpaquePointer?
+    defer { sqlite3_close(database) }
+    guard sqlite3_open_v2(filePath, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
+      return nil
+    }
+    var trailerStatement: OpaquePointer?
+    defer { sqlite3_finalize(trailerStatement) }
+    guard
+      sqlite3_prepare_v2(database, "PRAGMA user_version", -1, &trailerStatement, nil) == SQLITE_OK,
+      sqlite3_step(trailerStatement) == SQLITE_ROW
+    else { return nil }
+    let trailerOffset = Int(UInt32(truncatingIfNeeded: sqlite3_column_int64(trailerStatement, 0)))
+    var statement: OpaquePointer?
+    defer { sqlite3_finalize(statement) }
+    guard
+      sqlite3_prepare_v2(database, "SELECT name, type, data FROM tensors", -1, &statement, nil)
+        == SQLITE_OK
+    else { return nil }
+    var end: Int?
+    while sqlite3_step(statement) == SQLITE_ROW {
+      guard let name = sqlite3_column_text(statement, 0).map({ String(cString: $0) }),
+        isIncluded(name), (sqlite3_column_int64(statement, 1) >> 32) & 0x1000_0000 != 0
+      else { continue }
+      guard let data = sqlite3_column_blob(statement, 2) else { return nil }
+      // Codecs with a block size lead with it, in a word of its own.
+      let tensorOffset: UInt64
+      let tensorLength: UInt64
+      switch sqlite3_column_bytes(statement, 2) {
+      case 16:
+        tensorOffset = data.loadUnaligned(as: UInt64.self)
+        tensorLength = data.loadUnaligned(fromByteOffset: 8, as: UInt64.self)
+      case 24:
+        tensorOffset = data.loadUnaligned(fromByteOffset: 8, as: UInt64.self)
+        tensorLength = data.loadUnaligned(fromByteOffset: 16, as: UInt64.self)
+      default:
+        return nil
+      }
+      end = max(end ?? 0, trailerOffset + Int(tensorOffset) + Int(tensorLength))
+    }
+    return end
   }
   // A shard owns four disjoint hash columns and 2,730 decoded rows. Keep the
   // aggregate budget near 8 MiB of FP16 row data per table, independent of sharding.
@@ -733,10 +803,13 @@ extension DeepSeek4_1TextGenerator {
         // Execution binds real Engram rows after headroom compilation.
         if !storage.decoderIsLoaded {
           compilePrefillHeadroom(cacheCapacity: capacity, isEager: false)
-          // Use V4's shared mapping and pinning, bounded to this checkpoint's resident prefix.
-          DynamicGraph.setWholeFileMappingSizeLimit(residentMappingSize)
-          defer { DynamicGraph.setWholeFileMappingSizeLimit(0) }
           let expertResidentSlots = storage.configuration.expertResidentSlots
+          // Use V4's shared mapping and pinning, bounded to this checkpoint's resident prefix.
+          DynamicGraph.setWholeFileMappingSizeLimit(
+            Self.residentMappingSize(
+              filePath: filePath, expertResidentSlots: expertResidentSlots,
+              expertCount: config.expertCount))
+          defer { DynamicGraph.setWholeFileMappingSizeLimit(0) }
           do {
             try graph.openStore(filePath, flags: .readOnly) { store in
               let ordinary: DynamicGraph.Store.Codec = [.jit, .externalData(.wholeFile), .i8x]
@@ -753,9 +826,7 @@ extension DeepSeek4_1TextGenerator {
                   // The resident layers fuse the shared expert into the routed SwiGLU.
                   .replacingOccurrences(of: ".ffn.experts-0-2]", with: ".ffn.shared_experts-0-0]")
                   .replacingOccurrences(of: ".ffn.experts-0-3]", with: ".ffn.shared_experts-0-1]")
-                if shape.count == 3 && name.contains(".ffn.experts"),
-                  let layer = name.components(separatedBy: "layers.").last?
-                    .components(separatedBy: ".").first.flatMap(Int.init),
+                if shape.count == 3, let layer = Self.expertLayer(of: name),
                   expertResidentSlots[layer] < config.expertCount
                 {
                   return .continue(name, codec: [.jit, .externalOnDemand, .i8x])
