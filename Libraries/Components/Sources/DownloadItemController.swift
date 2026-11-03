@@ -262,7 +262,8 @@ public final class DownloadItemController {
     }
     downloadedPercentLabel = UILabel(frame: .zero)
     downloadedPercentLabel.textColor = .quaternaryText
-    FontMetrics.default.scaleFont(.systemFont(ofSize: 14), bindTo: downloadedPercentLabel)
+    FontMetrics.default.scaleFont(
+      .monospacedDigitSystemFont(ofSize: 14, weight: .regular), bindTo: downloadedPercentLabel)
     onProgressBackground.addSubview(downloadedPercentLabel)
     downloadedPercentLabel.snp.makeConstraints { make in
       make.centerY.equalToSuperview()
@@ -271,7 +272,8 @@ public final class DownloadItemController {
     totalBytesLabel = UILabel(frame: .zero)
     totalBytesLabel.textColor = .quaternaryText
     totalBytesLabel.setContentHuggingPriority(.required, for: .horizontal)
-    FontMetrics.default.scaleFont(.systemFont(ofSize: 14, weight: .light), bindTo: totalBytesLabel)
+    FontMetrics.default.scaleFont(
+      .monospacedDigitSystemFont(ofSize: 14, weight: .light), bindTo: totalBytesLabel)
     onProgressBackground.addSubview(totalBytesLabel)
     totalBytesLabel.snp.makeConstraints { make in
       make.centerY.equalToSuperview()
@@ -293,7 +295,7 @@ public final class DownloadItemController {
     downloadedBytesLabel.textColor = .quaternaryText
     downloadedBytesLabel.textAlignment = .right
     FontMetrics.default.scaleFont(
-      .systemFont(ofSize: 14, weight: .light), bindTo: downloadedBytesLabel)
+      .monospacedDigitSystemFont(ofSize: 14, weight: .light), bindTo: downloadedBytesLabel)
     onProgressBackground.addSubview(downloadedBytesLabel)
     let separatorBytesLabel = separatorBytesLabel
     downloadedBytesLabel.snp.makeConstraints { make in
@@ -317,7 +319,8 @@ public final class DownloadItemController {
     onProgressBarDownloadedPercentLabel = UILabel(frame: .zero)
     onProgressBarDownloadedPercentLabel.textColor = .nonaryText
     FontMetrics.default.scaleFont(
-      .systemFont(ofSize: 14), bindTo: onProgressBarDownloadedPercentLabel)
+      .monospacedDigitSystemFont(ofSize: 14, weight: .regular),
+      bindTo: onProgressBarDownloadedPercentLabel)
     onProgressBar.addSubview(onProgressBarDownloadedPercentLabel)
     let downloadedPercentLabel = downloadedPercentLabel
     onProgressBarDownloadedPercentLabel.snp.makeConstraints { make in
@@ -326,7 +329,7 @@ public final class DownloadItemController {
     onProgressBarTotalBytesLabel = UILabel(frame: .zero)
     onProgressBarTotalBytesLabel.textColor = .nonaryText
     FontMetrics.default.scaleFont(
-      .systemFont(ofSize: 14, weight: .light), bindTo: onProgressBarTotalBytesLabel)
+      .monospacedDigitSystemFont(ofSize: 14, weight: .light), bindTo: onProgressBarTotalBytesLabel)
     onProgressBar.addSubview(onProgressBarTotalBytesLabel)
     onProgressBarTotalBytesLabel.snp.makeConstraints { make in
       make.edges.equalTo(totalBytesLabel)
@@ -344,7 +347,8 @@ public final class DownloadItemController {
     onProgressBarDownloadedBytesLabel.textColor = .nonaryText
     onProgressBarDownloadedBytesLabel.textAlignment = .right
     FontMetrics.default.scaleFont(
-      .systemFont(ofSize: 14, weight: .light), bindTo: onProgressBarDownloadedBytesLabel)
+      .monospacedDigitSystemFont(ofSize: 14, weight: .light),
+      bindTo: onProgressBarDownloadedBytesLabel)
     onProgressBar.addSubview(onProgressBarDownloadedBytesLabel)
     let downloadedBytesLabel = downloadedBytesLabel
     onProgressBarDownloadedBytesLabel.snp.makeConstraints { make in
