@@ -37,6 +37,8 @@ public struct DeepSeekGenerationStatistics: Sendable {
 }
 
 public protocol DeepSeekKVCache {
+  /// How many tokens it holds, which is where the next decode continues from.
+  var tokenLength: Int { get }
   init()
   /// Preserve mutable local windows; append-only global KV can remain shared.
   func snapshot() -> Self

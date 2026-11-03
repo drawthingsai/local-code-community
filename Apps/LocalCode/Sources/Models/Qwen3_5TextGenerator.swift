@@ -107,6 +107,10 @@ public struct Qwen3_5TextGenerator {
   public var ropeDelta = 0
   // Like ropeDelta, this belongs to the session's KV state.
   var hasPaddedImages = false
+  /// How many tokens the caches hold once `decode` returns, which the tokens it reports don't
+  /// always say: a pause can end a drafted block with more of it committed than reported, or hand
+  /// back a token not evaluated yet.
+  public private(set) var kvCacheTokenLength = 0
   public let filePath: String
   private let configuration: Qwen3_5ModelConfiguration
   private let tieEmbedding: Bool
@@ -342,6 +346,7 @@ extension Qwen3_5TextGenerator {
     let originalFlags = DynamicGraph.flags
     DynamicGraph.flags.insert(.disableMFAAttentionSpecializingC)
     defer { DynamicGraph.flags = originalFlags }
+    kvCacheTokenLength = tokenOffset
     if tokenOffset == 0 {
       ropeDelta = 0
       hasPaddedImages = false
@@ -402,6 +407,7 @@ extension Qwen3_5TextGenerator {
       restoredTokenLength = 0
     }
     let prefillStart = min(restoredTokenLength, max(0, tokenLength - 1))
+    kvCacheTokenLength = tokenOffset + prefillStart
     let reasoningMinimumPLogitRangeGPU = graph.variable(
       Tensor<FloatType>([2.995_732_3], .CPU, .WC(1, 1)).toGPU(0))
     let answerMinimumPLogitRangeGPU = graph.variable(
@@ -815,6 +821,7 @@ extension Qwen3_5TextGenerator {
           embeddingSpans: embedSpans)
       }
       prefillChunkStart += length
+      kvCacheTokenLength = tokenOffset + prefillChunkStart
       recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar =
         Float(CACurrentMediaTime() - prefillStartTime) + initialPrefillDurationSoFar
       recentInteractionStatistics[interactionStatisticsIndex].prefillTokensSoFar += length
@@ -1138,6 +1145,8 @@ extension Qwen3_5TextGenerator {
             stateCheckpointIndex: sequenceLength - commitCount, tokenLength: sequenceLength,
             inputCaches: inputCaches, configuration: configuration)
         }
+        // All of the committed block is in now, however many of it get reported below.
+        kvCacheTokenLength = cachedTokenLength + commitCount
         let draftTokens: DynamicGraph.Tensor<Int32>
         if commitCount == sequenceLength {
           let acceptedTokenGPU = graph.variable(
@@ -1286,6 +1295,7 @@ extension Qwen3_5TextGenerator {
         Self.updateLinearCaches(
           &kvCache, from: decodeOutputs, outputOffset: 1, stateCheckpointIndex: 0,
           tokenLength: sequenceLength, inputCaches: nil, configuration: configuration)
+        kvCacheTokenLength = cachedTokenLength + 1
         let decodedToken = oldDecodedTokenCPU[0]
         runningContextTokens.append(decodedToken)
         if !hasPaddedImages, runningContextTokens.count % contextCache.checkpointStride == 0 {

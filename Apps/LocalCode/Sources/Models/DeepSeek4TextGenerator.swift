@@ -94,7 +94,7 @@ public struct DeepSeek4TextGenerator: DeepSeekTextGenerator {
       var indexerKeyValue: DynamicGraph.AnyTensor?
     }
 
-    var tokenLength = 0
+    public internal(set) var tokenLength = 0
     var rawTokenLength = 0
     var compressorInputLengths = [Int: Int]()
     var layers = [Layer]()
