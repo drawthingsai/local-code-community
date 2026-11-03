@@ -90,6 +90,7 @@ final class SettingsViewController: UIViewController {
       LocalizedString.forKey("settings"),
       LocalizedString.forKey("kit"),
       LocalizedString.forKey("activities"),
+      LocalizedString.forKey("serve"),
     ]
   }
 
@@ -473,24 +474,28 @@ final class SettingsViewController: UIViewController {
     userInterfaceIdiom: UIUserInterfaceIdiom, projectsController: ProjectController,
     settingsSectionsController: SettingsSectionsController,
     kitSectionsController: KitSectionsController,
-    activitiesSectionsController: ActivitiesSectionsController
+    activitiesSectionsController: ActivitiesSectionsController,
+    serveSectionsController: ServeSectionsController?
   ) {
     self.userInterfaceIdiom = userInterfaceIdiom
-    self.pages = [
-      projectsController, settingsSectionsController, kitSectionsController,
-      activitiesSectionsController,
-    ]
+    self.pages =
+      [
+        projectsController, settingsSectionsController, kitSectionsController,
+        activitiesSectionsController,
+      ] + [serveSectionsController].compactMap { $0 }
     self.menuControl = MenuControl(
       icons: [
         #imageLiteral(resourceName: "folder-24"), #imageLiteral(resourceName: "gear-24"),
         #imageLiteral(resourceName: "kit-24"), #imageLiteral(resourceName: "histogram-chart-24"),
-      ],
+      ]
+        + (serveSectionsController != nil
+          ? [#imageLiteral(resourceName: "broadcast-tower-24")] : []),
       titles: [
         LocalizedString.forKey("projects"),
         LocalizedString.forKey("settings"),
         LocalizedString.forKey("kit"),
         LocalizedString.forKey("activities"),
-      ])
+      ] + (serveSectionsController != nil ? [LocalizedString.forKey("serve")] : []))
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -665,6 +670,11 @@ final class SettingsViewController: UIViewController {
     } else {
       backgroundView.layer.shadowColor = UIColor.primaryShadow.cgColor
     }
+  }
+
+  /// The Serve page would take over the chat, so it waits until the welcome walkthrough closes.
+  func setServeEnabled(_ isEnabled: Bool) {
+    menuControl.setEnabled(isEnabled, forItemAt: SettingsWorkflow.servePageIndex)
   }
 
   func setSelectedIndex(_ index: Int, animated: Bool) {

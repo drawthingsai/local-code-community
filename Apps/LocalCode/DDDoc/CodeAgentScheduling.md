@@ -49,6 +49,7 @@ public enum CodeAgentProgress: Sendable {
   case generate(CodeAgentResult)
   case toolsWait(CodeAgentResult)
   case compact([ToolCall], Int, Int)
+  case timeSliceEnded
 }
 ```
 
@@ -57,6 +58,9 @@ the actual `.toolsWait` progress case when the corresponding thread is selected;
 handles its result payload through the same rendering path as `generate`. Keeping the case visible
 to non-UI callers also lets the command-line harness inject a scheduling event at the exact natural
 suspension point.
+
+`timeSliceEnded` came later, for agents that take turns by time rather than at tool waits. See
+Detached Turns below.
 
 Add one `AgentScheduler` for the currently loaded local `TextGenerator`. It serializes model use,
 chooses which CodeAgent runs next, and owns the logical turn across multiple `ask` / `resume`
@@ -248,6 +252,23 @@ arrives after that blocking wait begins, it starts after the tool finishes. Loca
 HTTP operations, and the hard timeout on bash execution keep this delay bounded, and accepting it
 avoids a timer, tool-completion callback, or asynchronous-task runtime in the scheduler.
 
+## Detached Turns
+
+`askDetached` and `resumeDetached` submit a turn for an agent that belongs to no project, as Serve
+does for each API request. The entry has no `ProjectResources`: it holds no project Workspace or
+security-scoped access, and `activeThreads` leaves it out, so no thread list shows it. It still
+shares the generation queue, the hot limit and `isIdle` with the threads. It is never the
+foreground and its progress callback reaches no one, so the agent reports to its owner itself.
+
+A detached agent gives way by reporting `.timeSliceEnded` when its time is up. The scheduler pauses
+it when another hot entry has a turn underway, and lets it carry on otherwise. Unlike `.toolsWait`,
+it doesn't mark the entry as waiting for tools: a thread whose tools are running would otherwise
+find every other entry waiting, and block the queue until its tools finish.
+`--scenario detached-yield` checks this without a model.
+
+Hibernation and retirement end a detached turn as they end a thread's, with the entry removed and no
+completion, and its owner resumes the agent in the next scheduler.
+
 ## Thread Switching and UI State
 
 Thread or project selection changes the scheduler's foreground priority instead of stopping the
@@ -346,6 +367,13 @@ reuse during scheduler retirement, and final release on the generation queue:
 
 ```sh
 bazel run //Apps/LocalCode:AgentSchedulerHarness -- --scenario generator-reuse
+```
+
+The `detached-yield` scenario also runs without model weights. A thread waits on a tool while two
+detached turns take turns yielding, and the turns must finish before the tool does:
+
+```sh
+bazel run //Apps/LocalCode:AgentSchedulerHarness -- --scenario detached-yield
 ```
 
 Add a host `swift_binary` target named `AgentSchedulerHarness` under `Apps/LocalCode`. This is a

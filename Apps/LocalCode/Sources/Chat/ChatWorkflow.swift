@@ -59,6 +59,11 @@ final class ChatWorkflow: Workflow {
   var onboardingWorkflow: OnboardingWorkflow?
   // The Model Speed page, for as long as it covers the chat.
   private var modelSpeedWorkflow: ModelSpeedWorkflow?
+  // Serves other apps on the Mac for as long as its toggle is on, whichever page is showing.
+  private var serveController: ServeController?
+  // The Serve page, for as long as it covers the chat.
+  private var serveWorkflow: ServeWorkflow?
+  private var serveEnabledSubscription: Workspace.Subscription?
   let permittedDirectories: PermittedDirectories
   let projectBarController: ProjectBarController
   let chatInputController: ChatInputController
@@ -323,6 +328,13 @@ final class ChatWorkflow: Workflow {
     viewController.delegate = self
     settingsWorkflow.delegate = self
     agentScheduler.delegate = self
+    if ServeController.isAvailable {
+      serveEnabledSubscription = workspace.dictionary.subscribe(
+        "serve_responses_enabled", of: Bool.self
+      ) { [weak self] _ in
+        DispatchQueue.main.async { self?.updateServeController() }
+      }
+    }
     modelIdleTimer = ModelIdleTimer(interval: ModelIdleTimeout.default.interval) {
       [weak self] request in
       self?.unloadIdleModels(request: request)
@@ -677,6 +689,8 @@ final class ChatWorkflow: Workflow {
           guard let self, let retiringScheduler else { return }
           self.retiringAgentSchedulers.removeAll { $0 === retiringScheduler }
           self.updateModelIdleState()
+          self.serveController?.scheduler(
+            retiringScheduler, didRetireInFavorOf: self.agentScheduler)
         }
       }
       agentScheduler = AgentScheduler(queue: queue)
@@ -925,6 +939,10 @@ final class ChatWorkflow: Workflow {
     if case .some(.local(let textGenerator, _)) = codeAgentWrapper {
       generators.append(textGenerator)
     }
+    // Serving keeps its model's weights in the generator it was first given.
+    if let textGenerator = serveController?.textGenerator {
+      generators.append(textGenerator)
+    }
     guard let specification = LLMZoo.specificationForModel(model) else { return nil }
     let filePath = LLMZoo.filePathForModelDownloaded(model)
     let modelURL = URL(fileURLWithPath: filePath).standardizedFileURL.resolvingSymlinksInPath()
@@ -1107,6 +1125,8 @@ final class ChatWorkflow: Workflow {
     }
     let generators = schedulers.compactMap(\.textGenerator)
     let wrapper = codeAgentWrapper
+    let serveIdleAgents = serveController?.idleAgents ?? []
+    let serveTextGenerator = serveController?.textGenerator
     queue.async { [weak self, graph, streamContext] in
       guard request.begin() else { return }
       guard schedulers.allSatisfy(\.isIdle) else {
@@ -1125,6 +1145,9 @@ final class ChatWorkflow: Workflow {
           agent?.unloadCaches()
           generator.unload()
         }
+        for agent in serveIdleAgents { agent.unloadCaches() }
+        serveTextGenerator?.unload()
+        DispatchQueue.main.async { self?.serveController?.remove(idleAgents: serveIdleAgents) }
         for generator in generators { generator.unload() }
         graph.garbageCollect()
       }
@@ -1515,7 +1538,7 @@ final class ChatWorkflow: Workflow {
     guard let projectHistoryManager else { return }
     // Opening any thread leaves the welcome thread and the Model Speed page.
     closeWelcomeThread()
-    closeModelSpeed(animated: false)
+    closeModelSpeedWorkflow(animated: false)
     if let requestedThreadId = threadId,
       requestedThreadId == -1 || projectHistoryManager.thread(id: requestedThreadId) != nil
     {
@@ -1649,11 +1672,26 @@ final class ChatWorkflow: Workflow {
     viewController.setOnboardingViewController(nil, animated: false, completionHandler: nil)
   }
 
-  private func closeModelSpeed(animated: Bool) {
+  private func closeModelSpeedWorkflow(animated: Bool) {
     guard modelSpeedWorkflow != nil else { return }
     modelSpeedWorkflow = nil
     (viewController as? ChatViewControllerForiPad)?.setModelSpeedViewController(
       nil, animated: animated)
+  }
+
+  // Serving runs only while its toggle is on. Turning it off ends the requests in progress.
+  private func updateServeController() {
+    let isEnabled = workspace.dictionary["serve_responses_enabled", Bool.self] ?? false
+    guard isEnabled != (serveController != nil) else { return }
+    if isEnabled {
+      let serveController = ServeController(
+        queue: queue, graph: graph, streamContext: streamContext, workspace: workspace)
+      serveController.delegate = self
+      self.serveController = serveController
+    } else {
+      serveController = nil
+    }
+    serveWorkflow?.serveController = serveController
   }
 
   func restoreSelectedThread(appendingDraft draft: String? = nil) {
@@ -1982,6 +2020,7 @@ final class ChatWorkflow: Workflow {
   }
 
   private func selectThread(_ thread: ProjectController.Thread) {
+    settingsWorkflow.closeServeWorkflow()
     let openThread: () -> Void = { [weak self] in
       guard let self else { return }
       guard thread.threadId != OnboardingState.threadIdentifier else {
@@ -2074,13 +2113,18 @@ extension ChatWorkflow: OnboardingWorkflowDelegate {
 extension ChatWorkflow: ModelSpeedWorkflowDelegate {
   func modelSpeedWorkflowDidRequestClose(_ workflow: ModelSpeedWorkflow) {
     // The chat it covered shows again.
-    closeModelSpeed(animated: true)
+    closeModelSpeedWorkflow(animated: true)
   }
 
   func modelSpeedWorkflow(_ workflow: ModelSpeedWorkflow, textGeneratorToRun model: String)
     -> (any TextGenerator)?
   {
     guard let textGenerator = textGenerator(for: model) else { return nil }
+    unloadUnusedTextGenerator(using: textGenerator)
+    return textGenerator
+  }
+
+  private func unloadUnusedTextGenerator(using textGenerator: any TextGenerator) {
     let scheduler = agentScheduler
     let chatTextGenerator: (any TextGenerator)?
     if case .some(.local(let generator, _)) = codeAgentWrapper {
@@ -2097,7 +2141,37 @@ extension ChatWorkflow: ModelSpeedWorkflowDelegate {
         chatTextGenerator.unload()
       }
     }
+  }
+}
+
+extension ChatWorkflow: ServeControllerDelegate {
+  func serveController(_ controller: ServeController, schedulerFor model: String) -> AgentScheduler?
+  {
+    // Nothing has run yet, so this request decides. The chat's first turn on another model moves
+    // over to a new scheduler, and the request follows.
+    if agentScheduler.file == nil, let textGenerator = textGenerator(for: model) {
+      agentSchedulerActivation(for: textGenerator)
+    }
+    return agentScheduler
+  }
+
+  func serveController(_ controller: ServeController, textGeneratorToRun model: String)
+    -> (any TextGenerator)?
+  {
+    guard let specification = LLMZoo.specificationForModel(model),
+      LLMZoo.isModelDownloaded(specification, required: true)
+    else { return nil }
+    // On the chat's own model the weights are shared, so an idle thread keeps its KV cache through
+    // a request.
+    guard let textGenerator = textGenerator(for: model) else { return nil }
+    if agentScheduler.file != model {
+      unloadUnusedTextGenerator(using: textGenerator)
+    }
     return textGenerator
+  }
+
+  func serveControllerContextCacheProjectPath(_ controller: ServeController) -> String {
+    settingsWorkflow.workspaceFolderURL.path
   }
 }
 
@@ -2141,6 +2215,23 @@ extension ChatWorkflow: SettingsWorkflowDelegate {
     // Opens right away, so moving the project to the Trash can then check that it closed.
     // Settings stays up to show the project leave the list.
     openProject(at: workflow.workspaceFolderURL, threadId: -1)
+  }
+
+  func settingsWorkflow(_ workflow: SettingsWorkflow, didChangeServePageSelected isSelected: Bool) {
+    guard let viewController = viewController as? ChatViewControllerForiPad else { return }
+    if isSelected {
+      guard serveWorkflow == nil, onboardingWorkflow == nil else { return }
+      closeModelSpeedWorkflow(animated: false)
+      let serveWorkflow = ServeWorkflow(
+        serveController: serveController,
+        contextCachePath: contextCacheStorePath(projectPath: workflow.workspaceFolderURL.path))
+      self.serveWorkflow = serveWorkflow
+      viewController.setServeViewController(serveWorkflow.viewController, animated: true)
+    } else {
+      guard serveWorkflow != nil else { return }
+      serveWorkflow = nil
+      viewController.setServeViewController(nil, animated: true)
+    }
   }
 
   func settingsWorkflowDidRequestModelSpeed(_ workflow: SettingsWorkflow) {
@@ -3431,6 +3522,9 @@ extension ChatWorkflow: ChatInputControllerDelegate {
           result.outputTokens.count, startTime: startTime, bashUserInteraction: bashUserInteraction)
       )
       lastPartialResultRendered = CACurrentMediaTime()
+    case .timeSliceEnded:
+      // Only requests served to other apps end time slices.
+      break
     }
   }
 
@@ -3472,6 +3566,9 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         toolCallHistoryContext, isTransient: true,
         mode: .compacting(
           finished, total, startTime: startTime, bashUserInteraction: bashUserInteraction))
+    case .timeSliceEnded:
+      // Only requests served to other apps end time slices.
+      break
     }
     settingsWorkflow.setPrefillTokensPerSecond(
       statistics.prefillTokensPerSecond,

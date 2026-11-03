@@ -98,6 +98,7 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
   private let chatInputController: ChatInputController
   private var onboardingViewController: OnboardingViewController?
   private var modelSpeedViewController: ModelSpeedViewController?
+  private var serveViewController: ServeViewController?
   private var chatBannerView: UIView?
   private let projectBarController: ProjectBarController
   private let emptyBannerController: EmptyBannerController
@@ -762,9 +763,48 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
     }
   }
 
-  /// Hides the chat while the welcome walkthrough or the Model Speed page covers it.
+  func setServeViewController(_ controller: ServeViewController?, animated: Bool) {
+    loadViewIfNeeded()
+    let previousController = serveViewController
+    serveViewController = controller
+    if let controller {
+      view.endEditing(true)
+      addChild(controller)
+      middleContainerView.addSubview(controller.view)
+      controller.view.snp.makeConstraints { $0.edges.equalToSuperview() }
+      controller.didMove(toParent: self)
+    } else {
+      // The chat comes back underneath before the page fades away.
+      updateChatVisibility()
+    }
+    let completion = { [self] in
+      if let previousController {
+        previousController.willMove(toParent: nil)
+        previousController.view.removeFromSuperview()
+        previousController.removeFromParent()
+      }
+      updateChatVisibility()
+    }
+    guard animated else {
+      completion()
+      return
+    }
+    let fadingView = controller?.view ?? previousController?.view
+    if controller != nil {
+      fadingView?.alpha = 0
+    }
+    UIView.animate(withDuration: 0.25) {
+      fadingView?.alpha = controller != nil ? 1 : 0
+    } completion: { _ in
+      completion()
+    }
+  }
+
+  /// Hides the chat while the welcome walkthrough, the Model Speed page or Serve covers it.
   private func updateChatVisibility() {
-    let isCovered = onboardingViewController != nil || modelSpeedViewController != nil
+    let isCovered =
+      onboardingViewController != nil || modelSpeedViewController != nil
+      || serveViewController != nil
     chatContentView.isHidden = isCovered
     projectHistoryCollectionView.isHidden = isCovered
     projectBarController.view.isHidden = isCovered

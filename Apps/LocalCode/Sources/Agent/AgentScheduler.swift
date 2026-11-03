@@ -41,10 +41,11 @@ final class AgentScheduler {
     let codeAgent: any CodeAgent
     let identifier: ObjectIdentifier
     let threadId: Int64
-    let projectResources: ProjectResources
+    /// Nil for a detached turn, which no project or thread list knows about.
+    let projectResources: ProjectResources?
 
-    var projectPath: String { projectResources.projectPath }
-    var projectWorkspace: SQLiteWorkspace { projectResources.projectWorkspace }
+    var projectPath: String? { projectResources?.projectPath }
+    var projectWorkspace: SQLiteWorkspace? { projectResources?.projectWorkspace }
 
     var turn: Turn?
     var isWaitingForTools = false
@@ -58,7 +59,7 @@ final class AgentScheduler {
     var shouldHibernate = false
 
     init(
-      codeAgent: any CodeAgent, threadId: Int64, projectResources: ProjectResources,
+      codeAgent: any CodeAgent, threadId: Int64, projectResources: ProjectResources?,
       isHot: Bool
     ) {
       self.codeAgent = codeAgent
@@ -180,18 +181,44 @@ final class AgentScheduler {
       webSearchProvider: webSearchProvider, progress: progress, completion: completion)
   }
 
+  /// A turn for an agent that belongs to no project and is never the foreground. It shares the
+  /// generation queue, hot limit and idle state with the threads, but doesn't appear among them,
+  /// and its progress reaches no one, so the agent reports for itself. Hibernation ends with
+  /// entries gone and no completion, as for a thread: its owner resumes it in the next scheduler.
+  func askDetached(
+    _ codeAgent: any CodeAgent, threadId: Int64,
+    completion: @escaping (CodeAgentResult, CompletionReason) -> Void
+  ) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    submit(
+      codeAgent, threadId: threadId, prompt: "", projectPath: nil, projectWorkspace: nil,
+      workspacePath: nil, webSearchProvider: .disabled, progress: { _, _ in },
+      completion: completion)
+  }
+
+  func resumeDetached(
+    _ codeAgent: any CodeAgent, threadId: Int64,
+    completion: @escaping (CodeAgentResult, CompletionReason) -> Void
+  ) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    submit(
+      codeAgent, threadId: threadId, prompt: nil, projectPath: nil, projectWorkspace: nil,
+      workspacePath: nil, webSearchProvider: .disabled, progress: { _, _ in },
+      completion: completion)
+  }
+
   private func submit(
     _ codeAgent: any CodeAgent, threadId: Int64, prompt: String?, imagePaths: [String] = [],
     isMemoryEnabled: Bool = false,
     temporary: Bool = false, allowedTools: Set<ToolsRegistry.Tool>? = nil,
-    projectPath: String,
-    projectWorkspace: SQLiteWorkspace, workspacePath: String?,
+    projectPath: String?,
+    projectWorkspace: SQLiteWorkspace?, workspacePath: String?,
     webSearchProvider: WebSearchProvider,
     progress: @escaping (CodeAgentProgress, CodeAgentStatistics) -> Void,
     completion: @escaping (CodeAgentResult, CompletionReason) -> Void
   ) {
     dispatchPrecondition(condition: .onQueue(.main))
-    let canonicalProjectPath = Self.canonicalProjectPath(projectPath)
+    let canonicalProjectPath = projectPath.map(Self.canonicalProjectPath)
     let identifier = ObjectIdentifier(codeAgent)
     os_unfair_lock_lock(&lock)
     precondition(!isHibernateRequested, "Cannot submit a turn to a retiring AgentScheduler")
@@ -203,16 +230,21 @@ final class AgentScheduler {
       precondition(existing.projectWorkspace === projectWorkspace)
       entry = existing
     } else {
-      let projectResources: ProjectResources
-      if let existing = self.projectResources.first(where: {
-        $0.projectPath == canonicalProjectPath
-      }) {
-        precondition(existing.projectWorkspace === projectWorkspace)
-        projectResources = existing
+      let projectResources: ProjectResources?
+      if let canonicalProjectPath, let projectWorkspace {
+        if let existing = self.projectResources.first(where: {
+          $0.projectPath == canonicalProjectPath
+        }) {
+          precondition(existing.projectWorkspace === projectWorkspace)
+          projectResources = existing
+        } else {
+          let resources = ProjectResources(
+            projectPath: canonicalProjectPath, projectWorkspace: projectWorkspace)
+          self.projectResources.append(resources)
+          projectResources = resources
+        }
       } else {
-        projectResources = ProjectResources(
-          projectPath: canonicalProjectPath, projectWorkspace: projectWorkspace)
-        self.projectResources.append(projectResources)
+        projectResources = nil
       }
       let isHot =
         foregroundIdentifier == identifier
@@ -295,12 +327,12 @@ final class AgentScheduler {
       os_unfair_lock_unlock(&lock)
       preconditionFailure("AgentScheduler must own the agent before adopting project access")
     }
-    if entry.projectResources.securityScopedProjectURL != nil {
+    if entry.projectResources?.securityScopedProjectURL != nil {
       os_unfair_lock_unlock(&lock)
       projectURL.stopAccessingSecurityScopedResource()
       return
     }
-    entry.projectResources.securityScopedProjectURL = projectURL
+    entry.projectResources?.securityScopedProjectURL = projectURL
     os_unfair_lock_unlock(&lock)
   }
 
@@ -556,7 +588,7 @@ final class AgentScheduler {
         switch progress {
         case .prefill, .compact:
           return .abort
-        case .toolsWait:
+        case .toolsWait, .timeSliceEnded:
           return .abort
         case .generate(let result):
           if let resultAtStop = turn.resultAtStop {
@@ -585,6 +617,15 @@ final class AgentScheduler {
           entry.mayBlockForTools = false
           return .continue
         }
+        if hasOtherHotPendingTurn {
+          turn.didRequestPause = true
+          return .pause
+        }
+      case .timeSliceEnded:
+        // Nothing is running for it, so it doesn't count as waiting for tools: a thread whose tools
+        // are running would otherwise find everyone waiting and block the queue until they finish.
+        entry.isWaitingForTools = false
+        entry.mayBlockForTools = false
         if hasOtherHotPendingTurn {
           turn.didRequestPause = true
           return .pause
@@ -840,10 +881,8 @@ final class AgentScheduler {
       entries.values.compactMap { entry in
         // Completion handling saves the response and may enqueue another turn. Keep the thread
         // visibly active until the caller acknowledges completion with `markAsCompleted`.
-        guard !entry.isCompleted else { return nil }
-        return (
-          projectPath: entry.projectPath, threadId: entry.threadId, state: entry.state
-        )
+        guard !entry.isCompleted, let projectPath = entry.projectPath else { return nil }
+        return (projectPath: projectPath, threadId: entry.threadId, state: entry.state)
       }
     DispatchQueue.main.async { [weak self] in
       guard let self else { return }

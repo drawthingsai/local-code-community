@@ -31,6 +31,7 @@ private enum Scenario: String {
   case backgroundToolWait = "background-tool-wait"
   case stop
   case completionReasons = "completion-reasons"
+  case detachedYield = "detached-yield"
   case generatorReuse = "generator-reuse"
   case residentRestore = "resident-restore"
   case queuedContinuation = "queued-continuation"
@@ -101,7 +102,7 @@ private struct Options {
     }
     guard
       !options.modelPath.isEmpty || options.scenario == .completionReasons
-        || options.scenario == .generatorReuse
+        || options.scenario == .generatorReuse || options.scenario == .detachedYield
     else {
       throw HarnessError.invalidArgument("--model-path is required")
     }
@@ -204,6 +205,11 @@ private struct AgentSchedulerHarness {
       print("PASS scenario=generator-reuse")
       return
     }
+    if options.scenario == .detachedYield {
+      try runDetachedYield()
+      print("PASS scenario=detached-yield")
+      return
+    }
     guard FileManager.default.fileExists(atPath: options.modelPath) else {
       throw HarnessError.missingFile(options.modelPath)
     }
@@ -270,7 +276,7 @@ private struct AgentSchedulerHarness {
 
     let workspacePath = options.workspacePath ?? projectURL.path
     switch options.scenario {
-    case .completionReasons, .generatorReuse:
+    case .completionReasons, .generatorReuse, .detachedYield:
       preconditionFailure("Handled before loading a model")
     case .memory:
       try runMemory(
@@ -927,6 +933,119 @@ private struct AgentSchedulerHarness {
     guard originalGenerator == nil else {
       throw HarnessError.invariant("retired generator leaked")
     }
+  }
+
+  /// Detached turns that end their time slice aren't waiting for tools, so a thread whose tools are
+  /// running pauses for them instead of concluding that everyone is waiting and blocking the queue.
+  private static func runDetachedYield() throws {
+    class Agent: CodeAgent {
+      let bashUserInteraction = BashUserInteraction()
+      var thinkingBudget: Int32 = 0
+      var deterministic = true
+      var statistics = CodeAgentStatistics()
+      var suspendedResult: CodeAgentResult? { nil }
+      var toolCallStart = ""
+      var toolCallEnd = ""
+      var toolCallSpecialTokens = [Int32: String]()
+
+      func ask(
+        _ prompt: String, imagePaths: [String] = [], isMemoryEnabled: Bool, temporary: Bool,
+        allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64,
+        projectPath: String?, workspacePath: String?, webSearchProvider: WebSearchProvider,
+        progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
+      ) -> CodeAgentResult {
+        resume(progress: progress)
+      }
+
+      func resume(
+        progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
+      ) -> CodeAgentResult { .empty }
+
+      func hibernate(threadId: Int64) throws {}
+      func unloadCaches() {}
+      func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool { false }
+      func canStopImmediately(with result: CodeAgentResult) -> Bool { true }
+      func isCapReachedForStopping(
+        from resultAtStop: CodeAgentResult, to result: CodeAgentResult
+      ) -> Bool { true }
+    }
+    // Waits out its tools the way the real agents do: blocks only if the scheduler says to continue.
+    final class ThreadAgent: Agent {
+      let tools = DispatchGroup()
+
+      override func resume(
+        progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
+      ) -> CodeAgentResult {
+        guard tools.wait(timeout: .now()) == .timedOut else { return .empty }
+        if progress(.toolsWait(.empty), statistics) != .pause {
+          tools.wait()
+        }
+        return .empty
+      }
+    }
+    // Runs in steps, and yields between them the way `ResponsesAgent` does at the end of a slice.
+    final class RequestAgent: Agent {
+      var remainingSteps = 6
+
+      override func resume(
+        progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
+      ) -> CodeAgentResult {
+        while remainingSteps > 0 {
+          remainingSteps -= 1
+          _ = progress(.generate(.empty), statistics)
+          usleep(20_000)
+          if remainingSteps > 0, progress(.timeSliceEnded, statistics) == .pause {
+            return .empty
+          }
+        }
+        return .empty
+      }
+    }
+
+    let projectURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "scheduler-detached-yield-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+    let workspace = SQLiteWorkspace(
+      filePath: projectURL.appendingPathComponent("test.sqlite3").path,
+      fileProtectionLevel: .noProtection)
+    defer {
+      workspace.shutdown(flags: [])
+      try? FileManager.default.removeItem(at: projectURL)
+    }
+    let queue = DispatchQueue(label: "agent-scheduler-harness.detached-yield")
+    let scheduler = AgentScheduler(queue: queue)
+    let thread = ThreadAgent()
+    let requests = [RequestAgent(), RequestAgent()]
+    let requestsCompleted = DispatchGroup()
+    let threadCompleted = DispatchSemaphore(value: 0)
+    thread.tools.enter()
+    onMainQueue {
+      for (index, request) in requests.enumerated() {
+        requestsCompleted.enter()
+        scheduler.askDetached(request, threadId: Int64(-2 - index)) { _, _ in
+          requestsCompleted.leave()
+        }
+      }
+      scheduler.ask(
+        thread, threadId: 1, "Test", isMemoryEnabled: false, projectPath: projectURL.path,
+        projectWorkspace: workspace, workspacePath: projectURL.path,
+        webSearchProvider: .disabled, progress: { _, _ in }
+      ) { _, _ in threadCompleted.signal() }
+    }
+    // Far longer than the requests need, so that a thread blocked on these holds them up visibly.
+    let toolsFinished = DispatchTime.now() + 3
+    DispatchQueue.global().asyncAfter(deadline: toolsFinished) { thread.tools.leave() }
+    guard requestsCompleted.wait(timeout: .now() + 10) == .success else {
+      throw HarnessError.invariant("The requests did not finish")
+    }
+    guard DispatchTime.now() < toolsFinished else {
+      throw HarnessError.invariant("The requests waited for the thread's tools")
+    }
+    onMainQueue {
+      for request in requests { scheduler.markAsCompleted(request) }
+    }
+    // With nothing left to yield to, the thread rightly waits for its tools.
+    try wait(threadCompleted, timeout: 10, scenario: "detached-yield")
   }
 
   // Exercise scheduler completion without loading a model or using a GPU. In particular, a
@@ -1590,6 +1709,7 @@ extension CodeAgentProgress {
       return "generate(think=\(result.thinkTokens.count),output=\(result.outputTokens.count))"
     case .toolsWait(let result): return "toolsWait(calls=\(result.toolCalls.count))"
     case .compact(_, let start, let length): return "compact(\(start)/\(length))"
+    case .timeSliceEnded: return "timeSliceEnded"
     }
   }
 }

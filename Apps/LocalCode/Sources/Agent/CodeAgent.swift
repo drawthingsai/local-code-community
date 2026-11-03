@@ -112,6 +112,9 @@ public enum CodeAgentProgress: Sendable {
   case generate(CodeAgentResult)
   case toolsWait(CodeAgentResult)
   case compact([ToolCall], Int, Int)
+  /// The agent has had its time and offers to give way. Pausing it lets another turn run, and
+  /// continuing lets it carry on with its next slice.
+  case timeSliceEnded
 }
 
 public protocol CodeAgent: AnyObject {

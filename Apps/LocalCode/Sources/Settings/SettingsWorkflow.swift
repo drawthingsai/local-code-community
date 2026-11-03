@@ -63,6 +63,8 @@ protocol SettingsWorkflowDelegate: AnyObject {
     forRemoteProvider provider: RemoteProvider)
   func settingsWorkflowDidUpdateHostedProvider(_ workflow: SettingsWorkflow)
   func settingsWorkflowDidRequestModelSpeed(_ workflow: SettingsWorkflow)
+  /// The rail arrived at the Serve page, or left it.
+  func settingsWorkflow(_ workflow: SettingsWorkflow, didChangeServePageSelected isSelected: Bool)
 }
 
 final class SettingsWorkflow: Workflow {
@@ -121,6 +123,21 @@ final class SettingsWorkflow: Workflow {
       updateActiveProjectSelection()
       // Model Speed would replace the welcome walkthrough, so it waits until that closes.
       settingsSectionsController.isModelSpeedEnabled = !isOnboardingSelected
+      viewController.setServeEnabled(!isOnboardingSelected)
+    }
+  }
+  /// The rail's position for Serve, which comes last and only on the Mac.
+  static let servePageIndex = 4
+  private let serveSectionsController: ServeSectionsController?
+  private var serveEnabledSubscription: Workspace.Subscription?
+  private var serveModelSubscription: Workspace.Subscription?
+  private var serveIPSubscription: Workspace.Subscription?
+  private var servePortSubscription: Workspace.Subscription?
+  private var serveModelSelectWorkflow: ItemSelectWorkflow?
+  private(set) var isServePageSelected = false {
+    didSet {
+      guard isServePageSelected != oldValue else { return }
+      delegate?.settingsWorkflow(self, didChangeServePageSelected: isServePageSelected)
     }
   }
   private var machineSettingsWorkflow: MachineSettingsWorkflow?
@@ -178,11 +195,14 @@ final class SettingsWorkflow: Workflow {
       workspace: workspace, isOnDeviceAvailable: userInterfaceIdiom != .phone)
     kitSectionsController = KitSectionsController(workspace: workspace)
     activitiesSectionsController = ActivitiesSectionsController(workspace: workspace)
+    serveSectionsController =
+      ServeController.isAvailable ? ServeSectionsController(workspace: workspace) : nil
     viewController = SettingsViewController(
       userInterfaceIdiom: userInterfaceIdiom, projectsController: projectsController,
       settingsSectionsController: settingsSectionsController,
       kitSectionsController: kitSectionsController,
-      activitiesSectionsController: activitiesSectionsController)
+      activitiesSectionsController: activitiesSectionsController,
+      serveSectionsController: serveSectionsController)
     viewController.delegate = self
     if userInterfaceIdiom == .phone {
       viewController.transitioningDelegate = transitioningController
@@ -195,6 +215,7 @@ final class SettingsWorkflow: Workflow {
     settingsSectionsController.delegate = self
     kitSectionsController.delegate = self
     activitiesSectionsController.delegate = self
+    serveSectionsController?.delegate = self
     accountWorkflow.delegate = self
     runningJobsSubscription = BashJobRegistry.runningJobs.receive(on: DispatchQueue.main).sink {
       [weak self] runningJobs in
@@ -290,16 +311,42 @@ final class SettingsWorkflow: Workflow {
         switch value {
         case .deleted:
           self.viewController.setSelectedIndex(0, animated: false)
+          self.isServePageSelected = false
         case .initial(let index):
           self.viewController.setSelectedIndex(index ?? 0, animated: false)
+          self.isServePageSelected =
+            self.serveSectionsController != nil && index == Self.servePageIndex
         case .updated(let index):
           self.viewController.setSelectedIndex(index, animated: false)
+          self.isServePageSelected =
+            self.serveSectionsController != nil && index == Self.servePageIndex
           // Thread titles may have changed since Activities last listed tabs and processes.
           if index == 3 {
             self.updateBrowserTabs()
             self.updateProcesses()
           }
         }
+      }
+    }
+    if serveSectionsController != nil {
+      serveEnabledSubscription = workspace.dictionary.subscribe(
+        "serve_responses_enabled", of: Bool.self
+      ) { [weak self] _ in
+        DispatchQueue.main.async { self?.updateServeSections() }
+      }
+      serveModelSubscription = workspace.dictionary.subscribe(
+        "serve_model", of: String.self
+      ) {
+        [weak self] _ in
+        DispatchQueue.main.async { self?.updateServeSections() }
+      }
+      serveIPSubscription = workspace.dictionary.subscribe("serve_ip", of: String.self) {
+        [weak self] _ in
+        DispatchQueue.main.async { self?.updateServeSections() }
+      }
+      servePortSubscription = workspace.dictionary.subscribe("serve_port", of: Int.self) {
+        [weak self] _ in
+        DispatchQueue.main.async { self?.updateServeSections() }
       }
     }
     workspaceFolderSubscription = workspace.dictionary.subscribe(
@@ -2044,6 +2091,109 @@ extension SettingsWorkflow: ProjectControllerDelegate {
         url.stopAccessingSecurityScopedResource()
       }
     }
+  }
+}
+
+extension SettingsWorkflow: ServeSectionsControllerDelegate {
+  /// Comes back to the projects, as something else is about to open in the chat Serve covers.
+  func closeServeWorkflow() {
+    guard isServePageSelected else { return }
+    workspace.dictionary["settings_selected_index", Int.self] = 0
+  }
+
+  private func updateServeSections() {
+    serveSectionsController?.isResponsesAPIEnabled =
+      workspace.dictionary["serve_responses_enabled", Bool.self] ?? false
+    serveSectionsController?.port = ServeController.port(workspace: workspace)
+    serveSectionsController?.ip = ServeController.ip(workspace: workspace)
+    serveSectionsController?.model = ServeController.model(workspace: workspace)
+  }
+
+  func serveSectionsController(
+    _ controller: ServeSectionsController, didChangeResponsesAPIEnabled isEnabled: Bool
+  ) {
+    workspace.dictionary["serve_responses_enabled", Bool.self] = isEnabled
+  }
+
+  func serveSectionsController(_ controller: ServeSectionsController, didSelectPort port: Int) {
+    // A listener can't take any other.
+    guard (1...65_535).contains(port) else { return }
+    workspace.dictionary["serve_port", Int.self] = port
+  }
+
+  func serveSectionsController(_ controller: ServeSectionsController, didSelectIP ip: String) {
+    workspace.dictionary["serve_ip", String.self] = ip
+  }
+
+  func serveSectionsController(
+    _ controller: ServeSectionsController, didTapModelSelector sourceView: UIView
+  ) {
+    let model = ServeController.model(workspace: workspace)
+    var section = ChatWorkflow.localModelSection(selectedModel: model, workspace: workspace)
+    // Only what can run now, as nothing downloads from here yet.
+    section.items = section.items.filter {
+      guard case .identifier(let file as String) = $0.itemIdentifier,
+        let specification = LLMZoo.specificationForModel(file)
+      else { return false }
+      return LLMZoo.isModelDownloaded(specification, required: true)
+    }
+    let serveModelSelectWorkflow = ItemSelectWorkflow(
+      userInterfaceIdiom: sourceView.traitCollection.userInterfaceIdiom, cellHeight: 32,
+      minimumLineSpacing: 4, workspace: workspace, isSwitchDisplayed: false,
+      isDetailSwitchDisplayed: true)
+    self.serveModelSelectWorkflow = serveModelSelectWorkflow
+    serveModelSelectWorkflow.delegate = self
+    serveModelSelectWorkflow.updateTitle(title: LocalizedString.forKey("model"))
+    serveModelSelectWorkflow.showsDetails =
+      workspace.dictionary["model_selector_shows_details", Bool.self] ?? true
+    serveModelSelectWorkflow.setViewModels([section], flag: nil)
+    if let popoverPresentationController = serveModelSelectWorkflow.viewControllable
+      .popoverPresentationController
+    {
+      popoverPresentationController.sourceView = sourceView
+      popoverPresentationController.sourceRect = sourceView.bounds
+      popoverPresentationController.popoverLayoutMargins = UIEdgeInsets(
+        top: 0, left: 12, bottom: 0, right: 12)
+    }
+    viewController.present(serveModelSelectWorkflow.viewControllable, animated: true)
+    DispatchQueue.main.async {
+      if let model {
+        serveModelSelectWorkflow.selectItem(at: .identifier(model))
+      }
+    }
+  }
+}
+
+extension SettingsWorkflow: ItemSelectWorkflowDelegate {
+  func didSelectItem(
+    item: ItemViewModel.ItemIdentifier, section: ItemDisplaySectionIdentity,
+    workflow: ItemSelectWorkflow
+  ) {
+    guard workflow === serveModelSelectWorkflow else { return }
+    workflow.viewControllable.dismiss(animated: true)
+    serveModelSelectWorkflow = nil
+    guard case .identifier(let identifier as String) = item else { return }
+    workspace.dictionary["serve_model", String.self] = identifier
+  }
+
+  func didTapTrash(item: ItemViewModel.ItemIdentifier, workflow: ItemSelectWorkflow) {
+  }
+
+  func contextMenu(item: ItemViewModel.ItemIdentifier, workflow: ItemSelectWorkflow) -> UIMenu? {
+    nil
+  }
+
+  func didSelectShowAll(showAll: Bool, workflow: ItemSelectWorkflow) {
+  }
+
+  func didSelectShowDetails(showDetails: Bool, workflow: ItemSelectWorkflow) {
+    guard workflow === serveModelSelectWorkflow else { return }
+    workspace.dictionary["model_selector_shows_details", Bool.self] = showDetails
+  }
+
+  func didDismiss(workflow: ItemSelectWorkflow) {
+    guard workflow === serveModelSelectWorkflow else { return }
+    serveModelSelectWorkflow = nil
   }
 }
 

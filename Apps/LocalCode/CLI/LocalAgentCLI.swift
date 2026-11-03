@@ -290,7 +290,7 @@ struct LocalAgentTokenCounter {
   mutating func update(_ progress: CodeAgentProgress) {
     let current: Int
     switch progress {
-    case .toolsWait:
+    case .toolsWait, .timeSliceEnded:
       return
     case .prefill:
       previous = 0
@@ -364,6 +364,8 @@ private final class LocalAgentTrace {
         FileHandle.standardError.write(Data("\n[compacting context]\n".utf8))
         phase = "compact"
       }
+      return
+    case .timeSliceEnded:
       return
     }
     let visible = ToolCallParser.removeToolCalls(
