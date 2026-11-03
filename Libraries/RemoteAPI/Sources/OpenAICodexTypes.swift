@@ -17,13 +17,16 @@ struct OpenAIResponsesRequest: Encodable {
   var stream = true
   var include = ["reasoning.encrypted_content"]
   var reasoning: Reasoning
+  // Requests that share a key are routed to the same prompt cache, as Codex does per thread.
+  var promptCacheKey: String
 
   init(
     model: String, transcript: [RemoteTranscriptEntry], tools: [RemoteFunctionTool],
     currentModel: RemoteModelIdentity, maximumOutputTokens: Int?,
-    reasoningEffort: RemoteReasoningEffort?
+    reasoningEffort: RemoteReasoningEffort?, promptCacheKey: String
   ) {
     self.model = model
+    self.promptCacheKey = promptCacheKey
     instructions = transcript.filter { $0.role == .system }.compactMap(\.text)
       .joined(separator: "\n\n")
     input = OpenAIResponsesInputItem.convert(
@@ -47,6 +50,7 @@ struct OpenAIResponsesRequest: Encodable {
     case stream
     case include
     case reasoning
+    case promptCacheKey = "prompt_cache_key"
   }
 }
 

@@ -168,12 +168,13 @@ final class OpenAICompatibleClientTests: XCTestCase {
   func testCompatibleServersReceiveValidEffortAndEffortInstructions() throws {
     func body(
       _ messages: [OpenAICompatibleMessage], effort: RemoteReasoningEffort?,
-      usesOpenRouterReasoning: Bool = false
+      usesOpenRouterReasoning: Bool = false, openRouterPromptCacheKey: String? = nil
     ) throws -> [String: Any] {
       let request = OpenAICompatibleRequest(
         model: "qwen3.5:9b", messages: messages, tools: [], includeUsage: false,
         maximumOutputTokens: 512, usesMaxCompletionTokens: false, reasoningEffort: effort,
-        usesOpenRouterReasoning: usesOpenRouterReasoning)
+        usesOpenRouterReasoning: usesOpenRouterReasoning,
+        openRouterPromptCacheKey: openRouterPromptCacheKey)
       return try XCTUnwrap(
         JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
     }
@@ -205,12 +206,52 @@ final class OpenAICompatibleClientTests: XCTestCase {
     XCTAssertEqual(withoutSystem.compactMap { $0["role"] as? String }, ["system", "user"])
     let noEffort = try body(conversation, effort: nil)
     XCTAssertNil(noEffort["reasoning_effort"])
-    XCTAssertEqual((noEffort["messages"] as? [[String: Any]])?.first?["content"] as? String, "System")
-    let openRouter = try body(conversation, effort: .max, usesOpenRouterReasoning: true)
+    // Servers other than OpenRouter may reject fields they do not know.
+    XCTAssertNil(noEffort["cache_control"])
+    XCTAssertNil(noEffort["prompt_cache_key"])
+    XCTAssertEqual(
+      (noEffort["messages"] as? [[String: Any]])?.first?["content"] as? String, "System")
+    let openRouter = try body(
+      conversation, effort: .max, usesOpenRouterReasoning: true,
+      openRouterPromptCacheKey: "thread-key")
     XCTAssertNil(openRouter["reasoning_effort"])
+    XCTAssertEqual(
+      (openRouter["cache_control"] as? [String: Any])?["type"] as? String, "ephemeral")
+    XCTAssertEqual(openRouter["prompt_cache_key"] as? String, "thread-key")
     XCTAssertEqual((openRouter["reasoning"] as? [String: Any])?["effort"] as? String, "max")
     XCTAssertEqual(
       (openRouter["messages"] as? [[String: Any]])?.first?["content"] as? String, "System")
+  }
+
+  func testSendsPromptCachingFieldsToOpenRouterButNotToTheLocalCodeRouter() throws {
+    for provider in [RemoteProvider.openRouter, .localCode] {
+      let client = try RemoteProviderEndpoint(
+        provider: provider,
+        baseURL: provider == .localCode ? URL(string: "https://router.invalid/v1") : nil,
+        model: "vendor/model"
+      ).makeChatProvider(
+        authorization: RemoteAPIKeyAuthorization(apiKey: "key"), maximumOutputTokens: 512,
+        sessionConfiguration: mockSessionConfiguration())
+      var body = [String: Any]()
+      MockURLProtocol.handler = { request, protocolClient in
+        let data = try XCTUnwrap(requestBody(request))
+        body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        protocolClient.respond(
+          status: 200,
+          chunks: [
+            Data("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"OK\"}}]}\n\n".utf8),
+            Data("data: [DONE]\n\n".utf8),
+          ])
+      }
+      let done = expectation(description: provider.rawValue)
+      _ = client.streamChat(messages: [.user("Hello")], tools: [], progress: { _ in }) { _ in
+        done.fulfill()
+      }
+      wait(for: [done], timeout: 2)
+      // The Local Code router asks OpenRouter to cache every request itself.
+      XCTAssertEqual(body["cache_control"] != nil, provider == .openRouter, provider.rawValue)
+      XCTAssertEqual(body["prompt_cache_key"] != nil, provider == .openRouter, provider.rawValue)
+    }
   }
 
   func testLocalCodeUsesOpenRouterReasoningAndAdaptsOutputBudgetToAvailableCredits() throws {
@@ -363,7 +404,8 @@ final class OpenAICompatibleClientTests: XCTestCase {
     }
     wait(for: [done], timeout: 2)
 
-    XCTAssertEqual(snapshots.map(\.content.remoteThinkingText), ["Check ", "Check 7 × 143.", "Check 7 × 143."])
+    XCTAssertEqual(
+      snapshots.map(\.content.remoteThinkingText), ["Check ", "Check 7 × 143.", "Check 7 × 143."])
     XCTAssertEqual(snapshots.map(\.text), ["", "", "No."])
   }
 

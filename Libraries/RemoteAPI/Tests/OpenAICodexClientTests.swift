@@ -132,4 +132,86 @@ final class OpenAICodexClientTests: XCTestCase {
     }
     wait(for: [expectation], timeout: 2)
   }
+
+  func testKeepsOnePromptCacheKeyPerClient() throws {
+    func promptCacheKeys(for client: OpenAIResponsesClient, requests: Int) throws -> [String] {
+      var keys = [String]()
+      MockURLProtocol.handler = { request, protocolClient in
+        let data = try XCTUnwrap(requestBody(request))
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        keys.append(try XCTUnwrap(body["prompt_cache_key"] as? String))
+        protocolClient.respond(
+          status: 200,
+          chunks: [
+            Data(
+              """
+              data: {"type":"response.output_text.delta","delta":"Done."}
+
+              data: {"type":"response.completed","response":{"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}
+
+              """.utf8)
+          ])
+      }
+      for _ in 0..<requests {
+        let expectation = expectation(description: "Codex completion")
+        _ = client.streamChat(
+          messages: [.system("System"), .user("Continue")], tools: [], progress: { _ in }
+        ) { _ in expectation.fulfill() }
+        wait(for: [expectation], timeout: 2)
+      }
+      return keys
+    }
+    func makeClient() -> OpenAIResponsesClient {
+      OpenAIResponsesClient(
+        codexModel: "gpt-codex-test",
+        authorization: TestAuthorization(
+          RemoteRequestAuthorization(
+            kind: .oauth, token: "oauth-token", accountID: "account-1")),
+        sessionConfiguration: mockSessionConfiguration())
+    }
+    let first = try promptCacheKeys(for: makeClient(), requests: 2)
+    XCTAssertEqual(first.count, 2)
+    XCTAssertEqual(Set(first).count, 1)
+    let second = try promptCacheKeys(for: makeClient(), requests: 1)
+    XCTAssertNotEqual(first.first, second.first)
+  }
+
+  func testSendsTheSessionAndTheTurnStateFromTheFirstResponse() throws {
+    let client = OpenAIResponsesClient(
+      codexModel: "gpt-codex-test",
+      authorization: TestAuthorization(
+        RemoteRequestAuthorization(kind: .oauth, token: "oauth-token", accountID: "account-1")),
+      sessionConfiguration: mockSessionConfiguration())
+    var sentTurnStates = [String?]()
+    var sessionIDs = Set<String?>()
+    MockURLProtocol.handler = { request, protocolClient in
+      sentTurnStates.append(request.value(forHTTPHeaderField: "x-codex-turn-state"))
+      let data = try XCTUnwrap(requestBody(request))
+      let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+      XCTAssertEqual(
+        request.value(forHTTPHeaderField: "session_id"), body["prompt_cache_key"] as? String)
+      sessionIDs.insert(request.value(forHTTPHeaderField: "session_id"))
+      protocolClient.respond(
+        status: 200,
+        headers: sentTurnStates.count == 1 ? ["x-codex-turn-state": "turn-state-1"] : [:],
+        chunks: [
+          Data(
+            """
+            data: {"type":"response.output_text.delta","delta":"Done."}
+
+            data: {"type":"response.completed","response":{"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}
+
+            """.utf8)
+        ])
+    }
+    for _ in 0..<3 {
+      let expectation = expectation(description: "Codex completion")
+      _ = client.streamChat(
+        messages: [.system("System"), .user("Continue")], tools: [], progress: { _ in }
+      ) { _ in expectation.fulfill() }
+      wait(for: [expectation], timeout: 2)
+    }
+    XCTAssertEqual(sentTurnStates, [nil, "turn-state-1", "turn-state-1"])
+    XCTAssertEqual(sessionIDs.count, 1)
+  }
 }

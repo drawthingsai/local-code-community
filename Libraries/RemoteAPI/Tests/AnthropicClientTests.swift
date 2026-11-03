@@ -33,8 +33,11 @@ final class AnthropicClientTests: XCTestCase {
       XCTAssertEqual(request.value(forHTTPHeaderField: "anthropic-version"), "2023-06-01")
       let data = try XCTUnwrap(requestBody(request))
       let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-      XCTAssertEqual(body["system"] as? String, "System")
-      XCTAssertNil(body["cache_control"])
+      let system = try XCTUnwrap(body["system"] as? [[String: Any]])
+      XCTAssertEqual(system.compactMap { $0["text"] as? String }, ["System"])
+      XCTAssertEqual(
+        (system.last?["cache_control"] as? [String: Any])?["type"] as? String, "ephemeral")
+      XCTAssertEqual((body["cache_control"] as? [String: Any])?["type"] as? String, "ephemeral")
       XCTAssertEqual(
         (body["output_config"] as? [String: Any])?["effort"] as? String, "max")
       let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
@@ -115,6 +118,36 @@ final class AnthropicClientTests: XCTestCase {
     wait(for: [expectation], timeout: 2)
   }
 
+  func testReplaysToolArgumentsWithTheSameBytesEveryRequest() throws {
+    // Every request decodes the stored arguments into a new dictionary, whose key order can
+    // differ from the previous one's. The encoded request must not differ, or the prompt cache
+    // misses from the first replayed tool call on.
+    let model = RemoteModelIdentity(provider: "anthropic", model: "test-claude")
+    let call = RemoteToolCall(
+      id: "call-a", name: "bash",
+      arguments:
+        #"{"command":"ls","description":"List files","timeout":"30","workdir":"tmp","background":false}"#
+    )
+    let transcript: [RemoteTranscriptEntry] = [
+      .system("System"), .user("List the files"),
+      .assistant(toolCalls: [call], source: model),
+      .toolResult("README.md", toolCallID: "call-a", toolName: "bash", isError: false),
+    ]
+    let bodies = try Set(
+      (0..<50).map { _ in
+        try RemoteRequestBody.encode(
+          AnthropicRequest(
+            model: "test-claude", maxTokens: 512, transcript: transcript, remoteTools: [],
+            currentModel: model, usesOAuth: false, reasoningEffort: nil))
+      })
+    XCTAssertEqual(bodies.count, 1)
+    let text = try XCTUnwrap(bodies.first.flatMap { String(data: $0, encoding: .utf8) })
+    XCTAssertTrue(
+      text.contains(
+        #""input":{"background":false,"command":"ls","description":"List files","timeout":"30","workdir":"tmp"}"#
+      ), text)
+  }
+
   func testRejectsMalformedToolArgumentsAndIncompleteStream() throws {
     var accumulator = AnthropicStreamAccumulator()
     _ = try accumulator.append(
@@ -186,6 +219,8 @@ final class AnthropicClientTests: XCTestCase {
         system.first?["text"] as? String,
         "You are Claude Code, Anthropic's official CLI for Claude.")
       XCTAssertEqual(system.last?["text"] as? String, "Local Code system")
+      XCTAssertNil(system.first?["cache_control"])
+      XCTAssertNotNil(system.last?["cache_control"])
       let tools = try XCTUnwrap(body["tools"] as? [[String: Any]])
       XCTAssertEqual(tools.first?["name"] as? String, "Read")
 

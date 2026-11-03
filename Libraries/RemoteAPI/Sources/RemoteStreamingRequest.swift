@@ -19,6 +19,7 @@ final class RemoteStreamingRequest: RemoteSessionDelegate, URLSessionDataDelegat
 {
   typealias EventHandler = (RemoteSSEParser.Event) throws -> RemoteStreamAction
   typealias EndHandler = () throws -> RemoteCompletion
+  typealias ResponseHandler = (HTTPURLResponse) -> Void
 
   private let lock = NSLock()
   private let redactedSecret: String
@@ -27,6 +28,7 @@ final class RemoteStreamingRequest: RemoteSessionDelegate, URLSessionDataDelegat
   private let completion: (Result<RemoteCompletion, RemoteChatError>) -> Void
   private let handleEvent: EventHandler
   private let handleEnd: EndHandler
+  private let handleResponse: ResponseHandler?
   private var parser: RemoteSSEParser
   private var errorBody = Data()
   private var statusCode: Int?
@@ -38,7 +40,8 @@ final class RemoteStreamingRequest: RemoteSessionDelegate, URLSessionDataDelegat
     redactedSecret: String, maximumEventBytes: Int, maximumErrorBytes: Int,
     progress: @escaping (RemoteStreamProgress) -> Void,
     completion: @escaping (Result<RemoteCompletion, RemoteChatError>) -> Void,
-    handleEvent: @escaping EventHandler, handleEnd: @escaping EndHandler
+    handleEvent: @escaping EventHandler, handleEnd: @escaping EndHandler,
+    handleResponse: ResponseHandler? = nil
   ) {
     self.redactedSecret = redactedSecret
     self.maximumErrorBytes = maximumErrorBytes
@@ -46,6 +49,7 @@ final class RemoteStreamingRequest: RemoteSessionDelegate, URLSessionDataDelegat
     self.completion = completion
     self.handleEvent = handleEvent
     self.handleEnd = handleEnd
+    self.handleResponse = handleResponse
     parser = RemoteSSEParser(maximumEventBytes: maximumEventBytes)
   }
 
@@ -65,7 +69,9 @@ final class RemoteStreamingRequest: RemoteSessionDelegate, URLSessionDataDelegat
     _ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
   ) {
-    statusCode = (response as? HTTPURLResponse)?.statusCode
+    let response = response as? HTTPURLResponse
+    statusCode = response?.statusCode
+    if let response { handleResponse?(response) }
     completionHandler(.allow)
   }
 

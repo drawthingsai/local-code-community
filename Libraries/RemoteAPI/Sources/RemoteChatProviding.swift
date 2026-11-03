@@ -43,6 +43,17 @@ public enum RemoteJSONValue: Equatable, Sendable, Codable {
   }
 }
 
+enum RemoteRequestBody {
+  // JSONEncoder can write an object's keys in a different order each time it encodes the same
+  // value, and a dictionary decoded again iterates in its own order. Unsorted, the tools and the
+  // replayed history would change bytes between requests and miss the provider's prompt cache.
+  static func encode<Request: Encodable>(_ request: Request) throws -> Data {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    return try encoder.encode(request)
+  }
+}
+
 public struct RemoteFunctionTool: Equatable, Sendable, Codable {
   private struct Function: Codable {
     var name: String

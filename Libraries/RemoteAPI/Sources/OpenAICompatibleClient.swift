@@ -10,6 +10,8 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
   private let sessionConfiguration: URLSessionConfiguration
   private let reasoningEffort: RemoteReasoningEffort?
   private let usesOpenRouterReasoning: Bool
+  // One key per client keeps a conversation's requests together for OpenRouter's prompt cache.
+  private let openRouterPromptCacheKey: String?
 
   public init(
     configuration: OpenAICompatibleConfiguration,
@@ -17,7 +19,8 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
     sessionConfiguration: URLSessionConfiguration = .ephemeral,
     modelIdentity: RemoteModelIdentity? = nil,
     reasoningEffort: RemoteReasoningEffort? = nil,
-    usesOpenRouterReasoning: Bool? = nil
+    usesOpenRouterReasoning: Bool? = nil,
+    usesOpenRouterPromptCaching: Bool = false
   ) {
     self.configuration = configuration
     self.authorization = authorization
@@ -25,6 +28,7 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
     self.reasoningEffort = reasoningEffort
     self.usesOpenRouterReasoning =
       usesOpenRouterReasoning ?? configuration.preservesReasoningAcrossTurns
+    openRouterPromptCacheKey = usesOpenRouterPromptCaching ? UUID().uuidString : nil
     self.modelIdentity =
       modelIdentity
       ?? RemoteModelIdentity(
@@ -43,7 +47,7 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
     ) {
       [
         configuration, authorization, sessionConfiguration, modelIdentity, reasoningEffort,
-        usesOpenRouterReasoning
+        usesOpenRouterReasoning, openRouterPromptCacheKey
       ]
       maximumOutputTokens, progress, completion in
       RemoteAuthorizedRequest(
@@ -60,7 +64,8 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
           sessionConfiguration: sessionConfiguration, messages: messages, tools: tools,
           modelIdentity: modelIdentity, maximumOutputTokens: maximumOutputTokens,
           reasoningEffort: reasoningEffort, usesOpenRouterReasoning: usesOpenRouterReasoning,
-          progress: progress, completion: completion)
+          openRouterPromptCacheKey: openRouterPromptCacheKey, progress: progress,
+          completion: completion)
       }
     }
     request.start()
@@ -72,7 +77,7 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
     sessionConfiguration: URLSessionConfiguration, messages: [RemoteTranscriptEntry],
     tools: [RemoteFunctionTool], modelIdentity: RemoteModelIdentity, maximumOutputTokens: Int,
     reasoningEffort: RemoteReasoningEffort?, usesOpenRouterReasoning: Bool,
-    progress: @escaping (RemoteStreamProgress) -> Void,
+    openRouterPromptCacheKey: String?, progress: @escaping (RemoteStreamProgress) -> Void,
     completion: @escaping (Result<RemoteCompletion, RemoteChatError>) -> Void
   ) -> RemoteRequestCancellable {
     let requestMessages = OpenAICompatibleMessage.convert(
@@ -80,14 +85,15 @@ public final class OpenAICompatibleClient: RemoteChatProviding {
       supportsReasoningFields: configuration.supportsReasoningMessageFields)
     let body: Data
     do {
-      body = try JSONEncoder().encode(
+      body = try RemoteRequestBody.encode(
         OpenAICompatibleRequest(
           model: configuration.model, messages: requestMessages, tools: tools,
           includeUsage: configuration.includeUsageInStream,
           maximumOutputTokens: maximumOutputTokens,
           usesMaxCompletionTokens: configuration.usesMaxCompletionTokens,
           reasoningEffort: reasoningEffort,
-          usesOpenRouterReasoning: usesOpenRouterReasoning))
+          usesOpenRouterReasoning: usesOpenRouterReasoning,
+          openRouterPromptCacheKey: openRouterPromptCacheKey))
     } catch {
       completion(.failure(.malformedStream("could not encode the request")))
       return CompletedRemoteRequest.shared

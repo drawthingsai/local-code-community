@@ -135,6 +135,10 @@ struct OpenAICompatibleRequest: Encodable {
     }
   }
 
+  struct CacheControl: Encodable {
+    var type = "ephemeral"
+  }
+
   var model: String
   var messages: [OpenAICompatibleMessage]
   var tools: [RemoteFunctionTool]?
@@ -145,13 +149,23 @@ struct OpenAICompatibleRequest: Encodable {
   var maxCompletionTokens: Int?
   var reasoning: Reasoning?
   var reasoningEffort: RemoteReasoningEffort?
+  // OpenRouter caches Claude models only when the request asks, and other models ignore the
+  // marker. Requests that share a prompt_cache_key stay on the same provider, whose cache holds
+  // the conversation, and OpenAI models get the key as their own routing hint.
+  var cacheControl: CacheControl?
+  var promptCacheKey: String?
 
   init(
     model: String, messages: [OpenAICompatibleMessage], tools: [RemoteFunctionTool],
     includeUsage: Bool, maximumOutputTokens: Int, usesMaxCompletionTokens: Bool,
-    reasoningEffort: RemoteReasoningEffort?, usesOpenRouterReasoning: Bool
+    reasoningEffort: RemoteReasoningEffort?, usesOpenRouterReasoning: Bool,
+    openRouterPromptCacheKey: String?
   ) {
     self.model = model
+    if let openRouterPromptCacheKey {
+      cacheControl = CacheControl()
+      promptCacheKey = openRouterPromptCacheKey
+    }
     self.tools = tools.isEmpty ? nil : tools
     toolChoice = tools.isEmpty ? nil : "auto"
     streamOptions = includeUsage ? StreamOptions() : nil
@@ -203,5 +217,7 @@ struct OpenAICompatibleRequest: Encodable {
     case maxCompletionTokens = "max_completion_tokens"
     case reasoning
     case reasoningEffort = "reasoning_effort"
+    case cacheControl = "cache_control"
+    case promptCacheKey = "prompt_cache_key"
   }
 }

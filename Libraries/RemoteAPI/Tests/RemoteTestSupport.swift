@@ -18,10 +18,12 @@ final class MockURLProtocol: URLProtocol {
 
   override func stopLoading() {}
 
-  func respond(status: Int, chunks: [Data]) {
+  func respond(status: Int, headers: [String: String] = [:], chunks: [Data]) {
     let response = HTTPURLResponse(
       url: request.url!, statusCode: status, httpVersion: "HTTP/1.1",
-      headerFields: ["Content-Type": status == 200 ? "text/event-stream" : "application/json"])!
+      headerFields: headers.merging([
+        "Content-Type": status == 200 ? "text/event-stream" : "application/json"
+      ]) { value, _ in value })!
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     for chunk in chunks {
       client?.urlProtocol(self, didLoad: chunk)

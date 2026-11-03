@@ -9,13 +9,32 @@ struct AnthropicRequest: Encodable {
     var type = "auto"
   }
 
+  struct CacheControl: Encodable {
+    var type = "ephemeral"
+  }
+
+  struct SystemBlock: Encodable {
+    var type = "text"
+    var text: String
+    var cacheControl: CacheControl?
+
+    private enum CodingKeys: String, CodingKey {
+      case type
+      case text
+      case cacheControl = "cache_control"
+    }
+  }
+
   var model: String
   var maxTokens: Int
-  var system: AnthropicSystemPrompt?
+  var system: [SystemBlock]?
   var messages: [AnthropicMessage]
   var tools: [AnthropicTool]?
   var toolChoice: ToolChoice?
   var outputConfig: OutputConfig?
+  // Claude caches only what a request marks. The top-level marker caches the conversation up to
+  // its last block and moves forward each turn, so the next request reads the history back.
+  var cacheControl = CacheControl()
   var stream = true
 
   init(
@@ -30,17 +49,19 @@ struct AnthropicRequest: Encodable {
       return entry.text
     }
     let systemText = systemMessages.joined(separator: "\n\n")
+    var systemBlocks = [SystemBlock]()
     if usesOAuth {
-      var blocks = [
-        AnthropicSystemPrompt.Block(
-          text: "You are Claude Code, Anthropic's official CLI for Claude.")
-      ]
-      if !systemText.isEmpty {
-        blocks.append(AnthropicSystemPrompt.Block(text: systemText))
-      }
-      system = .blocks(blocks)
-    } else {
-      system = systemText.isEmpty ? nil : .text(systemText)
+      systemBlocks.append(
+        SystemBlock(text: "You are Claude Code, Anthropic's official CLI for Claude."))
+    }
+    if !systemText.isEmpty {
+      systemBlocks.append(SystemBlock(text: systemText))
+    }
+    if !systemBlocks.isEmpty {
+      // Tools render before the system prompt, so this marker caches both. It keeps a read
+      // point for them even when compaction rewrites the conversation after it.
+      systemBlocks[systemBlocks.count - 1].cacheControl = CacheControl()
+      system = systemBlocks
     }
     messages = try AnthropicMessage.convert(
       transcript.filter { $0.role != .system }, currentModel: currentModel,
@@ -63,25 +84,8 @@ struct AnthropicRequest: Encodable {
     case tools
     case toolChoice = "tool_choice"
     case outputConfig = "output_config"
+    case cacheControl = "cache_control"
     case stream
-  }
-}
-
-enum AnthropicSystemPrompt: Encodable {
-  struct Block: Encodable {
-    var type = "text"
-    var text: String
-  }
-
-  case text(String)
-  case blocks([Block])
-
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    switch self {
-    case .text(let text): try container.encode(text)
-    case .blocks(let blocks): try container.encode(blocks)
-    }
   }
 }
 
@@ -136,7 +140,8 @@ struct AnthropicMessage: Encodable {
             "a tool transcript entry has no tool result")
         }
         pendingToolResults += entry.toolResults.map {
-          .toolResult(id: $0.toolCallID, content: $0.content, images: $0.images, isError: $0.isError)
+          .toolResult(
+            id: $0.toolCallID, content: $0.content, images: $0.images, isError: $0.isError)
         }
         continue
       }

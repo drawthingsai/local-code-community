@@ -57,7 +57,7 @@ public final class AnthropicClient: RemoteChatProviding {
     let usesOAuth = authorization.kind == .oauth
     let body: Data
     do {
-      body = try JSONEncoder().encode(
+      body = try RemoteRequestBody.encode(
         AnthropicRequest(
           model: configuration.model, maxTokens: configuration.maximumOutputTokens,
           transcript: messages, remoteTools: tools, currentModel: modelIdentity,

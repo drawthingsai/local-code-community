@@ -14,6 +14,9 @@ public final class OpenAIResponsesClient: RemoteChatProviding {
   private let maximumErrorBytes: Int
   private let maximumOutputTokens: Int?
   private let reasoningEffort: RemoteReasoningEffort?
+  // One key per client keeps a conversation's requests on the same prompt cache.
+  private let promptCacheKey = UUID().uuidString
+  private let turnState = CodexTurnState()
 
   public init(
     configuration: OpenAICompatibleConfiguration,
@@ -66,10 +69,11 @@ public final class OpenAIResponsesClient: RemoteChatProviding {
   ) -> RemoteRequestCancellable {
     let body: Data
     do {
-      body = try JSONEncoder().encode(
+      body = try RemoteRequestBody.encode(
         OpenAIResponsesRequest(
           model: model, transcript: messages, tools: tools, currentModel: modelIdentity,
-          maximumOutputTokens: maximumOutputTokens, reasoningEffort: reasoningEffort))
+          maximumOutputTokens: maximumOutputTokens, reasoningEffort: reasoningEffort,
+          promptCacheKey: promptCacheKey))
     } catch {
       completion(.failure(.malformedStream("could not encode the OpenAI request")))
       return CompletedRemoteRequest.shared
@@ -88,8 +92,10 @@ public final class OpenAIResponsesClient: RemoteChatProviding {
               ? .cancelled : .authentication(error.localizedDescription)))
       }
     ) {
-      [endpointURL, usesCodexHeaders, sessionConfiguration, maximumEventBytes, maximumErrorBytes]
-      authorization in
+      [
+        endpointURL, usesCodexHeaders, sessionConfiguration, maximumEventBytes, maximumErrorBytes,
+        promptCacheKey, turnState
+      ] authorization in
       guard !usesCodexHeaders || authorization.accountID?.isEmpty == false else {
         completion(
           .failure(.authentication(RemoteOAuthError.missingAccountID.localizedDescription)))
@@ -101,6 +107,11 @@ public final class OpenAIResponsesClient: RemoteChatProviding {
       if usesCodexHeaders {
         RemoteAuthorizationHeaders.applyOpenAICodex(authorization, to: &request)
         request.setValue("responses=experimental", forHTTPHeaderField: "OpenAI-Beta")
+        // Codex routes by session and turn state; prompt_cache_key alone never hit its cache.
+        request.setValue(promptCacheKey, forHTTPHeaderField: "session_id")
+        if let value = turnState.value {
+          request.setValue(value, forHTTPHeaderField: CodexTurnState.headerField)
+        }
       } else {
         RemoteAuthorizationHeaders.applyBearer(authorization, to: &request)
       }
@@ -126,9 +137,36 @@ public final class OpenAIResponsesClient: RemoteChatProviding {
         handleEnd: {
           throw RemoteChatError.malformedStream(
             "OpenAI stream ended before response.completed")
+        },
+        handleResponse: { response in
+          if let value = response.value(forHTTPHeaderField: CodexTurnState.headerField) {
+            turnState.value = value
+          }
         })
       stream.start(request, configuration: sessionConfiguration)
       return stream
+    }
+  }
+}
+
+// The Codex backend returns this header on a conversation's first response. Sending it back on
+// later requests keeps them on the backend that holds the prompt cache.
+private final class CodexTurnState: @unchecked Sendable {
+  static let headerField = "x-codex-turn-state"
+
+  private let lock = NSLock()
+  private var storedValue: String?
+
+  var value: String? {
+    get {
+      lock.lock()
+      defer { lock.unlock() }
+      return storedValue
+    }
+    set {
+      lock.lock()
+      storedValue = newValue
+      lock.unlock()
     }
   }
 }

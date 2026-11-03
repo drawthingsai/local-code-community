@@ -184,7 +184,9 @@ public struct RemoteProviderEndpoint: Equatable, Sendable {
           maximumOutputTokens: maximumOutputTokens),
         authorization: authorization, sessionConfiguration: sessionConfiguration,
         modelIdentity: modelIdentity,
-        reasoningEffort: reasoningEffort, usesOpenRouterReasoning: true)
+        reasoningEffort: reasoningEffort, usesOpenRouterReasoning: true,
+        // The Local Code router asks OpenRouter to cache every request itself.
+        usesOpenRouterPromptCaching: provider == .openRouter)
     case .openAI:
       guard authorization.kind == .oauth, baseURL == RemoteProvider.openAI.defaultBaseURL else {
         throw RemoteChatError.authentication("OpenAI requires sign-in at the official endpoint.")
