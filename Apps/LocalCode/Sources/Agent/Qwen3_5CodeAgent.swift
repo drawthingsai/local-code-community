@@ -1149,7 +1149,7 @@ extension Qwen3_5TextGenerator.ContinuationState {
 
 public final class Qwen3_5CodeAgent: CodeAgent {
 
-  private let thinkingBudgetStorage = ManagedAtomic<Int32>(65_536)
+  private let thinkingBudgetStorage = ManagedAtomic<Int32>(131_072)
   private let deterministicStorage = ManagedAtomic<Bool>(false)
   private let reasoningEffortStorage: ManagedAtomic<Int>
   private var systemTokens: [Int32]

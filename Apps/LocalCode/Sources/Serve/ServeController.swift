@@ -67,7 +67,7 @@ final class ServeController {
   /// The chat's model until one is picked for serving.
   /// The chat's Thinking Budget, with its default and limit.
   private static func thinkingBudget(workspace: SQLiteWorkspace) -> Int {
-    min(max(workspace.dictionary["thinking_budget", Int.self] ?? 65_536, 0), 128 * 1024)
+    min(max(workspace.dictionary["thinking_budget", Int.self] ?? 131_072, 0), 256 * 1024)
   }
 
   static func model(workspace: SQLiteWorkspace) -> String? {

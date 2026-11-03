@@ -127,7 +127,7 @@ final class ModelSpeedWorkflow: Workflow {
     else { return nil }
     // Runs think and sample the way the chat does.
     let thinkingBudget = min(
-      max(workspace.dictionary["thinking_budget", Int.self] ?? 65_536, 0), 128 * 1024)
+      max(workspace.dictionary["thinking_budget", Int.self] ?? 131_072, 0), 256 * 1024)
     let deterministic =
       (workspace.dictionary["work_attitude", WorkAttitude.self] ?? .deterministic)
       == .deterministic

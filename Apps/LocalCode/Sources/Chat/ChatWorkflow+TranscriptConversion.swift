@@ -274,8 +274,8 @@ extension ChatWorkflow {
     default:
       preconditionFailure("Unsupported text generator")
     }
-    let thinkingBudget = workspace.dictionary["thinking_budget", Int.self] ?? 65_536
-    codeAgent.thinkingBudget = Int32(min(max(thinkingBudget, 0), 128 * 1024))
+    let thinkingBudget = workspace.dictionary["thinking_budget", Int.self] ?? 131_072
+    codeAgent.thinkingBudget = Int32(min(max(thinkingBudget, 0), 256 * 1024))
     let workAttitude = workspace.dictionary["work_attitude", WorkAttitude.self] ?? .deterministic
     codeAgent.deterministic = workAttitude == .deterministic
     return .local(textGenerator, codeAgent)

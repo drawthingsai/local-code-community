@@ -108,7 +108,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
   private static var thinkStartToken: Int32 { 128_821 }
   private static var thinkEndToken: Int32 { 128_822 }
 
-  private let thinkingBudgetStorage = ManagedAtomic<Int32>(65_536)
+  private let thinkingBudgetStorage = ManagedAtomic<Int32>(131_072)
   private let deterministicStorage = ManagedAtomic<Bool>(false)
   private let reasoningEffortStorage: ManagedAtomic<Int>
   private var systemTokens: [Int32]

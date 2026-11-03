@@ -627,8 +627,8 @@ final class ChatWorkflow: Workflow {
 
   private func thinkingBudgetChanged(_ value: Int?) {
     guard case .some(.local(_, let codeAgent)) = codeAgentWrapper, let codeAgent else { return }
-    let thinkingBudget = value ?? 65_536
-    codeAgent.thinkingBudget = Int32(min(max(thinkingBudget, 0), 128 * 1024))
+    let thinkingBudget = value ?? 131_072
+    codeAgent.thinkingBudget = Int32(min(max(thinkingBudget, 0), 256 * 1024))
   }
 
   private func reasoningEffortChanged(_ value: ReasoningEffort?) {

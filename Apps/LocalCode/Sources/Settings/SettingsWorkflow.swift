@@ -463,15 +463,15 @@ final class SettingsWorkflow: Workflow {
       let thinkingBudget: Int
       switch value {
       case .deleted:
-        thinkingBudget = 65_536
+        thinkingBudget = 131_072
       case .initial(let value):
-        thinkingBudget = value ?? 65_536
+        thinkingBudget = value ?? 131_072
       case .updated(let value):
         thinkingBudget = value
       }
       DispatchQueue.main.async {
         self.settingsSectionsController.thinkingBudget = Int32(
-          min(max(thinkingBudget, 0), 128 * 1024))
+          min(max(thinkingBudget, 0), 256 * 1024))
       }
     }
     webSearchIdentifierSubscription = workspace.dictionary.subscribe(
@@ -2265,7 +2265,7 @@ extension SettingsWorkflow: SettingsSectionsControllerDelegate {
     _ controller: SettingsSectionsController, didThinkingBudgetChange thinkingBudget: Int32
   ) {
     workspace.dictionary["thinking_budget", Int.self] = Int(
-      min(max(thinkingBudget, 0), 128 * 1024))
+      min(max(thinkingBudget, 0), 256 * 1024))
   }
 
   func settingsSectionsController(

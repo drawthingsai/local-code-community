@@ -142,7 +142,7 @@ final class SettingsSectionsController {
       updateSettingsSections()
     }
   }
-  var thinkingBudget: Int32 = 65_536 {
+  var thinkingBudget: Int32 = 131_072 {
     didSet {
       guard thinkingBudget != oldValue else { return }
       updateSettingsSections()
@@ -538,16 +538,16 @@ final class SettingsSectionsController {
       settingsItems: [
         SettingsSliderItem(
           title: LocalizedString.forKey("thinking_budget_tokens"), minValue: 0,
-          maxValue: 128 * 1024, value: Float(thinkingBudget),
+          maxValue: 256 * 1024, value: Float(thinkingBudget),
           valueType: .scale,
           customScale: SettingsSliderItem.CustomScale(
             rounded: { ($0 / 256).rounded() * 256 },
-            increment: { min(128 * 1024, (($0 / 256).rounded() + 1) * 256) }
+            increment: { min(256 * 1024, (($0 / 256).rounded() + 1) * 256) }
           )
         ) { [weak self] value in
           guard let self else { return }
           self.delegate?.settingsSectionsController(
-            self, didThinkingBudgetChange: Int32(min(max(Int(value), 0), 128 * 1024)))
+            self, didThinkingBudgetChange: Int32(min(max(Int(value), 0), 256 * 1024)))
         }
       ], title: LocalizedString.forKey("thinking_budget"),
       detail: LocalizedString.forKey("thinking_budget_detail"),
