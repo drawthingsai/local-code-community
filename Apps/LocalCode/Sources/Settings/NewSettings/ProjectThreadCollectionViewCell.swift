@@ -172,7 +172,6 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
 
   override init(frame: CGRect) {
     super.init(frame: frame)
-    layer.cornerRadius = 16
     clipsToBounds = true
     contentView.addSubview(imageView)
     contentView.addSubview(shimmerView)
@@ -202,9 +201,14 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
     }
     configurationUpdateHandler = { cell, state in
       guard let cell = cell as? ProjectThreadCollectionViewCell else { return }
-      let contentColor: UIColor = state.isSelected ? .secondaryText : .senaryText
+      // On iPhone every row keeps the selected row's content color; only the fill marks the
+      // selection.
+      let isPhone = state.traitCollection.userInterfaceIdiom == .phone
+      cell.layer.cornerRadius = isPhone ? 12 : 16
+      let contentColor: UIColor = state.isSelected || isPhone ? .secondaryText : .senaryText
       cell.contentView.backgroundColor =
-        state.isSelected ? .quinaryBackground : .secondaryBackground
+        state.isSelected
+        ? (isPhone ? .senaryFill : .quinaryBackground) : .secondaryBackground
       if cell.item?.status != .new && cell.item?.status != .incomplete {
         cell.imageView.tintColor = contentColor
         cell.highlightImageView.tintColor = contentColor

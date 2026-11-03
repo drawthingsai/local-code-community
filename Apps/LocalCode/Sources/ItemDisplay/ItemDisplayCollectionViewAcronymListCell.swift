@@ -8,6 +8,16 @@ protocol ItemDisplayCollectionViewAcronymListCellDelegate: AnyObject {
 
 final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
   weak var delegate: ItemDisplayCollectionViewAcronymListCellDelegate? = nil
+  /// Rows in the glass popover sit closer to their icon, end titles with an ellipsis, and ring
+  /// the selection in a border color.
+  var usesGlass = false {
+    didSet {
+      guard usesGlass != oldValue else { return }
+      titleLabel.lineBreakMode = usesGlass ? .byTruncatingTail : .byTruncatingMiddle
+      titleLeadingConstraint?.update(offset: usesGlass ? 10 : 12)
+      setNeedsUpdateConfiguration()
+    }
+  }
 
   static var reusableIdentifier: String {
     "ItemDisplayCollectionViewAcronymListCell"
@@ -62,7 +72,16 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     let view = UIView()
     return view
   }()
+  private let separatorView: UIView = {
+    let view = UIView()
+    view.backgroundColor = .tertiaryBorder
+    view.isHidden = true
+    return view
+  }()
   private var itemIdentifier: ItemViewModel.ItemIdentifier = .empty
+  private var placeholderTopConstraint: Constraint?
+  private var titleLeadingConstraint: Constraint?
+  private var imageSizeConstraint: Constraint?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -72,6 +91,7 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     let backgroundView = UIView(frame: .zero)
     backgroundView.layer.cornerRadius = 10
     backgroundView.layer.borderWidth = 2.0
+    contentView.addSubview(separatorView)
     contentView.addSubview(backgroundView)
     contentView.addSubview(titleLabel)
     contentView.addSubview(acronymImagePlaceholder)
@@ -81,15 +101,23 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
 
     // The icon and its selection ring keep the compact row's size when details make the row taller.
     acronymImagePlaceholder.snp.makeConstraints { make in
-      make.top.leading.equalToSuperview().offset(4)
+      placeholderTopConstraint = make.top.equalToSuperview().offset(4).constraint
+      make.leading.equalToSuperview().offset(4)
       make.size.equalTo(24)
+    }
+    // The separator sits in the group spacing that a row starting a group adds above its icon.
+    separatorView.snp.makeConstraints { make in
+      make.top.equalToSuperview().offset(6)
+      make.leading.trailing.equalToSuperview().inset(12)
+      make.height.equalTo(0.5)
     }
     backgroundView.snp.makeConstraints { make in
       make.edges.equalTo(acronymImagePlaceholder).inset(-4)
     }
     titleLabel.snp.makeConstraints { make in
       make.centerY.equalTo(acronymImagePlaceholder.snp.centerY)
-      make.leading.equalTo(acronymImagePlaceholder.snp.trailing).offset(12)
+      titleLeadingConstraint =
+        make.leading.equalTo(acronymImagePlaceholder.snp.trailing).offset(12).constraint
       make.trailing.lessThanOrEqualToSuperview().offset(-4)
       make.height.equalTo(20)
     }
@@ -102,7 +130,7 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     contentView.addSubview(acronymImageView)
     acronymImageView.snp.makeConstraints { make in
       make.center.equalTo(acronymImagePlaceholder.snp.center)
-      make.height.width.equalTo(16)
+      imageSizeConstraint = make.height.width.equalTo(16).constraint
     }
     contentView.addSubview(trashButton)
     trashButton.snp.makeConstraints { make in
@@ -112,9 +140,11 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     }
     trashButton.isHidden = true
 
-    self.configurationUpdateHandler = { _, state in
+    self.configurationUpdateHandler = { cell, state in
       if state.isSelected || state.isHighlighted {
-        backgroundView.layer.borderColor = UIColor.senaryText.cgColor
+        let usesGlass = (cell as? ItemDisplayCollectionViewAcronymListCell)?.usesGlass == true
+        backgroundView.layer.borderColor =
+          (usesGlass ? UIColor.quaternaryBorder : UIColor.senaryText).cgColor
       } else {
         backgroundView.layer.borderColor = UIColor.clear.cgColor
       }
@@ -150,6 +180,13 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     trashButton.isHidden = !viewModel.canDelete
     acronymImagePlaceholder.backgroundColor = viewModel.backgroundColor
     acronymImageView.tintColor = viewModel.thumbnailTintColor ?? .senaryText
+    imageSizeConstraint?.update(offset: viewModel.thumbnailSize)
+    // Rebinding would otherwise add a handler each time the cell is reused.
+    FontMetrics.default.clearBinding(to: titleLabel)
+    FontMetrics.default.scaleFont(
+      .systemFont(ofSize: 14, weight: viewModel.titleWeight), bindTo: titleLabel)
+    separatorView.isHidden = !viewModel.startsGroup
+    placeholderTopConstraint?.update(offset: 4 + (viewModel.startsGroup ? Self.groupSpacing : 0))
     detailStack.isHidden = !showsDetails || (viewModel.detail.isEmpty && viewModel.caption.isEmpty)
     detailLabel.attributedText = NSAttributedString(
       string: viewModel.detail,
@@ -174,6 +211,9 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     }
 
   }
+
+  /// The space a row that starts a group adds above its icon, with the separator 6pt from its top.
+  static let groupSpacing: CGFloat = 16.5
 
   // Measured from the design: the detail's first baseline sits 19pt below the title's, the caption's
   // 20pt below the detail's last one, and the row ends 8pt under the caption's baseline.

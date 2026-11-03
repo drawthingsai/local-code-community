@@ -404,14 +404,14 @@ final class ChatInputController {
 
   private lazy var undoRedoDivider: UIView = {
     let divider = SettingsViewFactory.makeDividerView()
-    divider.backgroundColor = Self.buttonBorderColor
+    divider.backgroundColor = buttonBorderColor
     divider.isUserInteractionEnabled = false
     return divider
   }()
 
   private lazy var undoRedoOverlayView: UIView = {
     let borderView = BorderView.defaultBorderView(cornerRadius: 16)
-    borderView.borderColor = Self.buttonBorderColor
+    borderView.borderColor = buttonBorderColor
     borderView.backgroundColor = .clear
     borderView.isUserInteractionEnabled = false
     return borderView
@@ -451,7 +451,7 @@ final class ChatInputController {
 
   /// Adds a photo from the camera, pictures from Photos, or files.
   private lazy var attachButton: UIButton = {
-    let button = Self.makeRowButton(
+    let button = makeRowButton(
       image: #imageLiteral(resourceName: "plus-heavy-24").withRenderingMode(.alwaysTemplate))
     button.accessibilityLabel = LocalizedString.forKey("attach")
     button.showsMenuAsPrimaryAction = true
@@ -483,7 +483,7 @@ final class ChatInputController {
 
   /// Dictates into the text; tap again to stop.
   private lazy var dictationButton: UIButton = {
-    let button = Self.makeRowButton(
+    let button = makeRowButton(
       image: #imageLiteral(resourceName: "microphone-heavy-24").withRenderingMode(.alwaysTemplate))
     button.accessibilityLabel = LocalizedString.forKey("dictate")
     button.addAction(
@@ -499,8 +499,10 @@ final class ChatInputController {
   }()
 
   /// The outline of the composer's buttons. In dark mode the glass brightens over a white image and
-  /// the full border rings the buttons, so dark mode takes it at half strength on glass.
-  private static var buttonBorderColor: UIColor {
+  /// the full border rings the buttons, so dark mode takes it at half strength on glass. The phone
+  /// uses the primary border.
+  private var buttonBorderColor: UIColor {
+    guard userInterfaceIdiom != .phone else { return .primaryBorder }
     guard #available(iOS 26.0, *) else { return .duodenaryBorder }
     return UIColor {
       switch $0.userInterfaceStyle {
@@ -512,7 +514,7 @@ final class ChatInputController {
     }
   }
 
-  private static func makeRowButton(image: UIImage) -> UIButton {
+  private func makeRowButton(image: UIImage) -> UIButton {
     let button = UIButton(type: .custom)
     var configuration = UIButton.Configuration.filled()
     configuration.cornerStyle = .capsule
@@ -536,7 +538,7 @@ final class ChatInputController {
     let imageView = UIImageView(
       image: #imageLiteral(resourceName: "cube").withRenderingMode(.alwaysTemplate))
     imageView.contentMode = .scaleAspectFit
-    imageView.tintColor = .senaryText
+    imageView.tintColor = userInterfaceIdiom == .phone ? .primaryText : .senaryText
     imageView.isUserInteractionEnabled = false
     return imageView
   }()
@@ -551,7 +553,8 @@ final class ChatInputController {
     configuration.titleLineBreakMode = .byTruncatingHead
     configuration.image = #imageLiteral(resourceName: "chevron-down-16").withRenderingMode(
       .alwaysTemplate)
-    configuration.imageColorTransformer = UIConfigurationColorTransformer { _ in .senaryText }
+    let chevronColor: UIColor = userInterfaceIdiom == .phone ? .primaryText : .senaryText
+    configuration.imageColorTransformer = UIConfigurationColorTransformer { _ in chevronColor }
     configuration.imagePlacement = .trailing
     configuration.imagePadding = 4
     configuration.contentInsets = NSDirectionalEdgeInsets(
@@ -598,6 +601,13 @@ final class ChatInputController {
         configuration.background.backgroundColor = .primaryFill
         configuration.baseForegroundColor = .nonaryText
         self.sendStopDivider.backgroundColor = .quinaryBorder
+      }
+      // Disabled, the button would dim the arrow to its own gray, so the phone pins it.
+      if self.userInterfaceIdiom == .phone, let foregroundColor = configuration.baseForegroundColor
+      {
+        configuration.imageColorTransformer = UIConfigurationColorTransformer { _ in
+          foregroundColor
+        }
       }
       button.configuration = configuration
     }
@@ -1195,7 +1205,7 @@ final class ChatInputController {
       ? nil : #imageLiteral(resourceName: "microphone-heavy-24").withRenderingMode(.alwaysTemplate)
     configuration?.baseBackgroundColor =
       isRunning ? UIColor.colorPalette(for: .blue).withAlphaComponent(0.07) : .clear
-    configuration?.background.strokeColor = isRunning ? .clear : Self.buttonBorderColor
+    configuration?.background.strokeColor = isRunning ? .clear : buttonBorderColor
     dictationButton.configuration = configuration
     dictationWaveformController.reset()
     dictationWaveformController.view.isHidden = !isRunning

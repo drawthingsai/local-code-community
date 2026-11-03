@@ -61,15 +61,20 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
   private var keyboardAppearanceMonitor: KeyboardAppearanceMonitor? = nil
 
   private lazy var chatContainerView = UIView(frame: .zero)
+  /// Keeps the chat in its own color below the status bar while settings is presented, with a
+  /// border along the edge that meets the settings panel.
   private lazy var backgroundView: UIView = {
     let view = UIView(frame: .zero)
     view.alpha = 0
-    view.backgroundColor = .secondaryBackground
-    view.layer.shadowOpacity = 0.25
-    view.layer.shadowColor = UIColor.primaryShadow.cgColor
-    view.layer.shadowOffset = CGSize(width: -2, height: -2)
-    view.layer.shadowRadius = 5
+    view.backgroundColor = .tertiaryBackground
     view.isUserInteractionEnabled = false
+    let borderView = UIView(frame: .zero)
+    borderView.backgroundColor = .primaryBorder
+    view.addSubview(borderView)
+    borderView.snp.makeConstraints { make in
+      make.leading.top.bottom.equalToSuperview()
+      make.width.equalTo(1)
+    }
     return view
   }()
   private lazy var queuedItemsStackView: UIStackView = {
@@ -317,9 +322,10 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
       make.leading.trailing.equalTo(projectHistoryCollectionView)
     }
     chatContainerView.addSubview(emptyBannerController.view)
+    // The card sizes itself and shrinks to keep a 16pt margin when the keyboard leaves less room.
     emptyBannerController.view.snp.makeConstraints { make in
-      make.leading.trailing.equalTo(chatContainerView.safeAreaLayoutGuide).inset(16)
-      make.centerY.equalTo(bannerSpace)
+      make.center.equalTo(bannerSpace)
+      make.top.greaterThanOrEqualTo(bannerSpace).offset(16)
     }
 
     updateChatInputEmptyState()
@@ -336,11 +342,6 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
       projectHistoryCollectionView.contentInset.top = topInset
       projectHistoryCollectionView.verticalScrollIndicatorInsets.top = topInset
     }
-  }
-
-  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-    super.traitCollectionDidChange(previousTraitCollection)
-    backgroundView.layer.shadowColor = UIColor.primaryShadow.cgColor
   }
 
   @objc private func dismissKeyboard() {

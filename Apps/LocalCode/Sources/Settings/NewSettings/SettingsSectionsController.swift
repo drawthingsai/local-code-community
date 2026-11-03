@@ -112,6 +112,7 @@ final class SettingsSectionsController {
   weak var delegate: SettingsSectionsControllerDelegate?
   private let workspace: SQLiteWorkspace
   private let isOnDeviceAvailable: Bool
+  private let showsAccountBalance: Bool
   private var isViewLoaded = false
   private var verticalScrollIndicatorController: VerticalScrollIndicatorController? = nil
   private let sections: [SettingsSection]
@@ -353,7 +354,8 @@ final class SettingsSectionsController {
     }
 
     let contentStackView = UIStackView(
-      arrangedSubviews: [accountBalanceView, titleView, statsView])
+      arrangedSubviews: showsAccountBalance
+        ? [accountBalanceView, titleView, statsView] : [titleView, statsView])
     contentStackView.axis = .vertical
     contentStackView.alignment = .fill
     contentStackView.spacing = 0
@@ -369,9 +371,10 @@ final class SettingsSectionsController {
     return view
   }()
 
-  init(workspace: SQLiteWorkspace, isOnDeviceAvailable: Bool) {
+  init(workspace: SQLiteWorkspace, isOnDeviceAvailable: Bool, showsAccountBalance: Bool) {
     self.workspace = workspace
     self.isOnDeviceAvailable = isOnDeviceAvailable
+    self.showsAccountBalance = showsAccountBalance
     self.sections = [
       .whereModelsRun,
       .reasoningEffort,

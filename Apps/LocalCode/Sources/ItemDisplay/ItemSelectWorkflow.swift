@@ -38,7 +38,8 @@ public final class ItemSelectWorkflow: Workflow {
 
   public init(
     userInterfaceIdiom: UIUserInterfaceIdiom, cellHeight: CGFloat, minimumLineSpacing: CGFloat,
-    workspace: Workspace, isSwitchDisplayed: Bool, isDetailSwitchDisplayed: Bool
+    workspace: Workspace, isSwitchDisplayed: Bool, isDetailSwitchDisplayed: Bool,
+    usesGlass: Bool = false
   ) {
     self.cellHeight = cellHeight
     self.minimumLineSpacing = minimumLineSpacing
@@ -47,7 +48,7 @@ public final class ItemSelectWorkflow: Workflow {
       minimumLineSpacing: minimumLineSpacing, workspace: workspace,
       segmentedControls: isSwitchDisplayed
         ? [LocalizedString.forKey("compat"), LocalizedString.forKey("all")] : [],
-      isDetailSwitchDisplayed: isDetailSwitchDisplayed)
+      isDetailSwitchDisplayed: isDetailSwitchDisplayed, usesGlass: usesGlass)
     viewController.modalPresentationStyle = .popover
     viewController.preferredContentSize = ItemSelectWorkflow.preferredContentSize
     objCResponder = ObjCResponder()
@@ -91,18 +92,20 @@ public final class ItemSelectWorkflow: Workflow {
     let viewWidth = viewController.viewIfLoaded?.bounds.width ?? 0
     let rowWidth = (viewWidth > 0 ? viewWidth : 375) - 16
     let rowsHeight = items.reduce(0) { height, item in
-      guard showsDetails, case .itemAcronymViewModel(let viewModel) = item,
-        let detailedHeight = ItemDisplayCollectionViewAcronymListCell.detailedHeight(
-          for: viewModel, width: rowWidth)
-      else { return height + cellHeight }
-      return height + detailedHeight
+      guard case .itemAcronymViewModel(let viewModel) = item else { return height + cellHeight }
+      let rowHeight =
+        (showsDetails
+          ? ItemDisplayCollectionViewAcronymListCell.detailedHeight(for: viewModel, width: rowWidth)
+          : nil) ?? cellHeight
+      return height + rowHeight
+        + (viewModel.startsGroup ? ItemDisplayCollectionViewAcronymListCell.groupSpacing : 0)
     }
     // Title, search field and gaps, rows, then the inset below the last row.
     let height =
-      ItemDisplayViewController.headerHeight + ItemDisplayViewController.searchFieldTopSpacing
-      + ItemDisplayViewController.searchFieldHeight + ItemDisplayViewController.listTopSpacing
+      viewController.headerHeight + viewController.searchFieldTopSpacing
+      + viewController.searchFieldHeight + viewController.listTopSpacing
       + rowsHeight + CGFloat(max(0, items.count - 1)) * minimumLineSpacing
-      + ItemDisplayViewController.bottomInset
+      + viewController.bottomInset
     #if os(macOS) || (os(iOS) && targetEnvironment(macCatalyst))
       viewController.preferredContentSize.height = min(
         ItemSelectWorkflow.preferredContentSize.height, height)

@@ -87,6 +87,11 @@ public struct ItemAcronymViewModel: Hashable & Equatable {
   var thumbnail: ItemAcronymViewModelDisplayThumbnail
   var thumbnailContentMode: UIView.ContentMode?
   var thumbnailTintColor: UIColor?
+  // A list row's icon size, up to the 24pt box that holds it.
+  var thumbnailSize: CGFloat
+  var titleWeight: UIFont.Weight
+  // A list row that starts a group, such as a project before its threads, has a separator above.
+  var startsGroup: Bool
   var isList: Bool
   var canExport: Bool
   var canDelete: Bool
@@ -105,6 +110,7 @@ public struct ItemAcronymViewModel: Hashable & Equatable {
     canDelete: Bool = false, isDownloaded: Bool? = nil,
     file: String? = nil, isFP16: Bool? = nil, is8Bit: Bool? = nil, canQuantize: Bool? = nil,
     thumbnailContentMode: UIView.ContentMode? = nil, thumbnailTintColor: UIColor? = nil,
+    thumbnailSize: CGFloat = 16, titleWeight: UIFont.Weight = .semibold, startsGroup: Bool = false,
     isExternalStore: Bool? = nil, isInExternalUrl: Bool? = nil,
     flag: ItemViewModel.ItemFlag = [.compatible]
   ) {
@@ -124,6 +130,9 @@ public struct ItemAcronymViewModel: Hashable & Equatable {
     self.canQuantize = canQuantize
     self.thumbnailContentMode = thumbnailContentMode
     self.thumbnailTintColor = thumbnailTintColor
+    self.thumbnailSize = thumbnailSize
+    self.titleWeight = titleWeight
+    self.startsGroup = startsGroup
     self.isExternalStore = isExternalStore
     self.isInExternalUrl = isInExternalUrl
     self.flag = flag
@@ -137,6 +146,9 @@ public struct ItemAcronymViewModel: Hashable & Equatable {
     self.caption = viewModel.caption
     self.thumbnail = viewModel.thumbnail
     self.thumbnailTintColor = viewModel.thumbnailTintColor
+    self.thumbnailSize = viewModel.thumbnailSize
+    self.titleWeight = viewModel.titleWeight
+    self.startsGroup = viewModel.startsGroup
     self.isList = isList
     self.canExport = viewModel.canExport
     self.canDelete = viewModel.canDelete

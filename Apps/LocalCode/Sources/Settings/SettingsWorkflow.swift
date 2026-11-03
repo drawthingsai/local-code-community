@@ -190,9 +190,11 @@ final class SettingsWorkflow: Workflow {
     accountWorkflow = AccountWorkflow(
       workspace: workspace, accountManager: accountManager, client: accountClient)
     projectsController = ProjectController(userInterfaceIdiom: userInterfaceIdiom)
-    // Phones only talk to remote backends; local inference is not offered there.
+    // Phones only talk to remote backends; local inference is not offered there. They also show
+    // the account balance above the context used on every page instead of on this one.
     settingsSectionsController = SettingsSectionsController(
-      workspace: workspace, isOnDeviceAvailable: userInterfaceIdiom != .phone)
+      workspace: workspace, isOnDeviceAvailable: userInterfaceIdiom != .phone,
+      showsAccountBalance: userInterfaceIdiom != .phone)
     kitSectionsController = KitSectionsController(workspace: workspace)
     activitiesSectionsController = ActivitiesSectionsController(workspace: workspace)
     serveSectionsController =
@@ -212,6 +214,7 @@ final class SettingsWorkflow: Workflow {
     projectsController.delegate = self
     settingsSectionsController.hostedAccountBalance = accountWorkflow.balance
     settingsSectionsController.isHostedAccountSignedIn = accountWorkflow.isSignedIn
+    viewController.accountBalance = accountWorkflow.balance
     settingsSectionsController.delegate = self
     kitSectionsController.delegate = self
     activitiesSectionsController.delegate = self
@@ -556,6 +559,9 @@ final class SettingsWorkflow: Workflow {
       DispatchQueue.main.async {
         self.settingsSectionsController.remoteProvider = backend.flatMap(
           RemoteProvider.init(rawValue:))
+        self.viewController.isAccountBalanceAvailable =
+          self.settingsSectionsController.remoteProvider == .localCode
+          && self.accountWorkflow.isSignedIn
       }
     }
   }
@@ -1433,6 +1439,10 @@ extension SettingsWorkflow: SettingsViewControllerDelegate {
 
   func settingsViewControllerDidTapMachineSettings(_ viewController: SettingsViewController) {
     presentMachineSettings()
+  }
+
+  func settingsViewControllerDidRequestTopUp(_ viewController: SettingsViewController) {
+    accountWorkflow.presentTopUp(from: viewController)
   }
 
   func settingsViewControllerDidTapAccount(
@@ -2391,6 +2401,9 @@ extension SettingsWorkflow: AccountWorkflowDelegate {
     guard workflow === accountWorkflow else { return }
     settingsSectionsController.hostedAccountBalance = workflow.balance
     settingsSectionsController.isHostedAccountSignedIn = workflow.isSignedIn
+    viewController.accountBalance = workflow.balance
+    viewController.isAccountBalanceAvailable =
+      settingsSectionsController.remoteProvider == .localCode && workflow.isSignedIn
   }
 
   func accountWorkflowDidDismiss(_ workflow: AccountWorkflow) {

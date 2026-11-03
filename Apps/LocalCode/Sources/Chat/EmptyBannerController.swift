@@ -4,7 +4,8 @@ import SnapKit
 import Style
 import UIKit
 
-/// The animated astronaut composition shown while project history is empty.
+/// The animated astronaut composition shown while project history is empty, as a wide banner or
+/// as a vertical card.
 final class EmptyBannerController {
   var view: UIView { containerView }
   private lazy var containerView: BannerView = {
@@ -40,20 +41,33 @@ final class EmptyBannerController {
   private lazy var backgroundView: UIImageView = {
     // The vector rectangle scales its corners along with the composition.
     let view = UIImageView(
-      image: UIImage(named: "local-code-banner-background")?.withRenderingMode(.alwaysTemplate))
+      image: UIImage(
+        named: isVertical ? "local-code-card-background" : "local-code-banner-background")?
+        .withRenderingMode(.alwaysTemplate))
+    view.tintColor = .primaryColor
+    view.contentMode = .scaleAspectFit
+    return view
+  }()
+  // The card's rim covers the monkey where the card cuts it off, in the background's color.
+  private lazy var borderView: UIImageView = {
+    let view = UIImageView(
+      image: UIImage(named: "local-code-card-border")?.withRenderingMode(.alwaysTemplate))
     view.tintColor = .primaryColor
     view.contentMode = .scaleAspectFit
     return view
   }()
   private lazy var wordmarkView: UIImageView = {
     let view = UIImageView(
-      image: UIImage(named: "local-code-banner")?.withRenderingMode(.alwaysOriginal))
+      image: UIImage(named: isVertical ? "local-code-card" : "local-code-banner")?
+        .withRenderingMode(.alwaysOriginal))
     view.contentMode = .scaleAspectFit
     return view
   }()
   private lazy var sparklesView: UIImageView = {
     let view = UIImageView(
-      image: UIImage(named: "monkey-astronaut-sparkles")?.withRenderingMode(.alwaysOriginal))
+      image: UIImage(
+        named: isVertical ? "monkey-astronaut-card-sparkles" : "monkey-astronaut-sparkles")?
+        .withRenderingMode(.alwaysOriginal))
     view.contentMode = .scaleAspectFit
     return view
   }()
@@ -87,6 +101,8 @@ final class EmptyBannerController {
   private var observers = [NSObjectProtocol]()
   private var isVisible = false
   private let animatesBackground: Bool
+  private let isVertical: Bool
+  private static let cardSize = CGSize(width: 201, height: 308)
   private var visibilityAnimator: UIViewPropertyAnimator?
   private var backgroundAnimator: UIViewPropertyAnimator?
   private var blurredSnapshotView: UIImageView?
@@ -98,45 +114,78 @@ final class EmptyBannerController {
     static let assetSubdirectory: String? = nil
   #endif
 
-  init(animatesBackground: Bool = true) {
+  init(animatesBackground: Bool = true, isVertical: Bool = false) {
     self.animatesBackground = animatesBackground
+    self.isVertical = isVertical
     view.addSubview(bannerView)
-    bannerView.snp.makeConstraints { make in
-      make.edges.equalToSuperview()
-    }
     bannerView.addSubview(backgroundView)
     bannerView.addSubview(wordmarkView)
     bannerView.addSubview(sparklesView)
     bannerView.addSubview(neutralView)
     bannerView.addSubview(animationView)
-    view.snp.makeConstraints { make in
-      make.height.equalTo(view.snp.width).multipliedBy(206.0 / 1114)
-    }
     backgroundView.snp.makeConstraints { make in
       make.edges.equalToSuperview()
     }
-    // Artwork coordinates recalculated for the full-width background,
-    // vertically centered in the 1114 × 206 composition. The monkey's rounded
-    // bottom-leading corner is concentric with the background's, and its
-    // sparkles keep their place around it.
-    for (subview, rect) in [
-      (wordmarkView, CGRect(x: 200.397, y: 31.577, width: 892.022, height: 149.860)),
-      (neutralView, CGRect(x: 3.148, y: -4.461, width: 188.065, height: 193.289)),
-      (sparklesView, CGRect(x: -20.489, y: -4.461, width: 1144.830, height: 211.701)),
-    ] {
-      // Locate centers so artwork can extend above or beside the background.
-      let centerGuide = UILayoutGuide()
-      bannerView.addLayoutGuide(centerGuide)
-      centerGuide.snp.makeConstraints { make in
-        make.top.leading.equalToSuperview()
-        make.width.equalTo(bannerView.snp.width).multipliedBy(rect.midX / 1114)
-        make.height.equalTo(bannerView.snp.height).multipliedBy(rect.midY / 206)
+    if isVertical {
+      // The card keeps its designed size and BannerView scales it to fit, since the animated
+      // monkey cannot follow a size change that is itself animated, as with the keyboard.
+      bannerView.addSubview(borderView)
+      bannerView.layer.cornerRadius = 20.793
+      bannerView.clipsToBounds = true
+      view.snp.makeConstraints { make in
+        make.width.lessThanOrEqualTo(Self.cardSize.width)
+        make.width.equalTo(Self.cardSize.width).priority(.high)
+        make.height.equalTo(view.snp.width).multipliedBy(Self.cardSize.height / Self.cardSize.width)
       }
-      subview.snp.makeConstraints { make in
-        make.centerX.equalTo(centerGuide.snp.trailing)
-        make.centerY.equalTo(centerGuide.snp.bottom)
-        make.width.equalTo(bannerView.snp.width).multipliedBy(rect.width / 1114)
-        make.height.equalTo(subview.snp.width).multipliedBy(rect.height / rect.width)
+      bannerView.snp.makeConstraints { make in
+        make.center.equalToSuperview()
+        make.size.equalTo(Self.cardSize)
+      }
+      borderView.snp.makeConstraints { make in
+        make.edges.equalToSuperview()
+      }
+      // The monkey runs off the bottom of the card, which clips it.
+      for (subview, rect) in [
+        (wordmarkView, CGRect(x: 14.5, y: 16, width: 172, height: 110.5)),
+        (neutralView, CGRect(x: 13.25, y: 137.75, width: 176.25, height: 181.15)),
+        (sparklesView, CGRect(origin: .zero, size: Self.cardSize)),
+      ] {
+        subview.snp.makeConstraints { make in
+          make.leading.equalToSuperview().offset(rect.minX)
+          make.top.equalToSuperview().offset(rect.minY)
+          make.size.equalTo(rect.size)
+        }
+      }
+    } else {
+      bannerView.snp.makeConstraints { make in
+        make.edges.equalToSuperview()
+      }
+      view.snp.makeConstraints { make in
+        make.height.equalTo(view.snp.width).multipliedBy(206.0 / 1114)
+      }
+      // Artwork coordinates recalculated for the full-width background,
+      // vertically centered in the 1114 × 206 composition. The monkey's rounded
+      // bottom-leading corner is concentric with the background's, and its
+      // sparkles keep their place around it.
+      for (subview, rect) in [
+        (wordmarkView, CGRect(x: 200.397, y: 31.577, width: 892.022, height: 149.860)),
+        (neutralView, CGRect(x: 3.148, y: -4.461, width: 188.065, height: 193.289)),
+        (sparklesView, CGRect(x: -20.489, y: -4.461, width: 1144.830, height: 211.701)),
+      ] {
+        // Locate centers so artwork can extend above or beside the background.
+        let centerGuide = UILayoutGuide()
+        bannerView.addLayoutGuide(centerGuide)
+        centerGuide.snp.makeConstraints { make in
+          make.top.leading.equalToSuperview()
+          make.width.equalTo(bannerView.snp.width).multipliedBy(rect.midX / 1114)
+          make.height.equalTo(bannerView.snp.height).multipliedBy(rect.midY / 206)
+        }
+        subview.snp.makeConstraints { make in
+          make.centerX.equalTo(centerGuide.snp.trailing)
+          make.centerY.equalTo(centerGuide.snp.bottom)
+          make.width.equalTo(bannerView.snp.width).multipliedBy(rect.width / 1114)
+          make.height.equalTo(subview.snp.width).multipliedBy(rect.height / rect.width)
+        }
       }
     }
     animationView.snp.makeConstraints { make in
@@ -280,6 +329,7 @@ final class EmptyBannerController {
     guard backgroundAnimator == nil else { return }
     if colorIndex == 0 {
       backgroundView.tintColor = .primaryColor
+      borderView.tintColor = .primaryColor
     }
     // Reviewed Lab palette, converted to sRGB for each appearance.
     // Follow neighboring hues to reduce RGB interpolation drift from Lab,
@@ -324,8 +374,9 @@ final class EmptyBannerController {
       duration: 3,
       timingParameters: UICubicTimingParameters(
         controlPoint1: CGPoint(x: 0.33, y: 0), controlPoint2: CGPoint(x: 0.67, y: 1)))
-    animator.addAnimations { [backgroundView] in
+    animator.addAnimations { [backgroundView, borderView] in
       backgroundView.tintColor = colors[colorIndex]
+      borderView.tintColor = colors[colorIndex]
     }
     animator.addCompletion { [weak self] position in
       guard let self, position == .end else { return }
@@ -355,7 +406,8 @@ final class EmptyBannerController {
     guard restTimer == nil else { return }
     if sleep == .loading {
       // Every expression starts and ends on the neutral pose, as does sleepy.
-      if let sleepy = sleepAnimations?.sleepy, let sleepFrame = sleepy.frameTime(forMarker: "sleepy")
+      if let sleepy = sleepAnimations?.sleepy,
+        let sleepFrame = sleepy.frameTime(forMarker: "sleepy")
       {
         sleep = .dozing
         isBetweenExpressions = false
@@ -588,6 +640,13 @@ final class EmptyBannerController {
     override func didMoveToWindow() {
       super.didMoveToWindow()
       controller?.updatePlayback()
+    }
+
+    override func layoutSubviews() {
+      super.layoutSubviews()
+      guard let controller, controller.isVertical, bounds.width > 0 else { return }
+      let scale = bounds.width / EmptyBannerController.cardSize.width
+      controller.bannerView.transform = CGAffineTransform(scaleX: scale, y: scale)
     }
   }
 }

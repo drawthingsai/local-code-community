@@ -306,7 +306,7 @@ final class ChatWorkflow: Workflow {
       modelImage = Self.modelImage(for: nil)
     }
     projectBarController = ProjectBarController(userInterfaceIdiom: userInterfaceIdiom)
-    emptyBannerController = EmptyBannerController()
+    emptyBannerController = EmptyBannerController(isVertical: userInterfaceIdiom == .phone)
     chatInputController.setModel(
       name: modelName ?? LocalizedString.forKey("unspecified"), image: modelImage)
     textHistoryManager = TextHistoryManager(project: workspace, initialPositiveText: "")
@@ -2597,48 +2597,66 @@ extension ChatWorkflow: ProjectBarControllerDelegate {
   ) {
     let projects = settingsWorkflow.projects
     // On the phone, each project is followed by its threads, as in the drawer: the welcome thread
-    // first, then the most recent. iPad and Mac list threads in the sidebar instead.
+    // first, then the most recent, and last a new thread. iPad and Mac list threads in the sidebar
+    // instead.
+    let isPhone = userInterfaceIdiom == .phone
     let threadsByProject =
-      userInterfaceIdiom == .phone
+      isPhone
       ? Dictionary(
         grouping: settingsWorkflow.projectThreads.filter { !$0.newThread }, by: \.projectPath)
       : [:]
     var items = [ItemDisplayCollectionViewCellViewModel]()
     var listedThreads = [ProjectController.Thread]()
-    for project in projects {
+    for (index, project) in projects.enumerated() {
       items.append(
         .itemAcronymViewModel(
           ItemAcronymViewModel(
             itemIdentifier: .identifier(project.path), title: .title(project.title),
             backgroundColor: .clear, detail: project.path,
             thumbnail: .image(
-              #imageLiteral(resourceName: "folder-filled-16").withTintColor(
-                .secondaryText, renderingMode: .alwaysOriginal)),
-            isList: true)))
+              (isPhone
+                ? #imageLiteral(resourceName: "folder-filled-24")
+                : #imageLiteral(resourceName: "folder-filled-16")).withTintColor(
+                  .secondaryText, renderingMode: .alwaysOriginal)),
+            isList: true, thumbnailSize: isPhone ? 24 : 16,
+            titleWeight: isPhone ? .medium : .semibold, startsGroup: isPhone && index > 0)))
       let threads = (threadsByProject[project.path] ?? []).sorted { lhs, rhs in
         let lhsIsWelcome = lhs.threadId == OnboardingState.threadIdentifier
         let rhsIsWelcome = rhs.threadId == OnboardingState.threadIdentifier
         if lhsIsWelcome != rhsIsWelcome { return lhsIsWelcome }
         return lhs.updatedAt > rhs.updatedAt
       }
+      guard isPhone else { continue }
       for thread in threads.prefix(20) {
         items.append(
           .itemAcronymViewModel(
             ItemAcronymViewModel(
               itemIdentifier: .identifier(thread),
               title: .title(thread.title ?? LocalizedString.forKey("untitled")),
-              backgroundColor: .clear, detail: thread.lastMessage ?? "",
+              backgroundColor: .senaryBackground, detail: thread.lastMessage ?? "",
               thumbnail: .image(
                 #imageLiteral(resourceName: "chat-24").withTintColor(
-                  .tertiaryText, renderingMode: .alwaysOriginal)),
-              isList: true)))
+                  .secondaryText, renderingMode: .alwaysOriginal)),
+              isList: true, titleWeight: .regular)))
         listedThreads.append(thread)
       }
+      let newThread = ProjectController.Thread(projectPath: project.path, threadId: -1)
+      items.append(
+        .itemAcronymViewModel(
+          ItemAcronymViewModel(
+            itemIdentifier: .identifier(newThread),
+            title: .title(LocalizedString.forKey("start_a_new_thread")),
+            backgroundColor: .senaryBackground, detail: "",
+            thumbnail: .image(
+              #imageLiteral(resourceName: "chat-new-24").withTintColor(
+                .secondaryText, renderingMode: .alwaysOriginal)),
+            isList: true, titleWeight: .regular)))
+      listedThreads.append(newThread)
     }
     let projectSelectWorkflow = ItemSelectWorkflow(
       userInterfaceIdiom: sourceView.traitCollection.userInterfaceIdiom, cellHeight: 32,
       minimumLineSpacing: 4, workspace: workspace, isSwitchDisplayed: false,
-      isDetailSwitchDisplayed: false)
+      isDetailSwitchDisplayed: false, usesGlass: isPhone)
     self.projectSelectWorkflow = projectSelectWorkflow
     projectSelectWorkflow.delegate = self
     projectSelectWorkflow.updateTitle(title: LocalizedString.forKey("projects"))
@@ -2652,6 +2670,9 @@ extension ChatWorkflow: ProjectBarControllerDelegate {
       popoverPresentationController.permittedArrowDirections = .up
       popoverPresentationController.popoverLayoutMargins = UIEdgeInsets(
         top: 0, left: 12, bottom: 0, right: 12)
+    }
+    if isPhone {
+      projectSelectWorkflow.viewControllable.preferredContentSize.width = 281
     }
     presentedViewController.present(projectSelectWorkflow.viewControllable, animated: true)
     let openProject = projectURL.flatMap { projectURL in
@@ -2667,7 +2688,8 @@ extension ChatWorkflow: ProjectBarControllerDelegate {
           $0.projectPath == openProject.path && $0.threadId == projectHistoryManager.threadId
         }
       }
-      // A new thread, or one past the first 20 of its project, isn't listed; select its project.
+      // A thread past the first 20 of its project isn't listed, nor is any thread on iPad and Mac;
+      // select its project.
       let selectedItem: ItemViewModel.ItemIdentifier =
         openThread.map { .identifier($0) } ?? .identifier(openProject.path)
       DispatchQueue.main.async {

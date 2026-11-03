@@ -28,6 +28,14 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
   private let segmentedControls: [String]
   private let isDetailSwitchDisplayed: Bool
   private let userInterfaceIdiom: UIUserInterfaceIdiom
+  /// Shows the popover on Liquid Glass where available, with its roomier header and search field.
+  private let usesGlass: Bool
+  // Measured from the designs. The header ends with its divider.
+  let headerHeight: CGFloat
+  let searchFieldTopSpacing: CGFloat
+  let searchFieldHeight: CGFloat
+  let listTopSpacing: CGFloat
+  let bottomInset: CGFloat
   private var items: [ItemDisplaySectionModel] = []
   private var displayingItems: [ItemDisplaySectionModel] = []
   private var isListView: Bool = true
@@ -37,7 +45,8 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
 
   init(
     userInterfaceIdiom: UIUserInterfaceIdiom, cellHeight: CGFloat, minimumLineSpacing: CGFloat,
-    workspace: Workspace, segmentedControls: [String], isDetailSwitchDisplayed: Bool
+    workspace: Workspace, segmentedControls: [String], isDetailSwitchDisplayed: Bool,
+    usesGlass: Bool
   ) {
     self.userInterfaceIdiom = userInterfaceIdiom
     self.cellHeight = cellHeight
@@ -45,21 +54,45 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     self.workspace = workspace
     self.segmentedControls = segmentedControls
     self.isDetailSwitchDisplayed = isDetailSwitchDisplayed
+    self.usesGlass = usesGlass
+    if usesGlass {
+      headerHeight = 52.5
+      searchFieldTopSpacing = 12
+      searchFieldHeight = 36
+      listTopSpacing = 16
+      bottomInset = 16
+    } else {
+      headerHeight = 39
+      searchFieldTopSpacing = 7
+      searchFieldHeight = 32
+      listTopSpacing = 9
+      bottomInset = 8
+    }
     super.init(nibName: nil, bundle: nil)
   }
   required init?(coder: NSCoder) {
     fatalError()
   }
 
-  private lazy var searchFieldBackground: BorderView = {
-    let view = BorderView.defaultBorderView(cornerRadius: Self.searchFieldHeight / 2)
+  private lazy var searchFieldBackground: UIView = {
+    if usesGlass, #available(iOS 26.0, *) {
+      let view = UIView()
+      let glassView = UIVisualEffectView(effect: UIGlassEffect(style: .regular))
+      glassView.cornerConfiguration = .capsule()
+      view.addSubview(glassView)
+      glassView.snp.makeConstraints { make in
+        make.edges.equalToSuperview()
+      }
+      return view
+    }
+    let view = BorderView.defaultBorderView(cornerRadius: searchFieldHeight / 2)
     view.backgroundColor = .tertiaryBackground
     return view
   }()
   private lazy var searchIconView: UIImageView = {
     let imageView = UIImageView(
       image: #imageLiteral(resourceName: "search-16").withRenderingMode(.alwaysTemplate))
-    imageView.tintColor = .senaryText
+    imageView.tintColor = usesGlass ? .secondaryText : .senaryText
     return imageView
   }()
   private lazy var searchField: UITextField = {
@@ -71,7 +104,15 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     textField.autocapitalizationType = .none
     textField.autocorrectionType = .no
     textField.delegate = self
-    FontMetrics.default.scaleFont(.systemFont(ofSize: 14), bindTo: textField) {
+    if usesGlass {
+      textField.attributedPlaceholder = NSAttributedString(
+        string: LocalizedString.forKey("search"),
+        attributes: [.foregroundColor: UIColor.secondaryText])
+    }
+    FontMetrics.default.scaleFont(
+      usesGlass ? .systemFont(ofSize: 13, weight: .medium) : .systemFont(ofSize: 14),
+      bindTo: textField
+    ) {
       $0.font = $1
     }
     textField.addAction(
@@ -108,9 +149,11 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     return button
   }()
 
-  public let titleLabel: UILabel = {
+  public private(set) lazy var titleLabel: UILabel = {
     let label = UILabel()
-    FontMetrics.default.scaleFont(.systemFont(ofSize: 15, weight: .medium), bindTo: label)
+    FontMetrics.default.scaleFont(
+      .systemFont(ofSize: usesGlass ? 16 : 15, weight: usesGlass ? .semibold : .medium),
+      bindTo: label)
     label.textColor = .secondaryText
     return label
   }()
@@ -172,6 +215,7 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
               collectionView.dequeueReusableCell(
                 withReuseIdentifier: ItemDisplayCollectionViewAcronymListCell.reusableIdentifier,
                 for: indexPath) as! ItemDisplayCollectionViewAcronymListCell
+            cell.usesGlass = self.usesGlass
             cell.setViewModel(with: itemAcronymViewModel, showsDetails: self.showsDetails)
             cell.delegate = self
             return cell
@@ -243,8 +287,10 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     configuration.cornerStyle = .capsule
     configuration.background.backgroundColor = .clear
     configuration.baseForegroundColor = .senaryText
-    configuration.image = #imageLiteral(resourceName: "close-16").withRenderingMode(
-      .alwaysTemplate)
+    configuration.image =
+      (usesGlass
+      ? #imageLiteral(resourceName: "close-24") : #imageLiteral(resourceName: "close-16"))
+      .withRenderingMode(.alwaysTemplate)
     configuration.contentInsets = .zero
     button.configuration = configuration
     button.configurationUpdateHandler = {
@@ -344,9 +390,9 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
 
   override func viewSafeAreaInsetsDidChange() {
     collectionView.contentInset = UIEdgeInsets(
-      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + Self.bottomInset, right: 0)
+      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + bottomInset, right: 0)
     collectionView.scrollIndicatorInsets = UIEdgeInsets(
-      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + Self.bottomInset, right: 0)
+      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + bottomInset, right: 0)
   }
 
   func updateCollectionViewLayout(isListView: Bool, animated: Bool) {
@@ -374,22 +420,29 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
   }()
 
   override func viewDidLoad() {
-    view.backgroundColor = .secondaryBackground
+    if usesGlass, #available(iOS 26.0, *) {
+      // The popover's own glass shows through.
+      view.backgroundColor = .clear
+    } else {
+      view.backgroundColor = .secondaryBackground
+    }
     view.addSubview(xButton)
+    // The glass header centers its 24pt close icon 20pt from the edge, and its title 24pt in.
+    let dividerHeight: CGFloat = usesGlass ? 0.5 : 1
     xButton.snp.makeConstraints { make in
-      make.top.equalTo(view.snp.topMargin).offset(6)
-      make.trailing.equalToSuperview().offset(-6)
+      make.top.equalTo(view.snp.topMargin).offset(usesGlass ? 12 : 6)
+      make.trailing.equalToSuperview().offset(usesGlass ? -18 : -6)
       make.width.height.equalTo(28)
     }
     view.addSubview(titleLabel)
     titleLabel.snp.makeConstraints { make in
       make.centerY.equalTo(xButton)
-      make.leading.equalToSuperview().offset(16)
+      make.leading.equalToSuperview().offset(usesGlass ? 24 : 16)
     }
     view.addSubview(topDivider)
     topDivider.snp.makeConstraints { make in
-      make.top.equalTo(view.snp.topMargin).offset(Self.headerHeight - 1)
-      make.height.equalTo(1)
+      make.top.equalTo(view.snp.topMargin).offset(headerHeight - dividerHeight)
+      make.height.equalTo(dividerHeight)
       make.leading.trailing.equalToSuperview()
     }
     if let text = titleLabel.text, !text.isEmpty {
@@ -412,23 +465,23 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
 
     searchFieldBackground.snp.makeConstraints { make in
       if let text = titleLabel.text, !text.isEmpty {
-        make.top.equalTo(topDivider.snp.bottom).offset(Self.searchFieldTopSpacing)
+        make.top.equalTo(topDivider.snp.bottom).offset(searchFieldTopSpacing)
       } else {
         make.top.equalTo(view.snp.topMargin).offset(8)
       }
-      make.leading.equalToSuperview().offset(8)
-      make.height.equalTo(Self.searchFieldHeight)
+      make.leading.equalToSuperview().offset(usesGlass ? 16 : 8)
+      make.height.equalTo(searchFieldHeight)
       if !segmentedControls.isEmpty {
         make.trailing.equalTo(listSwitch.snp.leading).offset(-4)
       } else if isDetailSwitchDisplayed {
         make.trailing.equalTo(detailSwitch.snp.leading).offset(-6)
       } else {
-        make.trailing.equalToSuperview().offset(-8)
+        make.trailing.equalToSuperview().offset(usesGlass ? -16 : -8)
       }
     }
     searchIconView.snp.makeConstraints { make in
       make.centerY.equalToSuperview()
-      make.leading.equalToSuperview().offset(7)
+      make.leading.equalToSuperview().offset(usesGlass ? 10 : 7)
       make.size.equalTo(16)
     }
     searchField.snp.makeConstraints { make in
@@ -447,14 +500,15 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
       detailSwitch.snp.makeConstraints { make in
         make.centerY.equalTo(searchFieldBackground.snp.centerY)
         make.trailing.equalToSuperview().offset(-8)
-        make.width.height.equalTo(Self.searchFieldHeight)
+        make.width.height.equalTo(searchFieldHeight)
       }
     }
 
     view.addSubview(collectionView)
     collectionView.snp.makeConstraints { make in
-      make.top.equalTo(searchFieldBackground.snp.bottom).offset(Self.listTopSpacing)
-      make.leading.trailing.equalToSuperview().inset(8)
+      make.top.equalTo(searchFieldBackground.snp.bottom).offset(listTopSpacing)
+      // The glass rows' icons sit 16pt in, inside their 4pt selection rings.
+      make.leading.trailing.equalToSuperview().inset(usesGlass ? 12 : 8)
       make.bottom.equalToSuperview()
     }
 
@@ -467,9 +521,9 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     }
 
     collectionView.contentInset = UIEdgeInsets(
-      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + Self.bottomInset, right: 0)
+      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + bottomInset, right: 0)
     collectionView.scrollIndicatorInsets = UIEdgeInsets(
-      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + Self.bottomInset, right: 0)
+      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + bottomInset, right: 0)
 
     xButton.addAction(
       UIAction { [weak self] _ in
@@ -608,14 +662,19 @@ extension ItemDisplayViewController: UICollectionViewDelegateFlowLayout {
     guard let itemSize = (collectionViewLayout as? UICollectionViewFlowLayout)?.itemSize else {
       return .zero
     }
-    guard showsDetails,
+    guard
       case .itemAcronymViewModel(let viewModel)? = collectionViewDiffableDataSource.itemIdentifier(
         for: indexPath),
-      viewModel.isList,
-      let height = ItemDisplayCollectionViewAcronymListCell.detailedHeight(
-        for: viewModel, width: itemSize.width)
+      viewModel.isList
     else { return itemSize }
-    return CGSize(width: itemSize.width, height: height)
+    let height =
+      (showsDetails
+        ? ItemDisplayCollectionViewAcronymListCell.detailedHeight(
+          for: viewModel, width: itemSize.width) : nil) ?? itemSize.height
+    return CGSize(
+      width: itemSize.width,
+      height: height
+        + (viewModel.startsGroup ? ItemDisplayCollectionViewAcronymListCell.groupSpacing : 0))
   }
 }
 
@@ -804,15 +863,6 @@ extension ItemDisplayViewController: ItemDisplayCollectionViewAcronymListCellDel
   func didTapTrash(itemIdentifier: ItemViewModel.ItemIdentifier) {
     delegate?.didTapTrash(item: itemIdentifier)
   }
-}
-
-extension ItemDisplayViewController {
-  // Measured from the design. The header's 38pt is followed by its 1pt divider.
-  static let headerHeight: CGFloat = 39
-  static let searchFieldTopSpacing: CGFloat = 7
-  static let searchFieldHeight: CGFloat = 32
-  static let listTopSpacing: CGFloat = 9
-  static let bottomInset: CGFloat = 8
 }
 
 extension ItemDisplayViewController: ItemDisplayViewControllerSectionHeaderViewDelegate {

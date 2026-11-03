@@ -12,6 +12,7 @@ protocol SettingsViewControllerDelegate: AnyObject {
   func settingsViewControllerDidTapNewProject(_ viewController: SettingsViewController)
   func settingsViewControllerDidTapNewProjectFromTemplate(_ viewController: SettingsViewController)
   func settingsViewControllerDidTapNewThread(_ viewController: SettingsViewController)
+  func settingsViewControllerDidRequestTopUp(_ viewController: SettingsViewController)
   func settingsViewController(
     _ viewController: SettingsViewController, didSelectRecentThreads isRecentThreadsSelected: Bool)
 }
@@ -25,6 +26,15 @@ final class SettingsViewController: UIViewController {
   private var selectedIndex = 0
   private var currentChild: LightweightViewControllable?
   private var configurationTitleTrailingToThreadsConstraint: Constraint?
+  var accountBalance: String? {
+    get { accountBalanceView.balance }
+    set { accountBalanceView.balance = newValue }
+  }
+  /// Whether the hosted account has a balance to show. The phone shows it above the context used
+  /// on every page.
+  var isAccountBalanceAvailable = false {
+    didSet { accountBalanceView.isHidden = !isAccountBalanceAvailable }
+  }
   var isBotModeEnabled = false {
     didSet {
       guard isBotModeEnabled != oldValue else { return }
@@ -126,14 +136,41 @@ final class SettingsViewController: UIViewController {
       make.height.equalTo(1)
     }
 
-    view.addSubview(contextUsedBarController.view)
+    let contextUsedBarView = UIView(frame: .zero)
+    contextUsedBarView.addSubview(contextUsedBarController.view)
     contextUsedBarController.view.snp.makeConstraints { make in
-      make.top.equalTo(topDivider.snp.bottom).offset(16)
-      make.leading.trailing.equalToSuperview().inset(Theme.current.sectionContentMargin)
+      make.top.equalToSuperview().offset(16)
+      make.leading.trailing.equalToSuperview().inset(
+        userInterfaceIdiom == .phone ? 16 : Theme.current.sectionContentMargin)
       make.height.equalTo(24)
       make.bottom.equalToSuperview().offset(-20)
     }
+    // On the phone the account balance sits above the context used; the stack collapses it while
+    // there's no balance to show.
+    let stackView = UIStackView(
+      arrangedSubviews: userInterfaceIdiom == .phone
+        ? [accountBalanceView, contextUsedBarView] : [contextUsedBarView])
+    stackView.axis = .vertical
+    view.addSubview(stackView)
+    stackView.snp.makeConstraints { make in
+      make.top.equalTo(topDivider.snp.bottom)
+      make.leading.trailing.equalToSuperview()
+      // The phone leaves 18pt more under the bar, clear of the home indicator.
+      make.bottom.equalToSuperview().inset(userInterfaceIdiom == .phone ? 18 : 0)
+    }
 
+    return view
+  }()
+
+  private lazy var accountBalanceView: AccountBalanceView = {
+    let view = AccountBalanceView()
+    view.isHidden = !isAccountBalanceAvailable
+    // Matches the 1pt dividers between the sidebar's sections.
+    view.dividerHeight = 1
+    view.onTopUp = { [weak self] in
+      guard let self else { return }
+      delegate?.settingsViewControllerDidRequestTopUp(self)
+    }
     return view
   }()
 
@@ -156,7 +193,7 @@ final class SettingsViewController: UIViewController {
 
   private lazy var backgroundShadow: UIView = {
     let view = UIView(frame: .zero)
-    view.layer.cornerRadius = 16
+    view.layer.cornerRadius = userInterfaceIdiom == .phone ? 24 : 16
     view.layer.maskedCorners = [.layerMinXMinYCorner, .layerMinXMaxYCorner]
     view.backgroundColor = .secondaryBackground
     view.layer.shadowOffset = CGSize(width: -2, height: -2)
@@ -169,7 +206,7 @@ final class SettingsViewController: UIViewController {
 
   private lazy var backgroundView: UIView = {
     let view = UIView(frame: .zero)
-    view.layer.cornerRadius = 16
+    view.layer.cornerRadius = userInterfaceIdiom == .phone ? 24 : 16
     view.layer.maskedCorners = [.layerMinXMinYCorner, .layerMinXMaxYCorner]
     view.backgroundColor = .secondaryBackground
     if userInterfaceIdiom != .phone {
@@ -196,10 +233,17 @@ final class SettingsViewController: UIViewController {
       // Clearing the background color would tint the glass with the tint color, so put back the
       // glass's own background when the button isn't active.
       let restingBackground = configuration.background
+      let image = configuration.image
+      let isPhone = userInterfaceIdiom == .phone
       button.configurationUpdateHandler = {
         guard var configuration = $0.configuration else { return }
         let isActive = $0.state.contains(.selected) || $0.state.contains(.highlighted)
-        configuration.baseForegroundColor = isActive ? .secondaryText : .senaryText
+        let foregroundColor: UIColor = isActive ? .secondaryText : .senaryText
+        configuration.baseForegroundColor = foregroundColor
+        if isPhone, let image {
+          // Glass draws a template image in its own color, so the phone gets the image tinted.
+          configuration.image = image.withTintColor(foregroundColor, renderingMode: .alwaysOriginal)
+        }
         configuration.background = restingBackground
         if isActive {
           configuration.background.backgroundColor = .quinaryFill
@@ -250,10 +294,17 @@ final class SettingsViewController: UIViewController {
       configuration.baseForegroundColor = .senaryText
       button.configuration = configuration
       let restingBackground = configuration.background
+      let image = configuration.image
+      let isPhone = userInterfaceIdiom == .phone
       button.configurationUpdateHandler = {
         guard var configuration = $0.configuration else { return }
         let isActive = $0.state.contains(.selected) || $0.state.contains(.highlighted)
-        configuration.baseForegroundColor = isActive ? .secondaryText : .senaryText
+        let foregroundColor: UIColor = isActive ? .secondaryText : .senaryText
+        configuration.baseForegroundColor = foregroundColor
+        if isPhone, let image {
+          // Glass draws a template image in its own color, so the phone gets the image tinted.
+          configuration.image = image.withTintColor(foregroundColor, renderingMode: .alwaysOriginal)
+        }
         configuration.background = restingBackground
         if isActive {
           configuration.background.backgroundColor = .quinaryFill
@@ -651,7 +702,6 @@ final class SettingsViewController: UIViewController {
     contextUsedView.snp.makeConstraints { make in
       make.leading.equalTo(menuControl.view.snp.trailing)
       make.trailing.bottom.equalToSuperview()
-      make.height.equalTo(61)
     }
     childContentView.snp.makeConstraints { make in
       make.top.equalTo(configurationView.snp.bottom)

@@ -10,6 +10,13 @@ final class AccountBalanceView: UIView {
     set { balanceLabel.text = newValue }
   }
   var onTopUp: (() -> Void)?
+  /// The thickness of the line under the balance.
+  var dividerHeight: CGFloat = 0.5 {
+    didSet { dividerHeightConstraint?.update(offset: dividerHeight) }
+  }
+
+  private let divider = SettingsViewFactory.makeDividerView()
+  private var dividerHeightConstraint: Constraint?
 
   private lazy var balanceLabel: UILabel = {
     let label = UILabel()
@@ -80,10 +87,9 @@ final class AccountBalanceView: UIView {
       make.height.greaterThanOrEqualTo(32)
     }
 
-    let divider = SettingsViewFactory.makeDividerView()
     addSubview(divider)
     divider.snp.makeConstraints { make in
-      make.height.equalTo(0.5)
+      dividerHeightConstraint = make.height.equalTo(dividerHeight).constraint
       make.leading.trailing.bottom.equalToSuperview()
     }
   }
