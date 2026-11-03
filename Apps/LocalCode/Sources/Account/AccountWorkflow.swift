@@ -719,6 +719,13 @@ final class AccountWorkflow: Workflow {
       startWebSignIn(at: fallbackURL, provider: .apple)
       return
     }
+    if let authorizationError = error as? ASAuthorizationError,
+      authorizationError.code == .canceled
+    {
+      isBusy = false
+      updateView()
+      return
+    }
     finishWithError(error)
   }
 }
