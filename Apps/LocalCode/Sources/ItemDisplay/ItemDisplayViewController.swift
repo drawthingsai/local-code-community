@@ -12,6 +12,8 @@ protocol ItemDisplayViewControllerDelegate: AnyObject {
   func didTapSectionHeader(section: ItemDisplaySectionIdentity, selectedSegmentIndex: Int)
   func didTapDetailSwitch()
   func contextMenu(for item: ItemViewModel.ItemIdentifier) -> UIMenu?
+  /// The rows' details wrap to the new width.
+  func didChangeViewControllerWidth()
 }
 
 final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
@@ -28,6 +30,8 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
   private let segmentedControls: [String]
   private let isDetailSwitchDisplayed: Bool
   private let userInterfaceIdiom: UIUserInterfaceIdiom
+  /// The width the view last laid out at.
+  private var layoutWidth: CGFloat = 0
   /// Shows the popover on Liquid Glass where available, with its roomier header and search field.
   private let usesGlass: Bool
   // Measured from the designs. The header ends with its divider.
@@ -35,7 +39,8 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
   let searchFieldTopSpacing: CGFloat
   let searchFieldHeight: CGFloat
   let listTopSpacing: CGFloat
-  let bottomInset: CGFloat
+  /// Clears the popover's rounded bottom corners.
+  let bottomInset: CGFloat = 16
   private var items: [ItemDisplaySectionModel] = []
   private var displayingItems: [ItemDisplaySectionModel] = []
   private var isListView: Bool = true
@@ -60,13 +65,11 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
       searchFieldTopSpacing = 12
       searchFieldHeight = 36
       listTopSpacing = 16
-      bottomInset = 16
     } else {
       headerHeight = 39
       searchFieldTopSpacing = 7
       searchFieldHeight = 32
       listTopSpacing = 9
-      bottomInset = 8
     }
     super.init(nibName: nil, bundle: nil)
   }
@@ -562,6 +565,9 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
   override func viewDidLayoutSubviews() {
     updateCollectionViewLayout(
       isListView: isListView, animated: false)
+    guard view.bounds.width != layoutWidth else { return }
+    layoutWidth = view.bounds.width
+    delegate?.didChangeViewControllerWidth()
   }
 }
 
@@ -651,7 +657,7 @@ extension ItemDisplayViewController: UICollectionViewDelegateFlowLayout {
     case .noSection:
       return .zero
     case .section(_, _, _, _, _):
-      return CGSize(width: 0, height: 40)
+      return CGSize(width: 0, height: Self.sectionHeaderHeight)
     }
   }
 
@@ -863,6 +869,11 @@ extension ItemDisplayViewController: ItemDisplayCollectionViewAcronymListCellDel
   func didTapTrash(itemIdentifier: ItemViewModel.ItemIdentifier) {
     delegate?.didTapTrash(item: itemIdentifier)
   }
+}
+
+extension ItemDisplayViewController {
+  /// A titled section's header, above its rows.
+  static let sectionHeaderHeight: CGFloat = 40
 }
 
 extension ItemDisplayViewController: ItemDisplayViewControllerSectionHeaderViewDelegate {

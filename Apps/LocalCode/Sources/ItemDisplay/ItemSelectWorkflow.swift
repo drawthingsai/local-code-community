@@ -88,9 +88,10 @@ public final class ItemSelectWorkflow: Workflow {
   private func updatePreferredContentHeight() {
     let items = viewModels.flatMap(\.items)
     // Rows span the popover less the list's 8pt insets. Before the popover lays out, take its
-    // preferred width, which on iOS is the 375pt default too.
+    // preferred width, or on iOS its 320pt default; once it lays out, the height follows its width.
     let viewWidth = viewController.viewIfLoaded?.bounds.width ?? 0
-    let rowWidth = (viewWidth > 0 ? viewWidth : 375) - 16
+    let preferredWidth = ItemSelectWorkflow.preferredContentSize.width
+    let rowWidth = (viewWidth > 0 ? viewWidth : preferredWidth > 0 ? preferredWidth : 320) - 16
     let rowsHeight = items.reduce(0) { height, item in
       guard case .itemAcronymViewModel(let viewModel) = item else { return height + cellHeight }
       let rowHeight =
@@ -100,11 +101,15 @@ public final class ItemSelectWorkflow: Workflow {
       return height + rowHeight
         + (viewModel.startsGroup ? ItemDisplayCollectionViewAcronymListCell.groupSpacing : 0)
     }
-    // Title, search field and gaps, rows, then the inset below the last row.
+    // The list shows a header above each titled section that has rows.
+    let sectionHeadersHeight =
+      CGFloat(viewModels.filter { $0.identifier != .noSection && !$0.items.isEmpty }.count)
+      * ItemDisplayViewController.sectionHeaderHeight
+    // Title, search field and gaps, section headers and rows, then the inset below the last row.
     let height =
       viewController.headerHeight + viewController.searchFieldTopSpacing
       + viewController.searchFieldHeight + viewController.listTopSpacing
-      + rowsHeight + CGFloat(max(0, items.count - 1)) * minimumLineSpacing
+      + sectionHeadersHeight + rowsHeight + CGFloat(max(0, items.count - 1)) * minimumLineSpacing
       + viewController.bottomInset
     #if os(macOS) || (os(iOS) && targetEnvironment(macCatalyst))
       viewController.preferredContentSize.height = min(
@@ -183,6 +188,10 @@ extension ItemSelectWorkflow: ItemDisplayViewControllerDelegate {
         willScrollToSelectedItem: true)
     }
     delegate?.didSelectShowAll(showAll: index == 1, workflow: self)
+  }
+
+  func didChangeViewControllerWidth() {
+    updatePreferredContentHeight()
   }
 
   func didTapDetailSwitch() {
