@@ -1,4 +1,5 @@
 #if canImport(UIKit)
+  import AVFoundation
   import Foundation
   import UIKit
 
@@ -564,6 +565,7 @@
         size: image.size,
         requestedWidth: requestedWidth,
         useMinimumWidthForNaturalSize: false,
+        maximumHeight: nil,
         availableWidth: availableWidth,
         configuration: configuration
       )
@@ -629,6 +631,7 @@
         size: image.size,
         requestedWidth: nil,
         useMinimumWidthForNaturalSize: true,
+        maximumHeight: nil,
         availableWidth: availableWidth,
         configuration: configuration
       )
@@ -691,21 +694,53 @@
       guard token.standaloneParagraphRange(in: text) != nil,
         let url = configuration.services.videos.localVideoURL(for: name), url.isFileURL
       else { return false }
-      // Keep layout synchronous: the prototype fits videos into a 16:9 viewport,
-      // while AVKit preserves the actual video's aspect ratio inside it.
+      // A video takes its own size, as an image does, up to 360 points tall, the height of the
+      // 16:9 box that one whose size can't be read fits into, so a portrait video plays within
+      // one screen and a 16:9 one sizes as it always has.
       let bounds = markdownMediaBounds(
-        size: CGSize(width: 640, height: 360), requestedWidth: requestedWidth,
-        useMinimumWidthForNaturalSize: true, availableWidth: availableWidth,
-        configuration: configuration)
+        size: videoSize(url) ?? CGSize(width: 640, height: 360), requestedWidth: requestedWidth,
+        useMinimumWidthForNaturalSize: true, maximumHeight: 360,
+        availableWidth: availableWidth, configuration: configuration)
       return renderStandaloneMediaBlock(
         token, image: nil, videoURL: url, imageBounds: bounds, text: text,
         result: result, baseFont: baseFont, configuration: configuration)
     }
 
+    /// Video sizes by file and when it last changed, as the text restyles on every change.
+    private static let videoSizes = NSCache<NSString, NSValue>()
+
+    /// The size a video plays at, upright, or nil when it has no video track to read. It's read
+    /// synchronously so styling stays synchronous; AVFoundation reads only the file's header.
+    private static func videoSize(_ url: URL) -> CGSize? {
+      let modificationDate = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+        .contentModificationDate
+      let key = "\(url.path)|\(modificationDate?.timeIntervalSinceReferenceDate ?? 0)" as NSString
+      if let size = videoSizes.object(forKey: key) {
+        return size.cgSizeValue
+      }
+      guard let track = AVURLAsset(url: url).tracks(withMediaType: .video).first else {
+        return nil
+      }
+      // A quarter turn, as a phone records portrait, plays the frame on its side; the player
+      // shows any other angle at the frame's own size, as its presentation size reports.
+      let transform = track.preferredTransform
+      let size =
+        transform.a == 0 && transform.d == 0
+        ? CGSize(width: track.naturalSize.height, height: track.naturalSize.width)
+        : track.naturalSize
+      guard size.width > 0, size.height > 0 else { return nil }
+      videoSizes.setObject(NSValue(cgSize: size), forKey: key)
+      return size
+    }
+
+    /// - Parameter maximumHeight: How tall the media may be, as it shrinks to fit. It's fixed, not
+    ///   a share of the available width: a view that hugs its content offers the media's own width
+    ///   as available on the next pass, which would shrink it again.
     private static func markdownMediaBounds(
       size: CGSize,
       requestedWidth: CGFloat?,
       useMinimumWidthForNaturalSize: Bool,
+      maximumHeight: CGFloat?,
       availableWidth: CGFloat?,
       configuration: MarkdownEditorConfiguration
     ) -> CGRect {
@@ -720,13 +755,16 @@
       }
       let naturalWidth = max(size.width, 1)
       let naturalHeight = max(size.height, 1)
-      let targetWidth: CGFloat
+      var targetWidth: CGFloat
       if let requestedWidth, requestedWidth > 0 {
         targetWidth = min(max(requestedWidth, imageEmbed.minimumWidth), maxWidth)
       } else if useMinimumWidthForNaturalSize {
         targetWidth = min(max(naturalWidth, imageEmbed.minimumWidth), maxWidth)
       } else {
         targetWidth = min(naturalWidth, maxWidth)
+      }
+      if let maximumHeight {
+        targetWidth = min(targetWidth, maximumHeight * naturalWidth / naturalHeight)
       }
       let scale = targetWidth / naturalWidth
       return CGRect(x: 0, y: 0, width: naturalWidth * scale, height: naturalHeight * scale)
