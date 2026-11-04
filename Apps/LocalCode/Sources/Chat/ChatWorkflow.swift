@@ -2755,15 +2755,47 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     updateTextHistoryPointers()
   }
 
+  /// Whether the open thread is marked incomplete with a paused turn to go on with. A thread can
+  /// stay marked with none, as when its turn paused on a model that's no longer here; while no
+  /// turn runs, that mark is cleared, so the thread's messages go out instead of waiting on it.
+  private func hasIncompleteResponseToContinue() -> Bool {
+    guard let projectHistoryManager,
+      let thread = projectHistoryManager.thread(id: projectHistoryManager.threadId),
+      thread.hasIncompleteResponse
+    else { return false }
+    // A sending thread is marked until its turn ends, and until then the generation queue owns
+    // its agent's suspension.
+    guard chatInputController.sendState == .idle else { return true }
+    // So is one whose turn a scheduler still holds: running, paused, or being paused by a
+    // retiring scheduler.
+    let isRunning =
+      projectURL.map { projectURL in
+        ([agentScheduler] + retiringAgentSchedulers).contains { scheduler in
+          scheduler.residentCodeAgent(projectPath: projectURL.path, threadId: thread.id).map(
+            scheduler.hasActiveTurn) == true
+        }
+      } ?? false
+    guard !isRunning else { return true }
+    if case .some(.local(_, let codeAgent?)) = codeAgentWrapper, codeAgent.suspendedResult != nil {
+      return true
+    }
+    projectHistoryManager.setThreadHasIncompleteResponse(
+      id: thread.id, hasIncompleteResponse: false)
+    return false
+  }
+
   private func continueIncompleteResponse() {
-    guard chatInputController.sendState == .idle,
-      let projectHistoryManager,
+    guard chatInputController.sendState == .idle else { return }
+    // Nothing to go on with: what waited behind the mark goes out now.
+    guard hasIncompleteResponseToContinue() else {
+      continueWithQueuedItems()
+      return
+    }
+    guard let projectHistoryManager,
       let projectWorkspace,
       let projectURL,
       let thread = projectHistoryManager.thread(id: projectHistoryManager.threadId),
-      thread.hasIncompleteResponse,
-      case .some(.local(let textGenerator, let codeAgent)) = codeAgentWrapper,
-      let codeAgent,
+      case .some(.local(let textGenerator, let codeAgent?)) = codeAgentWrapper,
       let suspendedResult = codeAgent.suspendedResult
     else { return }
     let file = URL(fileURLWithPath: textGenerator.filePath).lastPathComponent
@@ -2965,6 +2997,8 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       transientErrorMessages[
         ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId)] = nil
     }
+    // Any marked thread queues the message behind what already waits there. Continuing then goes
+    // on with the paused turn, or with none to go on with, sends the queue in order.
     let hasIncompleteResponse =
       projectHistoryManager.flatMap { $0.thread(id: $0.threadId) }?.hasIncompleteResponse == true
     if chatInputController.sendState != .idle || hasIncompleteResponse {
