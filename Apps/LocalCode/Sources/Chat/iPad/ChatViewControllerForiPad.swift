@@ -85,6 +85,9 @@ protocol ChatViewControllableDelegate: AnyObject {
     didDeleteQueuedItem queuedItem: ProjectQueuedItem)
   func chatViewController(
     _ viewController: UIViewController, didSetProjectDemoHidden isHidden: Bool)
+  /// An image or video in the history, which `view` shows, was expanded, to see it full screen.
+  func chatViewController(
+    _ viewController: UIViewController, didExpandMedia url: URL, from view: UIView)
   func chatViewController(
     _ viewController: UIViewController,
     didReceiveScreenEdgePan screenEdgePanGestureRecognizer: UIScreenEdgePanGestureRecognizer)
@@ -1291,11 +1294,23 @@ extension ChatViewControllerForiPad: ProjectHistoryAssistantViewCellDelegate {
   func projectHistoryAssistantViewCellDidSelectContinue(_ cell: ProjectHistoryAssistantViewCell) {
     delegate?.chatViewControllerDidRequestContinueIncompleteResponse(self)
   }
+
+  func projectHistoryAssistantViewCell(
+    _ cell: ProjectHistoryAssistantViewCell, didExpandMedia url: URL, from view: UIView
+  ) {
+    delegate?.chatViewController(self, didExpandMedia: url, from: view)
+  }
 }
 
 extension ChatViewControllerForiPad: ProjectHistoryUserViewCellDelegate {
   func projectHistoryUserViewCellDidSelectCopy(_ cell: ProjectHistoryUserViewCell) {
     delegate?.chatViewController(self, didSelectCopyHistoryText: cell.text)
+  }
+
+  func projectHistoryUserViewCell(
+    _ cell: ProjectHistoryUserViewCell, didExpandMedia url: URL, from view: UIView
+  ) {
+    delegate?.chatViewController(self, didExpandMedia: url, from: view)
   }
 }
 

@@ -9,6 +9,9 @@ import UIKit
 protocol ProjectHistoryAssistantViewCellDelegate: AnyObject {
   func projectHistoryAssistantViewCellDidSelectCopy(_ cell: ProjectHistoryAssistantViewCell)
   func projectHistoryAssistantViewCellDidSelectContinue(_ cell: ProjectHistoryAssistantViewCell)
+  /// An image or video, which `view` shows, was expanded, to see it full screen.
+  func projectHistoryAssistantViewCell(
+    _ cell: ProjectHistoryAssistantViewCell, didExpandMedia url: URL, from view: UIView)
 }
 
 final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
@@ -33,6 +36,10 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
   }
   private lazy var markdownTextView: MarkdownTextView = {
     let textView = MarkdownTextView(frame: .zero, textContainer: nil)
+    textView.onExpandMedia = { [weak self] url, view in
+      guard let self else { return }
+      self.delegate?.projectHistoryAssistantViewCell(self, didExpandMedia: url, from: view)
+    }
     textView.backgroundColor = .clear
     textView.tintColor = .primaryColor
     textView.isEditable = false

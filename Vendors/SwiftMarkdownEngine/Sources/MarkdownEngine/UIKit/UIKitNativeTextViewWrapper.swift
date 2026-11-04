@@ -823,6 +823,10 @@
     private let selectionHighlightLayer = CAShapeLayer()
     private var selectionAutoscrollController: SelectionAutoscrollController? = nil
     private var latexImageViews: [UIImageView] = []
+    /// An image embed's view, with where the embed points.
+    private final class EmbeddedImageView: UIImageView {
+      var url: URL?
+    }
     private struct VideoEmbedID: Hashable {
       let url: URL
       let occurrence: Int
@@ -922,6 +926,13 @@
     }
 
     public var onPasteImage: ((NSPasteboard) -> String?)?
+
+    /// Gets the file of a tapped image embed, or of a video embed's expand button, and the view that
+    /// shows it, to show it full screen; while nil, images don't take touches and videos keep
+    /// AVKit's controls.
+    public var onExpandMedia: ((URL, UIView) -> Void)? {
+      didSet { setNeedsLayout() }
+    }
 
     public override init(frame: CGRect, textContainer: NSTextContainer?) {
       if let textContainer {
@@ -1073,6 +1084,40 @@
             parent.addChild(controller)
             addSubview(controller.view)
             controller.didMove(toParent: parent)
+            if onExpandMedia != nil {
+              // AVKit's controls, and the Live Text button it shows on a paused frame, are too
+              // large for a video in the text: a tap plays or pauses it, and full screen has them.
+              controller.showsPlaybackControls = false
+              if #available(macCatalyst 18.0, *) {
+                controller.allowsVideoFrameAnalysis = false
+              }
+              controller.view.addGestureRecognizer(
+                UITapGestureRecognizer(target: self, action: #selector(didTapVideo(_:))))
+              var configuration = UIButton.Configuration.filled()
+              configuration.image = UIImage(
+                systemName: "arrow.up.left.and.arrow.down.right",
+                withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold))
+              configuration.baseBackgroundColor = UIColor.black.withAlphaComponent(0.5)
+              configuration.baseForegroundColor = .white
+              configuration.cornerStyle = .capsule
+              configuration.contentInsets = NSDirectionalEdgeInsets(
+                top: 8, leading: 8, bottom: 8, trailing: 8)
+              let expandButton = UIButton(
+                configuration: configuration,
+                primaryAction: UIAction { [weak self, weak controller] _ in
+                  guard let controller else { return }
+                  controller.player?.pause()
+                  self?.onExpandMedia?(url, controller.view)
+                })
+              // The app's strings translate it.
+              expandButton.accessibilityLabel = NSLocalizedString(
+                "full_screen", bundle: .main, value: "Full Screen", comment: "")
+              // Rides the player's top trailing corner as the player resizes.
+              expandButton.frame = CGRect(
+                x: controller.view.bounds.maxX - 40, y: 8, width: 32, height: 32)
+              expandButton.autoresizingMask = [.flexibleLeftMargin, .flexibleBottomMargin]
+              controller.view.addSubview(expandButton)
+            }
             videoControllers[id] = controller
           }
           controller.view.frame = CGRect(
@@ -1173,16 +1218,18 @@
         return CGSize(width: UIView.noIntrinsicMetric, height: UIView.noIntrinsicMetric)
       }
       let intrinsicContentSize = super.intrinsicContentSize
+      // Rounded up, as a label rounds: the text container is the view's size, and a last line
+      // that doesn't fit in it isn't drawn.
       guard usesNaturalWidthForIntrinsicContentSize else {
         return CGSize(
-          width: intrinsicContentSize.width.rounded(), height: intrinsicContentSize.height.rounded()
-        )
+          width: intrinsicContentSize.width.rounded(.up),
+          height: intrinsicContentSize.height.rounded(.up))
       }
       let naturalContentSize = sizeThatFits(
         CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
       return CGSize(
-        width: min(intrinsicContentSize.width, naturalContentSize.width).rounded(),
-        height: intrinsicContentSize.height.rounded())
+        width: min(intrinsicContentSize.width, naturalContentSize.width).rounded(.up),
+        height: intrinsicContentSize.height.rounded(.up))
     }
 
     public override func caretRect(for position: UITextPosition) -> CGRect {
@@ -1652,7 +1699,7 @@
           let baselineY = lineFragmentRect.minY + glyphLocation.y
           y = baselineY + imageBounds.origin.y - imageBounds.height
         }
-        let imageView = UIImageView(
+        let imageView = EmbeddedImageView(
           frame: CGRect(
             x: textContainerInset.left + x,
             y: textContainerInset.top + y,
@@ -1663,9 +1710,43 @@
         imageView.image = image
         imageView.contentMode = .scaleAspectFit
         imageView.isUserInteractionEnabled = false
+        // Only a file shows full screen, as a video always is.
+        if onExpandMedia != nil,
+          let url = renderedText.attribute(
+            .markdownImageURL, at: range.location, effectiveRange: nil)
+            as? URL, url.isFileURL
+        {
+          imageView.url = url
+          imageView.isUserInteractionEnabled = true
+          imageView.addGestureRecognizer(
+            UITapGestureRecognizer(target: self, action: #selector(didTapImage(_:))))
+          // The pointer shows the image takes a tap, with the system's effect for its size.
+          imageView.addInteraction(UIPointerInteraction(delegate: nil))
+        }
         addSubview(imageView)
         latexImageViews.append(imageView)
       }
+    }
+
+    @objc private func didTapImage(_ gestureRecognizer: UITapGestureRecognizer) {
+      guard let imageView = gestureRecognizer.view as? EmbeddedImageView, let url = imageView.url
+      else { return }
+      onExpandMedia?(url, imageView)
+    }
+
+    @objc private func didTapVideo(_ gestureRecognizer: UITapGestureRecognizer) {
+      guard
+        let player = videoControllers.values.first(where: { $0.view === gestureRecognizer.view })?
+          .player
+      else { return }
+      guard player.timeControlStatus == .paused else { return player.pause() }
+      // A video that played to its end plays again from the start.
+      if let item = player.currentItem, item.duration.isNumeric,
+        item.currentTime() >= item.duration
+      {
+        player.seek(to: .zero)
+      }
+      player.play()
     }
   }
 

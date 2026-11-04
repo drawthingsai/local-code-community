@@ -706,11 +706,23 @@ extension ChatViewControllerForiPhone: ProjectHistoryAssistantViewCellDelegate {
   func projectHistoryAssistantViewCellDidSelectContinue(_ cell: ProjectHistoryAssistantViewCell) {
     delegate?.chatViewControllerDidRequestContinueIncompleteResponse(self)
   }
+
+  func projectHistoryAssistantViewCell(
+    _ cell: ProjectHistoryAssistantViewCell, didExpandMedia url: URL, from view: UIView
+  ) {
+    delegate?.chatViewController(self, didExpandMedia: url, from: view)
+  }
 }
 
 extension ChatViewControllerForiPhone: ProjectHistoryUserViewCellDelegate {
   func projectHistoryUserViewCellDidSelectCopy(_ cell: ProjectHistoryUserViewCell) {
     delegate?.chatViewController(self, didSelectCopyHistoryText: cell.text)
+  }
+
+  func projectHistoryUserViewCell(
+    _ cell: ProjectHistoryUserViewCell, didExpandMedia url: URL, from view: UIView
+  ) {
+    delegate?.chatViewController(self, didExpandMedia: url, from: view)
   }
 }
 

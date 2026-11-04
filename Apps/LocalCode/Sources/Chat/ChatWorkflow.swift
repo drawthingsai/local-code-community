@@ -2536,6 +2536,12 @@ extension ChatWorkflow: ChatViewControllableDelegate {
     projectWorkspace?.dictionary["project_demo_hidden", Bool.self] = isHidden
   }
 
+  func chatViewController(
+    _ viewController: UIViewController, didExpandMedia url: URL, from view: UIView
+  ) {
+    viewController.present(FilePreviewController(url: url, sourceView: view), animated: true)
+  }
+
   func chatViewControllerDidRequestNewProject(_ viewController: UIViewController) {
     handleKeyboardShortcut(.newProject)
   }

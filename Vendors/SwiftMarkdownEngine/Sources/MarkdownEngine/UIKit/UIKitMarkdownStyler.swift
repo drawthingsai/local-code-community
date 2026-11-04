@@ -7,6 +7,8 @@
     static let markdownVideoURL = NSAttributedString.Key("MarkdownVideoURL")
     static let markdownHTMLURL = NSAttributedString.Key("MarkdownHTMLURL")
     static let markdownImageBlock = NSAttributedString.Key("MarkdownImageBlock")
+    /// Where an image embed points, as a link to the same destination would.
+    static let markdownImageURL = NSAttributedString.Key("MarkdownImageURL")
   }
 
   enum UIKitMarkdownStyler {
@@ -308,6 +310,7 @@
         case .imageEmbed:
           styleImageEmbed(
             token,
+            linkID: wikiLinkIDProvider(token.range),
             isActive: isActive,
             text: nsText,
             result: result,
@@ -494,8 +497,11 @@
       }
     }
 
+    /// - Parameter linkID: What followed the name's `|` in the stored text, such as a width, which
+    ///   the text shown leaves out.
     private static func styleImageEmbed(
       _ token: MarkdownToken,
+      linkID: String?,
       isActive: Bool,
       text: NSString,
       result: NSMutableAttributedString,
@@ -507,7 +513,10 @@
         addMarkers(for: token, to: result, color: configuration.theme.mutedText)
         return
       }
-      let rawContent = text.substring(with: token.contentRange)
+      var rawContent = text.substring(with: token.contentRange)
+      if let linkID {
+        rawContent += "|" + linkID
+      }
       let parts =
         rawContent
         .split(separator: "|", omittingEmptySubsequences: false)
@@ -562,6 +571,7 @@
         renderStandaloneMediaBlock(
           token,
           image: image,
+          imageURL: configuration.services.links.url(for: name),
           imageBounds: imageBounds,
           text: text,
           result: result,
@@ -626,6 +636,7 @@
         renderStandaloneMediaBlock(
           token,
           image: image,
+          imageURL: configuration.services.links.url(for: normalizedMarkdownLinkDestination(url)),
           imageBounds: imageBounds,
           text: text,
           result: result,
@@ -724,6 +735,7 @@
     private static func renderStandaloneMediaBlock(
       _ token: MarkdownToken,
       image: UIImage?,
+      imageURL: URL? = nil,
       videoURL: URL? = nil,
       htmlURL: URL? = nil,
       imageBounds: CGRect,
@@ -766,19 +778,17 @@
       }
       let anchorText = text.substring(with: anchorRange)
       if let image {
-        add(
-          [
-            .latexImage: image,
-            .latexBounds: NSValue(cgRect: imageBounds),
-            .latexIsBlock: true,
-            .markdownImageBlock: true,
-            .foregroundColor: UIColor.clear,
-            .font: hiddenFont,
-            .kern: imageBounds.width - textWidth(anchorText, font: hiddenFont),
-          ],
-          range: anchorRange,
-          to: result
-        )
+        var attributes: [NSAttributedString.Key: Any] = [
+          .latexImage: image,
+          .latexBounds: NSValue(cgRect: imageBounds),
+          .latexIsBlock: true,
+          .markdownImageBlock: true,
+          .foregroundColor: UIColor.clear,
+          .font: hiddenFont,
+          .kern: imageBounds.width - textWidth(anchorText, font: hiddenFont),
+        ]
+        attributes[.markdownImageURL] = imageURL
+        add(attributes, range: anchorRange, to: result)
       } else if let mediaURL = htmlURL ?? videoURL {
         add(
           [
