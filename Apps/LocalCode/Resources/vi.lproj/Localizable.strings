@@ -3139,3 +3139,5 @@
 "limits" = "Giới hạn";
 "serve_limits_detail" = "Các yêu cầu chạy lần lượt từng cái vì mô hình chưa hỗ trợ xử lý theo lô. Tối đa 128 yêu cầu khác có thể xếp hàng, và cuộc trò chuyện đang chạy luôn được ưu tiên. Không có gì được lưu giữa các yêu cầu, nên mỗi yêu cầu gửi toàn bộ cuộc trò chuyện. Chưa hỗ trợ hình ảnh.";
 "port_x_is_in_use" = "Cổng %@ đang được ứng dụng khác sử dụng";
+
+"local_model_not_on_phone" = "Mô hình này không có trên iPhone này và iPhone không tải xuống mô hình cục bộ. Hãy chọn mô hình khác.";

@@ -2867,3 +2867,5 @@
 "limits" = "Grenzen";
 "serve_limits_detail" = "Anfragen laufen nacheinander, da die Modelle noch nicht bündeln können. Bis zu 128 weitere warten, und ein laufender Chat hat immer Vorrang. Zwischen Anfragen wird nichts gespeichert, daher sendet jede die gesamte Unterhaltung. Bilder werden noch nicht unterstützt.";
 "port_x_is_in_use" = "Port %@ wird von einer anderen App verwendet";
+
+"local_model_not_on_phone" = "Dieses Modell ist nicht auf diesem iPhone, und iPhones laden keine lokalen Modelle herunter. Wählen Sie ein anderes Modell.";

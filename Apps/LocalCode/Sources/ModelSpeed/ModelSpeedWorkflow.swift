@@ -232,7 +232,11 @@ extension ModelSpeedWorkflow: ModelSpeedViewControllerDelegate {
     modelSelectWorkflow.delegate = self
     modelSelectWorkflow.updateTitle(title: LocalizedString.forKey("model"))
     modelSelectWorkflow.setViewModels(
-      [ChatWorkflow.localModelSection(selectedModel: model, workspace: workspace)], flag: nil)
+      [
+        ChatWorkflow.localModelSection(
+          selectedModel: model, workspace: workspace,
+          userInterfaceIdiom: sourceView.traitCollection.userInterfaceIdiom)
+      ], flag: nil)
     if let popoverPresentationController = modelSelectWorkflow.viewControllable
       .popoverPresentationController
     {

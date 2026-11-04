@@ -2139,7 +2139,8 @@ extension SettingsWorkflow: ServeSectionsControllerDelegate {
     _ controller: ServeSectionsController, didTapModelSelector sourceView: UIView
   ) {
     let model = ServeController.model(workspace: workspace)
-    var section = ChatWorkflow.localModelSection(selectedModel: model, workspace: workspace)
+    var section = ChatWorkflow.localModelSection(
+      selectedModel: model, workspace: workspace, userInterfaceIdiom: userInterfaceIdiom)
     // Only what can run now, as nothing downloads from here yet.
     section.items = section.items.filter {
       guard case .identifier(let file as String) = $0.itemIdentifier,

@@ -1,4 +1,5 @@
 import BashToolContext
+import DataModels
 import Dflat
 import Foundation
 import Localization
@@ -32,6 +33,9 @@ extension ChatWorkflow {
 
   private func select(_ remoteChatProvider: RemoteChatProvider) {
     workspace.dictionary["chat_backend", String.self] = remoteChatProvider.provider.rawValue
+    // Every pick of a provider comes here, first-time setup included once it's saved.
+    workspace.dictionary["where_models_run_last_used", String.self] =
+      remoteChatProvider.provider.rawValue
     codeAgentWrapper = .remote(remoteChatProvider)
     settingsWorkflow.setRemoteContextStatus(nil)
     chatInputController.setModel(
@@ -55,6 +59,20 @@ extension ChatWorkflow {
     self.selectedLLM = selectedLLM
     chatInputController.setModel(
       name: LLMZoo.humanReadableNameForModel(selectedLLM), image: Self.modelImage(for: selectedLLM))
+  }
+
+  /// A phone opening a thread with no model it can run: it has no local model to fall back on, so
+  /// it takes the first provider that can answer of the last used, Cloud Compute, and the others;
+  /// or Cloud Compute, with its sign-in.
+  func selectCloudFallbackProvider() {
+    let lastUsed = workspace.dictionary["where_models_run_last_used", String.self].flatMap(
+      RemoteProvider.init(rawValue:))
+    // One that can answer now: set up with an account and a model.
+    let provider =
+      ([lastUsed, .localCode].compactMap { $0 } + RemoteProvider.allCases).first {
+        $0.profile(in: workspace) != nil
+      } ?? .localCode
+    select(remoteChatProvider(for: provider))
   }
 
   private func remoteConversationID() -> ProjectThreadIdentifier? {
@@ -199,7 +217,9 @@ extension ChatWorkflow {
         remoteChatProvider.provider == provider
       else { return }
       workspace.dictionary["chat_backend", String.self] = nil
-      if let selectedLLM {
+      if let selectedLLM,
+        DeviceCapability.canRunLocalModel(selectedLLM, userInterfaceIdiom: userInterfaceIdiom)
+      {
         self.selectedLLM = selectedLLM
         chatInputController.setModel(
           name: LLMZoo.humanReadableNameForModel(selectedLLM),

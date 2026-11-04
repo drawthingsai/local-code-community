@@ -3139,3 +3139,5 @@
 "limits" = "Limits";
 "serve_limits_detail" = "Requests run one at a time, since the models can't batch yet. Up to 128 more wait in line, and a chat you're running always goes first. Nothing is stored between requests, so each one sends the whole conversation. Images aren't supported yet.";
 "port_x_is_in_use" = "Port %@ is in use by another app";
+
+"local_model_not_on_phone" = "This model isn't on this iPhone, and iPhones don't download local models. Choose another model.";

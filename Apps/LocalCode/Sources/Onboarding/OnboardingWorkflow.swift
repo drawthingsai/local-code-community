@@ -1,4 +1,5 @@
 import Combine
+import DataModels
 import Dflat
 import Downloader
 import Localization
@@ -35,6 +36,7 @@ final class OnboardingWorkflow: Workflow {
 
   private let workspace: SQLiteWorkspace
   private let accountManager: AccountManager
+  private let userInterfaceIdiom: UIUserInterfaceIdiom
   // Progress lives only as long as the walkthrough is showing; reopening it starts over.
   private var state = OnboardingState()
   private var accountSubscription: AnyCancellable?
@@ -73,10 +75,18 @@ final class OnboardingWorkflow: Workflow {
     }
   }
 
-  init(workspace: SQLiteWorkspace, accountManager: AccountManager) {
+  init(
+    workspace: SQLiteWorkspace, accountManager: AccountManager,
+    userInterfaceIdiom: UIUserInterfaceIdiom
+  ) {
     self.workspace = workspace
     self.accountManager = accountManager
+    self.userInterfaceIdiom = userInterfaceIdiom
     viewController.delegate = self
+    // iPhones don't download local models, so they start on Local Code's cloud.
+    if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
+      state.selection = .remote(.localCode)
+    }
     viewController.localModels = localModelOptions
     accountSubscription = accountManager.accountValueSubject.receive(on: DispatchQueue.main).sink {
       [weak self] _ in self?.refresh()
@@ -148,7 +158,9 @@ final class OnboardingWorkflow: Workflow {
       selection: .local, title: LocalizedString.forKey("local_model"),
       detail: LocalizedString.format(key: "onboarding_local_model_detail", defaultModelName),
       badge: LocalizedString.forKey("recommended"), isBadgeHighlighted: true)
-    return [localOption]
+    return
+      (DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom)
+      ? [localOption] : [])
       + RemoteProvider.allCases.map { provider in
         let account = provider.account(in: workspace)
         let badge: String

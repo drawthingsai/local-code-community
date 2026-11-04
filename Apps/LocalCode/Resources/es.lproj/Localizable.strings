@@ -2827,3 +2827,5 @@
 "limits" = "Límites";
 "serve_limits_detail" = "Las solicitudes se ejecutan de una en una, ya que los modelos aún no admiten lotes. Hasta 128 más esperan en cola, y un chat en curso siempre tiene prioridad. No se guarda nada entre solicitudes, así que cada una envía toda la conversación. Aún no se admiten imágenes.";
 "port_x_is_in_use" = "Otra app está usando el puerto %@";
+
+"local_model_not_on_phone" = "Este modelo no está en este iPhone y los iPhone no descargan modelos locales. Elige otro modelo.";

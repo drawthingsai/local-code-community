@@ -605,7 +605,9 @@ final class SettingsSectionsController {
   private func whereModelsRunSection() -> SettingsSectionItem {
     let providers: [RemoteProvider?] =
       (isOnDeviceAvailable ? [nil] : []) + RemoteProvider.allCases.map(Optional.some)
-    let noProviderTitle = LocalizedString.forKey(isOnDeviceAvailable ? "on_device" : "unspecified")
+    // No provider is On Device. A phone, which falls back to a provider, has none only while it
+    // runs a local model it downloaded earlier.
+    let noProviderTitle = LocalizedString.forKey("on_device")
     let provider = remoteProvider ?? .openRouter
     let requiresHostedSignIn = remoteProvider == .localCode && !isHostedAccountSignedIn
     var configurationItem = SettingsSectionItem(

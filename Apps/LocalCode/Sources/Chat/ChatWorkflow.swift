@@ -48,7 +48,7 @@ final class ChatWorkflow: Workflow {
   private var sleepAssertion: SleepPrevention.Assertion?
   private var useAppleNeuralEngineSubscription: Workspace.Subscription?
   private var pendingModelWarmups = 0
-  private let userInterfaceIdiom: UIUserInterfaceIdiom
+  let userInterfaceIdiom: UIUserInterfaceIdiom
   private let navigationController: UINavigationController
   let viewController: any ChatViewControllable
   let settingsWorkflow: SettingsWorkflow
@@ -769,20 +769,26 @@ final class ChatWorkflow: Workflow {
     return #imageLiteral(resourceName: "cloud-compute-24").withRenderingMode(.alwaysTemplate)
   }
 
-  /// The local models a model selector lists, marking the ones still to download.
-  static func localModelSection(selectedModel: String?, workspace: SQLiteWorkspace)
-    -> ItemDisplaySectionModel
-  {
+  /// The local models a model selector lists, marking the ones still to download. An iPhone
+  /// lists only the ones it already has.
+  static func localModelSection(
+    selectedModel: String?, workspace: SQLiteWorkspace, userInterfaceIdiom: UIUserInterfaceIdiom
+  ) -> ItemDisplaySectionModel {
+    let canDownloadLocalModels = DeviceCapability.canDownloadLocalModels(
+      userInterfaceIdiom: userInterfaceIdiom)
     let viewModels: [ItemDisplayCollectionViewCellViewModel] =
       LLMZoo.builtinSpecifications.compactMap { specification in
         let isDownloaded = LLMZoo.isModelDownloaded(specification)
+        // An iPhone lists the ones it can run as they are, a missing drafter included, and has
+        // nothing to mark as nothing downloads there.
         guard
-          specification.file == selectedModel
-            || isDownloaded
-            || !LLMZoo.isModelDeprecated(specification.file)
+          canDownloadLocalModels
+            ? isDownloaded || specification.file == selectedModel
+              || !LLMZoo.isModelDeprecated(specification.file)
+            : LLMZoo.isModelDownloaded(specification, required: true)
         else { return nil }
         let title = NSMutableAttributedString(string: specification.name)
-        if !isDownloaded {
+        if canDownloadLocalModels, !isDownloaded {
           title.append(NSAttributedString(string: " "))
           let configuration = UIImage.SymbolConfiguration(
             pointSize: 13, weight: .regular, scale: .default)
@@ -820,7 +826,10 @@ final class ChatWorkflow: Workflow {
       ]
     } else {
       selectedRemoteProvider = nil
-      itemSectionModels = [Self.localModelSection(selectedModel: selectedLLM, workspace: workspace)]
+      itemSectionModels = [
+        Self.localModelSection(
+          selectedModel: selectedLLM, workspace: workspace, userInterfaceIdiom: userInterfaceIdiom)
+      ]
       // Rows show sizes known so far and fill in the rest as the lookups finish.
       localModelSizeLoader.load(
         itemSectionModels.flatMap(\.items).compactMap {
@@ -923,7 +932,11 @@ final class ChatWorkflow: Workflow {
       }
       guard self.modelSelectWorkflow === workflow else { return }
       workflow.setViewModels(
-        [Self.localModelSection(selectedModel: self.selectedLLM, workspace: self.workspace)],
+        [
+          Self.localModelSection(
+            selectedModel: self.selectedLLM, workspace: self.workspace,
+            userInterfaceIdiom: self.userInterfaceIdiom)
+        ],
         flag: nil)
     }
     alertController.addAction(removeAction)
@@ -1054,12 +1067,17 @@ final class ChatWorkflow: Workflow {
 
   private func selectLocalModel(file: String) {
     guard chatInputController.sendState == .idle else { return }
-    guard let specification = LLMZoo.specificationForModel(file) else { return }
+    let canDownloadLocalModels = DeviceCapability.canDownloadLocalModels(
+      userInterfaceIdiom: userInterfaceIdiom)
+    guard let specification = LLMZoo.specificationForModel(file),
+      canDownloadLocalModels || LLMZoo.isModelDownloaded(specification, required: true)
+    else { return }
     selectedLLM = file
     workspace.dictionary["chat_backend", String.self] = nil
     chatInputController.setModel(
       name: LLMZoo.humanReadableNameForModel(file), image: Self.modelImage(for: file))
-    if !LLMZoo.isModelDownloaded(specification) {
+    // Selecting downloads the rest of the model, the drafter too, except on an iPhone.
+    if canDownloadLocalModels, !LLMZoo.isModelDownloaded(specification) {
       downloadLLMModel(specification) { [weak self] success in
         guard let self, success, self.selectedLLM == file else { return }
         self.warmupSelectedModel()
@@ -1067,6 +1085,14 @@ final class ChatWorkflow: Workflow {
     } else {
       warmupSelectedModel()
     }
+  }
+
+  private func presentModelNotOnPhone(_ specification: LLMZoo.Specification) {
+    let alertController = UIAlertController(
+      title: specification.name, message: LocalizedString.forKey("local_model_not_on_phone"),
+      preferredStyle: .alert)
+    alertController.addAction(UIAlertAction(title: LocalizedString.forKey("ok"), style: .default))
+    presentedViewController.present(alertController, animated: true)
   }
 
   private func warmupSelectedModel() {
@@ -1570,12 +1596,16 @@ final class ChatWorkflow: Workflow {
           chatInputController.setModel(
             name: remoteChatProvider.title,
             image: Self.modelImage(for: remoteChatProvider.provider))
-        } else if LLMZoo.specificationForModel(threadModel) != nil {
+        } else if DeviceCapability.canRunLocalModel(
+          threadModel, userInterfaceIdiom: userInterfaceIdiom)
+        {
           selectedLLM = threadModel
           workspace.dictionary["chat_backend", String.self] = nil
           chatInputController.setModel(
             name: LLMZoo.humanReadableNameForModel(threadModel),
             image: Self.modelImage(for: threadModel))
+        } else if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
+          selectCloudFallbackProvider()
         } else {
           codeAgentWrapper = nil
           workspace.dictionary["chat_backend", String.self] = nil
@@ -1585,6 +1615,8 @@ final class ChatWorkflow: Workflow {
           chatInputController.setModel(
             name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
         }
+      } else if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
+        selectCloudFallbackProvider()
       } else {
         codeAgentWrapper = nil
         workspace.dictionary["chat_backend", String.self] = nil
@@ -1605,11 +1637,15 @@ final class ChatWorkflow: Workflow {
         chatInputController.setModel(
           name: remoteChatProvider.title,
           image: Self.modelImage(for: provider))
-      } else if let selectedLLM {
+      } else if let selectedLLM,
+        DeviceCapability.canRunLocalModel(selectedLLM, userInterfaceIdiom: userInterfaceIdiom)
+      {
         self.selectedLLM = selectedLLM
         chatInputController.setModel(
           name: LLMZoo.humanReadableNameForModel(selectedLLM),
           image: Self.modelImage(for: selectedLLM))
+      } else if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
+        selectCloudFallbackProvider()
       } else {
         codeAgentWrapper = nil
         settingsWorkflow.setRemoteContextStatus(nil)
@@ -1654,7 +1690,7 @@ final class ChatWorkflow: Workflow {
       openProject(at: projectURL ?? settingsWorkflow.workspaceFolderURL, threadId: -1)
     }
     let onboardingWorkflow = OnboardingWorkflow(
-      workspace: workspace, accountManager: accountManager)
+      workspace: workspace, accountManager: accountManager, userInterfaceIdiom: userInterfaceIdiom)
     onboardingWorkflow.delegate = self
     self.onboardingWorkflow = onboardingWorkflow
     settingsWorkflow.isOnboardingSelected = true
@@ -2079,7 +2115,8 @@ extension ChatWorkflow: OnboardingWorkflowDelegate {
   func onboardingWorkflow(
     _ workflow: OnboardingWorkflow, didRequestDownloadOfLocalModel file: String
   ) {
-    guard let specification = LLMZoo.specificationForModel(file),
+    guard DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom),
+      let specification = LLMZoo.specificationForModel(file),
       !LLMZoo.isModelDownloaded(specification)
     else { return }
     // Selecting the model later joins this download instead of starting another.
@@ -2105,6 +2142,9 @@ extension ChatWorkflow: OnboardingWorkflowDelegate {
     _ workflow: OnboardingWorkflow, didFinishWith provider: RemoteProvider?
   ) {
     workspace.dictionary["chat_backend", String.self] = provider?.rawValue
+    if let provider {
+      workspace.dictionary["where_models_run_last_used", String.self] = provider.rawValue
+    }
     openProject(at: projectURL ?? settingsWorkflow.workspaceFolderURL, threadId: -1)
     chatInputController.focus()
   }
@@ -2278,7 +2318,10 @@ extension ChatWorkflow: LocalModelSizeLoaderDelegate {
     guard let modelSelectWorkflow else { return }
     if case .some(.remote) = codeAgentWrapper { return }
     modelSelectWorkflow.setViewModels(
-      [Self.localModelSection(selectedModel: selectedLLM, workspace: workspace)], flag: nil)
+      [
+        Self.localModelSection(
+          selectedModel: selectedLLM, workspace: workspace, userInterfaceIdiom: userInterfaceIdiom)
+      ], flag: nil)
   }
 }
 
@@ -2803,6 +2846,10 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     if let specification = LLMZoo.specificationForModel(file),
       !LLMZoo.isModelDownloaded(specification, required: true)
     {
+      guard DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) else {
+        presentModelNotOnPhone(specification)
+        return
+      }
       let threadId = thread.id
       downloadLLMModel(specification) { [weak self] success in
         guard let self, success, self.projectHistoryManager === projectHistoryManager,
@@ -2865,8 +2912,11 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     // Stopping without a steer hands the queue back to the input instead of sending it.
     let isRestoringQueue = isStopping && steeredItems.isEmpty
     // Like a new turn, sending downloads a model whose files were removed. The queue stays
-    // until then, so it goes out once the download finishes.
-    if !isRestoringUserNode, !isRestoringQueue, case .some(.local) = codeAgentWrapper,
+    // until then, so it goes out once the download finishes. An iPhone doesn't download: the
+    // send says so, and the queue goes back to the input.
+    if !isRestoringUserNode, !isRestoringQueue,
+      DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom),
+      case .some(.local) = codeAgentWrapper,
       let file = selectedLLM, let specification = LLMZoo.specificationForModel(file),
       !LLMZoo.isModelDownloaded(specification, required: true)
     {
@@ -2958,6 +3008,10 @@ extension ChatWorkflow: ChatInputControllerDelegate {
 
   func chatInputControllerDidTapSend(_ controller: ChatInputController) {
     guard codeAgentWrapper != nil, !controller.isImportingAttachments else { return }
+    if case .some(.remote(let remoteChatProvider)) = codeAgentWrapper {
+      workspace.dictionary["where_models_run_last_used", String.self] =
+        remoteChatProvider.provider.rawValue
+    }
     var prompt = controller.text.trimmingCharacters(in: .whitespacesAndNewlines)
     var imagePaths = [String]()
     if let projectURL, !controller.attachments.isEmpty {
@@ -3041,6 +3095,10 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     else { return false }
     // A missing drafter does not hold the turn; selecting the model downloads it.
     guard LLMZoo.isModelDownloaded(specification, required: true) else {
+      guard DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) else {
+        presentModelNotOnPhone(specification)
+        return false
+      }
       // Keep the draft editable while downloading, including after cancellation or failure.
       let projectHistoryManager = self.projectHistoryManager
       let threadId = projectHistoryManager?.threadId

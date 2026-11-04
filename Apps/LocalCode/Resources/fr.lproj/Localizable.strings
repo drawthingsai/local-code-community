@@ -2867,3 +2867,5 @@
 "limits" = "Limites";
 "serve_limits_detail" = "Les requêtes s’exécutent une par une, car les modèles ne savent pas encore les regrouper. Jusqu’à 128 autres patientent, et un chat en cours passe toujours en premier. Rien n’est conservé entre les requêtes : chacune envoie toute la conversation. Les images ne sont pas encore prises en charge.";
 "port_x_is_in_use" = "Le port %@ est utilisé par une autre app";
+
+"local_model_not_on_phone" = "Ce modèle n'est pas sur cet iPhone, et les iPhone ne téléchargent pas de modèles locaux. Choisissez un autre modèle.";
