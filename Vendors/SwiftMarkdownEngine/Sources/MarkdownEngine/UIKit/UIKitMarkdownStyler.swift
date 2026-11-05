@@ -694,12 +694,13 @@
       guard token.standaloneParagraphRange(in: text) != nil,
         let url = configuration.services.videos.localVideoURL(for: name), url.isFileURL
       else { return false }
-      // A video takes its own size, as an image does, up to 360 points tall, the height of the
-      // 16:9 box that one whose size can't be read fits into, so a portrait video plays within
-      // one screen and a 16:9 one sizes as it always has.
+      // A video takes its own size, as an image does, up to 540 points tall, the height of a
+      // 16:9 video 960 points wide, so a landscape video fills a wide column as an image does and
+      // a portrait one still plays within one phone screen. One whose size can't be read fits a
+      // 640 by 360 box.
       let bounds = markdownMediaBounds(
         size: videoSize(url) ?? CGSize(width: 640, height: 360), requestedWidth: requestedWidth,
-        useMinimumWidthForNaturalSize: true, maximumHeight: 360,
+        useMinimumWidthForNaturalSize: true, maximumHeight: 540,
         availableWidth: availableWidth, configuration: configuration)
       return renderStandaloneMediaBlock(
         token, image: nil, videoURL: url, imageBounds: bounds, text: text,
