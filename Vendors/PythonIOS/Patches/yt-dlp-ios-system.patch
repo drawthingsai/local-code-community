@@ -1,6 +1,6 @@
 --- a/yt_dlp/utils/_utils.py
 +++ b/yt_dlp/utils/_utils.py
-@@ -839,90 +839,34 @@
+@@ -837,90 +837,34 @@
              self._parse('-', stream, False)
  
  
@@ -46,7 +46,7 @@
 -
 -        self.__text_mode = kwargs.get('encoding') or kwargs.get('errors') or text or kwargs.get('universal_newlines')
 -        if text is True:
--            kwargs['universal_newlines'] = True  # For 3.6 compatibility
+-            kwargs['text'] = True
 +    def run(args, *, input=None, env=None, shell=False, **kwargs):
 +        if env is not None and env != dict(os.environ):
 +            raise OSError(errno.ENOTSUP, 'Custom command environments are unavailable in embedded yt-dlp')

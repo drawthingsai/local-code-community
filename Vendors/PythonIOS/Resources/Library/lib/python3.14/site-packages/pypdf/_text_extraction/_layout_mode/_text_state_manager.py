@@ -4,15 +4,16 @@ from collections import ChainMap, Counter
 from collections import ChainMap as ChainMapType
 from collections import Counter as CounterType
 from collections.abc import MutableMapping
-from typing import Any, Union
+from typing import Any, Literal, Union
 
-from ..._font import Font
 from ...errors import PdfReadError
+from ...generic._font import Font
 from .. import mult
 from ._text_state_params import TextStateParams
 
-TextStateManagerChainMapType = ChainMapType[Union[int, str], Union[float, bool]]
-TextStateManagerDictType = MutableMapping[Union[int, str], Union[float, bool]]
+TextStateManagerKeyType = Union[int, Literal["is_text", "is_render"]]
+TextStateManagerChainMapType = ChainMapType[TextStateManagerKeyType, Union[float, bool]]
+TextStateManagerDictType = MutableMapping[TextStateManagerKeyType, Union[float, bool]]
 
 
 class TextStateManager:
@@ -61,7 +62,11 @@ class TextStateManager:
         """
         if op not in [b"Tc", b"Tz", b"Tw", b"TL", b"Ts"]:
             return
-        self.__setattr__(op.decode(), value[0] if isinstance(value, list) else value)
+        name = op.decode()
+        raw = (value[0] if value else None) if isinstance(value, list) else value
+        # a missing or non-numeric operand (e.g. a name from a malformed content
+        # stream) leaves the parameter unchanged, matching the ROB handling of Td/Tm/Tf
+        self.__setattr__(name, self._as_float(raw, getattr(self, name)))
 
     def set_font(self, font: Font, size: float) -> None:
         """
@@ -107,6 +112,16 @@ class TextStateManager:
         )
 
     @staticmethod
+    def _as_float(value: Any, default: float = 0.0) -> float:
+        """An operand as a float, or default if it is not a number
+        (e.g. a name from a malformed content stream).
+        """
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
     def raw_transform(
         _a: float = 1.0,
         _b: float = 0.0,
@@ -116,7 +131,9 @@ class TextStateManager:
         _f: float = 0.0,
     ) -> TextStateManagerDictType:
         """Only a/b/c/d/e/f matrix params"""
-        return dict(zip(range(6), map(float, (_a, _b, _c, _d, _e, _f))))
+        defaults = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+        values = (_a, _b, _c, _d, _e, _f)
+        return dict(zip(range(6), (TextStateManager._as_float(v, d) for v, d in zip(values, defaults))))
 
     @staticmethod
     def new_transform(
@@ -126,6 +143,7 @@ class TextStateManager:
         _d: float = 1.0,
         _e: float = 0.0,
         _f: float = 0.0,
+        *,
         is_text: bool = False,
         is_render: bool = False,
     ) -> TextStateManagerDictType:
@@ -178,18 +196,33 @@ class TextStateManager:
 
     def add_tm(self, operands: list[float]) -> TextStateManagerChainMapType:
         """Append a text transform matrix"""
-        self.transform_stack = self.transform_stack.new_child(
-            self.new_transform(  # type: ignore[misc]
-                *self._complete_matrix(operands), is_text=True  # type: ignore[arg-type]
-            )
-        )
+        # Build a new text transformation matrix from the supplied operands.
+        new_child = self.new_transform(*self._complete_matrix(operands), is_text=True)
+        # Get the most recently added transformation from the stack.
+        top = self.transform_stack.maps[0]
+
+        # If the current transformation is a text matrix and is not a rendering
+        # transformation, combine the matrices instead of adding another stack
+        # entry. This prevents unnecessary growth of the transform stack.
+        # Non-rendering transformations do not emit anything and thus can be merged.
+        if top.get("is_text") and not top.get("is_render"):
+            # Multiply the new matrix by the current top matrix, preserving the
+            # transformation order used when a new stack entry would be pushed.
+            combined = mult(list(new_child.values()), top)
+            # Replace the current top entry with the combined transformation.
+            # The existing stack structure is preserved rather than extended.
+            self.transform_stack.maps[0] = self.new_transform(*combined, is_text=True)
+        else:
+            # If the current transformation is not a suitable text matrix to
+            # combine with, push the new transformation onto the stack as before.
+            self.transform_stack = self.transform_stack.new_child(new_child)
         return self.transform_stack
 
     def add_trm(self, operands: list[float]) -> TextStateManagerChainMapType:
         """Append a text rendering transform matrix"""
         self.transform_stack = self.transform_stack.new_child(
-            self.new_transform(  # type: ignore[misc]
-                *self._complete_matrix(operands), is_text=True, is_render=True  # type: ignore[arg-type]
+            self.new_transform(
+                *self._complete_matrix(operands), is_text=True, is_render=True
             )
         )
         return self.transform_stack
@@ -199,5 +232,5 @@ class TextStateManager:
         """Current effective transform accounting for cm, tm, and trm transforms"""
         eff_transform = [*self.transform_stack.maps[0].values()]
         for transform in self.transform_stack.maps[1:]:
-            eff_transform = mult(eff_transform, transform)  # type: ignore[arg-type]  # dict has int keys 0-5
+            eff_transform = mult(eff_transform, transform)
         return eff_transform

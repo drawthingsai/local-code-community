@@ -57,22 +57,41 @@ A       Uppercase letters (A to Z for the first 26 pages,
 a       Lowercase letters (a to z for the first 26 pages,
                            aa to zz for the next 26, and so on)
 """
-
-from collections.abc import Callable, Iterator
-from typing import Optional, cast
+import string
+from typing import TYPE_CHECKING, Optional, cast
 
 from ._protocols import PdfCommonDocProtocol
 from ._utils import logger_warning
 from .generic import (
     ArrayObject,
     DictionaryObject,
+    IndirectObject,
+    NameObject,
     NullObject,
     NumberObject,
     is_null_or_none,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+# The largest number one can represent using the usual symbols
+# and subtractive notation without additional conventions.
+# Aligns with https://github.com/AA-Turner/roman-numerals/blob/master/python/roman_numerals/__init__.py
+MAXIMUM_ROMAN_NUMERAL = 3_999
+
+# Allow values of up to 512 * 26 = 13_312 for the `/A` and `/a`.
+# Please note that this limit is somehow arbitrary and some trade-off
+# between rather restrictive <= 256 output bytes per label and the possibly
+# unrealistic 1000 output bytes per label.
+MAXIMUM_PAGE_LABEL_LENGTH = 512
+
 
 def number2uppercase_roman_numeral(num: int) -> str:
+    if num <= 0:
+        raise ValueError("Expecting a positive number.")
+    if num > MAXIMUM_ROMAN_NUMERAL:
+        raise ValueError("Number is out of range.")
     roman = [
         (1000, "M"),
         (900, "CM"),
@@ -89,15 +108,12 @@ def number2uppercase_roman_numeral(num: int) -> str:
         (1, "I"),
     ]
 
-    def roman_num(num: int) -> Iterator[str]:
-        for decimal, roman_repr in roman:
-            x, _ = divmod(num, decimal)
-            yield roman_repr * x
-            num -= decimal * x
-            if num <= 0:
-                break
+    result = []
+    for value, symbol in roman:
+        count, num = divmod(num, value)
+        result.append(symbol * count)
 
-    return "".join(list(roman_num(num)))
+    return "".join(result)
 
 
 def number2lowercase_roman_numeral(number: int) -> str:
@@ -106,18 +122,13 @@ def number2lowercase_roman_numeral(number: int) -> str:
 
 def number2uppercase_letter(number: int) -> str:
     if number <= 0:
-        raise ValueError("Expecting a positive number")
-    alphabet = [chr(i) for i in range(ord("A"), ord("Z") + 1)]
-    rep = ""
-    while number > 0:
-        remainder = number % 26
-        if remainder == 0:
-            remainder = 26
-        rep = alphabet[remainder - 1] + rep
-        # update
-        number -= remainder
-        number = number // 26
-    return rep
+        raise ValueError("Expecting a positive number.")
+    # A to Z, then the same letter repeated: AA to ZZ, AAA to ZZZ, and so on.
+    repetitions, position = divmod(number - 1, 26)
+    length = repetitions + 1
+    if length > MAXIMUM_PAGE_LABEL_LENGTH:
+        raise ValueError("Number is too large.")
+    return string.ascii_uppercase[position] * (repetitions + 1)
 
 
 def number2lowercase_letter(number: int) -> str:
@@ -147,7 +158,15 @@ def get_label_from_nums(dictionary_object: DictionaryObject, index: int) -> str:
         value = nums[i + 1].get_object()
         if i + 2 == nums_length:
             break
-        if nums[i + 2] > index:
+        next_key = nums[i + 2]
+        if not isinstance(next_key, (int, float)):
+            logger_warning(
+                "Ignoring malformed page label key %(key)r in /Nums.",
+                source=__name__,
+                key=next_key,
+            )
+            return str(index + 1)  # Fallback
+        if next_key > index:
             break
         i += 2
     m: dict[Optional[str], Callable[[int], str]] = {
@@ -174,13 +193,14 @@ def get_label_from_nums(dictionary_object: DictionaryObject, index: int) -> str:
         return str(index + 1)  # Fallback
     try:
         return prefix + mapping_function(index - start_index + start)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exception:
         # Malformed /St or /P value; fall back to the page position.
         logger_warning(
-            "Ignoring malformed page label entry in /Nums (/St=%(start)r, /P=%(prefix)r).",
+            "Ignoring malformed page label entry in /Nums (/St=%(start)r, /P=%(prefix)r): %(exception)s",
             source=__name__,
             start=start,
             prefix=prefix,
+            exception=exception,
         )
         return str(index + 1)  # Fallback
 
@@ -200,7 +220,14 @@ def index2label(reader: PdfCommonDocProtocol, index: int) -> str:
     root = cast(DictionaryObject, reader.root_object)
     if "/PageLabels" not in root:
         return str(index + 1)  # Fallback
-    number_tree = cast(DictionaryObject, root["/PageLabels"].get_object())
+    number_tree = root["/PageLabels"].get_object()
+    if not isinstance(number_tree, DictionaryObject):
+        logger_warning(
+            "Page labels are not a dictionary: %(number_tree)s",
+            source=__name__,
+            number_tree=number_tree,
+        )
+        return str(index + 1)  # Fallback
     if "/Nums" in number_tree:
         return get_label_from_nums(number_tree, index)
     if "/Kids" in number_tree and not isinstance(number_tree["/Kids"], NullObject):
@@ -208,9 +235,23 @@ def index2label(reader: PdfCommonDocProtocol, index: int) -> str:
         # Limit maximum depth.
         level = 0
         while level < 100:
-            kids = cast(list[DictionaryObject], number_tree["/Kids"])
+            kids = number_tree["/Kids"].get_object()
+            if not isinstance(kids, ArrayObject):
+                logger_warning(
+                    "Page label kids are not an array: %(kids)s",
+                    source=__name__,
+                    kids=kids,
+                )
+                break
             for kid in kids:
                 # kid = {'/Limits': [0, 63], '/Nums': [0, {'/P': 'C1'}, ...]}
+                kid = kid.get_object()
+                if not isinstance(kid, DictionaryObject):
+                    logger_warning(
+                        "Ignoring kid which is not a dictionary in /PageLabels.",
+                        source=__name__,
+                    )
+                    continue
                 limits = kid.get("/Limits", NullObject()).get_object()
                 if not isinstance(limits, list) or len(limits) < 2:
                     # Skip kids whose /Limits range is missing or malformed.
@@ -239,6 +280,70 @@ def index2label(reader: PdfCommonDocProtocol, index: int) -> str:
 
     logger_warning("Could not reliably determine page label for %(index)d.", source=__name__, index=index)
     return str(index + 1)  # Fallback if neither /Nums nor /Kids is in the number_tree
+
+
+def _get_single_pass_nums_length(nums: ArrayObject, page_count: int) -> Optional[int]:
+    """
+    Get how much of a flat ``/Nums`` array labels the first ``page_count`` pages.
+
+    ``get_label_from_nums`` always reads the first pair, then stops at the first
+    key above the page index, so only the array up to the first key at or above
+    ``page_count`` after the first pair matters. Returns ``None`` unless that
+    part consists of pairs of increasing integer keys and direct values, which
+    is what lets ``index2labels`` read it once for all pages.
+    """
+    nums_length = len(nums)
+    previous = None
+    for i in range(0, nums_length, 2):
+        key = nums[i]
+        if (
+            i + 1 >= nums_length
+            or not isinstance(key, NumberObject)
+            or isinstance(nums[i + 1], IndirectObject)
+            or (previous is not None and key <= previous)
+        ):
+            return None
+        if key >= page_count and i > 0:
+            return i + 2
+        previous = key
+    return nums_length or None
+
+
+def _index2labels_page_by_page(pdf: PdfCommonDocProtocol, page_count: int) -> list[str]:
+    return [index2label(pdf, index) for index in range(page_count)]
+
+
+def index2labels(pdf: PdfCommonDocProtocol, page_count: int) -> list[str]:
+    """
+    Labels of the first ``page_count`` pages, as ``index2label`` would return them.
+
+    A flat ``/Nums`` array with integer keys in increasing order and direct
+    values is walked once for all pages instead of from the start for every
+    page. Any other number tree is resolved page by page.
+    """
+    if page_count <= 0:
+        return []
+    root = cast(DictionaryObject, pdf.root_object)
+    if "/PageLabels" not in root:
+        return _index2labels_page_by_page(pdf, page_count)
+    number_tree = root["/PageLabels"].get_object()
+    if not isinstance(number_tree, DictionaryObject) or "/Nums" not in number_tree:
+        return _index2labels_page_by_page(pdf, page_count)
+    nums = number_tree["/Nums"]
+    if not isinstance(nums, ArrayObject):
+        return _index2labels_page_by_page(pdf, page_count)
+    nums_length = _get_single_pass_nums_length(nums, page_count)
+    if nums_length is None:
+        return _index2labels_page_by_page(pdf, page_count)
+
+    labels = []
+    position = 0
+    for index in range(page_count):
+        while position + 2 < nums_length and nums[position + 2] <= index:
+            position += 2
+        entry = DictionaryObject({NameObject("/Nums"): ArrayObject(nums[position : position + 2])})
+        labels.append(get_label_from_nums(entry, index))
+    return labels
 
 
 def nums_insert(
@@ -317,5 +422,5 @@ def nums_next(
 
     i = nums.index(key) + 2
     if i < len(nums):
-        return (nums[i], nums[i + 1])
-    return (None, None)
+        return nums[i], nums[i + 1]
+    return None, None

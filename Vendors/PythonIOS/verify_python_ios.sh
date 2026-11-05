@@ -382,7 +382,7 @@ for root in "$IOS_RESOURCES" "$MACOS_RESOURCES"; do
   grep -qx 'Version: 2.9.1' "$site_packages/cairosvg-2.9.1.dist-info/METADATA" ||
     fail "missing CairoSVG package metadata under $root"
   for license in libjpeg-turbo-LICENSE.md libjpeg-turbo-README.ijg; do
-    [[ -f "$site_packages/pillow-12.3.0.dist-info/licenses/native/$license" ]] ||
+    [[ -f "$site_packages/pillow-13.0.0.dist-info/licenses/native/$license" ]] ||
       fail "missing Pillow native license $license under $root"
   done
   [[ -f "$site_packages/yaml/__init__.py" ]] ||

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import re
 from dataclasses import dataclass, field
 from enum import IntEnum
 from io import BytesIO
@@ -10,13 +9,13 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 from .._codecs import encoding_dict_from_named_encoding
 from .._codecs.core_font_metrics import CORE_FONT_METRICS
-from .._font import Font
 from .._page import Transformation
 from .._utils import is_char_rtl, logger_warning
 from ..constants import AnnotationDictionaryAttributes, BorderStyles, FieldDictionaryAttributes, PageAttributes
 from ..errors import PdfReadError
 from ..generic import (
     ArrayObject,
+    ContentStream,
     DecodedStreamObject,
     DictionaryObject,
     FloatObject,
@@ -27,6 +26,8 @@ from ..generic import (
     StreamObject,
 )
 from ..generic._base import ByteStringObject, TextStringObject
+from ._color import Color, DeviceGray
+from ._font import Font
 
 if TYPE_CHECKING:
     from pypdf._writer import PdfWriter
@@ -53,6 +54,8 @@ class BaseStreamConfig:
     rectangle: RectangleObject = field(default_factory=lambda: RectangleObject((0.0, 0.0, 0.0, 0.0)))
     border_width: int = 1  # The width of the border in points
     border_style: str = BorderStyles.SOLID
+    border_color: Color | None = None
+    background_color: Color | None = None
     rotation: int = 0
 
 
@@ -97,6 +100,37 @@ class BaseStreamAppearance(DecodedStreamObject):
         rotation = self._layout.rotation % 360
         if rotation:
             self._add_matrix(rotation)
+
+        ap_stream_parts = []
+        # Only add a background color when color is defined and not transparent
+        if isinstance(self._layout.background_color, Color):
+            ap_stream_parts.append(
+                f"0 0 {self._layout.rectangle.width} {self._layout.rectangle.height} re\n"
+                f"{self._layout.background_color.as_operator()}\n"
+                "f\n"
+            )
+        # Only add a border when border width is larger than 0, border
+        # color is defined, and border color is not set to transparent.
+        if self._layout.border_width > 0:
+            if isinstance(self._layout.border_color, Color):
+                border_width_string = f"{self._layout.border_width} w\n" if self._layout.border_width != 1 else ""
+                ap_stream_parts.append(
+                    f"{self._layout.border_width} "
+                    f"{self._layout.border_width} "
+                    f"{self._layout.rectangle.width - 2 * self._layout.border_width} "
+                    f"{self._layout.rectangle.height - 2 * self._layout.border_width} re\n"
+                    f"{border_width_string}"
+                    f"{self._layout.border_color.as_operator(stroke=True)}\n"
+                    "s\n"
+                )
+            else:
+                # If we aren't drawing a border, then set border_width to 0. This means less margin to
+                # take into account and results in larger font sizes.
+                self._layout.border_width = 0
+        if ap_stream_parts:
+            ap_stream_parts.insert(0, "q\n")
+            ap_stream_parts.append("Q\n")
+        self._ap_stream_data = "".join(ap_stream_parts).encode()
 
 
 class TextAlignment(IntEnum):
@@ -220,7 +254,7 @@ class TextStreamAppearance(BaseStreamAppearance):
         font: Font,
         font_name: str = "/Helv",
         font_size: float = 0.0,
-        font_color: str = "0 g",
+        font_color: Color | None = None,
         is_multiline: bool = False,
         alignment: TextAlignment = TextAlignment.LEFT,
         is_comb: bool = False,
@@ -240,8 +274,7 @@ class TextStreamAppearance(BaseStreamAppearance):
             font_name: The name of the font resource to use (e.g., "/Helv").
             font_size: The font size. If 0, it is automatically calculated
                 based on whether the field is multiline or not.
-            font_color: The color to apply to the font, represented as a PDF
-                graphics state string (e.g., "0 g" for black).
+            font_color: The color to apply to the font, represented as a class Color
             is_multiline: A boolean indicating if the text field is multiline.
             alignment: Text alignment, can be TextAlignment.LEFT, .RIGHT, or .CENTER.
             is_comb: Boolean that designates fixed-length fields, where every character
@@ -253,16 +286,17 @@ class TextStreamAppearance(BaseStreamAppearance):
             A byte string containing the PDF content stream data.
 
         """
+        font_color = font_color or DeviceGray()
         rectangle = self._layout.rectangle
         leading_factor = (
             (font.font_descriptor.bbox[3] - font.font_descriptor.bbox[1]) / TEXT_SPACE_TO_GLYPH_SPACE_FACTOR
         )
 
-        # Set margins based on border width and style, but never less than 1 point
+        # Set margins based on border width and style
         factor = 2 if self._layout.border_style in {"/B", "/I"} else 1
-        margin = max(self._layout.border_width * factor, 1)
+        margin = self._layout.border_width * factor
         field_height = rectangle.height - 2 * margin
-        field_width = rectangle.width - 4 * margin
+        field_width = rectangle.width - 4 * max(margin, 1)
 
         reverse_cmap, encoding_cmap = font._get_typographic_maps()
 
@@ -361,25 +395,29 @@ class TextStreamAppearance(BaseStreamAppearance):
         # Set the vertical offset
         if is_multiline:
             y_offset = (
-                rectangle.height + margin - font.font_descriptor.bbox[3] * font_size / TEXT_SPACE_TO_GLYPH_SPACE_FACTOR
+                field_height + margin - font.font_descriptor.bbox[3] * font_size / TEXT_SPACE_TO_GLYPH_SPACE_FACTOR
             )
         else:
             y_offset = margin + (
                 (field_height - font.font_descriptor.ascent * font_size / TEXT_SPACE_TO_GLYPH_SPACE_FACTOR) / 2
             )
-        default_appearance = f"{font_name} {font_size} Tf {font_color}"
+        default_appearance = f"{font_name} {font_size} Tf {font_color.as_operator()}"
 
-        ap_stream = (
-            f"q\n/Tx BMC \nq\n{2 * margin} {margin} {field_width} {field_height} "
-            f"re\nW\nBT\n{default_appearance}\n"
+        ap_stream = bytearray()
+        ap_stream += (
+            f"q\n/Tx BMC \nq\n"
+            f"{2 * max(margin, 1)} {margin} "
+            f"{round(field_width - 2 * max(margin, 1), 3)} {round(field_height - margin, 3)} re\n"
+            f"W\nBT\n{default_appearance}\n"
         ).encode()
         current_x_pos: float = 0  # Initial virtual position within the text object.
 
+        selection_glyphs = _unicode_to_glyph_id("".join(selection), reverse_cmap) if selection else ""
         for line_number, (line_width, original_text, line) in enumerate(lines):
-            if selection and line in _unicode_to_glyph_id("".join(selection), reverse_cmap):
+            if selection_glyphs and line in selection_glyphs:
                 # Might be improved, but cannot find how to get fill working => replaced with lined box
                 ap_stream += (
-                    f"1 {y_offset - (line_number * font_size * leading_factor) - 1} "
+                    f"1 {round(y_offset - (line_number * font_size * leading_factor) - 1, 3)} "
                     f"{rectangle.width - 2} {font_size + 2} re\n"
                     f"0.5 0.5 0.5 rg s\n{default_appearance}\n"
                 ).encode()
@@ -395,11 +433,11 @@ class TextStreamAppearance(BaseStreamAppearance):
                 # Absolute start X = (Cell Index, i.e., line_number * Cell Width) + Centering Offset
                 desired_abs_x_start = (line_number * cell_width) + centering_offset_in_cell
             elif alignment == TextAlignment.RIGHT:
-                desired_abs_x_start = rectangle.width - margin * 2 - line_width
+                desired_abs_x_start = rectangle.width - max(margin, 1) * 2 - line_width
             elif alignment == TextAlignment.CENTER:
                 desired_abs_x_start = (rectangle.width - line_width) / 2
             else:  # Left aligned; default
-                desired_abs_x_start = margin * 2
+                desired_abs_x_start = max(margin, 1) * 2
             # Calculate x_rel_offset: how much to move from the current_x_pos
             # to reach the desired_abs_x_start.
             x_rel_offset = desired_abs_x_start - current_x_pos
@@ -415,7 +453,7 @@ class TextStreamAppearance(BaseStreamAppearance):
 
             # Td is a relative translation (Tx and Ty).
             # It updates the current text position.
-            ap_stream += f"{x_rel_offset} {y_rel_offset} Td\n".encode()
+            ap_stream += f"{round(x_rel_offset, 3)} {round(y_rel_offset, 3)} Td\n".encode()
             # Update current_x_pos based on the Td operation for the next iteration.
             # This is the X position where the *current line* will start.
             current_x_pos = desired_abs_x_start
@@ -444,7 +482,7 @@ class TextStreamAppearance(BaseStreamAppearance):
                 ap_stream += b"EMC\n"
         ap_stream += b"ET\nQ\nEMC\nQ\n"
 
-        return ap_stream
+        return bytes(ap_stream)
 
     def __init__(
         self,
@@ -455,7 +493,7 @@ class TextStreamAppearance(BaseStreamAppearance):
         font_resource: DictionaryObject | IndirectObject | None = None,
         font_name: str = "/Helv",
         font_size: float = 0.0,
-        font_color: str = "0 g",
+        font_color: Color | None = None,
         is_multiline: bool = False,
         alignment: TextAlignment = TextAlignment.LEFT,
         is_comb: bool = False,
@@ -465,8 +503,8 @@ class TextStreamAppearance(BaseStreamAppearance):
         Initializes a TextStreamAppearance object.
 
         This constructor creates a new PDF stream object configured as an XObject
-        of subtype Form. It uses the `_appearance_stream_data` method to generate
-        the content for the stream.
+        of subtype Form. It uses the `_generate_appearance_stream_data` method to
+        generate the content for the stream.
 
         Args:
             layout: The basic layout parameters.
@@ -493,21 +531,21 @@ class TextStreamAppearance(BaseStreamAppearance):
             font = Font.from_core_font_name()
             font_resource = font.as_font_resource()
 
-        ap_stream_data = self._generate_appearance_stream_data(
+        self._ap_stream_data += self._generate_appearance_stream_data(
             text,
             selection,
             font,
             font_name=font_name,
             font_size=font_size,
-            font_color=font_color,
+            font_color=font_color or DeviceGray(),
             is_multiline=is_multiline,
             alignment=alignment,
             is_comb=is_comb,
             max_length=max_length
         )
 
-        self.set_data(ByteStringObject(ap_stream_data))
-        self[NameObject("/Length")] = NumberObject(len(ap_stream_data))
+        self.set_data(ByteStringObject(self._ap_stream_data))
+        self[NameObject("/Length")] = NumberObject(len(self._ap_stream_data))
         # Update Resources with font information
         self[NameObject("/Resources")] = DictionaryObject({
             NameObject("/Font"): DictionaryObject({
@@ -534,7 +572,7 @@ class TextStreamAppearance(BaseStreamAppearance):
         acro_form_font_resources = acro_form_resources.get("/Font", DictionaryObject())
         font_resource = acro_form_font_resources.get(font_name, None)
         if font_resource:
-            font = Font.from_font_resource(font_resource)
+            font = Font.from_font_resource(font_resource.get_object())
         else:
             # Normally, we should have found a font resource by now. However, when a user has provided a specific
             # font name, we may not have found the associated font resource among the AcroForm resources. Also, in
@@ -561,8 +599,12 @@ class TextStreamAppearance(BaseStreamAppearance):
                     font = font.from_truetype_font_file(BytesIO(font.font_descriptor.font_file.get_data()))
                     font_name = "/PYPDF1"  # This means we most probably do not clash with an existing font name
                     encodable = font.can_encode(text)
-                except (ImportError, PdfReadError) as e:
-                    logger_warning("Unable to use embedded font for encoding: %(e)s", source=__name__, e=e)
+                except (ImportError, PdfReadError) as exception:
+                    logger_warning(
+                        "Unable to use embedded font for encoding: %(exception)s",
+                        source=__name__,
+                        exception=exception,
+                    )
 
             # If it's one of the unembedded 14 Adobe Core Fonts, we can test other supported encodings
             elif font.sub_type == "Type1" and font.name in CORE_FONT_METRICS:
@@ -634,6 +676,44 @@ class TextStreamAppearance(BaseStreamAppearance):
                 )
 
         return font_resource_reference
+
+    @staticmethod
+    def _parse_default_appearance(
+        default_appearance: TextStringObject | ByteStringObject,
+    ) -> tuple[str | None, float, Color | None]:
+        """
+        Read the font name, font size and font color from a default appearance string.
+
+        A default appearance is a content stream fragment of graphics and text state operators, such as
+        `/a1.0 gs 0 0 0 rg /Helv 10 Tf` (Section 12.7.4.3 "Variable text" of the PDF 2.0 specification).
+        Where an operator occurs more than once, the last one is in effect. Operators other than `Tf` and
+        the non-stroking color operators are ignored.
+
+        Args:
+            default_appearance: The /DA string of a variable text field.
+
+        Returns:
+            The font name and font size of the last complete Tf operator, or None and 0 if there is none,
+            and the color of the last complete color operator, or None if there is none.
+        """
+        stream = ContentStream(None, None)
+        stream.set_data(default_appearance.original_bytes)
+        try:
+            operations = stream.operations
+        except PdfReadError:
+            # Ignore a malformed default appearance altogether.
+            return None, 0.0, None
+
+        font_name: str | None = None
+        font_size = 0.0
+        font_color: Color | None = None
+        for operands, operator in operations:
+            if operator == b"Tf":
+                if len(operands) == 2 and isinstance(operands[0], NameObject) and isinstance(operands[1], (int, float)):
+                    font_name, font_size = str(operands[0]), float(operands[1])
+            elif (color := Color.from_normalized_values(operands, operator.decode("latin-1"))) is not None:
+                font_color = color
+        return font_name, font_size, font_color
 
     @classmethod
     def from_text_annotation(
@@ -708,16 +788,22 @@ class TextStreamAppearance(BaseStreamAppearance):
         # Derive font name, size and color from the default appearance. Also set
         # user-provided font name and font size in the default appearance, if given.
         # For a font name, this presumes that we can find an associated font resource
-        # dictionary. Uses the variable font_properties as an intermediate.
+        # dictionary.
         # As per the PDF spec:
         # "At a minimum, the string [that is, default_appearance] shall include a Tf (text
         # font) operator along with its two operands, font and size" (Section 12.7.4.3
         # "Variable text" of the PDF 2.0 specification).
-        font_properties = [prop for prop in re.split(r"\s", default_appearance) if prop]
-        da_font_name = font_properties.pop(font_properties.index("Tf") - 2)
-        font_size = float(font_properties.pop(font_properties.index("Tf") - 1))
-        font_properties.remove("Tf")
-        font_color = " ".join(font_properties)
+        da_font_name, font_size, font_color = cls._parse_default_appearance(default_appearance)
+        if da_font_name is None:
+            logger_warning(
+                (
+                    "Could not read a complete Tf operator from the default appearance %(default_appearance)r; "
+                    "defaulting to /Helv 0 Tf."
+                ),
+                source=__name__,
+                default_appearance=str(default_appearance),
+            )
+            da_font_name, font_size = "/Helv", 0.0
         # Determine the font name to use, prioritizing the user's input
         if user_font_name:
             font_name = user_font_name
@@ -759,15 +845,22 @@ class TextStreamAppearance(BaseStreamAppearance):
             border_style = cast(DictionaryObject, field["/BS"]).get("/S", border_style)
 
         rotation = 0
+        border_color: Color | None = None
+        background_color: Color | None = None
         appearance_characteristics = field.get_inherited("/MK", None)
         if isinstance(appearance_characteristics, DictionaryObject):
             rotation = int(appearance_characteristics.get("/R", 0))
+            # Color.from_normalized_values([]) results in None for a "/BC" or "/BG" value of []
+            border_color = Color.from_normalized_values(appearance_characteristics.get("/BC"))
+            background_color = Color.from_normalized_values(appearance_characteristics.get("/BG"))
 
         # Create the TextStreamAppearance instance
         layout = BaseStreamConfig(
             rectangle=rectangle,
             border_width=border_width,
             border_style=border_style,
+            border_color=border_color,
+            background_color=background_color,
             rotation=rotation
         )
 

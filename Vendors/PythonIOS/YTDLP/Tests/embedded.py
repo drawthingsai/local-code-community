@@ -24,9 +24,11 @@ from yt_dlp.extractor.youtube.jsc.provider import JsChallengeRequest, JsChalleng
 from yt_dlp.extractor.youtube.pot._director import YoutubeIEContentProviderLogger
 
 assert subprocess.run.__module__ is None, 'Requires the embedded ios_system bridge'
-assert curl_cffi.__version__ == '0.16.0'
+assert curl_cffi.__version__ == '0.17.0'
 assert 'BoringSSL' in curl_cffi.Curl().version().decode()
-assert yt_dlp.version.__version__ == '2026.08.19'
+# Brotli 1.2.0 and older are exposed to CVE-2026-111497 (HTTP2Shell).
+assert 'brotli/1.2.1' in curl_cffi.Curl().version().decode()
+assert yt_dlp.version.__version__ == '2026.10.26'
 assert NodeJsRuntime().info.version.startswith('24.')
 stdout, stderr, status = Popen.run(
     ['node', '--permission', '-'], input='console.log(JSON.stringify({value: 42}))',

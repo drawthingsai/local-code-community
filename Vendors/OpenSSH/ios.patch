@@ -233,13 +233,13 @@ diff --git a/readpass.c b/readpass.c
 +	}
 +#endif
 diff --git a/openbsd-compat/readpassphrase.c b/openbsd-compat/readpassphrase.c
-index ff8ff3d..4af7159 100644
+index 4b710b4..b536a03 100644
 --- a/openbsd-compat/readpassphrase.c
 +++ b/openbsd-compat/readpassphrase.c
-@@ -76,6 +76,20 @@ restart:
- 	 * Read and write to /dev/tty if available.  If not, read from
- 	 * stdin and write to stderr unless a tty is required.
- 	 */
+@@ -94,6 +94,20 @@ restart:
+ #ifndef O_CLOEXEC
+ # define O_CLOEXEC 0
+ #endif
 +#if IOS_SYSTEM_OPENSSH
 +	if (flags & RPP_STDIN) {
 +		input = STDIN_FILENO;
@@ -255,9 +255,9 @@ index ff8ff3d..4af7159 100644
 +	fflush(thread_stderr);
 +#else
  	if ((flags & RPP_STDIN) ||
- 	    (input = output = open(_PATH_TTY, O_RDWR)) == -1) {
+ 	    (input = output = open(_PATH_TTY, O_RDWR | O_CLOEXEC)) == -1) {
  		if (flags & RPP_REQUIRE_TTY) {
-@@ -85,6 +99,7 @@ restart:
+@@ -103,6 +117,7 @@ restart:
  		input = STDIN_FILENO;
  		output = STDERR_FILENO;
  	}
@@ -265,10 +265,10 @@ index ff8ff3d..4af7159 100644
  
  	/*
  	 * Turn off echo if possible.
-@@ -166,8 +181,13 @@ restart:
- 	(void)sigaction(SIGTSTP, &savetstp, NULL);
- 	(void)sigaction(SIGTTIN, &savettin, NULL);
- 	(void)sigaction(SIGTTOU, &savettou, NULL);
+@@ -184,8 +199,13 @@ restart:
+ 	sigaction_except_ign(SIGTSTP, &savetstp, NULL);
+ 	sigaction_except_ign(SIGTTIN, &savettin, NULL);
+ 	sigaction_except_ign(SIGTTOU, &savettou, NULL);
 -	if (input != STDIN_FILENO)
 +	if (input != STDIN_FILENO) {
 +#if IOS_SYSTEM_OPENSSH
@@ -523,7 +523,7 @@ index 31d8fa4..a6ad77f 100644
  	sanitise_stdfd();
  	msetlocale();
 diff --git a/ssh.c b/ssh.c
-index 7c644c2..5d4026b 100644
+index fe660ef..813962a 100644
 --- a/ssh.c
 +++ b/ssh.c
 @@ -619,6 +619,9 @@ set_addrinfo_port(struct addrinfo *addrs, int port)
@@ -535,7 +535,7 @@ index 7c644c2..5d4026b 100644
 +#endif
  	struct ssh *ssh = NULL;
  	int i, r, opt, exit_status, use_syslog, direct, timeout_ms;
- 	int was_addr, config_test = 0, opt_terminated = 0, want_final_pass = 0;
+ 	int was_addr, config_test = 0, dump_pubkeys = 0, opt_terminated = 0, want_final_pass = 0;
 @@ -636,6 +639,19 @@ main(int ac, char **av)
  	struct utsname utsname;
  	struct ssh_conn_info *cinfo = NULL;
@@ -591,7 +591,7 @@ index 7c644c2..5d4026b 100644
  
  	msetlocale();
  
-@@ -2176,9 +2204,15 @@ ssh_session2_setup(struct ssh *ssh, int id, int success, void *arg)
+@@ -2202,9 +2230,15 @@ ssh_session2_setup(struct ssh *ssh, int id, int success, void *arg)
  	if ((term = lookup_env_in_list("TERM", options.setenv,
  	    options.num_setenv)) == NULL || *term == '\0')
  		term = getenv("TERM");
@@ -679,10 +679,10 @@ index 91e69b7..17aeff1 100644
  		return ssh_connect_direct(ssh, host, addrs, hostaddr, port,
  		    connection_attempts, timeout_ms, want_keepalive);
 diff --git a/ssh-keygen.c b/ssh-keygen.c
-index a62e5dc..a0b64bd 100644
+index 5c2d645..939a122 100644
 --- a/ssh-keygen.c
 +++ b/ssh-keygen.c
-@@ -136,7 +136,7 @@ static struct cert_ext *cert_ext;
+@@ -138,7 +138,7 @@ static struct cert_ext *cert_ext;
  static size_t ncert_ext;
  
  /* Conversion to/from various formats */
@@ -690,8 +690,8 @@ index a62e5dc..a0b64bd 100644
 +static enum {
  	FMT_RFC4716,
  	FMT_PKCS8,
- 	FMT_PEM
-@@ -1296,7 +1296,7 @@ do_known_hosts(struct passwd *pw, const char *name, int find_host,
+ 	FMT_PEM,
+@@ -1318,7 +1318,7 @@ do_known_hosts(struct passwd *pw, const char *name, int find_host,
  		    strlcpy(old, identity_file, sizeof(old)) >= sizeof(old) ||
  		    strlcat(old, ".old", sizeof(old)) >= sizeof(old))
  			fatal("known_hosts path too long");
@@ -700,7 +700,7 @@ index a62e5dc..a0b64bd 100644
  		if ((fd = mkstemp(tmp)) == -1)
  			fatal("mkstemp: %s", strerror(errno));
  		if ((ctx.out = fdopen(fd, "w")) == NULL) {
-@@ -3290,12 +3290,57 @@ usage(void)
+@@ -3347,12 +3347,57 @@ usage(void)
  	exit(1);
  }
  
@@ -755,10 +755,10 @@ index a62e5dc..a0b64bd 100644
 +#if IOS_SYSTEM_OPENSSH
 +	ios_system_support_init_directory();
 +#endif
- 	char comment[1024], *passphrase = NULL;
+ 	char comment[KEY_COMMENT_MAX], *passphrase = NULL;
  	char *rr_hostname = NULL, *ep, *fp, *ra;
  	struct sshkey *private = NULL, *public = NULL;
-@@ -3322,6 +3367,28 @@ main(int argc, char **argv)
+@@ -3379,6 +3424,28 @@ main(int argc, char **argv)
  	extern int optind;
  	extern char *optarg;
  
@@ -787,7 +787,7 @@ index a62e5dc..a0b64bd 100644
  	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
  	sanitise_stdfd();
  
-@@ -3338,6 +3405,21 @@ main(int argc, char **argv)
+@@ -3395,6 +3462,21 @@ main(int argc, char **argv)
  	if (!pw)
  		fatal("No user exists for uid %lu", (u_long)getuid());
  	pw = pwcopy(pw);
@@ -809,7 +809,7 @@ index a62e5dc..a0b64bd 100644
  	if (gethostname(hostname, sizeof(hostname)) == -1)
  		fatal("gethostname: %s", strerror(errno));
  
-@@ -3697,6 +3779,9 @@ main(int argc, char **argv)
+@@ -3758,6 +3840,9 @@ main(int argc, char **argv)
  	if (pkcs11provider != NULL)
  		do_download(pw);
  	if (download_sk) {
@@ -819,7 +819,7 @@ index a62e5dc..a0b64bd 100644
  		for (i = 0; i < nopts; i++) {
  			if ((p = strprefix(opts[i], "device=", 1)) != NULL) {
  				sk_device = xstrdup(p);
-@@ -3780,6 +3865,11 @@ main(int argc, char **argv)
+@@ -3841,6 +3926,11 @@ main(int argc, char **argv)
  
  	type = sshkey_type_from_shortname(key_type_name);
  	type_bits_valid(type, key_type_name, &bits);
@@ -831,7 +831,7 @@ index a62e5dc..a0b64bd 100644
  
  	if (!quiet)
  		printf("Generating public/private %s key pair.\n",
-@@ -3895,10 +3985,13 @@ main(int argc, char **argv)
+@@ -3958,10 +4048,13 @@ main(int argc, char **argv)
  	    comment, private_key_format, openssh_format_cipher, rounds)) != 0) {
  		error_r(r, "Saving key \"%s\" failed", identity_file);
  		freezero(passphrase, strlen(passphrase));
@@ -845,7 +845,7 @@ index a62e5dc..a0b64bd 100644
  
  	if (!quiet) {
  		printf("Your identification has been saved in %s\n",
-@@ -3932,6 +4025,11 @@ main(int argc, char **argv)
+@@ -3995,6 +4088,11 @@ main(int argc, char **argv)
   done:
  	sshbuf_free(attest);
  	sshkey_free(public);

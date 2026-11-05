@@ -8,7 +8,7 @@
     "version_info": {
       "major": 3,
       "minor": 14,
-      "micro": 7,
+      "micro": 10,
       "releaselevel": "final",
       "serial": 0
     }
@@ -19,11 +19,11 @@
     "version": {
       "major": 3,
       "minor": 14,
-      "micro": 7,
+      "micro": 10,
       "releaselevel": "final",
       "serial": 0
     },
-    "hexversion": 51251184,
+    "hexversion": 51251952,
     "_multiarch": "arm64-iphoneos",
     "supports_isolated_interpreters": true
   },
@@ -46,9 +46,8 @@
     ]
   },
   "libpython": {
-    "dynamic": "Apple/iOS/Frameworks/arm64-iphoneos/lib/Python.framework/Python",
-    "link_extensions": false,
-    "static": "Apple/iOS/Frameworks/arm64-iphoneos/lib/libpython3.14.a"
+    "dynamic": "Apple/iOS/Frameworks/arm64-iphoneos/Python.framework/Python",
+    "link_extensions": false
   },
   "c_api": {
     "headers": "Apple/iOS/Frameworks/arm64-iphoneos/include/python3.14",

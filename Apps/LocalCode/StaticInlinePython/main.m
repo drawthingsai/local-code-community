@@ -320,7 +320,7 @@ static int StaticInlinePythonRunSuite(void) {
         @"matplotlib.use('Agg')\n"
         @"from matplotlib import pyplot as plt\n"
         @"\n"
-        @"assert metadata.version('pillow') == '12.3.0'\n"
+        @"assert metadata.version('pillow') == '13.0.0'\n"
         @"assert features.version('libjpeg_turbo') == '3.2.0'\n"
         @"assert features.version('freetype2') == '2.14.3'\n"
         @"assert features.version('raqm') == '0.10.5'\n"
@@ -414,12 +414,12 @@ static int StaticInlinePythonRunSuite(void) {
         @[@"which pip3", @0, @[@"/usr/bin/pip3"], @[]],
         @[@"which pip3.14", @0, @[@"/usr/bin/pip3.14"], @[]],
         @[@"which yt-dlp", @0, @[@"/usr/bin/yt-dlp"], @[]],
-        @[@"yt-dlp --version", @0, @[@"2026.08.19"], @[]],
+        @[@"yt-dlp --version", @0, @[@"2026.10.26"], @[]],
         @[[NSString stringWithFormat:@"python %@", StaticInlinePythonShellQuote(ytDlpTestPath)], @0,
           @[@"curl_cffi / yt-dlp embedded integration passed"], @[]],
         @[@"ls /usr/bin", @0, @[@"pip", @"pip3", @"pip3.14", @"python", @"python3", @"python3.14"], @[]],
-        @[@"python --version", @0, @[@"Python 3.14.7"], @[]],
-        @[@"python -V", @0, @[@"Python 3.14.7"], @[]],
+        @[@"python --version", @0, @[@"Python 3.14.10"], @[]],
+        @[@"python -V", @0, @[@"Python 3.14.10"], @[]],
         @[@"python -h", @0, @[@"usage: python", @"Supported by ios_system"], @[]],
         @[[NSString stringWithFormat:@"python3.14 -c %@ alpha beta", StaticInlinePythonShellQuote(@"import sys; print('argv ok', sys.argv)")], @0, @[@"argv ok ['-c', 'alpha', 'beta']"], @[]],
         @[@"python '-cprint(314159)'", @0, @[@"314159"], @[]],
@@ -467,9 +467,9 @@ static int StaticInlinePythonRunSuite(void) {
         @[@"python -c \"import mlx.core as mx; assert mx.is_available(mx.gpu); mx.set_default_device(mx.gpu); values = mx.arange(4); mx.eval(values); print('mlx metal ok', values.tolist())\"", @0, @[@"mlx metal ok [0, 1, 2, 3]"], @[]],
 #endif
         @[@"python -c \"import io, pandas as pd; from PIL import Image; from lxml import etree; import contourpy, kiwisolver, matplotlib; matplotlib.use('Agg'); from matplotlib import pyplot as plt; from psd_tools import PSDImage; frame = pd.DataFrame({'x': [1, 2, 3]}); assert int(frame.x.sum()) == 6; image = Image.new('RGB', (2, 3)); image_bytes = io.BytesIO(); image.save(image_bytes, format='PNG'); assert image_bytes.tell() > 0; root = etree.fromstring(b'<root><v>ok</v></root>'); assert root[0].text == 'ok'; contour = contourpy.contour_generator(x=[0, 1], y=[0, 1], z=[[0, 1], [1, 0]]).lines(0.5); assert len(contour) > 0; variable = kiwisolver.Variable('x'); solver = kiwisolver.Solver(); solver.addConstraint(variable == 7); solver.updateVariables(); assert variable.value() == 7; figure = plt.figure(); plt.plot([0, 1], [1, 0]); figure.canvas.draw(); plt.close(figure); psd = PSDImage.new(mode='RGB', size=(2, 2)); psd_bytes = io.BytesIO(); psd.save(psd_bytes); assert psd_bytes.tell() > 0; print('native package suite ok')\"", @0, @[@"native package suite ok"], @[]],
-        @[@"python -m pip --version", @0, @[@"pip 26.2.1"], @[]],
-        @[@"pip --version", @0, @[@"pip 26.2.1"], @[]],
-        @[@"pip3.14 --version", @0, @[@"pip 26.2.1"], @[]],
+        @[@"python -m pip --version", @0, @[@"pip 26.2.2"], @[]],
+        @[@"pip --version", @0, @[@"pip 26.2.2"], @[]],
+        @[@"pip3.14 --version", @0, @[@"pip 26.2.2"], @[]],
         @[[NSString stringWithFormat:@"python %@ %@ %@", StaticInlinePythonShellQuote(pipFixtureBuilderPath), StaticInlinePythonShellQuote(huggingfaceHubFixtureDirectory), StaticInlinePythonShellQuote(huggingfaceHubFixtureWheelPath)], @0, @[@"pip fixture wheel created"], @[]],
         @[[NSString stringWithFormat:@"python %@ %@ %@", StaticInlinePythonShellQuote(pipFixtureBuilderPath), StaticInlinePythonShellQuote(pipFixtureDirectory), StaticInlinePythonShellQuote(pipFixtureWheelPath)], @0, @[@"pip fixture wheel created"], @[]],
         @[[NSString stringWithFormat:@"pip install --no-index --no-cache-dir --find-links %@ %@", StaticInlinePythonShellQuote(directory), StaticInlinePythonShellQuote(pipFixtureWheelPath)], @0, @[@"Requirement already satisfied: numpy>=2", @"Requirement already satisfied: hf-xet>=1.5.2", @"Requirement already satisfied: safetensors>=0.8.0", @"Requirement already satisfied: regex>=2025.10.22", @"Requirement already satisfied: tokenizers<=0.23.0,>=0.22.0", @"Requirement already satisfied: sentencepiece<0.3,>=0.2.2", @"Successfully installed huggingface-hub-1.5.0 ios-pip-probe-1.0"], @[]],

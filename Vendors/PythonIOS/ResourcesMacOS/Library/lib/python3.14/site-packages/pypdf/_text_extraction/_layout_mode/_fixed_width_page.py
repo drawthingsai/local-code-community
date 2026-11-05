@@ -6,8 +6,9 @@ from math import ceil
 from pathlib import Path
 from typing import Any, Literal, Optional, TypedDict
 
-from ..._font import Font
 from ..._utils import logger_warning
+from ...generic import ArrayObject
+from ...generic._font import Font
 from .. import LAYOUT_NEW_BT_GROUP_SPACE_WIDTHS
 from ._text_state_manager import TextStateManager
 from ._text_state_params import TextStateParams
@@ -39,6 +40,25 @@ class BTGroup(TypedDict):
     text: str
     displaced_tx: float
     flip_sort: Literal[-1, 1]
+
+
+def set_font_operation(state_mgr: TextStateManager, fonts: dict[str, Font], operands: list[Any]) -> None:
+    """
+    Apply a Tf (Set font and size) operation to a text state manager.
+
+    A missing font name resolves the same uninterpretable placeholder font as
+    an unknown one (see resolve_font()). A missing or non-numeric size leaves
+    the current size in place, matching the ROB handling of plain-mode Tf.
+
+    Args:
+        state_mgr: the text state manager to update
+        fonts: font dictionary as returned by PageObject._layout_mode_fonts()
+        operands: the Tf operator's operands: [name, size]
+
+    """
+    name = operands[0] if operands else ""
+    size = state_mgr._as_float(operands[1] if len(operands) > 1 else None, state_mgr.font_size)
+    state_mgr.set_font(resolve_font(fonts, name), size)
 
 
 def resolve_font(fonts: dict[str, Font], name: str) -> Font:
@@ -86,6 +106,14 @@ def bt_group(tj_op: TextStateParams, rendered_text: str, displaced_tx: float) ->
         displaced_tx=displaced_tx,
         flip_sort=-1 if tj_op.flip_vertical else 1,
     )
+
+
+def _show_text_operand(
+    operands: list[Any], index: int, text_state_mgr: TextStateManager, tj_ops: list[TextStateParams]
+) -> None:
+    """Show the operand at index like Tj if it is a string. A missing or non-string operand shows no text."""
+    if index < len(operands) and isinstance(text := operands[index], (str, bytes)):
+        tj_ops.append(text_state_mgr.text_state_params(text))
 
 
 def recurse_to_target_op(
@@ -167,8 +195,16 @@ def recurse_to_target_op(
                     # multiply by bool (_idx != bt_idx) to ensure spaces aren't double
                     # applied to the first tj of a BTGroup in fixed_width_page().
                     excess_tx = round(_tj.tx - last_displaced_tx, 3) * (_idx != bt_idx)
-                    # space_tx could be 0 if either Tz or font_size was 0 for this _tj.
-                    spaces = round(excess_tx / _tj.space_tx) if excess_tx > 0 else 0
+                    # space_tx is measured in text space, while excess_tx is measured
+                    # in page-space x coordinates. Convert the space width using the
+                    # effective horizontal transform. This matters for PDFs that use
+                    # Tf 1 and put the font size in Tm (e.g. Illustrator/InDesign/Figma).
+                    # The backward-jump test above stays on text-space space_tx:
+                    # scaling it splits same-line runs when a CTM scale < 1 makes
+                    # 5 page-space widths tiny (resources/toy.pdf).
+                    page_space_tx = _tj.space_tx * abs(_tj.transform[0])
+                    # page_space_tx is 0 when Tz, font_size, or the horizontal scale is 0.
+                    spaces = round(excess_tx / page_space_tx) if excess_tx > 0 and page_space_tx else 0
                     if spaces > WHITESPACE_LIMIT:
                         logger_warning(
                             "Limiting excessive whitespace from %(actual)d to %(limit)d characters.",
@@ -184,51 +220,53 @@ def recurse_to_target_op(
                     bt_groups.append(bt_group(tj_ops[bt_idx], _text, last_displaced_tx))
                 text_state_mgr.reset_tm()
             break
-        if op == b"q":
+        if op == b"q" or (op == b"BT" and end_target == b"Q"):
             bts, tjs = recurse_to_target_op(
-                ops, text_state_mgr, b"Q", fonts, strip_rotated
+                ops, text_state_mgr, b"ET" if op == b"BT" else b"Q", fonts, strip_rotated
             )
             bt_groups.extend(bts)
             tj_ops.extend(tjs)
         elif op == b"cm":
             text_state_mgr.add_cm(*operands)
         elif op == b"BT":
-            bts, tjs = recurse_to_target_op(
-                ops, text_state_mgr, b"ET", fonts, strip_rotated
-            )
-            bt_groups.extend(bts)
-            tj_ops.extend(tjs)
-        elif op == b"Tj":
+            # text objects cannot be nested and end at the first ET: a BT inside
+            # one only resets the text matrix, as in plain mode
+            text_state_mgr.reset_tm()
+        elif op == b"Tj" and operands and isinstance(operands[0], (str, bytes)):
             tj_ops.append(text_state_mgr.text_state_params(operands[0]))
-        elif op == b"TJ":
+        elif op == b"TJ" and operands and isinstance(operands[0], ArrayObject):
             _tj = text_state_mgr.text_state_params()
-            for tj_op in operands[0]:
+            # Only strings and numbers are valid TJ array items
+            for tj_op in (item for item in operands[0] if isinstance(item, (bytes, int, float))):
                 if isinstance(tj_op, bytes):
                     _tj = text_state_mgr.text_state_params(tj_op)
                     tj_ops.append(_tj)
                 else:
                     text_state_mgr.add_trm(_tj.displacement_matrix(td_offset=tj_op))
         elif op == b"'":
+            # Move to the next line, then show the string if there is one, like Tj
             text_state_mgr.reset_trm()
             text_state_mgr.add_tm([0, -text_state_mgr.TL])
-            tj_ops.append(text_state_mgr.text_state_params(operands[0]))
-        elif op == b'"':
+            _show_text_operand(operands, 0, text_state_mgr, tj_ops)
+        elif op == b'"' and len(operands) >= 3:
             text_state_mgr.reset_trm()
             text_state_mgr.set_state_param(b"Tw", operands[0])
             text_state_mgr.set_state_param(b"Tc", operands[1])
             text_state_mgr.add_tm([0, -text_state_mgr.TL])
-            tj_ops.append(text_state_mgr.text_state_params(operands[2]))
+            _show_text_operand(operands, 2, text_state_mgr, tj_ops)
         elif op in (b"Td", b"Tm", b"TD", b"T*"):
             text_state_mgr.reset_trm()
             if op == b"Tm":
                 text_state_mgr.reset_tm()
-            elif op == b"TD":
+            elif op == b"TD" and len(operands) >= 2 and isinstance(operands[1], (int, float)):
+                # a missing or non-numeric ty leaves the leading unchanged; the
+                # translation itself is handled like Td below
                 text_state_mgr.set_state_param(b"TL", -operands[1])
             elif op == b"T*":
                 operands = [0, -text_state_mgr.TL]
             text_state_mgr.add_tm(operands)
         elif op == b"Tf":
-            text_state_mgr.set_font(resolve_font(fonts, operands[0]), operands[1])
+            set_font_operation(text_state_mgr, fonts, operands)
         else:  # handle Tc, Tw, Tz, TL, and Ts operators
             text_state_mgr.set_state_param(op, operands)
     else:
@@ -318,7 +356,7 @@ def text_show_operations(
             bt_groups.extend(bts)
             tj_ops.extend(tjs)
         elif op == b"Tf":
-            state_mgr.set_font(resolve_font(fonts, operands[0]), operands[1])
+            set_font_operation(state_mgr, fonts, operands)
         else:  # set Tc, Tw, Tz, TL, and Ts if required. ignores all other ops
             state_mgr.set_state_param(op, operands)
 
@@ -419,7 +457,8 @@ def fixed_width_page(
         last_disp = 0.0
         for bt_op in line_data:
             tx = bt_op["tx"]
-            offset = int(tx // char_width)
+            # Text drawn with no width (a font size or horizontal scaling of 0) has no column to align to.
+            offset = int(tx // char_width) if char_width else current_len
             needed_spaces = offset - current_len
             if needed_spaces > 0 and ceil(last_disp) < int(tx):
                 if needed_spaces > WHITESPACE_LIMIT:

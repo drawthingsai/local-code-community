@@ -5,17 +5,17 @@ export LC_ALL=C
 export COPYFILE_DISABLE=1
 
 REPO_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-CPYTHON_DIR=${CPYTHON_DIR:-/private/tmp/cpython-3.14.7}
+CPYTHON_DIR=${CPYTHON_DIR:-/private/tmp/cpython-3.14.10}
 CPYTHON_REPO=${CPYTHON_REPO:-https://github.com/python/cpython.git}
-CPYTHON_TAG=${CPYTHON_TAG:-v3.14.7}
-CPYTHON_COMMIT=${CPYTHON_COMMIT:-823f0323ee6ec1402088b73bce1a38473cac36dc}
+CPYTHON_TAG=${CPYTHON_TAG:-v3.14.10}
+CPYTHON_COMMIT=${CPYTHON_COMMIT:-b703b2c5e704341d61e367b9b940b77ed11dded0}
 CPYTHON_CLEAN=${CPYTHON_CLEAN:-1}
 CPYTHON_FETCH=${CPYTHON_FETCH:-1}
 BUILD_DIR=${BUILD_DIR:-/private/tmp/python-3.14-ios-build}
 CROSS_BUILD_DIR=${CROSS_BUILD_DIR:-$BUILD_DIR/cross-build}
 APPLE_DEPS_CACHE_DIR=${APPLE_DEPS_CACHE_DIR:-/private/tmp/cpython-apple-source-deps}
 PYTHON_VERSION_TAG=${PYTHON_VERSION_TAG:-3.14}
-PYTHON_VERSION_FULL=${PYTHON_VERSION_FULL:-3.14.7}
+PYTHON_VERSION_FULL=${PYTHON_VERSION_FULL:-3.14.10}
 IOS_HOST=${IOS_HOST:-arm64-apple-ios}
 IOS_MULTIARCH=${IOS_MULTIARCH:-arm64-iphoneos}
 IOS_SIMULATOR_HOST=${IOS_SIMULATOR_HOST:-arm64-apple-ios-simulator}
@@ -40,8 +40,8 @@ MACOS_DEPS_SOURCE_CACHE_DIR=${MACOS_DEPS_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR
 MACOS_OPENSSL_PREFIX=$MACOS_DEPS_PREFIX/openssl
 MACOS_XZ_PREFIX=$MACOS_DEPS_PREFIX/xz
 MACOS_ZSTD_PREFIX=$MACOS_DEPS_PREFIX/zstd
-OPENSSL_VERSION=3.0.20
-OPENSSL_SHA256=c80a01dfc70ece4dc21168932c37739042d404d46ccc81a5986dd75314ecda6f
+OPENSSL_VERSION=3.5.9
+OPENSSL_SHA256=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
 XZ_VERSION=5.6.4
 XZ_SHA256=269e3f2e512cbd3314849982014dc199a7b2148cf5c91cedc6db629acdf5e09b
 ZSTD_VERSION=1.5.7
@@ -92,10 +92,10 @@ PANDAS_IOS_INSTALL_DESTDIR=$BUILD_DIR/pandas-ios-destdir
 PANDAS_IOS_SIMULATOR_INSTALL_DESTDIR=$BUILD_DIR/pandas-ios-simulator-destdir
 PANDAS_MACOS_INSTALL_DESTDIR=$BUILD_DIR/pandas-macos-destdir
 PANDAS_STATIC_SYMBOL_RENAMES="is_leapyear:pandas_datetime_is_leapyear add_minutes_to_datetimestruct:pandas_datetime_add_minutes_to_datetimestruct get_datetimestruct_days:pandas_datetime_get_datetimestruct_days get_datetime_metadata_from_dtype:pandas_datetime_get_datetime_metadata_from_dtype"
-PILLOW_VERSION=12.3.0
+PILLOW_VERSION=13.0.0
 PILLOW_SOURCE_FILENAME=pillow-$PILLOW_VERSION.tar.gz
-PILLOW_SOURCE_URL=https://files.pythonhosted.org/packages/1c/3d/bb7fca845737cf9d7dbde16ed1843984665ff2e0a518f5db43e77ec540b9/pillow-12.3.0.tar.gz
-PILLOW_SOURCE_SHA256=3b8182a766685eaa002637e28b4ec8d6b18819a0c71f579bf0dbaa5830297cce
+PILLOW_SOURCE_URL=https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz
+PILLOW_SOURCE_SHA256=cdcd1ba258178f7356d74170c9a81ba4eab6a5d55748bc402a5a2a6fe6be3510
 PILLOW_SOURCE_CACHE_DIR=${PILLOW_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 PILLOW_SOURCE_DIR=$BUILD_DIR/pillow-$PILLOW_VERSION
 PILLOW_IOS_BUILD_DIR=$BUILD_DIR/pillow-ios-build
@@ -3573,8 +3573,8 @@ create_checksums() {
     ) > "$checksum_file"
 }
 
-if [ "$PYTHON_VERSION_TAG" != "3.14" ] || [ "$PYTHON_VERSION_FULL" != "3.14.7" ]; then
-    echo "This generator is pinned to CPython 3.14.7; override the source constants together." >&2
+if [ "$PYTHON_VERSION_TAG" != "3.14" ] || [ "$PYTHON_VERSION_FULL" != "3.14.10" ]; then
+    echo "This generator is pinned to CPython 3.14.10; override the source constants together." >&2
     exit 1
 fi
 

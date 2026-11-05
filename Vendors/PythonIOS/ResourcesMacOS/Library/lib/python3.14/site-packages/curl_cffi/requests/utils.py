@@ -362,6 +362,8 @@ def set_extra_fp(curl: Curl, fp: ExtraFingerprints):
         curl.setopt(CurlOpt.HTTP3_SIG_HASH_ALGS, fp.http3_sig_hash_algs)
     if fp.http3_tls_extension_order is not None:
         curl.setopt(CurlOpt.HTTP3_TLS_EXTENSION_ORDER, fp.http3_tls_extension_order)
+    if fp.quic_initial_packet_number is not None:
+        curl.setopt(CurlOpt.QUIC_INITIAL_PACKET_NUMBER, fp.quic_initial_packet_number)
 
 
 def _normalize_tls_version(version: str) -> CurlSslVersion:
@@ -447,7 +449,9 @@ def _apply_fingerprint(
     # Explicit extension orders are also allowlists in our BoringSSL fork, so
     # enable browser capabilities here and let the selected order suppress them.
     curl.setopt(CurlOpt.TLS_STATUS_REQUEST, 1)
-    curl.setopt(CurlOpt.TLS_SIGNED_CERT_TIMESTAMPS, 1)
+    curl.setopt(
+        CurlOpt.TLS_SIGNED_CERT_TIMESTAMPS, int(fingerprint.tls_signed_cert_timestamps)
+        )
     curl.setopt(CurlOpt.TLS_KEY_SHARES_LIMIT, fingerprint.tls_key_shares_limit)
 
     if fingerprint.tls_cert_compression:
@@ -482,6 +486,11 @@ def _apply_fingerprint(
 
     if fingerprint.tls_ech is not None:
         curl.setopt(CurlOpt.ECH, fingerprint.tls_ech)
+
+    if fingerprint.tls_trust_anchors is not None:
+        curl.setopt(
+            CurlOpt.TLS_TRUST_ANCHORS, ",".join(fingerprint.tls_trust_anchors)
+        )
 
     # http2 settings
     if fingerprint.http2_settings:
@@ -529,6 +538,12 @@ def _apply_fingerprint(
     if fingerprint.quic_transport_parameters:
         curl.setopt(
             CurlOpt.QUIC_TRANSPORT_PARAMETERS, fingerprint.quic_transport_parameters
+        )
+    if fingerprint.quic_cid_length is not None:
+        curl.setopt(CurlOpt.QUIC_CID_LENGTH, fingerprint.quic_cid_length)
+    if fingerprint.quic_initial_packet_number is not None:
+        curl.setopt(
+            CurlOpt.QUIC_INITIAL_PACKET_NUMBER, fingerprint.quic_initial_packet_number
         )
 
     # websocket settings
@@ -599,6 +614,7 @@ def set_curl_options(
     proxies_list: list[Optional[ProxySpec]] = [],  # noqa: B006
     proxy: Optional[str] = None,
     proxy_auth: Optional[tuple[str, str]] = None,
+    trust_env: bool = True,
     verify_list: list[Union[bool, str, None]] = [],  # noqa: B006
     referer: Optional[str] = None,
     accept_encoding: Optional[str] = "gzip, deflate, br, zstd",
@@ -612,14 +628,16 @@ def set_curl_options(
     quote: Union[str, Literal[False]] = "",
     http_version: Optional[Union[CurlHttpVersion, HttpVersionLiteral]] = None,
     interface: Optional[str] = None,
+    dns: Optional[Union[str, list[str]]] = None,
     doh_url: Optional[str] = None,
     cert: Optional[Union[str, tuple[str, str]]] = None,
     stream: Optional[bool] = None,
+    stream_response_callback: Optional[Callable[[], None]] = None,
     max_recv_speed: int = 0,
     multipart: Optional[CurlMime] = None,
     queue_class: Any = None,
     event_class: Any = None,
-    curl_options: Optional[dict[CurlOpt, str]] = None,
+    curl_options: Optional[dict[CurlOpt, Any]] = None,
 ):
     c = curl
 
@@ -835,6 +853,7 @@ def set_curl_options(
     if proxies is None:
         proxies = base_proxies
 
+    proxy_set = False
     if proxies:
         # Turn on proxy_credential_no_reuse, which has the following benefits:
         # 1. New connection will be made when proxy username changed
@@ -855,6 +874,7 @@ def set_curl_options(
 
         if proxy is not None:
             c.setopt(CurlOpt.PROXY, proxy)
+            proxy_set = True
 
             if parts.scheme == "https":
                 if proxy.startswith("https://"):
@@ -874,6 +894,14 @@ def set_curl_options(
                 username, password = proxy_auth
                 c.setopt(CurlOpt.PROXYUSERNAME, username.encode())
                 c.setopt(CurlOpt.PROXYPASSWORD, password.encode())
+
+    # libcurl reads http_proxy, https_proxy, all_proxy and no_proxy on its own.
+    # An empty PROXY turns off the environment proxy, and an empty NOPROXY stops
+    # no_proxy from bypassing a proxy that was passed in explicitly.
+    if not trust_env:
+        if not proxy_set:
+            c.setopt(CurlOpt.PROXY, "")
+        c.setopt(CurlOpt.NOPROXY, "")
 
     # verify
     base_verify, verify = verify_list
@@ -995,6 +1023,8 @@ def set_curl_options(
 
         def qput(chunk):
             if not header_recved.is_set():
+                if stream_response_callback is not None:
+                    stream_response_callback()
                 header_recved.set()
             if quit_now.is_set():
                 return CURL_WRITEFUNC_ERROR
@@ -1021,6 +1051,10 @@ def set_curl_options(
             else:
                 value = f"host!{interface}"
         c.setopt(CurlOpt.INTERFACE, value.encode())
+
+    if dns:
+        servers = dns if isinstance(dns, str) else ",".join(dns)
+        c.setopt(CurlOpt.DNS_SERVERS, servers.encode())
 
     if doh_url:
         c.setopt(CurlOpt.DOH_URL, doh_url.encode())

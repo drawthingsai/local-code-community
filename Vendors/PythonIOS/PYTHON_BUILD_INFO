@@ -1,15 +1,15 @@
-CURL_CFFI_VERSION=0.16.0
-CURL_IMPERSONATE_VERSION=2.0.0
-CURL_CFFI_FEATURE_POLICY=static-api-cffi patched-boringssl=private http2=enabled http3=enabled zlib=sdk icu=sdk cffi=shared-python-runtime
+CURL_CFFI_VERSION=0.17.0
+CURL_IMPERSONATE_VERSION=2.3.2
+CURL_CFFI_FEATURE_POLICY=static-api-cffi patched-boringssl=private http2=enabled http3=enabled resolver=threaded zlib=sdk icu=sdk cffi=shared-python-runtime
 CURL_CFFI_MINIMUM_OS=ios-16.0 macos-13.0
-YTDLP_VERSION=2026.8.19
+YTDLP_VERSION=2026.10.26
 YTDLP_EJS_VERSION=0.8.0
 YTDLP_MUTAGEN_VERSION=1.48.1
 YTDLP_FEATURE_POLICY=python-resources node=embedded ffmpeg=embedded subprocess=synchronous self-update=app-release
 CPYTHON_REPO=https://github.com/python/cpython.git
-CPYTHON_TAG=v3.14.7
-CPYTHON_COMMIT=823f0323ee6ec1402088b73bce1a38473cac36dc
-PYTHON_VERSION=3.14.7
+CPYTHON_TAG=v3.14.10
+CPYTHON_COMMIT=b703b2c5e704341d61e367b9b940b77ed11dded0
+PYTHON_VERSION=3.14.10
 PYTHON_BUILD_FLAVOR=regular-gil
 PYTHON_LINKAGE=static
 PYTHON_STATIC_ARCHIVE_STRIP=debug-and-local-symbols
@@ -17,7 +17,7 @@ PYTHON_SYMBOL_VISIBILITY=export-list
 PYTHON_RUST_PERSONALITY=shared-weak
 PYTHON_SLICES=ios-arm64 ios-arm64-simulator macos-arm64
 PYTHON_EMBEDDED_RUNTIME_POLICY=mimetypes-knownfiles-disabled
-PYTHON_NATIVE_PACKAGES=numpy-2.4.6 pandas-3.0.5 pillow-12.3.0 libjpeg-turbo-3.2.0 libxml2-2.14.6 libxslt-1.1.43 lxml-6.1.2 contourpy-1.3.3 kiwisolver-1.5.1 matplotlib-3.11.1 psd-tools-1.18.0 regex-2026.7.19 hf-xet-1.5.2 safetensors-0.8.0 tokenizers-0.22.2 sentencepiece-0.2.2 mlx-0.32.2 cffi-2.1.1 cairo-1.18.6 pixman-0.46.4 libpng-1.6.58
+PYTHON_NATIVE_PACKAGES=numpy-2.4.6 pandas-3.0.5 pillow-13.0.0 libjpeg-turbo-3.2.0 libxml2-2.14.6 libxslt-1.1.43 lxml-6.1.2 contourpy-1.3.3 kiwisolver-1.5.1 matplotlib-3.11.1 psd-tools-1.18.0 regex-2026.7.19 hf-xet-1.5.2 safetensors-0.8.0 tokenizers-0.22.2 sentencepiece-0.2.2 mlx-0.32.2 cffi-2.1.1 cairo-1.18.6 pixman-0.46.4 libpng-1.6.58
 NUMPY_SOURCE_URL=https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz
 NUMPY_SOURCE_SHA256=f3a3570c4a2a16746ac2c31a7c7c7b0c186b95ce902e33db6f28094ed7387dda
 NUMPY_IOS_BLAS=Accelerate
@@ -31,8 +31,8 @@ NUMPY_BUILD_TOOLS=pip-26.1.2 setuptools-82.0.1 wheel-0.47.0 Cython-3.2.5 ninja-1
 PANDAS_SOURCE_URL=https://files.pythonhosted.org/packages/be/4f/5f3422a2afec5ffc46308b79e53291365a93748b498ac2e58bead0197916/pandas-3.0.5.tar.gz
 PANDAS_SOURCE_SHA256=dca3734d6ab7c906e6730f0788b0a1dbb9f2467731f9711f77995c8e9d62d712
 PANDAS_STATIC_SYMBOL_RENAMES=is_leapyear:pandas_datetime_is_leapyear add_minutes_to_datetimestruct:pandas_datetime_add_minutes_to_datetimestruct get_datetimestruct_days:pandas_datetime_get_datetimestruct_days get_datetime_metadata_from_dtype:pandas_datetime_get_datetime_metadata_from_dtype
-PILLOW_SOURCE_URL=https://files.pythonhosted.org/packages/1c/3d/bb7fca845737cf9d7dbde16ed1843984665ff2e0a518f5db43e77ec540b9/pillow-12.3.0.tar.gz
-PILLOW_SOURCE_SHA256=3b8182a766685eaa002637e28b4ec8d6b18819a0c71f579bf0dbaa5830297cce
+PILLOW_SOURCE_URL=https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz
+PILLOW_SOURCE_SHA256=cdcd1ba258178f7356d74170c9a81ba4eab6a5d55748bc402a5a2a6fe6be3510
 PILLOW_FEATURE_POLICY=zlib=enabled jpeg=libjpeg-turbo freetype=matplotlib raqm=matplotlib tiff=disabled lcms=disabled webp=disabled jpeg2000=disabled imagequant=disabled xcb=disabled avif=disabled
 LIBJPEG_TURBO_SOURCE_URL=https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz
 LIBJPEG_TURBO_SOURCE_SHA256=6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e
@@ -118,10 +118,10 @@ PYYAML_SOURCE_SHA256=d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc38
 PYYAML_WHEEL_SHA256=717a12e2e669ac5ab431f9d59c8574eec76182378c7ef3aa958cb5962b14d254
 PYYAML_FEATURE_POLICY=pure-python libyaml=disabled wheel=py3-none-any
 TQDM_FEATURE_POLICY=monitor-thread=disabled multiprocessing-lock=disabled
-PYTHON_PURE_REQUIREMENTS_SHA256=0e9d49c0776709d0218c462f8c246b109e9d603dcf083fcf6cf2e7e07584ed4f
+PYTHON_PURE_REQUIREMENTS_SHA256=fc7c7065cd679e51a2ae1db278115c004b485043319e1bd1e14f841062a20ece
 IOS_MINIMUM_OS_VERSION=15.0
 MACOS_MINIMUM_OS_VERSION=13.0
-MACOS_NATIVE_DEPS=openssl-3.0.20 xz-5.6.4 zstd-1.5.7
-MACOS_NATIVE_DEPS_SHA256=openssl:c80a01dfc70ece4dc21168932c37739042d404d46ccc81a5986dd75314ecda6f xz:269e3f2e512cbd3314849982014dc199a7b2148cf5c91cedc6db629acdf5e09b zstd:eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
+MACOS_NATIVE_DEPS=openssl-3.5.9 xz-5.6.4 zstd-1.5.7
+MACOS_NATIVE_DEPS_SHA256=openssl:603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a xz:269e3f2e512cbd3314849982014dc199a7b2148cf5c91cedc6db629acdf5e09b zstd:eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
 XCODE_VERSION=Xcode 27.1 Build version 27A9275
 BAZEL_VERSION=bazel 7.6.1

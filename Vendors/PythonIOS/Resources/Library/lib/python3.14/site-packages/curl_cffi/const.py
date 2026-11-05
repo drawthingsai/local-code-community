@@ -315,6 +315,10 @@ class CurlOpt(IntEnum):
     TCP_KEEPCNT = 0 + 326
     UPLOAD_FLAGS = 0 + 327
     SSL_SIGNATURE_ALGORITHMS = 10000 + 328
+    HTTPSIG_ALGORITHM = 0 + 329
+    HTTPSIG_KEY = 10000 + 330
+    HTTPSIG_KEYID = 10000 + 331
+    HTTPSIG_HEADERS = 10000 + 332
     IMPERSONATE = 10000 + 999
     HTTPBASEHEADER = 10000 + 1000
     SSL_SIG_HASH_ALGS = 10000 + 1001
@@ -353,6 +357,10 @@ class CurlOpt(IntEnum):
     WS_HTTPHEADER_ORDER = 10000 + 1035
     WS_SSL_DISABLE_TICKET = 0 + 1036
     WS_SSL_CERT_COMPRESSION = 10000 + 1037
+    QUIC_CID_LENGTH = 10000 + 1038
+    HTTP3_SSL_PERMUTE_EXTENSIONS = 0 + 1039
+    TLS_TRUST_ANCHORS = 10000 + 1040
+    QUIC_INITIAL_PACKET_NUMBER = 0 + 1041
 
     if locals().get("WRITEDATA"):
         FILE = locals().get("WRITEDATA")
@@ -592,6 +600,28 @@ class CurlHttpVersion(IntEnum):
     V3ONLY = 31  # No fallback
 
 
+class CurlProxyType(IntEnum):
+    """``CURLPROXY`` constants from libcurl."""
+
+    HTTP = 0
+    HTTP_1_0 = 1
+    HTTPS = 2
+    HTTPS2 = 3
+    SOCKS4 = 4
+    SOCKS5 = 5
+    SOCKS4A = 6
+    SOCKS5_HOSTNAME = 7
+    HTTPS3 = 8
+
+
+class CurlWsOption(IntEnum):
+    """Bitmask options for ``CurlOpt.WS_OPTIONS``."""
+
+    RAW_MODE = 1 << 0
+    NOAUTOPONG = 1 << 1
+    PERMESSAGE_DEFLATE = 1 << 2
+
+
 class CurlWsFlag(IntEnum):
     """``CURL_WS_FLAG`` constants from libcurl, see comments for details."""
 
@@ -642,3 +672,47 @@ class CurlFollow(IntEnum):
     # curl-impersonate: Follow redirects, but reject redirects to
     # internal/private IP addresses (SSRF protection)
     SAFE = 4
+
+
+class CurlShareOpt(IntEnum):
+    """``CURLSHOPT_`` constants from libcurl,
+    see: https://curl.se/libcurl/c/curl_share_setopt.html"""
+
+    NONE = 0
+    SHARE = 1
+    UNSHARE = 2
+    LOCKFUNC = 3
+    UNLOCKFUNC = 4
+    USERDATA = 5
+
+
+class CurlLockData(IntEnum):
+    """``CURL_LOCK_DATA_`` constants from libcurl, the data a share may hold."""
+
+    NONE = 0
+    SHARE = 1
+    COOKIE = 2
+    DNS = 3
+    SSL_SESSION = 4
+    CONNECT = 5
+    PSL = 6
+    HSTS = 7
+
+
+class CurlLockAccess(IntEnum):
+    """``CURL_LOCK_ACCESS_`` constants passed to the share lock callback."""
+
+    NONE = 0
+    SHARED = 1
+    SINGLE = 2
+
+
+class CurlShareCode(IntEnum):
+    """``CURLSHE_`` return codes from ``curl_share_*`` functions."""
+
+    OK = 0
+    BAD_OPTION = 1
+    IN_USE = 2
+    INVALID = 3
+    NOMEM = 4
+    NOT_BUILT_IN = 5

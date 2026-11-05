@@ -45,9 +45,9 @@ ABIFLAGS=
 ABI_THREAD=	
 LDVERSION=	$(VERSION)$(ABIFLAGS)
 LIBPYTHON=
-GITVERSION=	git --git-dir $(srcdir)/.git rev-parse --short HEAD
-GITTAG=		git --git-dir $(srcdir)/.git describe --all --always --dirty
-GITBRANCH=	git --git-dir $(srcdir)/.git name-rev --name-only HEAD
+GITVERSION=	git --git-dir $(srcdir)/.git --work-tree $(srcdir) rev-parse --short HEAD
+GITTAG=		git --git-dir $(srcdir)/.git --work-tree $(srcdir) describe --all --always --dirty
+GITBRANCH=	git --git-dir $(srcdir)/.git --work-tree $(srcdir) name-rev --name-only HEAD
 PGO_PROF_GEN_FLAG=-fprofile-instr-generate
 PGO_PROF_USE_FLAG=-fprofile-instr-use="$(shell pwd)/code.profclangd"
 LLVM_PROF_MERGER= /usr/bin/xcrun llvm-profdata merge -output="$(shell pwd)/code.profclangd" "$(shell pwd)"/*.profclangr 
@@ -190,7 +190,7 @@ EXE=
 BUILDEXE=	.exe
 
 # Name of the patch file to apply for app store compliance
-APP_STORE_COMPLIANCE_PATCH=
+APP_STORE_COMPLIANCE_PATCH=Mac/Resources/app-store-compliance.patch
 
 # Short name and location for Mac OS X Python framework
 UNIVERSALSDK=
@@ -405,7 +405,7 @@ EXEMODE=	755
 FILEMODE=	644
 
 # configure script arguments
-CONFIG_ARGS=	 '--prefix=@PYTHON_BUILD_ROOT@/macos-install/Library' '--with-openssl=@PYTHON_BUILD_ROOT@/macos-deps/prefix/openssl' '--with-openssl-rpath=no' '--enable-shared' 'MODULE_BUILDTYPE=static' 'LIBLZMA_CFLAGS=-I@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/include' 'LIBLZMA_LIBS=-L@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/lib -llzma' 'LIBZSTD_CFLAGS=-I@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/include' 'LIBZSTD_LIBS=-L@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/lib -lzstd' 'PKG_CONFIG_PATH=@PYTHON_BUILD_ROOT@/macos-deps/prefix/openssl/lib/pkgconfig:@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/lib/pkgconfig:@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/lib/pkgconfig' 'LDFLAGS=-L@PYTHON_BUILD_ROOT@/macos-deps/prefix/openssl/lib -L@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/lib -L@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/lib ' 'CPPFLAGS=-I@PYTHON_BUILD_ROOT@/macos-deps/prefix/openssl/include -I@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/include -I@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/include '
+CONFIG_ARGS=	 '--prefix=@PYTHON_BUILD_ROOT@/macos-install/Library' '--with-openssl=@PYTHON_BUILD_ROOT@/macos-deps/prefix/openssl' '--with-openssl-rpath=no' '--with-app-store-compliance' '--enable-shared' 'MODULE_BUILDTYPE=static' 'LIBLZMA_CFLAGS=-I@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/include' 'LIBLZMA_LIBS=-L@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/lib -llzma' 'LIBZSTD_CFLAGS=-I@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/include' 'LIBZSTD_LIBS=-L@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/lib -lzstd' 'PKG_CONFIG_PATH=@PYTHON_BUILD_ROOT@/macos-deps/prefix/openssl/lib/pkgconfig:@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/lib/pkgconfig:@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/lib/pkgconfig' 'LDFLAGS=-L@PYTHON_BUILD_ROOT@/macos-deps/prefix/openssl/lib -L@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/lib -L@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/lib ' 'CPPFLAGS=-I@PYTHON_BUILD_ROOT@/macos-deps/prefix/openssl/include -I@PYTHON_BUILD_ROOT@/macos-deps/prefix/xz/include -I@PYTHON_BUILD_ROOT@/macos-deps/prefix/zstd/include '
 
 
 # Subdirectories with code
@@ -525,6 +525,7 @@ IO_OBJS=	\
 MIMALLOC_HEADERS= \
 	$(srcdir)/Include/internal/pycore_mimalloc.h \
 	$(srcdir)/Include/internal/mimalloc/mimalloc.h \
+	$(srcdir)/Include/internal/mimalloc/mimalloc-stats.h \
 	$(srcdir)/Include/internal/mimalloc/mimalloc/atomic.h \
 	$(srcdir)/Include/internal/mimalloc/mimalloc/internal.h \
 	$(srcdir)/Include/internal/mimalloc/mimalloc/prim.h \
@@ -791,6 +792,7 @@ LIBMPDEC_HEADERS= \
 # pyexpat's expat library
 
 LIBEXPAT_OBJS= \
+		Modules/expat/xcs.o \
 		Modules/expat/xmlparse.o \
 		Modules/expat/xmlrole.o \
 		Modules/expat/xmltok.o
@@ -802,6 +804,7 @@ LIBEXPAT_HEADERS= \
 		Modules/expat/expat_config.h \
 		Modules/expat/expat_external.h \
 		Modules/expat/fallthrough.h \
+		Modules/expat/hash_table.h \
 		Modules/expat/iasciitab.h \
 		Modules/expat/internal.h \
 		Modules/expat/latin1tab.h \
@@ -810,7 +813,7 @@ LIBEXPAT_HEADERS= \
 		Modules/expat/pyexpatns.h \
 		Modules/expat/siphash.h \
 		Modules/expat/utf8tab.h \
-		Modules/expat/xcsinc.c \
+		Modules/expat/xcs.h \
 		Modules/expat/xmlrole.h \
 		Modules/expat/xmltok.h \
 		Modules/expat/xmltok_impl.h \
@@ -1664,6 +1667,9 @@ $(LIBMPDEC_A): $(LIBMPDEC_OBJS)
 # Build static libexpat.a
 LIBEXPAT_CFLAGS=-I$(srcdir)/Modules/expat $(PY_STDMODULE_CFLAGS) $(CCSHARED)
 
+Modules/expat/xcs.o: $(srcdir)/Modules/expat/xcs.c $(LIBEXPAT_HEADERS) $(PYTHON_HEADERS)
+	$(CC) -c $(LIBEXPAT_CFLAGS) -o $@ $(srcdir)/Modules/expat/xcs.c
+
 Modules/expat/xmlparse.o: $(srcdir)/Modules/expat/xmlparse.c $(LIBEXPAT_HEADERS) $(PYTHON_HEADERS)
 	$(CC) -c $(LIBEXPAT_CFLAGS) -o $@ $(srcdir)/Modules/expat/xmlparse.c
 
@@ -2277,9 +2283,12 @@ Objects/obmalloc.o: $(srcdir)/Objects/mimalloc/alloc.c \
 		$(srcdir)/Objects/mimalloc/alloc-aligned.c \
 		$(srcdir)/Objects/mimalloc/alloc-posix.c \
 		$(srcdir)/Objects/mimalloc/arena.c \
+		$(srcdir)/Objects/mimalloc/arena-abandon.c \
 		$(srcdir)/Objects/mimalloc/bitmap.c \
+		$(srcdir)/Objects/mimalloc/free.c \
 		$(srcdir)/Objects/mimalloc/heap.c \
 		$(srcdir)/Objects/mimalloc/init.c \
+		$(srcdir)/Objects/mimalloc/libc.c \
 		$(srcdir)/Objects/mimalloc/options.c \
 		$(srcdir)/Objects/mimalloc/os.c \
 		$(srcdir)/Objects/mimalloc/page.c \
@@ -2288,6 +2297,7 @@ Objects/obmalloc.o: $(srcdir)/Objects/mimalloc/alloc.c \
 		$(srcdir)/Objects/mimalloc/segment-map.c \
 		$(srcdir)/Objects/mimalloc/stats.c \
 		$(srcdir)/Objects/mimalloc/prim/prim.c \
+		$(srcdir)/Objects/mimalloc/prim/emscripten/prim.c \
 		$(srcdir)/Objects/mimalloc/prim/osx/prim.c \
 		$(srcdir)/Objects/mimalloc/prim/unix/prim.c \
 		$(srcdir)/Objects/mimalloc/prim/wasi/prim.c
@@ -2775,7 +2785,6 @@ TESTSUBDIRS=	idlelib/idle_test \
 		test/test_capi \
 		test/test_cext \
 		test/test_concurrent_futures \
-		test/test_cppext \
 		test/test_ctypes \
 		test/test_dataclasses \
 		test/test_doctest \
@@ -3065,8 +3074,11 @@ inclinstall:
 		$(INSTALL_DATA) $$i $(DESTDIR)$(INCLUDEPY)/internal; \
 	done
 	@if test "$(INSTALL_MIMALLOC)" = "yes"; then \
-		echo $(INSTALL_DATA) $(srcdir)/Include/internal/mimalloc/mimalloc.h $(DESTDIR)$(INCLUDEPY)/internal/mimalloc/mimalloc.h; \
-		$(INSTALL_DATA) $(srcdir)/Include/internal/mimalloc/mimalloc.h $(DESTDIR)$(INCLUDEPY)/internal/mimalloc/mimalloc.h; \
+		for i in $(srcdir)/Include/internal/mimalloc/*.h; \
+		do \
+			echo $(INSTALL_DATA) $$i $(INCLUDEPY)/internal/mimalloc; \
+			$(INSTALL_DATA) $$i $(DESTDIR)$(INCLUDEPY)/internal/mimalloc; \
+		done; \
 		for i in $(srcdir)/Include/internal/mimalloc/mimalloc/*.h; \
 		do \
 			echo $(INSTALL_DATA) $$i $(INCLUDEPY)/internal/mimalloc/mimalloc; \
@@ -3562,7 +3574,7 @@ MODULE__HMAC_DEPS=$(srcdir)/Modules/hashlib.h $(LIBHACL_HMAC_HEADERS) $(LIBHACL_
 MODULE__HMAC_LDEPS=$(LIBHACL_HMAC_LIB_STATIC)
 
 MODULE__SOCKET_DEPS=$(srcdir)/Modules/socketmodule.h $(srcdir)/Modules/addrinfo.h $(srcdir)/Modules/getaddrinfo.c $(srcdir)/Modules/getnameinfo.c
-MODULE__SSL_DEPS=$(srcdir)/Modules/_ssl.h $(srcdir)/Modules/_ssl/cert.c $(srcdir)/Modules/_ssl/debughelpers.c $(srcdir)/Modules/_ssl/misc.c $(srcdir)/Modules/_ssl_data_111.h $(srcdir)/Modules/_ssl_data_300.h $(srcdir)/Modules/socketmodule.h
+MODULE__SSL_DEPS=$(srcdir)/Modules/_ssl.h $(srcdir)/Modules/_ssl/cert.c $(srcdir)/Modules/_ssl/debughelpers.c $(srcdir)/Modules/_ssl/misc.c $(srcdir)/Modules/_ssl/distrusted_spki.h $(srcdir)/Modules/_ssl_data_111.h $(srcdir)/Modules/_ssl_data_300.h $(srcdir)/Modules/socketmodule.h
 MODULE__TESTCAPI_DEPS=$(srcdir)/Modules/_testcapi/parts.h $(srcdir)/Modules/_testcapi/util.h
 MODULE__TESTLIMITEDCAPI_DEPS=$(srcdir)/Modules/_testlimitedcapi/testcapi_long.h $(srcdir)/Modules/_testlimitedcapi/parts.h $(srcdir)/Modules/_testlimitedcapi/util.h
 MODULE__TESTINTERNALCAPI_DEPS=$(srcdir)/Modules/_testinternalcapi/parts.h

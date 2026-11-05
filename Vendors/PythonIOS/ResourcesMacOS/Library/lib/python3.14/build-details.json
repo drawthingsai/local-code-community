@@ -8,7 +8,7 @@
     "version_info": {
       "major": 3,
       "minor": 14,
-      "micro": 7,
+      "micro": 10,
       "releaselevel": "final",
       "serial": 0
     }
@@ -19,11 +19,11 @@
     "version": {
       "major": 3,
       "minor": 14,
-      "micro": 7,
+      "micro": 10,
       "releaselevel": "final",
       "serial": 0
     },
-    "hexversion": 51251184,
+    "hexversion": 51251952,
     "_multiarch": "darwin",
     "supports_isolated_interpreters": true
   },
@@ -48,7 +48,7 @@
   "libpython": {
     "dynamic": "@PYTHON_BUILD_ROOT@/macos-install/Library/lib/libpython3.14.dylib",
     "link_extensions": false,
-    "static": "@PYTHON_BUILD_ROOT@/macos-install/Library/lib/libpython3.14.a"
+    "static": "@PYTHON_BUILD_ROOT@/macos-install/Library/lib/python3.14/config-3.14-darwin/libpython3.14.a"
   },
   "c_api": {
     "headers": "@PYTHON_BUILD_ROOT@/macos-install/Library/include/python3.14",

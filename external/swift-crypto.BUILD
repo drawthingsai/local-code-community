@@ -6,24 +6,26 @@ load(
 
 cc_library(
     name = "CCryptoBoringSSL",
-    srcs = glob([
-        "Sources/CCryptoBoringSSL/**/*.h",
-        "Sources/CCryptoBoringSSL/**/*.c",
-        "Sources/CCryptoBoringSSL/**/*.cc",
-        "Sources/CCryptoBoringSSL/**/*.S",
-        "Sources/CCryptoBoringSSL/**/*.inc",
-    ]),
+    srcs = glob(
+        [
+            "Sources/CCryptoBoringSSL/**/*.h",
+            "Sources/CCryptoBoringSSL/**/*.c",
+            "Sources/CCryptoBoringSSL/**/*.cc",
+            "Sources/CCryptoBoringSSL/**/*.S",
+            "Sources/CCryptoBoringSSL/**/*.inc",
+        ],
+        # Excluded by SwiftCrypto's Package.swift, so its generated prefix list
+        # leaves their socket BIO exports unprefixed. Nothing here uses them.
+        exclude = [
+            "Sources/CCryptoBoringSSL/crypto/bio/connect.cc",
+            "Sources/CCryptoBoringSSL/crypto/bio/socket.cc",
+            "Sources/CCryptoBoringSSL/crypto/bio/socket_helper.cc",
+        ],
+    ),
     hdrs = glob([
         "Sources/CCryptoBoringSSL/include/**/*.h",
     ]),
     aspect_hints = [":CCryptoBoringSSL_swift_interop"],
-    # This pinned SwiftCrypto revision omitted these two socket BIO exports
-    # from its generated prefix list. Keep them isolated from other libcrypto
-    # implementations that may be linked into the same app.
-    copts = [
-        "-DBIO_new_socket=CCryptoBoringSSL_BIO_new_socket",
-        "-DBIO_s_socket=CCryptoBoringSSL_BIO_s_socket",
-    ],
     includes = ["Sources/CCryptoBoringSSL/include"],
     tags = ["swift_module=CCryptoBoringSSL"],
     visibility = ["//visibility:public"],
@@ -72,6 +74,7 @@ swift_library(
         "CRYPTO_IN_SWIFTPM_FORCE_BUILD_API",
     ],
     module_name = "CryptoBoringWrapper",
+    package_name = "SwiftCrypto",
     visibility = ["//visibility:public"],
     deps = [
         ":CCryptoBoringSSL",
@@ -98,6 +101,7 @@ swift_library(
         "MODULE_IS_CRYPTO",
     ],
     module_name = "Crypto",
+    package_name = "SwiftCrypto",
     visibility = ["//visibility:public"],
     deps = [
         ":CCryptoBoringSSL",
@@ -121,11 +125,13 @@ swift_library(
         "MODULE_IS_CRYPTO",
     ],
     module_name = "_CryptoExtras",
+    package_name = "SwiftCrypto",
     visibility = ["//visibility:public"],
     deps = [
         ":CCryptoBoringSSL",
         ":CCryptoBoringSSLShims",
         ":Crypto",
         ":CryptoBoringWrapper",
+        "@SwiftASN1//:SwiftASN1",
     ],
 )
