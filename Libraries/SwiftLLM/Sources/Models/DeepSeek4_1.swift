@@ -647,11 +647,11 @@ public func DeepSeek4_1MoE<FloatType: TensorNumeric>(
 ) -> (model: Model, bias: Model.Parameters) {
   precondition(tokenLength >= 0 && layerIndex >= 0 && layerIndex < configuration.layers)
   let x = Input()
-  let logits = Dense(
-    count: configuration.expertCount, noBias: true, name: "\(prefix).gate")(
-      x.to(FloatType.dataType))
+  // The gate runs in FP32 like the reference's `linear(x.float(), weight.float())`: FP16 logits
+  // flip about 0.5% of the top-6 choices, where the 6th and 7th scores are within FP16 rounding.
+  let logits = Dense(count: configuration.expertCount, noBias: true, name: "\(prefix).gate")(x)
   let bias = Parameter<Float>(.GPU(0), .C(configuration.expertCount), name: "\(prefix).gate.bias")
-  // Routing widens FP16 logits itself and scores them in FP32 with the FP32 bias.
+  // Routing scores the FP32 logits with the FP32 bias.
   let prepared = MoERouting(
     kth: configuration.routedExperts, weightScale: 1.5, normalizationEpsilon: 1e-20,
     singleInputToken: true, name: "\(prefix).routing")(logits, bias, x)
