@@ -114,7 +114,7 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
         toolTipController = toolTip
       }
       SettingsViewFactory.setWarningView(
-        isIncompatible: item.isIncompatible, animated: false, incompatibleView: incompatibleView,
+        item.warning, animated: false, incompatibleView: incompatibleView,
         backgroundView: button, stackView: stackView)
       return ([stackView], self)
     }
@@ -126,7 +126,8 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
       var updatingItem = updatingItem
       updatingItem.value = newItem.value
       currentValue = updatingItem.value
-      updatingItem.isIncompatible = newItem.isIncompatible
+      let isWarningChanged = updatingItem.warning != newItem.warning
+      updatingItem.warning = newItem.warning
       if let newModifier = newItem.viewModifying as? ViewModifier {
         buttonImageView?.image = newModifier.buttonImage
       }
@@ -139,9 +140,11 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
       updatingItem.title = newItem.title
       titleLabel?.text = updatingItem.title
       toolTipController?.toolTip = button?.title(for: .normal) ?? ""
-      SettingsViewFactory.setWarningView(
-        isIncompatible: newItem.isIncompatible, animated: true, incompatibleView: incompatibleView,
-        backgroundView: button, stackView: stackView)
+      if isWarningChanged {
+        SettingsViewFactory.setWarningView(
+          newItem.warning, animated: true, incompatibleView: incompatibleView,
+          backgroundView: button, stackView: stackView)
+      }
       return updatingItem
     }
 
@@ -156,7 +159,8 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
 
   public var isHidden: Bool = false
   public var isEnabled: Bool = true
-  public var isIncompatible: Bool = false
+  /// Shown under the button, when there's one.
+  public var warning: SettingsWarning?
   public var extraTopPadding: CGFloat
   public var value: T
   public private(set) var viewModifying: any SettingsViewModifying
@@ -166,8 +170,9 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
   public var showsTooltip: Bool
 
   public init(
-    value: T, title: String? = nil, buttonImage: UIImage? = nil, isIncompatible: Bool = false,
-    showsMenuAsPrimaryAction: Bool = false, extraTopPadding: CGFloat = 0,
+    value: T, title: String? = nil, buttonImage: UIImage? = nil,
+    warning: SettingsWarning? = nil, showsMenuAsPrimaryAction: Bool = false,
+    extraTopPadding: CGFloat = 0,
     showsTooltip: Bool = false,
     buttonAction: ((UIView, T) -> Void)? = nil,
     makeButtonsUI: ((T, UIButton?) -> Void)? = nil,
@@ -175,7 +180,7 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
   ) {
     self.value = value
     self.title = title
-    self.isIncompatible = isIncompatible
+    self.warning = warning
     self.showsMenuAsPrimaryAction = showsMenuAsPrimaryAction
     self.extraTopPadding = extraTopPadding
     self.showsTooltip = showsTooltip
@@ -187,7 +192,7 @@ public struct SettingsButtonItem<T: Equatable>: SettingsViewObservable {
   public func isEquivalent(to other: any SettingsViewObservable) -> Bool {
     guard let other = other as? SettingsButtonItem<T> else { return false }
     return value == other.value && isHidden == other.isHidden && isEnabled == other.isEnabled
-      && isIncompatible == other.isIncompatible && title == other.title
+      && warning == other.warning && title == other.title
       && showsMenuAsPrimaryAction == other.showsMenuAsPrimaryAction
       && showsTooltip == other.showsTooltip && extraTopPadding == other.extraTopPadding
   }

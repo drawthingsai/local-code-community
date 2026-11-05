@@ -2264,6 +2264,19 @@ extension ChatWorkflow: SettingsWorkflowDelegate {
     }
     workspace.dictionary["external_models_folder", Data.self] = bookmarkData
     LLMZoo.externalUrls = url.map { [$0] } ?? []
+    // Measured once, now that nothing is loading, and kept with the folder. The last folder's
+    // speed says nothing about this one.
+    workspace.dictionary["external_models_folder_read_speed", Double.self] = nil
+    if let url {
+      DispatchQueue.global(qos: .utility).async { [workspace] in
+        let readSpeed = DiskReadSpeed.measure(in: url)
+        DispatchQueue.main.async {
+          // Unless the folder changed again while it was measured.
+          guard LLMZoo.externalUrls.first == url else { return }
+          workspace.dictionary["external_models_folder_read_speed", Double.self] = readSpeed
+        }
+      }
+    }
     // A selected model whose files the folder moved gets a generator at their new paths. Serve
     // picks the new paths up at its next request.
     guard case .some(.local(let generator, let codeAgent)) = codeAgentWrapper,

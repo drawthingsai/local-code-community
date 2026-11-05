@@ -2531,6 +2531,8 @@
 "in_local_code_app" = "Local Code 应用内";
 "model_folder_detail" = "选择设备端模型的存储位置。已在 Local Code 应用内的模型保留在原处，新下载的模型存入所选文件夹。当 Draw Things 的模型文件夹设为“Local Code 应用内”时，Draw Things 模型也使用此文件夹。";
 "model_folder_in_use_detail" = "模型正在加载、生成或下载时，无法更改模型文件夹。请在完成后重试。";
+"slow_drive" = "驱动器速度较慢";
+"very_slow_drive" = "驱动器速度很慢";
 "choose_a_models_folder" = "选择模型文件夹";
 "choose_a_models_folder_detail" = "draw-things-cli 需要访问模型文件夹。如果已安装 Draw Things，可以共用其模型文件夹，以节省磁盘空间。\n\n你希望将模型存储在哪里？";
 "use_local_code_storage" = "存储在 Local Code 内";

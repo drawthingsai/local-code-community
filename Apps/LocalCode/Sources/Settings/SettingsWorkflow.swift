@@ -151,6 +151,7 @@ final class SettingsWorkflow: Workflow {
   private var lockdownModeSubscription: Workspace.Subscription?
   private var drawThingsModelsFolderSubscription: Workspace.Subscription?
   private var modelsFolderSubscription: Workspace.Subscription?
+  private var modelsFolderReadSpeedSubscription: Workspace.Subscription?
   private var permitEnabledSubscription: Workspace.Subscription?
   private var permittedDirectoriesSubscription: Workspace.Subscription?
   private var disabledPermittedDirectoriesSubscription: Workspace.Subscription?
@@ -428,6 +429,23 @@ final class SettingsWorkflow: Workflow {
         self.settingsSectionsController.modelsFolder = bookmarkData.flatMap {
           try? URL(resolvingBookmarkData: $0, bookmarkDataIsStale: &isStale).path
         }
+      }
+    }
+    modelsFolderReadSpeedSubscription = workspace.dictionary.subscribe(
+      "external_models_folder_read_speed", of: Double.self
+    ) { [weak self] value in
+      guard let self else { return }
+      let readSpeed: Double?
+      switch value {
+      case .deleted:
+        readSpeed = nil
+      case .initial(let value):
+        readSpeed = value
+      case .updated(let value):
+        readSpeed = value
+      }
+      DispatchQueue.main.async {
+        self.settingsSectionsController.modelsFolderReadSpeed = readSpeed
       }
     }
     reasoningEffortSubscription = workspace.dictionary.subscribe(

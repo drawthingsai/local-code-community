@@ -2553,6 +2553,8 @@
 "in_local_code_app" = "Local Codeアプリ内";
 "model_folder_detail" = "デバイス上のモデルの保存先を選択します。Local Codeアプリ内にあるモデルはそのまま使われ、新しくダウンロードするモデルは選択したフォルダに保存されます。Draw Thingsのモデルフォルダが「Local Codeアプリ内」の場合、Draw Thingsのモデルもこのフォルダを使用します。";
 "model_folder_in_use_detail" = "モデルの読み込み、生成、またはダウンロード中はモデルフォルダを変更できません。完了してからもう一度お試しください。";
+"slow_drive" = "低速なドライブ";
+"very_slow_drive" = "非常に低速なドライブ";
 "choose_a_models_folder" = "モデルフォルダを選択";
 "choose_a_models_folder_detail" = "draw-things-cliにはモデルフォルダへのアクセスが必要です。Draw Thingsがインストールされている場合は、そのモデルフォルダを共用してディスク容量を節約できます。\n\nモデルをどこに保存しますか？";
 "use_local_code_storage" = "Local Code内に保存";

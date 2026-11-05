@@ -202,15 +202,39 @@ public enum SettingsViewFactory {
     isIncompatible: Bool, animated: Bool, incompatibleView: UIView?, backgroundView: UIView?,
     stackView: UIView?
   ) {
+    guard let incompatibleView, incompatibleView.isHidden != !isIncompatible else { return }
+    setWarningView(
+      isIncompatible ? .incompatible : nil, animated: animated, incompatibleView: incompatibleView,
+      backgroundView: backgroundView, stackView: stackView)
+  }
+
+  /// Shows `warning` in a row from `makeIncompatibleView()`, or hides the row when it's nil.
+  public static func setWarningView(
+    _ warning: SettingsWarning?, animated: Bool, incompatibleView: UIView?,
+    backgroundView: UIView?, stackView: UIView?
+  ) {
     guard let incompatibleView, let backgroundView, let stackView else { return }
-    guard incompatibleView.isHidden != !isIncompatible else { return }
+    // Hiding a row that's hidden would reset a background nothing changed.
+    guard warning != nil || !incompatibleView.isHidden else { return }
     let updateBlock = {
-      if isIncompatible {
-        backgroundView.layer.borderColor = UIColor.warningBorder.cgColor
+      if let warning {
+        let isError = warning.severity == .error
+        let textColor: UIColor = isError ? .errorText : .warningText
+        // The label and icon from makeIncompatibleView().
+        for subview in incompatibleView.subviews {
+          if let label = subview as? UILabel {
+            label.text = warning.text
+            label.textColor = textColor
+          } else if let icon = subview as? UIImageView {
+            icon.image = #imageLiteral(resourceName: "warning-triangle").withTintColor(textColor)
+          }
+        }
+        backgroundView.layer.borderColor = (isError ? UIColor.errorBorder : .warningBorder).cgColor
+        let backgroundColor: UIColor = isError ? .errorBackground : .warningBackground
         if let button = backgroundView as? UIButton {
-          button.configuration?.baseBackgroundColor = .warningBackground
+          button.configuration?.baseBackgroundColor = backgroundColor
         } else {
-          backgroundView.backgroundColor = .warningBackground
+          backgroundView.backgroundColor = backgroundColor
         }
         backgroundView.layer.borderWidth = 1
       } else {
@@ -221,8 +245,8 @@ public enum SettingsViewFactory {
           backgroundView.backgroundColor = Theme.current.primaryContentBackgroundColor
         }
       }
-      incompatibleView.alpha = isIncompatible ? 1 : 0
-      incompatibleView.isHidden = !isIncompatible
+      incompatibleView.alpha = warning != nil ? 1 : 0
+      incompatibleView.isHidden = warning == nil
       stackView.superview?.layoutIfNeeded()
     }
     if animated {

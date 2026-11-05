@@ -2827,6 +2827,8 @@
 "in_local_code_app" = "Trong ứng dụng Local Code";
 "model_folder_detail" = "Chọn nơi lưu các mô hình chạy trên thiết bị. Các mô hình đã có trong ứng dụng Local Code vẫn ở đó, còn các lượt tải mới sẽ vào thư mục đã chọn. Các mô hình Draw Things cũng dùng thư mục này khi thư mục mô hình của chúng được đặt là “Trong ứng dụng Local Code”.";
 "model_folder_in_use_detail" = "Không thể thay đổi thư mục mô hình khi một mô hình đang được nạp, tạo nội dung hoặc tải xuống. Hãy thử lại khi hoàn tất.";
+"slow_drive" = "Ổ đĩa chậm";
+"very_slow_drive" = "Ổ đĩa rất chậm";
 
 "choose_a_models_folder" = "Chọn thư mục mô hình";
 "choose_a_models_folder_detail" = "draw-things-cli cần quyền truy cập vào một thư mục mô hình. Nếu đã cài Draw Things, bạn có thể dùng lại thư mục mô hình của ứng dụng này để tiết kiệm dung lượng ổ đĩa.\n\nBạn muốn lưu các mô hình ở đâu?";

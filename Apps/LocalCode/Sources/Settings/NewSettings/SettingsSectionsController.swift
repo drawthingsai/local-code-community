@@ -170,6 +170,13 @@ final class SettingsSectionsController {
       updateSettingsSections()
     }
   }
+  /// In bytes a second, measured when the folder was chosen.
+  var modelsFolderReadSpeed: Double? {
+    didSet {
+      guard modelsFolderReadSpeed != oldValue else { return }
+      updateSettingsSections()
+    }
+  }
   var remoteProvider: RemoteProvider? {
     didSet {
       guard remoteProvider != oldValue else { return }
@@ -715,10 +722,24 @@ final class SettingsSectionsController {
   }
 
   private func modelsFolderSection() -> SettingsSectionItem {
+    // Models load from the folder, which an internal drive reads at several GiB a second.
+    let gibibyte: Double = 1_024 * 1_024 * 1_024
+    // A folder whose bookmark no longer resolves shows as In Local Code App, but keeps its speed.
+    let readSpeed = modelsFolder != nil ? modelsFolderReadSpeed : nil
+    let warning: SettingsWarning?
+    switch readSpeed {
+    case .some(let readSpeed) where readSpeed < gibibyte:
+      warning = SettingsWarning(text: LocalizedString.forKey("very_slow_drive"), severity: .error)
+    case .some(let readSpeed) where readSpeed < 2.5 * gibibyte:
+      warning = SettingsWarning(text: LocalizedString.forKey("slow_drive"))
+    default:
+      warning = nil
+    }
     var section = SettingsSectionItem(
       settingsItems: [
         SettingsButtonItem(
-          value: modelsFolder, showsMenuAsPrimaryAction: true, showsTooltip: true,
+          value: modelsFolder, warning: warning, showsMenuAsPrimaryAction: true,
+          showsTooltip: true,
           makeButtonsUI: { [weak self] folder, button in
             button?.configuration?.titleLineBreakMode = .byTruncatingHead
             button?.menu = UIMenu(children: [

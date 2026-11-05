@@ -2515,6 +2515,8 @@
 "in_local_code_app" = "En la app Local Code";
 "model_folder_detail" = "Elige dónde se guardan los modelos en el dispositivo. Los modelos que ya están en la app Local Code se quedan allí, y las nuevas descargas van a la carpeta seleccionada. Los modelos de Draw Things también usan esta carpeta cuando la suya está configurada como «En la app Local Code».";
 "model_folder_in_use_detail" = "No se puede cambiar la carpeta de modelos mientras un modelo se carga, genera o descarga. Inténtalo de nuevo cuando termine.";
+"slow_drive" = "Unidad lenta";
+"very_slow_drive" = "Unidad muy lenta";
 "choose_a_models_folder" = "Elige una carpeta de modelos";
 "choose_a_models_folder_detail" = "draw-things-cli necesita acceder a una carpeta de modelos. Si tienes Draw Things instalado, puedes reutilizar su carpeta de modelos para ahorrar espacio en disco.\n\n¿Dónde quieres guardar tus modelos?";
 "use_local_code_storage" = "Guardar en Local Code";
