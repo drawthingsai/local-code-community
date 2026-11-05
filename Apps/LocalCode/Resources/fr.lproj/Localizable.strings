@@ -2553,6 +2553,8 @@
 "draw_things_detail" = "Générez des images et des vidéos dans Local Code grâce à l’intégration de Draw Things. Choisissez où stocker les modèles Draw Things, ou utilisez un dossier de modèles Draw Things existant.";
 "model_folder" = "Dossier de modèles";
 "in_local_code_app" = "Dans l’app Local Code";
+"model_folder_detail" = "Choisissez où stocker les modèles sur l’appareil. Les modèles déjà présents dans l’app Local Code y restent, et les nouveaux téléchargements vont dans le dossier sélectionné. Les modèles Draw Things utilisent aussi ce dossier lorsque le leur est réglé sur « Dans l’app Local Code ».";
+"model_folder_in_use_detail" = "Impossible de changer le dossier de modèles pendant qu’un modèle se charge, génère ou se télécharge. Réessayez une fois l’opération terminée.";
 "choose_a_models_folder" = "Choisir un dossier de modèles";
 "choose_a_models_folder_detail" = "draw-things-cli a besoin d’accéder à un dossier de modèles. Si Draw Things est installé, vous pouvez réutiliser son dossier de modèles pour économiser de l’espace disque.\n\nOù souhaitez-vous stocker vos modèles ?";
 "use_local_code_storage" = "Stocker dans Local Code";

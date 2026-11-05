@@ -2528,6 +2528,8 @@
 "draw_things_detail" = "透過 Draw Things 整合，在 Local Code 中生成圖像和影片。請選擇 Draw Things 模型的儲存位置，也可以使用現有的 Draw Things 模型資料夾。";
 "model_folder" = "模型資料夾";
 "in_local_code_app" = "Local Code App 內";
+"model_folder_detail" = "選擇裝置端模型的儲存位置。已在 Local Code App 內的模型保留在原處，新下載的模型會存入所選資料夾。當 Draw Things 的模型資料夾設為「Local Code App 內」時，Draw Things 模型也會使用此資料夾。";
+"model_folder_in_use_detail" = "模型正在載入、生成或下載時，無法更改模型資料夾。請在完成後再試一次。";
 "choose_a_models_folder" = "選擇模型資料夾";
 "choose_a_models_folder_detail" = "draw-things-cli 需要存取模型資料夾。如果已安裝 Draw Things，可以共用其模型資料夾，以節省磁碟空間。\n\n你想將模型儲存在哪裡？";
 "use_local_code_storage" = "儲存在 Local Code 內";

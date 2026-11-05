@@ -63,6 +63,9 @@ protocol SettingsWorkflowDelegate: AnyObject {
     forRemoteProvider provider: RemoteProvider)
   func settingsWorkflowDidUpdateHostedProvider(_ workflow: SettingsWorkflow)
   func settingsWorkflowDidRequestModelSpeed(_ workflow: SettingsWorkflow)
+  /// The folder picked for on-device models, or nil for the app's own storage.
+  func settingsWorkflow(
+    _ workflow: SettingsWorkflow, didSelectModelsFolder url: URL?, bookmarkData: Data?)
   /// The rail arrived at the Serve page, or left it.
   func settingsWorkflow(_ workflow: SettingsWorkflow, didChangeServePageSelected isSelected: Bool)
 }
@@ -147,11 +150,13 @@ final class SettingsWorkflow: Workflow {
   private var workspaceFolderSubscription: Workspace.Subscription?
   private var lockdownModeSubscription: Workspace.Subscription?
   private var drawThingsModelsFolderSubscription: Workspace.Subscription?
+  private var modelsFolderSubscription: Workspace.Subscription?
   private var permitEnabledSubscription: Workspace.Subscription?
   private var permittedDirectoriesSubscription: Workspace.Subscription?
   private var disabledPermittedDirectoriesSubscription: Workspace.Subscription?
   private var appDataDirectorySubscriptions = [Workspace.Subscription]()
   private weak var drawThingsModelsFolderPicker: UnifiedDocumentPickerController?
+  private weak var modelsFolderPicker: UnifiedDocumentPickerController?
   private weak var appDataDirectoryPicker: UnifiedDocumentPickerController?
   private var communityTemplateWorkflow: CommunityTemplateWorkflow?
   /// The folder `appDataDirectoryPicker` asks for.
@@ -401,6 +406,26 @@ final class SettingsWorkflow: Workflow {
       DispatchQueue.main.async {
         var isStale = false
         self.kitSectionsController.drawThingsModelsFolder = bookmarkData.flatMap {
+          try? URL(resolvingBookmarkData: $0, bookmarkDataIsStale: &isStale).path
+        }
+      }
+    }
+    modelsFolderSubscription = workspace.dictionary.subscribe(
+      "external_models_folder", of: Data.self
+    ) { [weak self] value in
+      guard let self else { return }
+      let bookmarkData: Data?
+      switch value {
+      case .deleted:
+        bookmarkData = nil
+      case .initial(let value):
+        bookmarkData = value
+      case .updated(let value):
+        bookmarkData = value
+      }
+      DispatchQueue.main.async {
+        var isStale = false
+        self.settingsSectionsController.modelsFolder = bookmarkData.flatMap {
           try? URL(resolvingBookmarkData: $0, bookmarkDataIsStale: &isStale).path
         }
       }
@@ -2217,6 +2242,23 @@ extension SettingsWorkflow: SettingsSectionsControllerDelegate {
     delegate?.settingsWorkflowDidRequestModelSpeed(self)
   }
 
+  func settingsSectionsControllerDidSelectModelsInApp(_ controller: SettingsSectionsController) {
+    guard settingsSectionsController.modelsFolder != nil else { return }
+    delegate?.settingsWorkflow(self, didSelectModelsFolder: nil, bookmarkData: nil)
+  }
+
+  func settingsSectionsController(
+    _ controller: SettingsSectionsController, didSelectModelsFolder currentFolder: String?
+  ) {
+    let documentPicker = UnifiedDocumentPickerController(forOpeningContentTypes: [.folder])
+    documentPicker.title = LocalizedString.forKey("model_folder")
+    documentPicker.directoryURL = currentFolder.map { URL(fileURLWithPath: $0, isDirectory: true) }
+    documentPicker.allowsMultipleSelection = false
+    documentPicker.delegate = self
+    modelsFolderPicker = documentPicker
+    viewController.present(documentPicker, animated: true)
+  }
+
   func settingsSectionsController(
     _ controller: SettingsSectionsController, didSearchProviderChange provider: WebSearchProvider
   ) {
@@ -2463,6 +2505,9 @@ extension SettingsWorkflow: UnifiedDocumentPickerControllerDelegate {
       workspace.dictionary["draw_things_external_models_folder", Data.self] = bookmarkData
       workspace.dictionary["draw_things_models_in_app", Bool.self] = nil
       drawThingsModelsFolderPicker = nil
+    } else if controller === modelsFolderPicker {
+      modelsFolderPicker = nil
+      delegate?.settingsWorkflow(self, didSelectModelsFolder: url, bookmarkData: bookmarkData)
     } else {
       workspace.dictionary["workspace_folder", Data.self] = bookmarkData
     }

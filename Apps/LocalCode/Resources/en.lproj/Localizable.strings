@@ -2825,6 +2825,8 @@
 "draw_things_detail" = "Generate images and videos in Local Code with the Draw Things integration. Choose where Draw Things models are stored, including an existing Draw Things model folder.";
 "model_folder" = "Model Folder";
 "in_local_code_app" = "In Local Code App";
+"model_folder_detail" = "Choose where on-device models are stored. Models already in the Local Code app stay there, and new downloads go to the selected folder. Draw Things models use this folder too when theirs is set to In Local Code App.";
+"model_folder_in_use_detail" = "The model folder can't change while a model is loading, generating, or downloading. Try again when it finishes.";
 
 "choose_a_models_folder" = "Choose a Models Folder";
 "choose_a_models_folder_detail" = "draw-things-cli needs access to a models folder. If you have Draw Things installed, you can reuse its models folder to save disk space.\n\nWhere would you like to keep your models?";

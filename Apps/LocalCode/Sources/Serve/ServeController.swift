@@ -2,6 +2,7 @@ import Atomics
 import Combine
 import Dflat
 import Foundation
+import ModelZoo
 import NNC
 import SQLiteDflat
 
@@ -467,6 +468,15 @@ final class ServeController {
           && tokenized.baseTokens.starts(with: $0.retainedTokens)
       }
       guard !isFollowingUnreturnedTurn else { break }
+      // A model folder change while it was tokenized can move the model's files. Checking again
+      // releases the idle agents still at the old paths, so none of them is reused.
+      guard tokenizingAdapter(for: model) != nil else {
+        pendingRequests.removeFirst()
+        pendingRequest.writer.fail(
+          status: 503, type: "server_error", code: "model_not_available",
+          message: "The model selected to serve is not ready. Check that it is fully downloaded.")
+        continue
+      }
       let reusedAgent = idleAgentPool.takeAgent(continuing: tokenized.baseTokens)
       if reusedAgent == nil {
         // With every agent running it waits for a turn to end. Otherwise a new agent takes the
@@ -524,7 +534,11 @@ final class ServeController {
   }
 
   private func tokenizingAdapter(for model: String) -> (any ResponsesModelAdapter)? {
-    if let tokenizingAdapter, agentModel == model {
+    // A model folder change can move the model's files, which then need a generator at their new
+    // paths.
+    if let tokenizingAdapter, agentModel == model,
+      textGenerator?.filePaths.allSatisfy(LLMZoo.isFilePathForModelDownloaded) == true
+    {
       return tokenizingAdapter
     }
     guard let delegate,

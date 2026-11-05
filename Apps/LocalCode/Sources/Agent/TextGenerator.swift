@@ -7,5 +7,11 @@ public protocol TextGenerator {
 
   var safeTokenizer: TiktokenTokenizer { get }
   var filePath: String { get }
+  /// Every file it opens, `filePath` first. A model folder change can move any of them.
+  var filePaths: [String] { get }
   func unload()
+}
+
+extension TextGenerator {
+  public var filePaths: [String] { [filePath] }
 }

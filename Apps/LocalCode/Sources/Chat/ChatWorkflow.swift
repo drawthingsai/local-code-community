@@ -226,6 +226,13 @@ final class ChatWorkflow: Workflow {
     self.accountManager = accountManager
     let permittedDirectories = PermittedDirectories(workspace: workspace)
     self.permittedDirectories = permittedDirectories
+    // Set before the initial model's path is resolved below. A stale bookmark still resolves to
+    // the folder where it moved.
+    var isModelsFolderStale = false
+    LLMZoo.externalUrls =
+      workspace.dictionary["external_models_folder", Data.self].flatMap {
+        try? URL(resolvingBookmarkData: $0, bookmarkDataIsStale: &isModelsFolderStale)
+      }.map { [$0] } ?? []
     let initialLLM = workspace.dictionary["llm_model", String.self].flatMap { file in
       LLMZoo.specificationForModel(file).map { _ in file }
     }
@@ -668,8 +675,9 @@ final class ChatWorkflow: Workflow {
   }
 
   private func agentSchedulerActivation(for textGenerator: any TextGenerator) {
-    let file = URL(fileURLWithPath: textGenerator.filePath).lastPathComponent
-    guard agentScheduler.file != file else { return }
+    // By paths, so a model whose files the model folder moved, companions included, also gets a
+    // new scheduler. The old one's resident agents hold generators at the old paths.
+    guard agentScheduler.filePaths != textGenerator.filePaths else { return }
     if agentScheduler.file != nil {
       let retiringScheduler = agentScheduler
       retiringScheduler.setForeground(nil)
@@ -701,7 +709,7 @@ final class ChatWorkflow: Workflow {
       viewController.setSteeringQueuedItems([])
     }
     agentScheduler.set(
-      filePath: textGenerator.filePath, residentWeightsSize: textGenerator.residentWeightsSize,
+      filePaths: textGenerator.filePaths, residentWeightsSize: textGenerator.residentWeightsSize,
       estimatedKVCacheSize: type(of: textGenerator).estimatedKVCacheSize)
   }
 
@@ -959,8 +967,10 @@ final class ChatWorkflow: Workflow {
     guard let specification = LLMZoo.specificationForModel(model) else { return nil }
     let filePath = LLMZoo.filePathForModelDownloaded(model)
     let modelURL = URL(fileURLWithPath: filePath).standardizedFileURL.resolvingSymlinksInPath()
+    // A model folder change can move a companion, such as the Engram, while the checkpoint stays.
     if let generator = generators.first(where: {
       URL(fileURLWithPath: $0.filePath).standardizedFileURL.resolvingSymlinksInPath() == modelURL
+        && $0.filePaths.allSatisfy(LLMZoo.isFilePathForModelDownloaded)
     }) {
       return generator
     }
@@ -2233,6 +2243,47 @@ extension ChatWorkflow: SettingsWorkflowDelegate {
     _ workflow: SettingsWorkflow, residentProjectWorkspace projectPath: String
   ) -> SQLiteWorkspace? {
     residentProjectWorkspace(projectPath: projectPath)
+  }
+
+  func settingsWorkflow(
+    _ workflow: SettingsWorkflow, didSelectModelsFolder url: URL?, bookmarkData: Data?
+  ) {
+    // Generators keep the paths they were made with, so the folder changes only while no model
+    // is loading, generating, or downloading.
+    guard pendingModelWarmups == 0,
+      ([agentScheduler] + retiringAgentSchedulers).allSatisfy(\.isIdle),
+      downloadController == nil
+    else {
+      let alertController = UIAlertController(
+        title: LocalizedString.forKey("model_folder"),
+        message: LocalizedString.forKey("model_folder_in_use_detail"), preferredStyle: .alert)
+      alertController.addAction(
+        UIAlertAction(title: LocalizedString.forKey("ok"), style: .default))
+      presentedViewController.present(alertController, animated: true)
+      return
+    }
+    workspace.dictionary["external_models_folder", Data.self] = bookmarkData
+    LLMZoo.externalUrls = url.map { [$0] } ?? []
+    // A selected model whose files the folder moved gets a generator at their new paths. Serve
+    // picks the new paths up at its next request.
+    guard case .some(.local(let generator, let codeAgent)) = codeAgentWrapper,
+      !generator.filePaths.allSatisfy(LLMZoo.isFilePathForModelDownloaded),
+      let textGenerator = textGenerator(
+        for: URL(fileURLWithPath: generator.filePath).lastPathComponent)
+    else { return }
+    // Retires the scheduler, whose idle agents use the old generator, before the open thread
+    // restores its agent, a paused turn included, on the new one.
+    agentSchedulerActivation(for: textGenerator)
+    codeAgentWrapper = .local(textGenerator, nil)
+    restoreSelectedThread()
+    queue.async { [graph, streamContext] in
+      autoreleasepool {
+        streamContext.joined()
+        codeAgent?.unloadCaches()
+        generator.unload()
+        graph.garbageCollect()
+      }
+    }
   }
 
   func settingsWorkflow(_ workflow: SettingsWorkflow, didSelectProjectAt url: URL) {

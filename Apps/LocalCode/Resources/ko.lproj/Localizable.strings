@@ -2554,6 +2554,8 @@
 "draw_things_detail" = "Draw Things 연동으로 Local Code에서 이미지와 동영상을 생성할 수 있습니다. Draw Things 모델을 저장할 위치를 선택하세요. 기존 Draw Things 모델 폴더를 사용할 수도 있습니다.";
 "model_folder" = "모델 폴더";
 "in_local_code_app" = "Local Code 앱 내부";
+"model_folder_detail" = "기기에서 실행할 모델을 저장할 위치를 선택하세요. Local Code 앱 내부에 있는 모델은 그대로 사용되며, 새로 다운로드하는 모델은 선택한 폴더에 저장됩니다. Draw Things 모델 폴더가 'Local Code 앱 내부'로 설정되어 있으면 Draw Things 모델도 이 폴더를 사용합니다.";
+"model_folder_in_use_detail" = "모델을 불러오거나 생성하거나 다운로드하는 동안에는 모델 폴더를 변경할 수 없습니다. 완료된 후 다시 시도하세요.";
 "choose_a_models_folder" = "모델 폴더 선택";
 "choose_a_models_folder_detail" = "draw-things-cli가 모델 폴더에 접근해야 합니다. Draw Things가 설치되어 있다면 해당 모델 폴더를 함께 사용하여 디스크 공간을 절약할 수 있습니다.\n\n모델을 어디에 저장하시겠습니까?";
 "use_local_code_storage" = "Local Code에 저장";

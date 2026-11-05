@@ -92,6 +92,8 @@ final class AgentScheduler {
   // Accessed only on the main queue.
   weak var delegate: AgentSchedulerDelegate?
   private(set) var file: String?
+  /// Where the model's files are, `file` first. A model folder change can move any of them.
+  private(set) var filePaths = [String]()
   // Retain the selected generator when its first turn is scheduled.
   var textGenerator: (any TextGenerator)?
 
@@ -130,12 +132,13 @@ final class AgentScheduler {
     }
   }
 
-  func set(filePath: String, residentWeightsSize: UInt64, estimatedKVCacheSize: UInt64) {
+  func set(filePaths: [String], residentWeightsSize: UInt64, estimatedKVCacheSize: UInt64) {
     dispatchPrecondition(condition: .onQueue(.main))
     precondition(estimatedKVCacheSize > 0)
     os_unfair_lock_lock(&lock)
     precondition(entries.isEmpty && pendingTurns.isEmpty && activeTurnIdentifiers.isEmpty)
-    file = URL(fileURLWithPath: filePath).lastPathComponent
+    self.filePaths = filePaths
+    file = filePaths.first.map { URL(fileURLWithPath: $0).lastPathComponent }
     if maximumHotCodeAgentCount == Int.max {
       let physicalMemory = ProcessInfo.processInfo.physicalMemory
       let availableMemory =

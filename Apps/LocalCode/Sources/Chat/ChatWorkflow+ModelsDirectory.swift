@@ -2,6 +2,7 @@ import BashToolContext
 import Components
 import Foundation
 import Localization
+import ModelZoo
 import UIKit
 import UniformTypeIdentifiers
 
@@ -48,12 +49,21 @@ extension ChatWorkflow {
     let localModelsDirectory = FileManager.default.urls(
       for: .documentDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("Models", isDirectory: true)
-    if (requested == nil && bookmarkData == nil
-      && workspace.dictionary["draw_things_models_in_app", Bool.self] == true)
-      || requested?.standardizedFileURL.resolvingSymlinksInPath()
-        == localModelsDirectory.standardizedFileURL.resolvingSymlinksInPath()
+    // The app's storage is the model folder Settings picked for on-device models, if any.
+    let appModelsDirectory = LLMZoo.externalUrls.first ?? localModelsDirectory
+    if requested == nil && bookmarkData == nil
+      && workspace.dictionary["draw_things_models_in_app", Bool.self] == true
     {
-      completion(.success(localModelsDirectory))
+      completion(.success(appModelsDirectory))
+      return
+    }
+    if let requested,
+      let directory = [appModelsDirectory, localModelsDirectory].first(where: {
+        $0.standardizedFileURL.resolvingSymlinksInPath()
+          == requested.standardizedFileURL.resolvingSymlinksInPath()
+      })
+    {
+      completion(.success(directory))
       return
     }
     if let data = bookmarkData {
@@ -100,7 +110,7 @@ extension ChatWorkflow {
         }
         self.workspace.dictionary["draw_things_models_in_app", Bool.self] = true
         self.workspace.dictionary["draw_things_external_models_folder", Data.self] = nil
-        finish(.success(localModelsDirectory))
+        finish(.success(appModelsDirectory))
       })
     alertController.addAction(
       UIAlertAction(

@@ -9,6 +9,7 @@ import WebSearch
 
 private enum SettingsSection: CaseIterable, Hashable {
   case whereModelsRun
+  case modelsFolder
   case reasoningEffort
   case thinkingBudget
   case searchProvider
@@ -88,6 +89,9 @@ protocol SettingsSectionsControllerDelegate: AnyObject {
     provider: RemoteProvider)
   func settingsSectionsControllerDidRequestTopUp(_ controller: SettingsSectionsController)
   func settingsSectionsControllerDidRequestModelSpeed(_ controller: SettingsSectionsController)
+  func settingsSectionsControllerDidSelectModelsInApp(_ controller: SettingsSectionsController)
+  func settingsSectionsController(
+    _ controller: SettingsSectionsController, didSelectModelsFolder currentFolder: String?)
 }
 
 extension WebSearchProvider {
@@ -157,6 +161,12 @@ final class SettingsSectionsController {
   var webSearchAPIKey = "" {
     didSet {
       guard webSearchAPIKey != oldValue else { return }
+      updateSettingsSections()
+    }
+  }
+  var modelsFolder: String? {
+    didSet {
+      guard modelsFolder != oldValue else { return }
       updateSettingsSections()
     }
   }
@@ -377,6 +387,7 @@ final class SettingsSectionsController {
     self.showsAccountBalance = showsAccountBalance
     self.sections = [
       .whereModelsRun,
+      .modelsFolder,
       .reasoningEffort,
       .thinkingBudget,
       .searchProvider,
@@ -445,6 +456,8 @@ final class SettingsSectionsController {
       return searchProviderSection()
     case .whereModelsRun:
       return whereModelsRunSection()
+    case .modelsFolder:
+      return modelsFolderSection()
     case .memory:
       return memorySection()
     }
@@ -699,6 +712,42 @@ final class SettingsSectionsController {
       ], title: LocalizedString.forKey("where_models_run"),
       detail: LocalizedString.forKey("where_models_run_detail"),
       lookUpKey: "local_code_provider_detail_hidden", workspace: workspace)
+  }
+
+  private func modelsFolderSection() -> SettingsSectionItem {
+    var section = SettingsSectionItem(
+      settingsItems: [
+        SettingsButtonItem(
+          value: modelsFolder, showsMenuAsPrimaryAction: true, showsTooltip: true,
+          makeButtonsUI: { [weak self] folder, button in
+            button?.configuration?.titleLineBreakMode = .byTruncatingHead
+            button?.menu = UIMenu(children: [
+              UIAction(
+                title: LocalizedString.forKey("in_local_code_app"),
+                state: folder == nil ? .on : .off
+              ) { [weak self] _ in
+                guard let self else { return }
+                self.delegate?.settingsSectionsControllerDidSelectModelsInApp(self)
+              },
+              UIAction(title: LocalizedString.forKey("select_a_folder_dot")) { [weak self] _ in
+                guard let self else { return }
+                self.delegate?.settingsSectionsController(
+                  self, didSelectModelsFolder: self.modelsFolder)
+              },
+            ])
+            button?.setTitle(folder ?? LocalizedString.forKey("in_local_code_app"), for: .normal)
+          })
+      ], title: LocalizedString.forKey("model_folder"),
+      detail: LocalizedString.forKey("model_folder_detail"),
+      lookUpKey: "local_code_model_folder_detail_hidden", workspace: workspace)
+    #if targetEnvironment(macCatalyst)
+      // The folder holds on-device models only.
+      section.isHidden = remoteProvider != nil
+    #else
+      // Not on iPad until it is tested with external drives.
+      section.isHidden = true
+    #endif
+    return section
   }
 
   private func makeAverageSpeedItemView(title: String, image: UIImage, value: String) -> (

@@ -488,6 +488,8 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
 extension DeepSeek4_1TextGenerator {
   public func unload() { storage.reset() }
 
+  public var filePaths: [String] { [filePath, engramFilePath] + [drafterFile].compactMap { $0 } }
+
   /// At the requested or automatic tier, with the drafter when that tier drafts. A load settles on
   /// that tier or a smaller one.
   public var residentWeightsSize: UInt64 {
