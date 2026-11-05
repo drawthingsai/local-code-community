@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import ProjectHistoryManager
 import Tokenizer
@@ -44,7 +43,7 @@ extension Qwen3_5CodeAgent {
   static func compact(
     _ prefixTokens: [Int32], embedSpans: inout [EmbedSpan], effort: CompactEffort,
     tokenizer: TiktokenTokenizer,
-    projectPath: String?
+    saveToolResponse: (String) -> String?
   ) -> [Int32] {
     var offset = 0
     var segments = messageSegments(in: prefixTokens).map {
@@ -80,8 +79,8 @@ extension Qwen3_5CodeAgent {
         shouldKeepThinkBlocks
         ? segment.tokens : removeThinkBlocks(from: segment.tokens, embedSpans: &segment.spans)
       let tokens = compactToolResponses(
-        in: withoutThink, embedSpans: &segment.spans, tokenizer: tokenizer, projectPath: projectPath
-      )
+        in: withoutThink, embedSpans: &segment.spans, tokenizer: tokenizer,
+        saveToolResponse: saveToolResponse)
       embedSpans += segment.spans.map { $0.offset(by: compactedTokens.count) }
       compactedTokens += tokens
     }
@@ -158,7 +157,7 @@ extension Qwen3_5CodeAgent {
 
   private static func compactToolResponses(
     in tokens: [Int32], embedSpans: inout [EmbedSpan], tokenizer: TiktokenTokenizer,
-    projectPath: String?
+    saveToolResponse: (String) -> String?
   ) -> [Int32] {
     var result = [Int32]()
     var cursor = 0
@@ -181,7 +180,7 @@ extension Qwen3_5CodeAgent {
       }),
         bodyTokens.count > toolResponseExternalizationTokenThreshold,
         let replacementTokens = compactedToolResponseTokens(
-          bodyTokens, tokenizer: tokenizer, projectPath: projectPath)
+          bodyTokens, tokenizer: tokenizer, saveToolResponse: saveToolResponse)
       {
         embedSpans = EmbedSpan.replacingTokens(
           embedSpans,
@@ -199,10 +198,10 @@ extension Qwen3_5CodeAgent {
   }
 
   static func compactedToolResponseTokens(
-    _ bodyTokens: [Int32], tokenizer: TiktokenTokenizer, projectPath: String?
+    _ bodyTokens: [Int32], tokenizer: TiktokenTokenizer, saveToolResponse: (String) -> String?
   ) -> [Int32]? {
     let responseText = tokenizer.decode(bodyTokens)
-    guard let path = externalizeToolResponse(responseText, projectPath: projectPath) else {
+    guard let path = saveToolResponse(responseText) else {
       return nil
     }
     let reference =
@@ -235,31 +234,6 @@ extension Qwen3_5CodeAgent {
     let (_, previewTokens, _, _, _) = tokenizer.tokenize(
       text: preview, truncation: false, maxLength: 0, paddingToken: nil, addSpecialTokens: false)
     return previewTokens
-  }
-
-  private static func externalizeToolResponse(
-    _ responseText: String, projectPath: String?
-  ) -> String? {
-    guard let projectPath = projectPath?.trimmingCharacters(in: .whitespacesAndNewlines),
-      !projectPath.isEmpty
-    else { return nil }
-    let digest = SHA256.hash(data: Data(responseText.utf8))
-    let sha256 = digest.map { String(format: "%02x", $0) }.joined()
-    let relativePath = ".localc/tool_responses/\(sha256).md"
-    let projectURL = URL(fileURLWithPath: projectPath, isDirectory: true)
-    let responseDirectoryURL =
-      projectURL
-      .appendingPathComponent(".localc", isDirectory: true)
-      .appendingPathComponent("tool_responses", isDirectory: true)
-    let responseURL = responseDirectoryURL.appendingPathComponent("\(sha256).md")
-    do {
-      try FileManager.default.createDirectory(
-        at: responseDirectoryURL, withIntermediateDirectories: true)
-      try Data(responseText.utf8).write(to: responseURL, options: .atomic)
-      return relativePath
-    } catch {
-      return nil
-    }
   }
 
   private static func cappedHeadText(

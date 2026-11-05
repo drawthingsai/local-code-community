@@ -1,6 +1,5 @@
 import BashToolContext
 import ProjectHistoryManager
-import WebSearch
 
 enum CodeAgentReasoningEffort: String, Codable, CaseIterable {
   case low
@@ -131,14 +130,12 @@ public protocol CodeAgent: AnyObject {
   /// across pause/resume. Apply a changed isMemoryEnabled before capturing that restore point.
   /// Results and tool side effects remain; the caller decides whether to
   /// persist the result. Conversation compaction and durable suspension are disabled.
-  /// Relative image paths resolve against projectPath; each image is labeled with its path as
-  /// given, in the model's own format, ahead of the prompt.
+  /// Relative image paths resolve against the environment's cache path; each image is labeled
+  /// with its path as given, in the model's own format, ahead of the prompt.
   func ask(
     _ prompt: String, imagePaths: [String], isMemoryEnabled: Bool, temporary: Bool,
     allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64,
-    projectPath: String?,
-    workspacePath: String?,
-    webSearchProvider: WebSearchProvider,
+    environment: any CodeAgentEnvironment,
     progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
   ) -> CodeAgentResult
 
@@ -159,5 +156,5 @@ public protocol CodeAgent: AnyObject {
 
   func canStopImmediately(with result: CodeAgentResult) -> Bool
 
-  func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool
+  func restoreSuspension(threadId: Int64, environment: any CodeAgentEnvironment) throws -> Bool
 }

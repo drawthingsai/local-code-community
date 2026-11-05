@@ -67,8 +67,10 @@ final class Qwen3_5MultimodalTests: XCTestCase {
         for temporary in [true, false, false] {
           let aborted = agent.ask(
             "Hello", imagePaths: [], isMemoryEnabled: true, temporary: temporary,
-            allowedTools: nil, threadId: threadId, projectPath: directory.path,
-            workspacePath: directory.path, webSearchProvider: .disabled
+            allowedTools: nil, threadId: threadId,
+            environment: ProjectEnvironment(
+              projectPath: directory.path, workspacePath: directory.path,
+              webSearchProvider: .disabled)
           ) { _, _ in .abort }
           XCTAssertTrue(aborted.isEmpty)
           XCTAssertEqual(aborted.systemSeenMemoryContext, temporary ? nil : initial)
@@ -76,8 +78,10 @@ final class Qwen3_5MultimodalTests: XCTestCase {
         }
         _ = agent.ask(
           "Hello", imagePaths: [], isMemoryEnabled: true, temporary: false,
-          allowedTools: nil, threadId: threadId, projectPath: directory.path,
-          workspacePath: directory.path, webSearchProvider: .disabled
+          allowedTools: nil, threadId: threadId,
+          environment: ProjectEnvironment(
+            projectPath: directory.path, workspacePath: directory.path, webSearchProvider: .disabled
+          )
         ) { _, _ in .pause }
         try agent.hibernate(threadId: threadId)
         var saved = try XCTUnwrap(
@@ -90,7 +94,10 @@ final class Qwen3_5MultimodalTests: XCTestCase {
         let restored = factory(external)
         XCTAssertTrue(
           try restored.restoreSuspension(
-            threadId: threadId, projectPath: directory.path))
+            threadId: threadId,
+            environment: ProjectEnvironment(
+              projectPath: directory.path, workspacePath: directory.path,
+              webSearchProvider: .disabled)))
         let result = restored.resume { _, _ in .abort }
         XCTAssertEqual(result.memoryContext, initial)
         XCTAssertEqual(result.systemSeenMemoryContext, initial)
@@ -125,7 +132,10 @@ final class Qwen3_5MultimodalTests: XCTestCase {
         cache.saveSuspension(try JSONSerialization.data(withJSONObject: saved), threadId: threadId)
         XCTAssertTrue(
           try restored.restoreSuspension(
-            threadId: threadId, projectPath: directory.path))
+            threadId: threadId,
+            environment: ProjectEnvironment(
+              projectPath: directory.path, workspacePath: directory.path,
+              webSearchProvider: .disabled)))
         if stopAfterRead {
           let readResult = restored.resume { _, _ in .abort }
           XCTAssertEqual(readResult.memoryContext, MemoryContext(memory: text))
@@ -146,7 +156,10 @@ final class Qwen3_5MultimodalTests: XCTestCase {
         let resumed = factory(external)
         XCTAssertTrue(
           try resumed.restoreSuspension(
-            threadId: threadId, projectPath: directory.path))
+            threadId: threadId,
+            environment: ProjectEnvironment(
+              projectPath: directory.path, workspacePath: directory.path,
+              webSearchProvider: .disabled)))
         let readResult = resumed.resume { _, _ in .abort }
         XCTAssertEqual(readResult.memoryContext, MemoryContext(user: "Known user", memory: text))
         XCTAssertEqual(readResult.systemSeenMemoryContext, initial)
@@ -154,15 +167,19 @@ final class Qwen3_5MultimodalTests: XCTestCase {
         resumed.unloadCaches()
         let nextTurn = resumed.ask(
           "Continue", imagePaths: [], isMemoryEnabled: true, temporary: false,
-          allowedTools: nil, threadId: threadId, projectPath: directory.path,
-          workspacePath: directory.path, webSearchProvider: .disabled
+          allowedTools: nil, threadId: threadId,
+          environment: ProjectEnvironment(
+            projectPath: directory.path, workspacePath: directory.path, webSearchProvider: .disabled
+          )
         ) { _, _ in .abort }
         XCTAssertNil(nextTurn.systemSeenMemoryContext)
         XCTAssertNil(nextTurn.memoryContext)
         let disabled = resumed.ask(
           "Continue", imagePaths: [], isMemoryEnabled: false, temporary: false,
-          allowedTools: nil, threadId: threadId, projectPath: directory.path,
-          workspacePath: directory.path, webSearchProvider: .disabled
+          allowedTools: nil, threadId: threadId,
+          environment: ProjectEnvironment(
+            projectPath: directory.path, workspacePath: directory.path, webSearchProvider: .disabled
+          )
         ) { _, _ in .abort }
         XCTAssertEqual(disabled.systemSeenMemoryContext, .empty)
         XCTAssertEqual(disabled.memoryContext, .empty)
@@ -210,8 +227,9 @@ final class Qwen3_5MultimodalTests: XCTestCase {
       let agent = makeAgent()
       _ = agent.ask(
         "Continue", imagePaths: [], isMemoryEnabled: true, temporary: false,
-        allowedTools: nil, threadId: 900, projectPath: directory.path,
-        workspacePath: directory.path, webSearchProvider: .disabled
+        allowedTools: nil, threadId: 900,
+        environment: ProjectEnvironment(
+          projectPath: directory.path, workspacePath: directory.path, webSearchProvider: .disabled)
       ) { _, _ in .pause }
       try agent.hibernate(threadId: 900)
       let saved = try XCTUnwrap(
@@ -223,15 +241,21 @@ final class Qwen3_5MultimodalTests: XCTestCase {
       XCTAssertNil(saved["systemSeenMemoryContext"])
       XCTAssertNil(saved["memoryContext"])
       let restored = makeAgent()
-      XCTAssertTrue(try restored.restoreSuspension(threadId: 900, projectPath: directory.path))
+      XCTAssertTrue(
+        try restored.restoreSuspension(
+          threadId: 900,
+          environment: ProjectEnvironment(
+            projectPath: directory.path, workspacePath: directory.path,
+            webSearchProvider: .disabled)))
       let result = restored.resume { _, _ in .abort }
       XCTAssertNil(result.systemSeenMemoryContext)
       XCTAssertNil(result.memoryContext)
       restored.unloadCaches()
       let afterUnload = restored.ask(
         "Continue", imagePaths: [], isMemoryEnabled: true, temporary: false,
-        allowedTools: nil, threadId: 900, projectPath: directory.path,
-        workspacePath: directory.path, webSearchProvider: .disabled
+        allowedTools: nil, threadId: 900,
+        environment: ProjectEnvironment(
+          projectPath: directory.path, workspacePath: directory.path, webSearchProvider: .disabled)
       ) { _, _ in .abort }
       XCTAssertNil(afterUnload.systemSeenMemoryContext)
       XCTAssertNil(afterUnload.memoryContext)
@@ -393,10 +417,11 @@ final class Qwen3_5MultimodalTests: XCTestCase {
     let call = ToolCall(
       id: 1, request: .init(function: "view", parameters: [:]), response: response)
     let qwen = agent.suspendedToolResultTokens(
-      for: [call], responses: [1: response], projectPath: directory.path)
+      for: [call], responses: [1: response],
+      environment: ProjectEnvironment(projectPath: directory.path))
     let deepSeek = DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.toolResultTokens(
       for: [call], responses: [1: response], tokenizer: DeepSeek4_1TextGenerator.safeTokenizer,
-      projectPath: directory.path)
+      environment: ProjectEnvironment(projectPath: directory.path))
     for (result, tokenizer) in [
       (qwen, Qwen3_5TextGenerator.safeTokenizer),
       (deepSeek, DeepSeek4_1TextGenerator.safeTokenizer),
@@ -471,10 +496,11 @@ final class Qwen3_5MultimodalTests: XCTestCase {
       safeTokenizer: Qwen3_5TextGenerator.safeTokenizer,
       systemPromptTemplate: "You are a helpful assistant.")
     let qwen = agent.suspendedToolResultTokens(
-      for: calls, responses: responses, projectPath: directory.path)
+      for: calls, responses: responses, environment: ProjectEnvironment(projectPath: directory.path)
+    )
     let deepSeek = DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.toolResultTokens(
       for: calls, responses: responses, tokenizer: DeepSeek4_1TextGenerator.safeTokenizer,
-      projectPath: directory.path)
+      environment: ProjectEnvironment(projectPath: directory.path))
     for (result, pad) in [(qwen, Int32(248_056)), (deepSeek, Int32(129_264))] {
       XCTAssertEqual(result.embedSpans.count, 2)
       for (index, span) in result.embedSpans.enumerated() {
@@ -498,10 +524,11 @@ final class Qwen3_5MultimodalTests: XCTestCase {
     XCTAssertEqual(
       try JSONDecoder().decode(ToolResponse.self, from: JSONEncoder().encode(combined)), combined)
     let combinedQwen = agent.suspendedToolResultTokens(
-      for: [calls[0]], responses: [1: combined], projectPath: directory.path)
+      for: [calls[0]], responses: [1: combined],
+      environment: ProjectEnvironment(projectPath: directory.path))
     let combinedDeepSeek = DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.toolResultTokens(
       for: [calls[0]], responses: [1: combined], tokenizer: DeepSeek4_1TextGenerator.safeTokenizer,
-      projectPath: directory.path)
+      environment: ProjectEnvironment(projectPath: directory.path))
     for (result, tokenizer) in [
       (combinedQwen, Qwen3_5TextGenerator.safeTokenizer),
       (combinedDeepSeek, DeepSeek4_1TextGenerator.safeTokenizer),
@@ -562,8 +589,10 @@ final class Qwen3_5MultimodalTests: XCTestCase {
       let threadId = Int64(500 + index)
       _ = suspended.ask(
         "View the two images", imagePaths: [], isMemoryEnabled: false, temporary: false,
-        allowedTools: nil, threadId: threadId, projectPath: directory.path,
-        workspacePath: directory.path, webSearchProvider: .duckDuckGo
+        allowedTools: nil, threadId: threadId,
+        environment: ProjectEnvironment(
+          projectPath: directory.path, workspacePath: directory.path, webSearchProvider: .duckDuckGo
+        )
       ) { _, _ in .pause }
       try suspended.hibernate(threadId: threadId)
       var state = try XCTUnwrap(
@@ -580,7 +609,11 @@ final class Qwen3_5MultimodalTests: XCTestCase {
       }
       cache.saveSuspension(try JSONSerialization.data(withJSONObject: state), threadId: threadId)
       XCTAssertTrue(
-        try suspended.restoreSuspension(threadId: threadId, projectPath: directory.path))
+        try suspended.restoreSuspension(
+          threadId: threadId,
+          environment: ProjectEnvironment(
+            projectPath: directory.path, workspacePath: directory.path,
+            webSearchProvider: .duckDuckGo)))
       _ = suspended.resume { _, _ in .pause }
       try suspended.hibernate(threadId: threadId)
       let resumedState = try XCTUnwrap(
@@ -699,7 +732,8 @@ final class Qwen3_5MultimodalTests: XCTestCase {
     var compactedSpans = spans
     let compacted = Qwen3_5CodeAgent.compact(
       turn + turn, embedSpans: &compactedSpans, effort: .low,
-      tokenizer: Qwen3_5TextGenerator.safeTokenizer, projectPath: directory.path)
+      tokenizer: Qwen3_5TextGenerator.safeTokenizer,
+      saveToolResponse: ProjectEnvironment(projectPath: directory.path).saveToolResponse)
     let compactedTurn = header + image + suffix + answer
     XCTAssertEqual(compacted, compactedTurn + compactedTurn)
     XCTAssertEqual(compactedSpans, [spans[0], spans[1].offset(by: -thought.count)])
@@ -769,8 +803,9 @@ final class Qwen3_5MultimodalTests: XCTestCase {
         var callbacks = 0
         let result = agent.ask(
           "Describe it", imagePaths: paths, isMemoryEnabled: false, temporary: false,
-          allowedTools: nil, threadId: threadId, projectPath: directory.path,
-          workspacePath: nil, webSearchProvider: .duckDuckGo
+          allowedTools: nil, threadId: threadId,
+          environment: ProjectEnvironment(
+            projectPath: directory.path, workspacePath: nil, webSearchProvider: .duckDuckGo)
         ) { _, _ in
           callbacks += 1
           return .pause
@@ -810,8 +845,9 @@ final class Qwen3_5MultimodalTests: XCTestCase {
       var callbacks = 0
       let result = agent.ask(
         "Describe it", imagePaths: [source.path], isMemoryEnabled: false, temporary: false,
-        allowedTools: nil, threadId: 300, projectPath: nil, workspacePath: nil,
-        webSearchProvider: .duckDuckGo
+        allowedTools: nil, threadId: 300,
+        environment: ProjectEnvironment(
+          projectPath: nil, workspacePath: nil, webSearchProvider: .duckDuckGo)
       ) { _, _ in
         callbacks += 1
         return .pause
@@ -822,7 +858,7 @@ final class Qwen3_5MultimodalTests: XCTestCase {
     let agent = makeAgent()
     _ = agent.ask(
       "Describe it", imagePaths: [source.path], isMemoryEnabled: false,
-      threadId: 123, projectPath: directory.path
+      threadId: 123, environment: ProjectEnvironment(projectPath: directory.path)
     ) { _, _ in .pause }
     XCTAssertNotNil(agent.suspendedResult)
     try agent.hibernate(threadId: 123)
@@ -832,7 +868,9 @@ final class Qwen3_5MultimodalTests: XCTestCase {
     let json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
     XCTAssertNotNil(json["ropeDelta"])
     let restored = makeAgent()
-    XCTAssertTrue(try restored.restoreSuspension(threadId: 123, projectPath: directory.path))
+    XCTAssertTrue(
+      try restored.restoreSuspension(
+        threadId: 123, environment: ProjectEnvironment(projectPath: directory.path)))
     var callbacks = 0
     _ = restored.resume { _, _ in
       callbacks += 1

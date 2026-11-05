@@ -7,7 +7,6 @@ import LLM
 import NNC
 import ProjectHistoryManager
 import Tokenizer
-import WebSearch
 import os.lock
 
 extension Qwen3_5CodeAgent {
@@ -109,9 +108,13 @@ extension Qwen3_5CodeAgent {
     private var lock = os_unfair_lock()
     private var responses = [Int32: ToolResponse]()
 
-    func invoke(id: Int32, invocation: ToolsRegistry.Invocation, context: BashToolContext) {
+    func invoke(
+      id: Int32, request: ToolCall.Request, environment: any CodeAgentEnvironment,
+      context: BashToolContext
+    ) {
       group.enter()
-      invocation.invoke(context: context, isImageSupported: true) { [weak self] response in
+      environment.invoke(request, context: context, isImageSupported: true) {
+        [weak self] response in
         guard let self else { return }
         os_unfair_lock_lock(&lock)
         responses[id] = response
@@ -161,10 +164,6 @@ extension Qwen3_5CodeAgent {
     var systemSeenMemoryContext: MemoryContext?
     var memoryContext: MemoryContext?
     var allowedTools: [String]?
-    var projectPath: String?
-    var workspacePath: String?
-    var webSearchProviderIdentifier: String
-    var webSearchProviderAPIKey: String
     var thinkingBudget: Int
     var deterministic: Bool
     var seed: UInt32
@@ -192,32 +191,12 @@ extension Qwen3_5CodeAgent {
     var threadId: Int64
 
     init(
-      projectPath: String?, workspacePath: String?, webSearchProvider: WebSearchProvider,
       thinkingBudget: Int, deterministic: Bool, seed: UInt32, userTokens: [Int32],
       localPrefixTokens: [Int32], thinkingSuffixTokens: [Int32],
       noThinkingSuffixTokens: [Int32], compactionPromptTokens: [Int32],
       continuationTokens: [Int32], prefixTokens: [Int32],
       tokensSinceLastCompact: Int, file: String, threadId: Int64
     ) {
-      self.projectPath = projectPath
-      self.workspacePath = workspacePath
-      switch webSearchProvider {
-      case .duckDuckGo:
-        webSearchProviderIdentifier = "duckduckgo"
-        webSearchProviderAPIKey = ""
-      case .sogou:
-        webSearchProviderIdentifier = "sogou"
-        webSearchProviderAPIKey = ""
-      case .kagi(let apiKey):
-        webSearchProviderIdentifier = "kagi"
-        webSearchProviderAPIKey = apiKey
-      case .brave(let apiKey):
-        webSearchProviderIdentifier = "brave"
-        webSearchProviderAPIKey = apiKey
-      case .disabled:
-        webSearchProviderIdentifier = "disabled"
-        webSearchProviderAPIKey = ""
-      }
       self.thinkingBudget = thinkingBudget
       self.deterministic = deterministic
       self.seed = seed
@@ -231,11 +210,6 @@ extension Qwen3_5CodeAgent {
       self.tokensSinceLastCompact = tokensSinceLastCompact
       self.file = file
       self.threadId = threadId
-    }
-
-    var webSearchProvider: WebSearchProvider {
-      WebSearchProvider(
-        identifier: webSearchProviderIdentifier, apiKey: webSearchProviderAPIKey) ?? .disabled
     }
   }
 
@@ -260,19 +234,19 @@ extension Qwen3_5CodeAgent {
     _ prompt: String, imagePaths: [String] = [], isMemoryEnabled: Bool, temporary: Bool = false,
     allowedTools: Set<ToolsRegistry.Tool>? = nil,
     threadId: Int64,
-    projectPath: String? = nil, workspacePath: String? = nil,
-    webSearchProvider: WebSearchProvider = .duckDuckGo,
+    environment: any CodeAgentEnvironment = ProjectEnvironment(),
     progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
   ) -> CodeAgentResult {
     precondition(suspensionState == nil && temporaryState == nil)
+    self.environment = environment
     var imageTokens = [Int32]()
     var imageSpans = [EmbedSpan]()
     for path in imagePaths {
-      guard let projectPath else { continue }
-      let store = EmbedsFileStore(projectPath: projectPath)
+      guard let cachePath = environment.cachePath else { continue }
+      let store = EmbedsFileStore(projectPath: cachePath)
       let filePath =
         (path as NSString).isAbsolutePath
-        ? path : (projectPath as NSString).appendingPathComponent(path)
+        ? path : (cachePath as NSString).appendingPathComponent(path)
       guard let digest = try? store.insert(filePath: filePath),
         let grid = Qwen3_5Image.grid(
           filePath: store.filePath(for: digest), configuration: textGenerator.visionConfiguration)
@@ -296,7 +270,7 @@ extension Qwen3_5CodeAgent {
     bashToolContext = bashToolContext.with(bashUserInteraction: BashUserInteraction())
     if isMemoryEnabled != !systemSeenMemoryContext.isEmpty {
       setSystemReminderTokensAndMemoryContext(
-        isMemoryEnabled ? MemoryContext.load(projectPath: projectPath) : .empty)
+        isMemoryEnabled ? environment.loadMemoryContext() : .empty)
     }
     if temporary {
       let caches = graph.withStream(streamContext) {
@@ -332,7 +306,7 @@ extension Qwen3_5CodeAgent {
     {
       prefixTokens = Self.compact(
         prefixTokens, embedSpans: &prefixEmbedSpans, effort: .low, tokenizer: safeTokenizer,
-        projectPath: projectPath)
+        saveToolResponse: environment.saveToolResponse)
       resetSuspensionCaches()
       tokensSinceLastCompact = 0
       didCompact = true
@@ -359,9 +333,8 @@ extension Qwen3_5CodeAgent {
       text: Self.continueAfterCompactionPrompt, truncation: false, maxLength: 0,
       paddingToken: nil, addSpecialTokens: false)
     var state = SuspensionState(
-      projectPath: projectPath, workspacePath: workspacePath,
-      webSearchProvider: webSearchProvider, thinkingBudget: thinkingBudget,
-      deterministic: deterministic, seed: seed, userTokens: userTokens,
+      thinkingBudget: thinkingBudget, deterministic: deterministic, seed: seed,
+      userTokens: userTokens,
       localPrefixTokens: localPrefixTokens, thinkingSuffixTokens: thinkingSuffixTokens,
       noThinkingSuffixTokens: noThinkingSuffixTokens,
       compactionPromptTokens: compactionPromptTokens, continuationTokens: continuationTokens,
@@ -425,22 +398,25 @@ extension Qwen3_5CodeAgent {
     guard temporaryState == nil else { return }
     let data = try JSONEncoder().encode(state)
     Qwen3_5ContextCache(
-      projectPath: state.projectPath,
+      projectPath: environment.cachePath,
       checkpointStride: textGenerator.chunkedPrefillMaxLength
     ).saveSuspension(data, threadId: threadId)
   }
 
   @discardableResult
-  public func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool {
+  public func restoreSuspension(
+    threadId: Int64, environment: any CodeAgentEnvironment
+  ) throws -> Bool {
     precondition(temporaryState == nil)
     let contextCache = Qwen3_5ContextCache(
-      projectPath: projectPath, checkpointStride: textGenerator.chunkedPrefillMaxLength)
+      projectPath: environment.cachePath,
+      checkpointStride: textGenerator.chunkedPrefillMaxLength)
     guard let data = contextCache.loadSuspension(threadId: threadId) else { return false }
     var state = try JSONDecoder().decode(SuspensionState.self, from: data)
     guard state.file == URL(fileURLWithPath: textGenerator.filePath).lastPathComponent else {
       return false
     }
-    state.projectPath = projectPath
+    self.environment = environment
     state.threadId = threadId
     if let context = state.systemSeenMemoryContext {
       setSystemReminderTokensAndMemoryContext(context)
@@ -559,7 +535,7 @@ extension Qwen3_5CodeAgent {
       state.shouldSetSeed = false
     }
     let contextCache = Qwen3_5ContextCache(
-      projectPath: state.projectPath,
+      projectPath: environment.cachePath,
       checkpointStride: textGenerator.chunkedPrefillMaxLength)
     func saveCheckpoint(_ generation: SuspendedGeneration) {
       guard temporaryState == nil, state.toolExecution?.pending == nil else { return }
@@ -626,8 +602,7 @@ extension Qwen3_5CodeAgent {
           }
         }
         (state.userTokens, state.userEmbedSpans) = suspendedToolResultTokens(
-          for: toolCalls, responses: toolExecution.responses,
-          projectPath: state.projectPath)
+          for: toolCalls, responses: toolExecution.responses, environment: environment)
         state.toolExecution = nil
         state.currentGeneration = nil
         if state.stopAfterTools { break }
@@ -676,7 +651,7 @@ extension Qwen3_5CodeAgent {
             thinkingBudget: generation.thinkingBudget, deterministic: state.deterministic,
             kvCache: &kvCache, draftCache: &draftCache,
             contextTokens: contextTokens, contextCache: contextCache,
-            embedSpans: generation.baseContextEmbedSpans ?? [], projectPath: state.projectPath
+            embedSpans: generation.baseContextEmbedSpans ?? [], projectPath: environment.cachePath
           ) { prefillStart, prefillLength, generatedTokens, generatorStatistics in
             state.ropeDelta = generatorStatistics.ropeDelta
             let statistics = CodeAgentStatistics(
@@ -839,7 +814,7 @@ extension Qwen3_5CodeAgent {
       if state.compactionState == .bridge {
         state.compactionState = .none
         if !systemSeenMemoryContext.isEmpty {
-          let context = MemoryContext.load(projectPath: state.projectPath)
+          let context = environment.loadMemoryContext()
           if context != systemSeenMemoryContext {
             setSystemReminderTokensAndMemoryContext(context)
             state.systemSeenMemoryContext = context
@@ -862,7 +837,7 @@ extension Qwen3_5CodeAgent {
         state.outputTokens = latestParsed.outputTokens
         prefixTokens = Self.compact(
           prefixTokens, embedSpans: &prefixEmbedSpans, effort: .high, tokenizer: safeTokenizer,
-          projectPath: state.projectPath)
+          saveToolResponse: environment.saveToolResponse)
         resetSuspensionCaches()
         tokensSinceLastCompact = 0
         state.didCompact = true
@@ -887,7 +862,7 @@ extension Qwen3_5CodeAgent {
       {
         prefixTokens = Self.compact(
           prefixTokens, embedSpans: &prefixEmbedSpans, effort: .high, tokenizer: safeTokenizer,
-          projectPath: state.projectPath)
+          saveToolResponse: environment.saveToolResponse)
         resetSuspensionCaches()
         tokensSinceLastCompact = 0
         state.didCompact = true
@@ -996,23 +971,10 @@ extension Qwen3_5CodeAgent {
             text: "Error: This ask only permits: \(allowedTools.joined(separator: ", ")).")
         continue
       }
-      guard
-        let invocation = ToolsRegistry.parse(
-          toolCall.request, projectPath: state.projectPath,
-          workspacePath: state.workspacePath,
-          webSearchProvider: state.webSearchProvider)
-      else {
-        execution.responses[toolCall.id] =
-          ToolResponse(
-            text: "Tool error: invalid or unknown tool request: \(toolCall.request.function)")
-        continue
-      }
       let invocations = pending ?? PendingToolInvocations()
       invocations.invoke(
-        id: toolCall.id, invocation: invocation,
-        context: bashToolContext.with(
-          projectURL: state.projectPath.map { URL(fileURLWithPath: $0, isDirectory: true) },
-          threadId: state.threadId))
+        id: toolCall.id, request: toolCall.request, environment: environment,
+        context: bashToolContext.with(threadId: state.threadId))
       pending = invocations
     }
     execution.pending = pending
@@ -1044,7 +1006,8 @@ extension Qwen3_5CodeAgent {
   }
 
   func suspendedToolResultTokens(
-    for toolCalls: [ToolCall], responses: [Int32: ToolResponse], projectPath: String?
+    for toolCalls: [ToolCall], responses: [Int32: ToolResponse],
+    environment: any CodeAgentEnvironment
   ) -> (tokens: [Int32], embedSpans: [EmbedSpan]) {
     let (_, prefixTokens, _, _, _) = unsafeTokenizer.tokenize(
       text: "<tool_response>", truncation: false, maxLength: 0, paddingToken: nil,
@@ -1081,7 +1044,8 @@ extension Qwen3_5CodeAgent {
             responseTokens = compactedTokens
           } else if responseTokens.count > Self.lowCompactTokenThreshold,
             let compactedTokens = Self.compactedToolResponseTokens(
-              responseTokens, tokenizer: safeTokenizer, projectPath: projectPath)
+              responseTokens, tokenizer: safeTokenizer,
+              saveToolResponse: environment.saveToolResponse)
           {
             responseTokens = compactedTokens
           }
@@ -1091,9 +1055,9 @@ extension Qwen3_5CodeAgent {
             toolTokens += newlineTokens
           }
           hasPendingNewline = true
-          if let projectPath,
+          if let cachePath = environment.cachePath,
             let grid = Qwen3_5Image.grid(
-              filePath: EmbedsFileStore(projectPath: projectPath).filePath(for: digest),
+              filePath: EmbedsFileStore(projectPath: cachePath).filePath(for: digest),
               configuration: textGenerator.visionConfiguration)
           {
             let count = Qwen3_5VisionTokenCount(
@@ -1158,6 +1122,8 @@ public final class Qwen3_5CodeAgent: CodeAgent {
   public var bashUserInteraction: BashUserInteraction { bashToolContext.bashUserInteraction }
 
   private var bashToolContext: BashToolContext
+  /// Where the current or paused turn runs its tools and keeps its caches.
+  private var environment: any CodeAgentEnvironment = ProjectEnvironment()
   private var textGenerator: Qwen3_5TextGenerator
   private let unsafeTokenizer: TiktokenTokenizer  // Support full special token vocabulary.
   public let safeTokenizer: TiktokenTokenizer  // Limited special token support, so user cannot escalate into system prompt.

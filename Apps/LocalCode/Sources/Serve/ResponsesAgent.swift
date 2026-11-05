@@ -3,7 +3,6 @@ import BashToolContext
 import DataModels
 import Foundation
 import NNC
-import WebSearch
 
 protocol ResponsesAgentDelegate: AnyObject {
   /// Arrives on the generation queue, at most a few times a second.
@@ -110,14 +109,16 @@ final class ResponsesAgent: CodeAgent {
     -> Bool
   { true }
   func canStopImmediately(with result: CodeAgentResult) -> Bool { true }
-  func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool { false }
+  func restoreSuspension(threadId: Int64, environment: any CodeAgentEnvironment) throws -> Bool {
+    false
+  }
 
   // MARK: - CodeAgent
 
   func ask(
     _ prompt: String, imagePaths: [String], isMemoryEnabled: Bool, temporary: Bool,
-    allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64, projectPath: String?,
-    workspacePath: String?, webSearchProvider: WebSearchProvider,
+    allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64,
+    environment: any CodeAgentEnvironment,
     progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
   ) -> CodeAgentResult {
     guard let nextRequest else { return .empty }

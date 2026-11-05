@@ -6,7 +6,6 @@ import Foundation
 import NNC
 import ProjectHistoryManager
 import Tokenizer
-import WebSearch
 import os.lock
 
 extension DeepSeek4CodeAgent {
@@ -117,6 +116,8 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
   public var bashUserInteraction: BashUserInteraction { bashToolContext.bashUserInteraction }
 
   private var bashToolContext: BashToolContext
+  /// Where the current or paused turn runs its tools and keeps its caches.
+  private var environment: any CodeAgentEnvironment = ProjectEnvironment()
   private var textGenerator: Generator
   private let unsafeTokenizer: TiktokenTokenizer  // Supports the full control-token vocabulary.
   public let safeTokenizer: TiktokenTokenizer  // Prevents user text from injecting control tokens.
@@ -354,13 +355,14 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
     private var responses = [Int32: ToolResponse]()
 
     init(
-      _ invocations: [(id: Int32, invocation: ToolsRegistry.Invocation)],
-      context: BashToolContext
+      _ requests: [(id: Int32, request: ToolCall.Request)],
+      environment: any CodeAgentEnvironment, context: BashToolContext
     ) {
-      for (id, invocation) in invocations {
+      for (id, request) in requests {
         group.enter()
-        invocation.invoke(context: context, isImageSupported: Generator.isImageSupported) {
-          [weak self] response in
+        environment.invoke(
+          request, context: context, isImageSupported: Generator.isImageSupported
+        ) { [weak self] response in
           guard let self else { return }
           os_unfair_lock_lock(&lock)
           responses[id] = response
@@ -409,10 +411,6 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
     var systemSeenMemoryContext: MemoryContext?
     var memoryContext: MemoryContext?
     var allowedTools: [String]?
-    var projectPath: String?
-    var workspacePath: String?
-    var webSearchProviderIdentifier: String
-    var webSearchProviderAPIKey: String
     var thinkingBudget: Int
     var reasoningEffort: Int?
     var deterministic: Bool
@@ -445,30 +443,10 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
     var threadId: Int64
 
     init(
-      projectPath: String?, workspacePath: String?, webSearchProvider: WebSearchProvider,
       thinkingBudget: Int, deterministic: Bool, seed: UInt32, userTokens: [Int32],
       compactionPromptTokens: [Int32], continuationTokens: [Int32],
       prefixTokens: [Int32], shouldInjectSystemReminder: Bool, file: String, threadId: Int64
     ) {
-      self.projectPath = projectPath
-      self.workspacePath = workspacePath
-      switch webSearchProvider {
-      case .duckDuckGo:
-        webSearchProviderIdentifier = "duckduckgo"
-        webSearchProviderAPIKey = ""
-      case .sogou:
-        webSearchProviderIdentifier = "sogou"
-        webSearchProviderAPIKey = ""
-      case .kagi(let apiKey):
-        webSearchProviderIdentifier = "kagi"
-        webSearchProviderAPIKey = apiKey
-      case .brave(let apiKey):
-        webSearchProviderIdentifier = "brave"
-        webSearchProviderAPIKey = apiKey
-      case .disabled:
-        webSearchProviderIdentifier = "disabled"
-        webSearchProviderAPIKey = ""
-      }
       self.thinkingBudget = thinkingBudget
       self.deterministic = deterministic
       self.seed = seed
@@ -479,11 +457,6 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
       self.shouldInjectSystemReminder = shouldInjectSystemReminder
       self.file = file
       self.threadId = threadId
-    }
-
-    var webSearchProvider: WebSearchProvider {
-      WebSearchProvider(
-        identifier: webSearchProviderIdentifier, apiKey: webSearchProviderAPIKey) ?? .disabled
     }
   }
 
@@ -508,19 +481,19 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
     _ prompt: String, imagePaths: [String] = [], isMemoryEnabled: Bool, temporary: Bool = false,
     allowedTools: Set<ToolsRegistry.Tool>? = nil,
     threadId: Int64,
-    projectPath: String? = nil, workspacePath: String? = nil,
-    webSearchProvider: WebSearchProvider = .duckDuckGo,
+    environment: any CodeAgentEnvironment = ProjectEnvironment(),
     progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
   ) -> CodeAgentResult {
     precondition(suspensionState == nil && temporaryState == nil)
+    self.environment = environment
     var imageTokens = [Int32]()
     var imageSpans = [EmbedSpan]()
     for path in imagePaths {
-      guard let projectPath else { continue }
-      let store = EmbedsFileStore(projectPath: projectPath)
+      guard let cachePath = environment.cachePath else { continue }
+      let store = EmbedsFileStore(projectPath: cachePath)
       let filePath =
         (path as NSString).isAbsolutePath
-        ? path : (projectPath as NSString).appendingPathComponent(path)
+        ? path : (cachePath as NSString).appendingPathComponent(path)
       guard let digest = try? store.insert(filePath: filePath),
         let count = Generator.imageTokenCount(filePath: store.filePath(for: digest))
       else { continue }
@@ -538,7 +511,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
     bashToolContext = bashToolContext.with(bashUserInteraction: BashUserInteraction())
     if isMemoryEnabled != !systemSeenMemoryContext.isEmpty {
       setSystemReminderTokensAndMemoryContext(
-        isMemoryEnabled ? MemoryContext.load(projectPath: projectPath) : .empty)
+        isMemoryEnabled ? environment.loadMemoryContext() : .empty)
     }
     if temporary {
       let cache = graph.withStream(streamContext) {
@@ -567,9 +540,8 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
       text: Self.continueAfterCompactionPrompt, truncation: false, maxLength: 0,
       paddingToken: nil, addSpecialTokens: false)
     var state = SuspensionState(
-      projectPath: projectPath, workspacePath: workspacePath,
-      webSearchProvider: webSearchProvider, thinkingBudget: thinkingBudget,
-      deterministic: deterministic, seed: seed, userTokens: userTokens,
+      thinkingBudget: thinkingBudget, deterministic: deterministic, seed: seed,
+      userTokens: userTokens,
       compactionPromptTokens: compactionPromptTokens, continuationTokens: continuationTokens,
       prefixTokens: prefixTokens, shouldInjectSystemReminder: shouldInjectSystemReminder,
       file: URL(fileURLWithPath: textGenerator.filePath).lastPathComponent, threadId: threadId)
@@ -632,23 +604,25 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
     guard temporaryState == nil else { return }
     let data = try JSONEncoder().encode(state)
     DeepSeek4ContextCache(
-      projectPath: state.projectPath, checkpointStride: textGenerator.checkpointStride
+      projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride
     ).saveSuspension(data, threadId: threadId)
   }
 
   @discardableResult
-  public func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool {
+  public func restoreSuspension(
+    threadId: Int64, environment: any CodeAgentEnvironment
+  ) throws -> Bool {
     precondition(temporaryState == nil)
     guard
       let data = DeepSeek4ContextCache(
-        projectPath: projectPath, checkpointStride: textGenerator.checkpointStride
+        projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride
       ).loadSuspension(threadId: threadId)
     else { return false }
     var state = try JSONDecoder().decode(SuspensionState.self, from: data)
     guard state.file == URL(fileURLWithPath: textGenerator.filePath).lastPathComponent else {
       return false
     }
-    state.projectPath = projectPath
+    self.environment = environment
     state.threadId = threadId
     if let context = state.systemSeenMemoryContext {
       setSystemReminderTokensAndMemoryContext(context)
@@ -773,11 +747,11 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
     return graph.withStream(streamContext) {
       graph.withNoGrad {
         let contextCache = ContextCache(
-          projectPath: state.projectPath, checkpointStride: textGenerator.checkpointStride)
+          projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride)
         // Checkpoints save from inside the mutating `textGenerator.decode` callback, so they must
         // not read `textGenerator` again.
         let suspensionCache = DeepSeek4ContextCache(
-          projectPath: state.projectPath, checkpointStride: textGenerator.checkpointStride)
+          projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride)
         let thinkingSuffixTokens = [Self.assistantToken, Self.thinkStartToken]
         let noThinkingSuffixTokens = [Self.assistantToken, Self.thinkEndToken]
         let thinkingBudget = state.thinkingBudget
@@ -962,7 +936,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
             }
             (userTokens, userEmbedSpans) = Self.toolResultTokens(
               for: toolCalls, responses: toolExecution.responses, tokenizer: safeTokenizer,
-              projectPath: state.projectPath)
+              environment: environment)
             state.toolExecution = nil
             state.thisGeneration = nil
             if state.stopAfterTools { break }
@@ -1065,7 +1039,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
             graph: graph, tokens: tokenGPU, tokenOffset: tokenOffset,
             thinkingBudget: thisThinkingBudget, deterministic: deterministic,
             kvCache: &kvCache, contextTokens: contextTokens, contextCache: contextCache,
-            embedSpans: generation.baseContextEmbedSpans ?? [], projectPath: state.projectPath
+            embedSpans: generation.baseContextEmbedSpans ?? [], projectPath: environment.cachePath
           ) { prefillStart, prefillLength, tokens, generatorStatistics in
             let statistics = CodeAgentStatistics(
               prefillDurationSoFar: generatorStatistics.prefillDurationSoFar,
@@ -1228,7 +1202,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
               contextTokens: generation.baseContextTokens + generation.outputTokens
                 + forcedTerminalTokens,
               contextCache: contextCache,
-              embedSpans: generation.baseContextEmbedSpans ?? [], projectPath: state.projectPath
+              embedSpans: generation.baseContextEmbedSpans ?? [], projectPath: environment.cachePath
             ) { prefillStart, prefillLength, _, _ in
               cachedTokenLength = forcedTokenOffset + prefillStart
               return prefillStart < prefillLength ? .continue : .abort
@@ -1281,7 +1255,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
           if !toolCalls.isEmpty {
             state.thisGeneration = generation
             var toolExecution = SuspendedToolExecution(toolCalls: toolCalls)
-            var invocations = [(id: Int32, invocation: ToolsRegistry.Invocation)]()
+            var requests = [(id: Int32, request: ToolCall.Request)]()
             for toolCall in toolCalls {
               if let allowedTools = state.allowedTools,
                 !allowedTools.contains(toolCall.request.function)
@@ -1291,26 +1265,12 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
                     text: "Error: This ask only permits: \(allowedTools.joined(separator: ", ")).")
                 continue
               }
-              guard
-                let invocation = ToolsRegistry.parse(
-                  toolCall.request, projectPath: state.projectPath,
-                  workspacePath: state.workspacePath,
-                  webSearchProvider: state.webSearchProvider)
-              else {
-                toolExecution.responses[toolCall.id] =
-                  ToolResponse(
-                    text:
-                      "Tool error: invalid or unknown tool request: \(toolCall.request.function)")
-                continue
-              }
-              invocations.append((toolCall.id, invocation))
+              requests.append((toolCall.id, toolCall.request))
             }
-            if !invocations.isEmpty {
+            if !requests.isEmpty {
               toolExecution.pending = PendingToolInvocations(
-                invocations,
-                context: bashToolContext.with(
-                  projectURL: state.projectPath.map { URL(fileURLWithPath: $0, isDirectory: true) },
-                  threadId: state.threadId))
+                requests, environment: environment,
+                context: bashToolContext.with(threadId: state.threadId))
             }
             state.toolExecution = toolExecution
             continue
@@ -1333,7 +1293,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
           if compactionState == .bridge {
             compactionState = .none
             if !systemSeenMemoryContext.isEmpty {
-              let context = MemoryContext.load(projectPath: state.projectPath)
+              let context = environment.loadMemoryContext()
               if context != systemSeenMemoryContext {
                 setSystemReminderTokensAndMemoryContext(context)
                 state.systemSeenMemoryContext = context
@@ -1391,7 +1351,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
         }
         if temporaryState == nil {
           DeepSeek4ContextCache(
-            projectPath: state.projectPath, checkpointStride: textGenerator.checkpointStride
+            projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride
           ).removeSuspension(threadId: state.threadId)
         }
         suspensionState = nil
@@ -1461,7 +1421,7 @@ extension DeepSeekGenerationContinuationState {
 extension DeepSeek4CodeAgent {
   static func toolResultTokens(
     for toolCalls: [ToolCall], responses: [Int32: ToolResponse], tokenizer: TiktokenTokenizer,
-    projectPath: String?
+    environment: any CodeAgentEnvironment
   ) -> (tokens: [Int32], embedSpans: [EmbedSpan]) {
     let (_, separatorTokens, _, _, _) = tokenizer.tokenize(
       text: "\n\n", truncation: false, maxLength: 0, paddingToken: nil,
@@ -1496,7 +1456,8 @@ extension DeepSeek4CodeAgent {
             }
           } else if responseTokens.count > toolResponseExternalizationTokenThreshold,
             let compactedTokens = compactedToolResponseTokens(
-              responseTokens, tokenizer: tokenizer, projectPath: projectPath)
+              responseTokens, tokenizer: tokenizer,
+              saveToolResponse: environment.saveToolResponse)
           {
             responseTokens = compactedTokens
           }
@@ -1506,9 +1467,9 @@ extension DeepSeek4CodeAgent {
           result += responseTokens
           hasBlock = true
         case .imageDigest(let digest):
-          if let projectPath,
+          if let cachePath = environment.cachePath,
             let count = Generator.imageTokenCount(
-              filePath: EmbedsFileStore(projectPath: projectPath).filePath(for: digest))
+              filePath: EmbedsFileStore(projectPath: cachePath).filePath(for: digest))
           {
             if hasBlock {
               result += separatorTokens

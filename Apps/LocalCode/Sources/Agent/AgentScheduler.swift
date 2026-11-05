@@ -76,9 +76,7 @@ final class AgentScheduler {
     let isMemoryEnabled: Bool
     let temporary: Bool
     let allowedTools: Set<ToolsRegistry.Tool>?
-    let projectPath: String?
-    let workspacePath: String?
-    let webSearchProvider: WebSearchProvider
+    let environment: any CodeAgentEnvironment
     let progress: (CodeAgentProgress, CodeAgentStatistics) -> Void
     let completion: (CodeAgentResult, CompletionReason) -> Void
     var resultAtStop: CodeAgentResult?
@@ -163,22 +161,25 @@ final class AgentScheduler {
       isMemoryEnabled: isMemoryEnabled,
       temporary: temporary,
       allowedTools: allowedTools, projectPath: projectPath,
-      projectWorkspace: projectWorkspace, workspacePath: workspacePath,
-      webSearchProvider: webSearchProvider, progress: progress, completion: completion)
+      projectWorkspace: projectWorkspace,
+      environment: ProjectEnvironment(
+        projectPath: projectPath, workspacePath: workspacePath,
+        webSearchProvider: webSearchProvider),
+      progress: progress, completion: completion)
   }
 
+  /// The agent's suspended turn goes on in the environment it was asked in.
   func resume(
     _ codeAgent: any CodeAgent, threadId: Int64, projectPath: String,
-    projectWorkspace: SQLiteWorkspace, workspacePath: String?,
-    webSearchProvider: WebSearchProvider,
+    projectWorkspace: SQLiteWorkspace,
     progress: @escaping (CodeAgentProgress, CodeAgentStatistics) -> Void,
     completion: @escaping (CodeAgentResult, CompletionReason) -> Void
   ) {
     dispatchPrecondition(condition: .onQueue(.main))
     submit(
       codeAgent, threadId: threadId, prompt: nil, projectPath: projectPath,
-      projectWorkspace: projectWorkspace, workspacePath: workspacePath,
-      webSearchProvider: webSearchProvider, progress: progress, completion: completion)
+      projectWorkspace: projectWorkspace, environment: ProjectEnvironment(projectPath: projectPath),
+      progress: progress, completion: completion)
   }
 
   /// A turn for an agent that belongs to no project and is never the foreground. It shares the
@@ -192,7 +193,7 @@ final class AgentScheduler {
     dispatchPrecondition(condition: .onQueue(.main))
     submit(
       codeAgent, threadId: threadId, prompt: "", projectPath: nil, projectWorkspace: nil,
-      workspacePath: nil, webSearchProvider: .disabled, progress: { _, _ in },
+      environment: ProjectEnvironment(webSearchProvider: .disabled), progress: { _, _ in },
       completion: completion)
   }
 
@@ -203,7 +204,7 @@ final class AgentScheduler {
     dispatchPrecondition(condition: .onQueue(.main))
     submit(
       codeAgent, threadId: threadId, prompt: nil, projectPath: nil, projectWorkspace: nil,
-      workspacePath: nil, webSearchProvider: .disabled, progress: { _, _ in },
+      environment: ProjectEnvironment(webSearchProvider: .disabled), progress: { _, _ in },
       completion: completion)
   }
 
@@ -211,9 +212,8 @@ final class AgentScheduler {
     _ codeAgent: any CodeAgent, threadId: Int64, prompt: String?, imagePaths: [String] = [],
     isMemoryEnabled: Bool = false,
     temporary: Bool = false, allowedTools: Set<ToolsRegistry.Tool>? = nil,
-    projectPath: String?,
-    projectWorkspace: SQLiteWorkspace?, workspacePath: String?,
-    webSearchProvider: WebSearchProvider,
+    projectPath: String?, projectWorkspace: SQLiteWorkspace?,
+    environment: any CodeAgentEnvironment,
     progress: @escaping (CodeAgentProgress, CodeAgentStatistics) -> Void,
     completion: @escaping (CodeAgentResult, CompletionReason) -> Void
   ) {
@@ -266,9 +266,8 @@ final class AgentScheduler {
         turn: Turn(
           prompt: prompt, imagePaths: imagePaths, isMemoryEnabled: isMemoryEnabled,
           temporary: temporary,
-          allowedTools: allowedTools,
-          projectPath: projectPath, workspacePath: workspacePath,
-          webSearchProvider: webSearchProvider, progress: progress, completion: completion)))
+          allowedTools: allowedTools, environment: environment,
+          progress: progress, completion: completion)))
     notifyActiveThreadsDidChangeWhileLocked()
     os_unfair_lock_unlock(&lock)
     queue.async { [self] in
@@ -647,9 +646,8 @@ final class AgentScheduler {
         prompt, imagePaths: turn.imagePaths, isMemoryEnabled: turn.isMemoryEnabled,
         temporary: turn.temporary,
         allowedTools: turn.allowedTools,
-        threadId: entry.threadId, projectPath: turn.projectPath,
-        workspacePath: turn.workspacePath,
-        webSearchProvider: turn.webSearchProvider, progress: callback)
+        threadId: entry.threadId,
+        environment: turn.environment, progress: callback)
     } else {
       result = codeAgent.resume(progress: callback)
     }

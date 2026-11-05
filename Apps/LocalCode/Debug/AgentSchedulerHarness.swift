@@ -378,10 +378,12 @@ private struct AgentSchedulerHarness {
       projectPath: projectURL.path, target: .memory, action: "append",
       content: "The project code is cobalt.", oldText: nil)
     let agent = makeAgent()
+    let environment = ProjectEnvironment(
+      projectPath: projectURL.path, workspacePath: workspacePath, webSearchProvider: .disabled)
     let answer = agent.ask(
       "What is the project code? Reply with only the code.", imagePaths: [], isMemoryEnabled: true,
       threadId: 902,
-      projectPath: projectURL.path, workspacePath: workspacePath, webSearchProvider: .disabled
+      environment: environment
     ) { _, _ in .continue }
     guard answer.output.lowercased().contains("cobalt") else {
       throw HarnessError.invariant("loaded memory was not used: \(answer.output)")
@@ -389,9 +391,8 @@ private struct AgentSchedulerHarness {
     recorder.record("loaded project memory in the system prompt")
     _ = agent.ask(
       "For future work on this project, I prefer synchronous Swift utility functions. Acknowledge with OK. Do not update memory yet.",
-      imagePaths: [], isMemoryEnabled: true, threadId: 902, projectPath: projectURL.path,
-      workspacePath: workspacePath,
-      webSearchProvider: .disabled
+      imagePaths: [], isMemoryEnabled: true, threadId: 902,
+      environment: environment
     ) { _, _ in .continue }
     let boundary = agent.statistics.contextUsedTokens
     let scheduler = AgentScheduler(queue: DispatchQueue(label: "agent-scheduler-harness.memory"))
@@ -473,7 +474,7 @@ private struct AgentSchedulerHarness {
     let normal = agent.ask(
       "What is the project code? Reply with only the code.", imagePaths: [], isMemoryEnabled: true,
       threadId: 902,
-      projectPath: projectURL.path, workspacePath: workspacePath, webSearchProvider: .disabled
+      environment: environment
     ) { _, _ in .continue }
     guard normal.output.lowercased().contains("cobalt") else {
       throw HarnessError.invariant("normal continuation lost original memory: \(normal.output)")
@@ -488,6 +489,8 @@ private struct AgentSchedulerHarness {
     let deadline = Date(timeIntervalSinceNow: options.timeout)
     let cache = DeepSeek4ContextCache(projectPath: projectURL.path, checkpointStride: 4_096)
     let threadId: Int64 = 901
+    let environment = ProjectEnvironment(
+      projectPath: projectURL.path, workspacePath: workspacePath, webSearchProvider: .disabled)
     func progress(_ progress: CodeAgentProgress, _ statistics: CodeAgentStatistics)
       -> ContinuationState
     {
@@ -501,8 +504,8 @@ private struct AgentSchedulerHarness {
       agent.ask(
         prompt, imagePaths: [], isMemoryEnabled: false, temporary: temporary, allowedTools: nil,
         threadId: threadId,
-        projectPath: projectURL.path,
-        workspacePath: workspacePath, webSearchProvider: .disabled, progress: progress)
+        environment: environment,
+        progress: progress)
     }
     var boundary = agent.statistics.contextUsedTokens
     func checkRestored(_ result: CodeAgentResult) throws {
@@ -517,8 +520,7 @@ private struct AgentSchedulerHarness {
     var toolResult = agent.ask(
       toolPrompt, imagePaths: [], isMemoryEnabled: false, temporary: true, allowedTools: nil,
       threadId: threadId,
-      projectPath: projectURL.path,
-      workspacePath: workspacePath, webSearchProvider: .disabled
+      environment: environment
     ) { event, statistics in
       if case .toolsWait = event {
         pausedForTools = true
@@ -558,8 +560,7 @@ private struct AgentSchedulerHarness {
       String(repeating: "Temporary filler. ", count: 300) + longPrompt,
       imagePaths: [], isMemoryEnabled: false, temporary: true, allowedTools: nil,
       threadId: threadId,
-      projectPath: projectURL.path,
-      workspacePath: workspacePath, webSearchProvider: .disabled
+      environment: environment
     ) { event, statistics in
       if case .prefill(_, let completed, _) = event, completed > 0 {
         didPause = true
@@ -587,8 +588,7 @@ private struct AgentSchedulerHarness {
     _ = agent.ask(
       longPrompt, imagePaths: [], isMemoryEnabled: false, temporary: true, allowedTools: nil,
       threadId: threadId,
-      projectPath: projectURL.path,
-      workspacePath: workspacePath, webSearchProvider: .disabled
+      environment: environment
     ) { event, statistics in
       if case .prefill(_, let completed, _) = event, completed > 0 { return .pause }
       return progress(event, statistics)
@@ -604,8 +604,7 @@ private struct AgentSchedulerHarness {
     let actual = agent.ask(
       query, imagePaths: [], isMemoryEnabled: false, temporary: false, allowedTools: nil,
       threadId: threadId,
-      projectPath: projectURL.path,
-      workspacePath: workspacePath, webSearchProvider: .disabled
+      environment: environment
     ) { event, statistics in
       if case .prefill(_, _, let length) = event { prefillLength = max(prefillLength, length) }
       return progress(event, statistics)
@@ -951,7 +950,7 @@ private struct AgentSchedulerHarness {
       func ask(
         _ prompt: String, imagePaths: [String] = [], isMemoryEnabled: Bool, temporary: Bool,
         allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64,
-        projectPath: String?, workspacePath: String?, webSearchProvider: WebSearchProvider,
+        environment: any CodeAgentEnvironment,
         progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
       ) -> CodeAgentResult {
         resume(progress: progress)
@@ -963,7 +962,8 @@ private struct AgentSchedulerHarness {
 
       func hibernate(threadId: Int64) throws {}
       func unloadCaches() {}
-      func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool { false }
+      func restoreSuspension(threadId: Int64, environment: any CodeAgentEnvironment) throws -> Bool
+      { false }
       func canStopImmediately(with result: CodeAgentResult) -> Bool { true }
       func isCapReachedForStopping(
         from resultAtStop: CodeAgentResult, to result: CodeAgentResult
@@ -1068,7 +1068,7 @@ private struct AgentSchedulerHarness {
       func ask(
         _ prompt: String, imagePaths: [String] = [], isMemoryEnabled: Bool, temporary: Bool,
         allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64,
-        projectPath: String?, workspacePath: String?, webSearchProvider: WebSearchProvider,
+        environment: any CodeAgentEnvironment,
         progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
       ) -> CodeAgentResult {
         lastAskWasTemporary = temporary
@@ -1086,7 +1086,8 @@ private struct AgentSchedulerHarness {
 
       func hibernate(threadId: Int64) throws { hibernateCount += 1 }
       func unloadCaches() { unloadCount += 1 }
-      func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool { false }
+      func restoreSuspension(threadId: Int64, environment: any CodeAgentEnvironment) throws -> Bool
+      { false }
       func canStopImmediately(with result: CodeAgentResult) -> Bool { true }
       func isCapReachedForStopping(
         from resultAtStop: CodeAgentResult, to result: CodeAgentResult
@@ -1550,7 +1551,13 @@ private struct AgentSchedulerHarness {
     let queue = DispatchQueue(label: "agent-scheduler-harness.cold-resume")
     let scheduler = AgentScheduler(queue: queue)
     let agent = makeAgent()
-    guard try agent.restoreSuspension(threadId: 601, projectPath: projectURL.path) else {
+    guard
+      try agent.restoreSuspension(
+        threadId: 601,
+        environment: ProjectEnvironment(
+          projectPath: projectURL.path, workspacePath: workspacePath,
+          webSearchProvider: .disabled))
+    else {
       throw HarnessError.invariant("no restorable suspension exists")
     }
     let completed = DispatchSemaphore(value: 0)
@@ -1558,9 +1565,7 @@ private struct AgentSchedulerHarness {
     var resumedResult: CodeAgentResult?
     scheduler.setForeground(agent)
     scheduler.resume(
-      agent, threadId: 601, projectPath: projectURL.path,
-      projectWorkspace: projectWorkspace, workspacePath: workspacePath,
-      webSearchProvider: .disabled
+      agent, threadId: 601, projectPath: projectURL.path, projectWorkspace: projectWorkspace
     ) { progress, _ in
       guard case .generate(let result) = progress, !didRequestStop,
         result.outputTokens.count >= options.stopAfterTokens
@@ -1632,9 +1637,9 @@ private struct AgentSchedulerHarness {
   ) -> CodeAgentResult {
     var resultAtStop: CodeAgentResult?
     return agent.ask(
-      prompt, imagePaths: [], isMemoryEnabled: false, threadId: 0, projectPath: projectPath,
-      workspacePath: workspacePath,
-      webSearchProvider: .disabled
+      prompt, imagePaths: [], isMemoryEnabled: false, threadId: 0,
+      environment: ProjectEnvironment(
+        projectPath: projectPath, workspacePath: workspacePath, webSearchProvider: .disabled)
     ) { progress, _ in
       guard case .generate(let result) = progress else { return .continue }
       let tokenCount = result.thinkTokens.count + result.outputTokens.count

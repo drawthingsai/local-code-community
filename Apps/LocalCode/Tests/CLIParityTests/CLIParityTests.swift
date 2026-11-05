@@ -85,7 +85,8 @@ final class CLIParityTests: XCTestCase {
         + DeepSeek4_1TextGenerator.safeTokenizer.tokenize(text: "Hello", addSpecialTokens: false).0
         .count + 3
       _ = temporaryAgent.ask(
-        "Hello", isMemoryEnabled: false, temporary: true, threadId: -1, projectPath: directory.path
+        "Hello", isMemoryEnabled: false, temporary: true, threadId: -1,
+        environment: ProjectEnvironment(projectPath: directory.path)
       ) { progress, _ in
         if case .prefill(_, _, let length) = progress { XCTAssertEqual(length, expectedLength) }
         return .abort
@@ -106,14 +107,17 @@ final class CLIParityTests: XCTestCase {
         .count + 3
       let threadId = Int64(100 + budget)
       _ = agent.ask(
-        "Hello", isMemoryEnabled: false, threadId: threadId, projectPath: directory.path
+        "Hello", isMemoryEnabled: false, threadId: threadId,
+        environment: ProjectEnvironment(projectPath: directory.path)
       ) { progress, _ in
         if case .prefill(_, _, let length) = progress { XCTAssertEqual(length, expectedLength) }
         return .pause
       }
       try agent.hibernate(threadId: threadId)
       let restored = makeAgent()
-      XCTAssertTrue(try restored.restoreSuspension(threadId: threadId, projectPath: directory.path))
+      XCTAssertTrue(
+        try restored.restoreSuspension(
+          threadId: threadId, environment: ProjectEnvironment(projectPath: directory.path)))
       _ = restored.resume { progress, _ in
         if case .prefill(_, _, let length) = progress { XCTAssertEqual(length, expectedLength) }
         return .abort
@@ -134,7 +138,8 @@ final class CLIParityTests: XCTestCase {
       let agent = makeAgent()
       var callbacks = 0
       _ = agent.ask(
-        "Hello", isMemoryEnabled: false, threadId: threadId, projectPath: directory.path
+        "Hello", isMemoryEnabled: false, threadId: threadId,
+        environment: ProjectEnvironment(projectPath: directory.path)
       ) {
         progress, _ in
         if case .prefill = progress { callbacks += 1 }
@@ -144,7 +149,9 @@ final class CLIParityTests: XCTestCase {
       XCTAssertNotNil(agent.suspendedResult)
       try agent.hibernate(threadId: threadId)
       let restored = makeAgent()
-      XCTAssertTrue(try restored.restoreSuspension(threadId: threadId, projectPath: directory.path))
+      XCTAssertTrue(
+        try restored.restoreSuspension(
+          threadId: threadId, environment: ProjectEnvironment(projectPath: directory.path)))
       XCTAssertNotNil(restored.suspendedResult)
       callbacks = 0
       _ = restored.resume { progress, _ in

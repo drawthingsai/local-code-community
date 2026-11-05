@@ -466,13 +466,6 @@ extension ChatWorkflow {
     }
     if accessed { projectURL.stopAccessingSecurityScopedResource() }
 
-    let webSearchIdentifier =
-      workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
-    let webSearchProvider =
-      WebSearchProvider(
-        identifier: webSearchIdentifier,
-        apiKey: workspace.dictionary["\(webSearchIdentifier)_api_key", String.self] ?? "")
-      ?? .duckDuckGo
     let bashUserInteraction = BashUserInteraction()
     let startTime = CACurrentMediaTime()
     viewController.appendUser(
@@ -659,13 +652,6 @@ extension ChatWorkflow {
     guard let conversationModel = thread.model ?? selectedLLM else { return }
     let conversation = ProjectRemoteConversation.load(
       history: history, model: conversationModel)
-    let webSearchIdentifier =
-      workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
-    let webSearchProvider =
-      WebSearchProvider(
-        identifier: webSearchIdentifier,
-        apiKey: workspace.dictionary["\(webSearchIdentifier)_api_key", String.self] ?? "")
-      ?? .duckDuckGo
     settingsWorkflow.setRemoteContextStatus(remoteChatProvider.status(for: conversationID))
     remoteChatProvider.bashToolContext = bashToolContext
     remoteChatProvider.prepare(

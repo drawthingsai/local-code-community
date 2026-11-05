@@ -4,7 +4,6 @@ import Foundation
 import ModelZoo
 import NNC
 import SQLiteDflat
-import WebSearch
 
 /// Serves a real model through `ServeController` and `AgentScheduler`, the path the app uses,
 /// without any of the app's UI. Point a client at the printed URL.
@@ -57,8 +56,8 @@ private final class FakeChatAgent: CodeAgent {
   var toolCallSpecialTokens = [Int32: String]()
   func ask(
     _ prompt: String, imagePaths: [String], isMemoryEnabled: Bool, temporary: Bool,
-    allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64, projectPath: String?,
-    workspacePath: String?, webSearchProvider: WebSearchProvider,
+    allowedTools: Set<ToolsRegistry.Tool>?, threadId: Int64,
+    environment: any CodeAgentEnvironment,
     progress: (CodeAgentProgress, CodeAgentStatistics) -> ContinuationState
   ) -> CodeAgentResult {
     resume(progress: progress)
@@ -75,7 +74,9 @@ private final class FakeChatAgent: CodeAgent {
   }
   func hibernate(threadId: Int64) throws {}
   func unloadCaches() {}
-  func restoreSuspension(threadId: Int64, projectPath: String) throws -> Bool { false }
+  func restoreSuspension(threadId: Int64, environment: any CodeAgentEnvironment) throws -> Bool {
+    false
+  }
   func canStopImmediately(with result: CodeAgentResult) -> Bool { true }
   func isCapReachedForStopping(from resultAtStop: CodeAgentResult, to result: CodeAgentResult)
     -> Bool

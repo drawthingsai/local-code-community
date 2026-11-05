@@ -245,8 +245,9 @@ struct LocalAgentCLI: ParsableCommand {
       catalog.prompt(for: prompt), imagePaths: image.map { AgentCLIOptions.fileURL($0).path },
       isMemoryEnabled: false, temporary: false,
       allowedTools: nil, threadId: threadId,
-      projectPath: directories.project.path, workspacePath: directories.workspace.path,
-      webSearchProvider: searchProvider
+      environment: ProjectEnvironment(
+        projectPath: directories.project.path, workspacePath: directories.workspace.path,
+        webSearchProvider: searchProvider)
     ) { progress, _ in
       tracer?.consume(progress)
       tokenCounter.update(progress)

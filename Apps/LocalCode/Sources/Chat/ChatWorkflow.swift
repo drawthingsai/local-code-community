@@ -1020,6 +1020,15 @@ final class ChatWorkflow: Workflow {
     }
   }
 
+  /// The web search the settings pick, for an agent's web tools.
+  var webSearchProvider: WebSearchProvider {
+    let identifier = workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
+    return WebSearchProvider(
+      identifier: identifier,
+      apiKey: workspace.dictionary["\(identifier)_api_key", String.self] ?? "")
+      ?? .duckDuckGo
+  }
+
   private func setLocalContextUsed() {
     guard case .some(.local(let textGenerator, let existingCodeAgent)) = codeAgentWrapper else {
       return
@@ -1816,7 +1825,11 @@ final class ChatWorkflow: Workflow {
         case .local(_, let restoredCodeAgent) = restoredWrapper,
         let restoredCodeAgent,
         (try? restoredCodeAgent.restoreSuspension(
-          threadId: threadId, projectPath: projectURL.path)) == true
+          threadId: threadId,
+          environment: ProjectEnvironment(
+            projectPath: projectURL.path,
+            workspacePath: settingsWorkflow.workspaceFolderURL.path,
+            webSearchProvider: webSearchProvider))) == true
       {
         if !thread.hasIncompleteResponse {
           projectHistoryManager.setThreadHasIncompleteResponse(
@@ -3249,13 +3262,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     let scheduler = agentScheduler
     let projectPath = projectURL.path
     let workspacePath = settingsWorkflow.workspaceFolderURL.path
-    let webSearchIdentifier =
-      workspace.dictionary["web_search_identifier", String.self] ?? "duckduckgo"
-    let webSearchProvider =
-      WebSearchProvider(
-        identifier: webSearchIdentifier,
-        apiKey: workspace.dictionary["\(webSearchIdentifier)_api_key", String.self] ?? "")
-      ?? .duckDuckGo
     let progress: (CodeAgentProgress, CodeAgentStatistics) -> Void = {
       [weak self, weak scheduler] partialResult, statistics in
       let bashUserInteraction = codeAgent.bashUserInteraction
@@ -3479,8 +3485,7 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     } else {
       scheduler.resume(
         codeAgent, threadId: threadId, projectPath: projectPath,
-        projectWorkspace: projectWorkspace, workspacePath: workspacePath,
-        webSearchProvider: webSearchProvider, progress: progress, completion: completion)
+        projectWorkspace: projectWorkspace, progress: progress, completion: completion)
     }
     if projectHistoryManager.setThreadHasIncompleteResponse(
       id: threadId, hasIncompleteResponse: true)
