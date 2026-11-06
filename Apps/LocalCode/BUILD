@@ -123,7 +123,7 @@ ios_framework(
             "_OfficeCommandRun",
         ],
     }),
-    minimum_os_version = "16.0",
+    minimum_os_version = "16.3",
     deps = ["//Vendors/Lean:LeanBridge"] + select({
         # The LibreOffice archive has no simulator slice.
         "//Vendors/LibreOffice:ios_simulator": [],
@@ -157,7 +157,7 @@ ios_application(
         "-force_load",
         "$(location @SwiftCrypto//:CCryptoBoringSSL)",
     ],
-    minimum_os_version = "16.0",
+    minimum_os_version = "16.3",
     provisioning_profile = DEVELOPMENT_PROVISIONING_PROFILE,
     # LocalCode consumes the common committed iOS Python resources on device
     # and simulator; platform-specific native code stays in XCFramework slices.
@@ -222,7 +222,7 @@ ios_application(
     ],
     include_symbols_in_bundle = True,
     infoplists = ["StaticInlinePython/Info.plist"],
-    minimum_os_version = "16.0",
+    minimum_os_version = "16.3",
     provisioning_profile = DEVELOPMENT_PROVISIONING_PROFILE,
     resources = [
         "//Vendors/FFmpeg:notices",
@@ -264,7 +264,7 @@ ios_application(
     ],
     include_symbols_in_bundle = True,
     infoplists = ["StaticInlineNode/Info.plist"],
-    minimum_os_version = "16.0",
+    minimum_os_version = "16.3",
     provisioning_profile = DEVELOPMENT_PROVISIONING_PROFILE,
     resources = [":NodeMobileRuntimeResources"],
     visibility = ["//visibility:public"],
@@ -289,7 +289,7 @@ ios_application(
     ],
     include_symbols_in_bundle = True,
     infoplists = ["StaticInlineLean/Info.plist"],
-    minimum_os_version = "16.0",
+    minimum_os_version = "16.3",
     provisioning_profile = DEVELOPMENT_PROVISIONING_PROFILE,
     resources = ["//Vendors/Lean:LeanRuntimeResources"],
     visibility = ["//visibility:public"],
