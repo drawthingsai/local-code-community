@@ -12,14 +12,14 @@ from urllib.request import Request, urlopen
 import zipfile
 
 
-LEAN_VERSION = "4.34.0"
-LEAN_COMMIT = "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b"
-MATHLIB_COMMIT = "5ed2965256430c3649e86755f9576b54eca72435"
-ARCHIVE = "Mathlib-4.34.0-5ed296525643.zip"
-URL = f"https://github.com/drawthingsai/mathlib4/releases/download/v4.34.0/{ARCHIVE}"
-ARCHIVE_SHA256 = "f4744917a457e03cd19d7daa5e20b1f3aaa4705b01e01c15abb3d77f0759a899"
-MANIFEST_SHA256 = "c7cc2a806dbd267a1a03c99a43906cae8adec55bc724c3386887e33bdbba851e"
-ARCHIVE_BYTES = 668553889
+LEAN_VERSION = "4.35.0"
+LEAN_COMMIT = "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+MATHLIB_COMMIT = "56a005855ea17e0b0958f73ec801ae140b0a1679"
+ARCHIVE = "Mathlib-4.35.0-56a005855ea1.zip"
+URL = f"https://github.com/drawthingsai/mathlib4/releases/download/v4.35.0/{ARCHIVE}"
+ARCHIVE_SHA256 = "76f9957c113ab1d133823ff96e91ed34f333da8764e3cd670488ea0929a360eb"
+MANIFEST_SHA256 = "3b7b318c95f5a8704273ad4352717130e501b1f562f8a4a21f0df87f7aa154c5"
+ARCHIVE_BYTES = 664778892
 
 
 def checksum(path):

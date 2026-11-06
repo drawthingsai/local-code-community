@@ -1,6 +1,6 @@
 # StaticInlineLean experiment
 
-The experiment statically links Lean 4.34.0 into macOS/iOS and interprets imported
+The experiment statically links Lean 4.35.0 into macOS/iOS and interprets imported
 Lean IR. Local Code now registers `lean` and `check_lean` as `ios_system` commands,
 not additional model tools. Mathlib remains an optional, version-matched local
 artifact package.
@@ -212,8 +212,8 @@ therefore saves space in our development IPA and installed app; it should not be
 interpreted as an equivalent improvement over an already compressed distribution
 download. The native executable remains installed, signed code outside the archive.
 
-With Lean 4.34.0, if every module is eventually extracted, the archive and full
-cache occupy about 880.94 MiB of data in total, plus the native executable. Lazy extraction saves
+With Lean 4.35.0, if every module is eventually extracted, the archive and full
+cache occupy about 878.04 MiB of data in total, plus the native executable. Lazy extraction saves
 space through focused imports, not by eliminating that worst-case duplication.
 
 ### Running the experiment
@@ -281,10 +281,63 @@ used by this interpreter-only iOS design. Start with `lean` and local artifacts.
 
 Upstream references:
 
-- [Lean 4.34.0 shell implementation](https://github.com/leanprover/lean4/blob/v4.34.0/src/Lean/Shell.lean)
-- [Lean 4.34.0 C++ entry point](https://github.com/leanprover/lean4/blob/v4.34.0/src/util/shell.cpp)
-- [Lake build actions](https://github.com/leanprover/lean4/blob/v4.34.0/src/lake/Lake/Build/Actions.lean)
+- [Lean 4.35.0 shell implementation](https://github.com/leanprover/lean4/blob/v4.35.0/src/Lean/Shell.lean)
+- [Lean 4.35.0 C++ entry point](https://github.com/leanprover/lean4/blob/v4.35.0/src/util/shell.cpp)
+- [Lake build actions](https://github.com/leanprover/lean4/blob/v4.35.0/src/lake/Lake/Build/Actions.lean)
 - [Lake documentation](https://lean-lang.org/doc/reference/latest/Build-Tools-and-Distribution/Lake/)
+
+## Lean / Mathlib 4.35.0 verification (2026-11-05)
+
+Lean is pinned to stable `v4.35.0`, commit
+`eb6cafb7290e8bd5f2937522d8d804f58f02bafc`. The matching upstream Mathlib tag,
+commit `56a005855ea17e0b0958f73ec801ae140b0a1679`, was mirrored to
+`drawthingsai/mathlib4`, whose `master` was fast-forwarded to upstream. The Apple
+patch, bridge APIs, encapsulation, and symbol retention are unchanged. Three
+runtime changes were needed:
+
+- Lean 4.35.0 compiles all of mimalloc into its allocation fast path
+  (`src/runtime/mimalloc.cpp` includes `static.c`) and uses mimalloc 3's `theap`
+  API. `lean_mimalloc` moves from 2.2.3 to v3.4.5, the version upstream pins, and
+  only supplies sources; the allocator policy guard now applies to the Lean runtime
+  compile. On Apple platforms mimalloc 3 keeps pthread-key TLS, not fixed slots.
+- `include/githash.h` must name the toolchain commit. With
+  `LEAN_CHECK_OLEAN_VERSION`, a stale hash rejects every bundled `.olean` as an
+  incompatible header.
+- Lake now imports the `LeanExport.*` library, so its three modules join the
+  bundled archive. `LeanExport.olean` is the `leanexport` executable's root, has no
+  IR, and is not bundled.
+
+- The bundled archive contains 2,541 modules, **182.94 MiB** compressed and
+  **695.09 MiB** unpacked. SHA-256:
+  `c52fc5b9d4865074d954b8e850fbaad6e3340c69f79112d73df9d1052a698ece`.
+- Release `LeanCommandTests`, `LeanSkillExamplesTests`, `LeanSymbolRootsTests`,
+  and `LeanEncapsulationTests` passed. On Xcode 27 the encapsulation test needs
+  `--test_env=LEAN_LD_CLASSIC=…`, matching the build's `.bazelrc.local` define.
+  `LeanResourcesTests`, `SkillCatalogTests`, `MathlibInstallerTests`, and
+  `ShellCommandParserTests` passed. The standalone `StaticInlineLean` arm64 iOS
+  target builds with `--config=release`, and the `LocalCode` arm64 iOS app
+  builds.
+- `Mathlib-4.35.0-56a005855ea1.zip` contains 9,031 modules, **633.98 MiB**
+  compressed and **2,068.44 MiB** of unpacked module data. SHA-256:
+  `76f9957c113ab1d133823ff96e91ed34f333da8764e3cd670488ea0929a360eb`.
+  The upstream cache was complete; `lake build +Mathlib:olean` built nothing. The
+  packaging scripts are unchanged from 4.34.0.
+- Before publication, the archive passed `unzip -t`. With the package extracted
+  into a fresh project, the release `MathlibInstallValidation` harness ran the
+  bundled installer, which re-verified the pinned manifest and every module, and
+  the following `ios_system` `check_lean --stdin` smoke proof returned
+  `status: valid` with a fresh lazy cache.
+- After publication, all four GitHub release asset hashes matched the prepared
+  files. In an empty project, `MathlibInstallValidation` used the unmodified
+  bundled installer to download the public ZIP, verify the pinned
+  archive/manifest and every module, and remove the temporary download; the
+  smoke proof returned `status: valid`. A second invocation re-verified the
+  installed package without downloading and returned `valid` again. Both
+  invocations exited 0.
+
+The [v4.35.0 release](https://github.com/drawthingsai/mathlib4/releases/tag/v4.35.0)
+is published and the public download/install path is verified in the release
+macOS embedding. No iOS device execution has been performed.
 
 ## Lean / Mathlib 4.34.0 verification (2026-09-16)
 

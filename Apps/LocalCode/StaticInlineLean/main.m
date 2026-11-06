@@ -227,7 +227,7 @@ static int StaticInlineLeanRunSuite(void) {
     NSURL *documentsURL = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory
                                                                 inDomains:NSUserDomainMask].firstObject;
     packageRoot = [documentsURL.path stringByAppendingPathComponent:
-        @".localc/lean/packages/mathlib/4.34.0/lib/lean"];
+        @".localc/lean/packages/mathlib/4.35.0/lib/lean"];
   }
 #endif
   BOOL isDirectory = NO;

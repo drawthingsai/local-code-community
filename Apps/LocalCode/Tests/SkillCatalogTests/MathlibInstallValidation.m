@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     const char *cd[] = {"cd", "/app_bundle"};
     if (ios_system(2, cd) != 0) return 1;
     const char *install[] = {"python3", "Skills/check_lean-and-lean-tools/scripts/install_mathlib.py",
-                            "--project-root", argv[1], "--lean-version", "4.34.0"};
+                            "--project-root", argv[1], "--lean-version", "4.35.0"};
     if (ios_system(6, install) != 0) return 1;
 
     ios_switchSession("mathlib-proof-validation");
@@ -41,9 +41,9 @@ int main(int argc, char **argv) {
     FILE *output = tmpfile();
     if (output == NULL) return 1;
     ios_setStreams(stdin, output, stderr);
-    NSString *proof = argc == 6 ? @(argv[4]) : @".localc/lean/packages/mathlib/4.34.0/SmokeTest.lean";
+    NSString *proof = argc == 6 ? @(argv[4]) : @".localc/lean/packages/mathlib/4.35.0/SmokeTest.lean";
     NSString *command = [NSString stringWithFormat:
-        @"LEAN_PATH=.localc/lean/packages/mathlib/4.34.0/lib/lean check_lean --stdin < '%@'",
+        @"LEAN_PATH=.localc/lean/packages/mathlib/4.35.0/lib/lean check_lean --stdin < '%@'",
         [proof stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"]];
     int status = ios_system_osh(command.UTF8String);
     fflush(output);

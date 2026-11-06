@@ -70,14 +70,14 @@ final class ShellCommandParserTests: XCTestCase {
   func testMathlibInstallerUsesDirectDirectoryAliasPath() {
     XCTAssertEqual(
       ShellCommandParser.parse(
-        "cd /app_bundle && python3 Skills/check_lean-and-lean-tools/scripts/install_mathlib.py --project-root '/home/proof project' --lean-version 4.34.0"
+        "cd /app_bundle && python3 Skills/check_lean-and-lean-tools/scripts/install_mathlib.py --project-root '/home/proof project' --lean-version 4.35.0"
       ),
       .directSequence([
         ShellCommand(arguments: ["cd", "/app_bundle"], redirections: []),
         ShellCommand(
           arguments: [
             "python3", "Skills/check_lean-and-lean-tools/scripts/install_mathlib.py",
-            "--project-root", "/home/proof project", "--lean-version", "4.34.0",
+            "--project-root", "/home/proof project", "--lean-version", "4.35.0",
           ], redirections: []),
       ]))
   }
