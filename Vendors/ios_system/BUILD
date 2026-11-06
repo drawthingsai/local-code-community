@@ -92,7 +92,6 @@ objc_library(
         "getopt_long.c",
         "ios_system.m",
         "libc_replacement.c",
-        "macos_host_shims.c",
         "shell_cmds_ios/open.m",
         ":python_subprocess_source",
     ],
@@ -681,108 +680,14 @@ objc_library(
 )
 
 objc_library(
-    name = "curl_lib",
-    srcs = glob(
-        [
-            "curl/curl/lib/**/*.c",
-        ],
-        exclude = [
-            "curl/curl/lib/vssh/*.c",
-        ],
-    ),
-    hdrs = glob([
-        "curl/curl/include/**/*.h",
-        "curl/curl/lib/**/*.h",
-        "curl/curl/src/**/*.h",
-    ]),
-    copts = COMMON_COPTS + [
-        "-DHAVE_CONFIG_H",
-        "-DBUILDING_LIBCURL",
-    ],
-    includes = [
-        ".",
-        "curl/curl/include",
-        "curl/curl/lib",
-    ],
-    linkopts = ["-lz"],
-    sdk_frameworks = [
-        "CoreFoundation",
-        "Foundation",
-        "Security",
-    ] + select({
-        ":macos_build": ["SystemConfiguration"],
-        "//conditions:default": [],
-    }),
-    deps = [":api"],
-)
-
-objc_library(
-    name = "curl_tool_support",
-    srcs = [
-        "curl/curl/lib/curl_multibyte.c",
-        "curl/curl/lib/dynbuf.c",
-        "curl/curl/lib/nonblock.c",
-        "curl/curl/lib/strtoofft.c",
-        "curl/curl/lib/timediff.c",
-        "curl/curl/lib/version_win32.c",
-        "curl/curl/lib/warnless.c",
-    ],
-    hdrs = glob([
-        "curl/curl/include/**/*.h",
-        "curl/curl/lib/**/*.h",
-    ]),
-    copts = COMMON_COPTS + ["-DHAVE_CONFIG_H"],
-    includes = [
-        ".",
-        "curl/curl/include",
-        "curl/curl/lib",
-    ],
-    deps = [":api"],
-)
-
-objc_library(
-    name = "curl_tool",
-    srcs = glob([
-        "curl/curl/src/*.c",
-        "curl/curl/src/*.m",
-    ]),
-    hdrs = glob(["curl/curl/src/**/*.h"]),
-    copts = COMMON_COPTS + [
-        "-DHAVE_CONFIG_H",
-        "-Dmain=curl_main",
-    ],
-    includes = [
-        ".",
-        "curl/curl/include",
-        "curl/curl/lib",
-        "curl/curl/src",
-    ],
-    sdk_frameworks = ["Foundation"],
-    deps = [
-        ":api",
-        ":curl_lib",
-        ":curl_tool_support",
-    ],
-)
-
-objc_library(
-    name = "curl_http",
-    deps = [
-        ":curl_lib",
-        ":curl_tool",
-        ":curl_tool_support",
-    ],
-)
-
-objc_library(
     name = "git_lfs",
     srcs = ["git_lfs.m"],
     copts = COMMON_COPTS,
     sdk_frameworks = ["Foundation"],
     deps = [
         ":api",
-        ":curl_lib",
         "//Vendors/libgit2",
+        "@curl//:libcurl",
     ],
 )
 
@@ -1097,11 +1002,11 @@ objc_library(
         ":cmd_git",
         ":command_registry",
         ":core",
-        ":curl_http",
         ":files_basic",
         ":ios_system_api",
         ":shell",
         ":text_basic",
+        "//Vendors/curl",
         "@OpenSSH//:commands",
     ],
 )

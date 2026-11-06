@@ -260,6 +260,20 @@ new_git_repository(
     remote = "https://github.com/apple/swift-crypto.git",
 )
 
+http_archive(
+    name = "curl",
+    build_file = "curl.BUILD",
+    patch_args = ["-p1"],
+    patches = ["//Vendors/curl:ios.patch"],
+    # curl 8.23.0, release signature verified.
+    sha256 = "8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5",
+    strip_prefix = "curl-8.23.0",
+    urls = [
+        "https://curl.se/download/curl-8.23.0.tar.xz",
+        "https://github.com/curl/curl/releases/download/curl-8_23_0/curl-8.23.0.tar.xz",
+    ],
+)
+
 new_git_repository(
     name = "OpenSSH",
     build_file = "openssh-portable.BUILD",

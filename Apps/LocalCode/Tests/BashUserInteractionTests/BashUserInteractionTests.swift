@@ -939,6 +939,63 @@ final class BashUserInteractionTests: XCTestCase {
     wait(for: [activeFinished, queuedStarted, queuedFinished], timeout: 5)
   }
 
+  func testCurlWaitsForAnotherSessionsCurl() throws {
+    // curl's tool keeps process-wide state, so a second session's curl waits
+    // for the first one instead of being turned away. As pipelines both run in
+    // OSH, whose sessions run concurrently (BashTool's direct curl queue is
+    // serial).
+    let firstProject = directory.appendingPathComponent("first")
+    let secondProject = directory.appendingPathComponent("second")
+    for project in [firstProject, secondProject] {
+      try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    }
+    let fifo = firstProject.appendingPathComponent("curl-fifo")
+    XCTAssertEqual(mkfifo(fifo.path, 0o600), 0)
+    let queuedFile = secondProject.appendingPathComponent("curl-queued.txt")
+    try "queued\n".write(to: queuedFile, atomically: true, encoding: .utf8)
+    var lock = os_unfair_lock()
+    var released = false
+    let firstFinished = expectation(description: "Blocked curl finished")
+    let first = BashTool(
+      command: "curl -sS file://\(fifo.path) | cat", timeout: 10, refresh: 10,
+      projectPath: firstProject.path, workspacePath: directory.path)
+    first.invoke(context: BashToolContext()) { response in
+      XCTAssertTrue(response.text.contains("exit=0"), response.text)
+      XCTAssertTrue(response.text.contains("released"), response.text)
+      firstFinished.fulfill()
+    }
+    // Opening the FIFO for writing returns once the first curl reads it.
+    let reading = expectation(description: "First curl reading")
+    var writer: FileHandle?
+    DispatchQueue.global().async {
+      writer = FileHandle(forWritingAtPath: fifo.path)
+      reading.fulfill()
+    }
+    wait(for: [reading], timeout: 5)
+    let finishedEarly = expectation(description: "Queued curl finished while the first ran")
+    finishedEarly.isInverted = true
+    let secondFinished = expectation(description: "Queued curl finished")
+    let second = BashTool(
+      command: "curl -sS file://\(queuedFile.path) | cat", timeout: 10, refresh: 10,
+      projectPath: secondProject.path, workspacePath: directory.path)
+    second.invoke(context: BashToolContext()) { response in
+      os_unfair_lock_lock(&lock)
+      let afterRelease = released
+      os_unfair_lock_unlock(&lock)
+      if !afterRelease { finishedEarly.fulfill() }
+      XCTAssertTrue(response.text.contains("exit=0"), response.text)
+      XCTAssertTrue(response.text.contains("queued"), response.text)
+      secondFinished.fulfill()
+    }
+    wait(for: [finishedEarly], timeout: 1.5)
+    os_unfair_lock_lock(&lock)
+    released = true
+    os_unfair_lock_unlock(&lock)
+    writer?.write(Data("released\n".utf8))
+    try writer?.close()
+    wait(for: [firstFinished, secondFinished], timeout: 10)
+  }
+
   func testUserAndSystemInteractionsOutlastTimeoutAndRefresh() throws {
     for isUserInteraction in [true, false] {
       let presented = expectation(description: "Picker presented")

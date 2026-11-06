@@ -590,6 +590,41 @@ static void validateInfoZip(void)
     check(descriptorCount() == descriptors, @"Info-ZIP releases descriptors and preserves shell streams");
 }
 
+// curl's tool keeps its state in statics, written for a new process per run.
+// Here every run shares one process, as in the app.
+static void validateCurl(void)
+{
+    writeFixture(@"curl-input.txt", bytes(@"curl fixture\n"));
+    NSString *url = [@"file://" stringByAppendingString:path(@"curl-input.txt")];
+    NSString *missing = [@"file://" stringByAppendingString:path(@"curl-missing.txt")];
+    expectText(@"curl verbose run", @[@"curl", @"-v", @"-sS", url], @"", @"curl fixture\n", 0);
+    NSDictionary *plain = expect(@"curl after a verbose run", @[@"curl", @"-sS", url],
+        bytes(@""), bytes(@"curl fixture\n"), 0);
+    check([plain[@"stderr"] length] == 0, @"curl tracing ends with its run");
+    expectText(@"curl trace file run", @[@"curl", @"--trace-ascii", path(@"curl-trace.txt"), @"-sS", url],
+        @"", @"curl fixture\n", 0);
+    expectText(@"curl after a trace file run", @[@"curl", @"-sS", url], @"", @"curl fixture\n", 0);
+    expectText(@"curl variable run", @[@"curl", @"--variable", @"name=value", @"-sS", url],
+        @"", @"curl fixture\n", 0);
+    expectText(@"curl after a variable run", @[@"curl", @"-sS", url], @"", @"curl fixture\n", 0);
+    NSDictionary *silent = expect(@"curl silent failure", @[@"curl", @"-s", missing], bytes(@""), bytes(@""), 37);
+    check([silent[@"stderr"] length] == 0, @"curl -s hides the error");
+    NSDictionary *loud = expect(@"curl failure after a silent run", @[@"curl", missing], bytes(@""), nil, 37);
+    NSString *diagnostics = [[NSString alloc] initWithData:loud[@"stderr"] encoding:NSUTF8StringEncoding];
+    check([diagnostics containsString:@"curl: (37)"], @"curl -s ends with its run");
+    expectText(@"curl URL numbers", @[@"curl", @"-sS", @"-w", @"%{urlnum}\n", url, url], @"",
+        @"curl fixture\n0\ncurl fixture\n1\n", 0);
+    expectText(@"curl URL numbers restart", @[@"curl", @"-sS", @"-w", @"%{urlnum}\n", url], @"",
+        @"curl fixture\n0\n", 0);
+    // Each run counts libcurl's features again for --version.
+    NSDictionary *version = expect(@"curl version", @[@"curl", @"--version"], bytes(@""), nil, 0);
+    expect(@"curl version again", @[@"curl", @"--version"], bytes(@""), version[@"stdout"], 0);
+    expectText(@"curl transfer before version", @[@"curl", @"-sS", url], @"", @"curl fixture\n", 0);
+    expect(@"curl version after a transfer", @[@"curl", @"--version"], bytes(@""), version[@"stdout"], 0);
+    expectText(@"curl parallel after sequential runs", @[@"curl", @"-sS", @"--parallel", url, url], @"",
+        @"curl fixture\ncurl fixture\n", 0);
+}
+
 int ios_validateNativeCommands(void)
 {
     @autoreleasepool {
@@ -938,6 +973,7 @@ int ios_validateNativeCommands(void)
         }
         validateJQ();
         validateInfoZip();
+        validateCurl();
         validateEntryLifetime();
         validateConcurrentFind();
         validateConcurrentSessions();

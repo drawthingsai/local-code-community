@@ -10,16 +10,29 @@ extern int ios_git_lfs_push(git_repository *, const char *, const git_strarray *
 extern int lg2_lfs(git_repository *, int, char **);
 
 // The small native harness deliberately avoids loading Python/Node/GPU runtimes.
-bool have_openssl(void) { return false; }
+// libcurl uses the command's streams and environment, and ios_system_support's
+// session-relative paths, which reach these.
+__thread FILE *thread_stdin, *thread_stdout, *thread_stderr;
 FILE *ios_stdout(void) { return stdout; }
 char *ios_getenv(const char *name) { return getenv(name); }
+int ios_setenv(const char *name, const char *value, int overwrite) { return setenv(name, value, overwrite); }
+const char *ios_currentSessionDirectory(void) { return NULL; }
+int ios_fflush(FILE *stream) { return fflush(stream); }
+void ios_exit(int status) { exit(status); }
 const void *ios_getCommandCancellationContext(void) { return NULL; }
 int ios_commandCancellationRequested(const void *context) { return getenv("LFS_TEST_CANCELLED") != NULL; }
 int lg2_main(int argc, char **argv) { return lg2_lfs(NULL, argc - 1, argv + 1); }
 
 int main(int argc, char **argv) {
     @autoreleasepool {
-        if (argc < 3 || chdir(argv[1]) != 0) return 2;
+        thread_stdin = stdin;
+        thread_stdout = stdout;
+        thread_stderr = stderr;
+        // libgit2 resolves relative paths against the session's PWD, as in
+        // ios_system; without this it would use the caller's directory.
+        char directory[PATH_MAX];
+        if (argc < 3 || chdir(argv[1]) != 0 || getcwd(directory, sizeof(directory)) == NULL) return 2;
+        setenv("PWD", directory, 1);
         git_libgit2_init();
         int result = ios_git_lfs_register();
         git_repository *repo = NULL;

@@ -57,6 +57,7 @@ Libraries/Utils
 Libraries/WebSearch
 Libraries/WeightsCache
 Vendors/Advance
+Vendors/curl
 Vendors/ExceptionCatcher
 Vendors/FBShimmer
 Vendors/FFmpeg

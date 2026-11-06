@@ -382,9 +382,6 @@ enum { MaxRsyncCommands = 2 };
 int numRsyncCommands = MaxRsyncCommands; // Apps can overwrite this
 static bool rsyncIsRunning[MaxRsyncCommands];
 static int currentRsyncCommand = 0;
-// prevent the user from running multiple curl commands too:
-// (sessions start commands concurrently, so the slot is claimed atomically)
-static atomic_bool curlIsRunning = false;
 // prevent the user from running multiple scp commands as well (one is fine):
 static atomic_bool scpIsRunning = false;
 
@@ -679,9 +676,10 @@ int ios_resolveDirectoryAlias(
     return 2;
 }
 
-// OpenSSH (its globals), img2txt (libcaca's) and draw-things-cli (its
-// engine) keep process-wide state, so one job at a time runs each class: a
-// command and the commands it starts (scp's ssh transport, sshpass's ssh).
+// OpenSSH (its globals), curl (its tool's), img2txt (libcaca's) and
+// draw-things-cli (its engine) keep process-wide state, so one job at a time
+// runs each class: a command and the commands it starts (scp's ssh transport,
+// sshpass's ssh).
 typedef struct {
     pthread_mutex_t mutex;
     pthread_cond_t released;
@@ -691,6 +689,7 @@ typedef struct {
     int depth;
 } ios_exclusive_runtime;
 static ios_exclusive_runtime openSSHRuntime = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, "OpenSSH", 0, NULL, 0};
+static ios_exclusive_runtime curlRuntime = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, "curl", 0, NULL, 0};
 static ios_exclusive_runtime img2txtRuntime = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, "img2txt", 0, NULL, 0};
 static ios_exclusive_runtime drawThingsRuntime = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, "draw-things-cli", 0, NULL, 0};
 // The job of the command running on this thread, which the commands it starts
@@ -701,6 +700,7 @@ static atomic_uint_fast64_t nextExclusiveJob = 1;
 static ios_exclusive_runtime *ios_exclusive_runtime_for(ios_command_isolation_policy isolation) {
     switch (isolation) {
         case IOS_COMMAND_ISOLATION_EXCLUSIVE_OPENSSH: return &openSSHRuntime;
+        case IOS_COMMAND_ISOLATION_EXCLUSIVE_CURL: return &curlRuntime;
         case IOS_COMMAND_ISOLATION_EXCLUSIVE_IMG2TXT: return &img2txtRuntime;
         case IOS_COMMAND_ISOLATION_EXCLUSIVE_DRAW_THINGS: return &drawThingsRuntime;
         default: return NULL;
@@ -1033,9 +1033,6 @@ static void cleanup_function(void* parameters) {
     } else if ([TeXcommands containsObject: commandNameString]) {
         NSLog(@"Ending a TeX command: %d", p->numInterpreter);
         TeXIsRunning[p->numInterpreter] = false;
-    } else if (strcmp(commandName, "curl") == 0) {
-        NSLog(@"Ending a curl command.");
-        curlIsRunning = false;
     } else if ((strcmp(commandName, "rsync") == 0) || (strcmp(commandName, "openrsync") == 0)) {
         NSLog(@"Ending a rsync command.");
         rsyncIsRunning[p->numInterpreter] = false;
@@ -6587,16 +6584,6 @@ static int ios_system_command_line(const char* inputCmd) {
                             libraryName = [libraryName stringByReplacingOccurrencesOfString:@"xdvipdfmx" withString:newName];
                         }
                     }
-                }
-            } else if ([commandName isEqualToString: @"curl"]) {
-                bool idle = false;
-                if (!atomic_compare_exchange_strong(&curlIsRunning, &idle, true)) {
-                    display_alert(@"Only one curl command at a time", @"Please wait for the other one to end.");
-                    NSLog(@"%@", @"Too many curl commands running simultaneously.\n");
-                    function = &too_many_scripts;
-                    functionName = @"notAValidCommand";
-                    currentSession->global_errno = ENOENT;
-                    argv[0][0] = 'x'; // prevent reinitialization in cleanup_function
                 }
             } else if ([commandName isEqualToString: @"rsync"] || [commandName isEqualToString: @"openrsync"]) {
                 // It's a rsync command. rsync between local directories requires two different commands.

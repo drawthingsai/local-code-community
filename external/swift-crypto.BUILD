@@ -60,6 +60,7 @@ swift_interop_hint(
 
 swift_library(
     name = "CryptoBoringWrapper",
+    package_name = "SwiftCrypto",
     srcs = glob(
         [
             "Sources/CryptoBoringWrapper/**/*.swift",
@@ -74,7 +75,6 @@ swift_library(
         "CRYPTO_IN_SWIFTPM_FORCE_BUILD_API",
     ],
     module_name = "CryptoBoringWrapper",
-    package_name = "SwiftCrypto",
     visibility = ["//visibility:public"],
     deps = [
         ":CCryptoBoringSSL",
@@ -84,6 +84,7 @@ swift_library(
 
 swift_library(
     name = "Crypto",
+    package_name = "SwiftCrypto",
     srcs = glob(
         [
             "Sources/Crypto/**/*.swift",
@@ -101,7 +102,6 @@ swift_library(
         "MODULE_IS_CRYPTO",
     ],
     module_name = "Crypto",
-    package_name = "SwiftCrypto",
     visibility = ["//visibility:public"],
     deps = [
         ":CCryptoBoringSSL",
@@ -112,6 +112,7 @@ swift_library(
 
 swift_library(
     name = "_CryptoExtras",
+    package_name = "SwiftCrypto",
     srcs = glob(
         [
             "Sources/Crypto/CryptoKitErrors.swift",
@@ -125,13 +126,12 @@ swift_library(
         "MODULE_IS_CRYPTO",
     ],
     module_name = "_CryptoExtras",
-    package_name = "SwiftCrypto",
     visibility = ["//visibility:public"],
     deps = [
         ":CCryptoBoringSSL",
         ":CCryptoBoringSSLShims",
         ":Crypto",
         ":CryptoBoringWrapper",
-        "@SwiftASN1//:SwiftASN1",
+        "@SwiftASN1",
     ],
 )

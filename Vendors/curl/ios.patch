@@ -1,0 +1,267 @@
+diff --git a/lib/netrc.c b/lib/netrc.c
+index 6a6049a..86b1e8e 100644
+--- a/lib/netrc.c
++++ b/lib/netrc.c
+@@ -597,6 +597,11 @@ NETRCcode Curl_netrc_scan(struct Curl_easy *data,
+ #endif
+     filealloc = curl_getenv("NETRC");
+     if(!filealloc) {
++#ifdef IOS_SYSTEM_CURL
++      /* ios_system keeps curl's state per project: CURL_HOME, like .curlrc. */
++      homea = curl_getenv("CURL_HOME");
++      if(!homea)
++#endif
+       homea = curl_getenv("HOME"); /* portable environment reader */
+       if(homea) {
+         home = homea;
+diff --git a/src/tool_cb_dbg.c b/src/tool_cb_dbg.c
+index ea2ec96..bdd7ea4 100644
+--- a/src/tool_cb_dbg.c
++++ b/src/tool_cb_dbg.c
+@@ -125,6 +125,20 @@ static void dump(const char *timebuf, const char *idsbuf, const char *text,
+ /*
+  * callback for CURLOPT_DEBUGFUNCTION
+  */
++#ifdef IOS_SYSTEM_CURL
++static bool newl = FALSE;
++static bool traced_data = FALSE;
++
++/* ios_system runs curl again and again in one process, including after
++   a cancelled run. CurlMain.c resets this state before each run, as a new
++   process would start. */
++void ios_curl_reset_debug(void)
++{
++  newl = FALSE;
++  traced_data = FALSE;
++}
++#endif
++
+ int tool_debug_cb(CURL *handle, curl_infotype type,
+                   char *data, size_t size,
+                   void *userdata)
+@@ -188,8 +202,10 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
+   }
+ 
+   if(global->tracetype == TRACE_PLAIN) {
++#ifndef IOS_SYSTEM_CURL
+     static bool newl = FALSE;
+     static bool traced_data = FALSE;
++#endif
+ 
+     switch(type) {
+     case CURLINFO_HEADER_OUT:
+diff --git a/src/tool_cfgable.c b/src/tool_cfgable.c
+index 26b44f8..d10c0c8 100644
+--- a/src/tool_cfgable.c
++++ b/src/tool_cfgable.c
+@@ -35,6 +35,17 @@
+ static struct GlobalConfig globalconf;
+ struct GlobalConfig *global;
+ 
++#ifdef IOS_SYSTEM_CURL
++/* ios_system runs curl again and again in one process, including after
++   a cancelled run. CurlMain.c resets this state before each run, as a new
++   process would start. */
++void ios_curl_reset_cfgable(void)
++{
++  memset(&globalconf, 0, sizeof(globalconf));
++  global = NULL;
++}
++#endif
++
+ struct OperationConfig *config_alloc(void)
+ {
+   struct OperationConfig *config =
+diff --git a/src/tool_easysrc.c b/src/tool_easysrc.c
+index 1c2a336..bfb64db 100644
+--- a/src/tool_easysrc.c
++++ b/src/tool_easysrc.c
+@@ -95,6 +95,20 @@ static void easysrc_free(void)
+   easysrc_clean = NULL;
+ }
+ 
++#ifdef IOS_SYSTEM_CURL
++/* ios_system runs curl again and again in one process, including after
++   a cancelled run. CurlMain.c resets this state before each run, as a new
++   process would start. */
++void ios_curl_reset_easysrc(void)
++{
++  easysrc_free();
++  easysrc_mime_count = 0;
++  easysrc_slist_count = 0;
++  easysrc_performed = FALSE;
++  easysrc_pending_reset = FALSE;
++}
++#endif
++
+ /* Add a source line to the main code or remarks */
+ CURLcode easysrc_add(struct slist_wc **plist, const char *line)
+ {
+diff --git a/src/tool_libinfo.c b/src/tool_libinfo.c
+index dfb2391..677ebde 100644
+--- a/src/tool_libinfo.c
++++ b/src/tool_libinfo.c
+@@ -123,6 +123,18 @@ static const char *fnames[CURL_ARRAYSIZE(maybe_feature)];
+ const char * const *feature_names = fnames;
+ size_t feature_count;
+ 
++#ifdef IOS_SYSTEM_CURL
++/* ios_system runs curl again and again in one process, including after
++   a cancelled run. CurlMain.c resets this state before each run, as a new
++   process would start. */
++void ios_curl_reset_libinfo(void)
++{
++  /* get_libcurl_info() counts the features again on every run. The rest it
++     assigns from libcurl's unchanging version information. */
++  feature_count = 0;
++}
++#endif
++
+ /*
+  * libcurl_info_init: retrieves runtime information about libcurl,
+  * setting a global pointer 'curlinfo' to libcurl's runtime info
+diff --git a/src/tool_main.c b/src/tool_main.c
+index d3eff9c..9088cf6 100644
+--- a/src/tool_main.c
++++ b/src/tool_main.c
+@@ -180,7 +180,9 @@ int main(int argc, char *argv[])
+     return CURLE_FAILED_INIT;
+   }
+ 
+-#if defined(HAVE_SIGNAL) && defined(SIGPIPE)
++/* ios_system blocks SIGPIPE on command threads and sets F_SETNOSIGPIPE on
++   their streams. Ignoring it here would change the whole app's disposition. */
++#if defined(HAVE_SIGNAL) && defined(SIGPIPE) && !defined(IOS_SYSTEM_CURL)
+ #ifdef DEBUGBUILD
+   if(!curl_getenv("CURL_SIGPIPE_DEBUG"))
+ #endif
+diff --git a/src/tool_operate.c b/src/tool_operate.c
+index b5b3d6a..9dc62a6 100644
+--- a/src/tool_operate.c
++++ b/src/tool_operate.c
+@@ -1555,6 +1555,19 @@ static CURLcode single_transfer(struct OperationConfig *config,
+ 
+ static long all_added; /* number of easy handles currently added */
+ 
++#ifdef IOS_SYSTEM_CURL
++/* ios_system runs curl again and again in one process, including after
++   a cancelled run. CurlMain.c resets this state before each run, as a new
++   process would start. */
++void ios_curl_reset_operate(void)
++{
++  /* Only a cancelled run leaves transfers; they are not reused. */
++  transfers = NULL;
++  transfersl = NULL;
++  all_added = 0;
++}
++#endif
++
+ /*
+  * add_parallel_transfers() sets 'morep' to TRUE if there are more transfers
+  * to add even after this call returns. sets 'addedp' to TRUE if one or more
+@@ -2277,6 +2290,10 @@ static CURLcode cacertpaths(struct OperationConfig *config)
+     if(!config->cacert)
+       result = CURLE_OUT_OF_MEMORY;
+   }
++#ifndef IOS_SYSTEM_CURL
++  /* ios_system sets SSL_CERT_FILE for Python's OpenSSL. curl verifies with
++     Apple's trust store (USE_APPLE_SECTRUST), which a CA file would replace;
++     CURL_CA_BUNDLE and --cacert still select one. */
+   else {
+     env = curl_getenv("SSL_CERT_DIR");
+     if(env) {
+@@ -2295,6 +2312,7 @@ static CURLcode cacertpaths(struct OperationConfig *config)
+       }
+     }
+   }
++#endif
+ 
+   if(!result)
+     result = win32_setup_certs(config);
+@@ -2413,8 +2431,13 @@ static CURLcode share_setup(CURLSH *share)
+     0
+   };
+   /* Running parallel, use the multi connection cache */
++#ifdef IOS_SYSTEM_CURL
++  /* options outlives the run in ios_system's process: set it either way. */
++  options[5] = global->parallel ? 0 : CURL_LOCK_DATA_CONNECT;
++#else
+   if(!global->parallel)
+     options[5] = CURL_LOCK_DATA_CONNECT;
++#endif
+   for(i = 0; !result && options[i]; i++)
+     result = share_setopt(share, options[i]);
+   return result;
+diff --git a/src/tool_paramhlp.c b/src/tool_paramhlp.c
+index e425b36..002ea54 100644
+--- a/src/tool_paramhlp.c
++++ b/src/tool_paramhlp.c
+@@ -32,12 +32,26 @@
+ #include "tool_util.h"
+ #include "tool_version.h"
+ 
++#ifdef IOS_SYSTEM_CURL
++static int outnum = 0;
++
++/* ios_system runs curl again and again in one process, including after
++   a cancelled run. CurlMain.c resets this state before each run, as a new
++   process would start. */
++void ios_curl_reset_paramhlp(void)
++{
++  outnum = 0;
++}
++#endif
++
+ struct getout *new_getout(struct OperationConfig *config)
+ {
+   struct getout *node = curlx_calloc(1, sizeof(struct getout));
+   struct getout *last = config->url_last;
+   if(node) {
++#ifndef IOS_SYSTEM_CURL
+     static int outnum = 0;
++#endif
+ 
+     /* append this new node last in the list */
+     if(last)
+diff --git a/src/tool_progress.c b/src/tool_progress.c
+index d3ee694..7efc4cc 100644
+--- a/src/tool_progress.c
++++ b/src/tool_progress.c
+@@ -151,14 +151,37 @@ static void add_offt(curl_off_t *val, curl_off_t add)
+     *val += add;
+ }
+ 
++#ifdef IOS_SYSTEM_CURL
++static struct curltime stamp;
++static bool header = FALSE;
++
++/* ios_system runs curl again and again in one process, including after
++   a cancelled run. CurlMain.c resets this state before each run, as a new
++   process would start. */
++void ios_curl_reset_progress(void)
++{
++  all_dltotal = 0;
++  all_ultotal = 0;
++  all_dlalready = 0;
++  all_ulalready = 0;
++  speedindex = 0;
++  indexwrapped = FALSE;
++  memset(speedstore, 0, sizeof(speedstore));
++  memset(&stamp, 0, sizeof(stamp));
++  header = FALSE;
++}
++#endif
++
+ /*
+    |DL% UL%  Dled  Uled  Xfers  Live Total     Current  Left    Speed
+    |  6 --   9.9G     0     2     2   0:00:40  0:00:02  0:00:37 4087M
+  */
+ bool progress_meter(CURLM *multi, struct curltime *start, bool final)
+ {
++#ifndef IOS_SYSTEM_CURL
+   static struct curltime stamp;
+   static bool header = FALSE;
++#endif
+   struct curltime now;
+   timediff_t diff;
+ 
