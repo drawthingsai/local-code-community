@@ -14,6 +14,7 @@ from typing import (
 )
 import warnings
 
+from pandas.errors import Pandas4Warning
 from pandas.util._decorators import (
     set_module,
 )
@@ -230,9 +231,18 @@ class Accessor:
         return self._accessor(obj)
 
 
-# Alias kept for downstream libraries
-# TODO: Deprecate as name is now misleading
-CachedAccessor = Accessor
+def __getattr__(name: str):
+    if name == "CachedAccessor":
+        # Alias kept for downstream libraries
+        warnings.warn(
+            f"{name} is deprecated and will be removed in a future version. "
+            "Use pandas.core.accessor.Accessor instead.",
+            Pandas4Warning,
+            stacklevel=find_stack_level(),
+        )
+        return Accessor
+
+    raise AttributeError(f"module 'pandas.core.accessor' has no attribute '{name}'")
 
 
 def _register_accessor(
@@ -296,36 +306,13 @@ def _register_accessor(
     return decorator
 
 
-_register_df_examples = """
-An accessor that only accepts integers could
-have a class defined like this:
-
->>> @pd.api.extensions.register_dataframe_accessor("int_accessor")
-... class IntAccessor:
-...     def __init__(self, pandas_obj):
-...         if not all(pandas_obj[col].dtype == 'int64' for col in pandas_obj.columns):
-...             raise AttributeError("All columns must contain integer values only")
-...         self._obj = pandas_obj
-...
-...     def sum(self):
-...         return self._obj.sum()
-...
->>> df = pd.DataFrame([[1, 2], ['x', 'y']])
->>> df.int_accessor
-Traceback (most recent call last):
-...
-AttributeError: All columns must contain integer values only.
->>> df = pd.DataFrame([[1, 2], [3, 4]])
->>> df.int_accessor.sum()
-0    4
-1    6
-dtype: int64"""
-
-
 @set_module("pandas.api.extensions")
 def register_dataframe_accessor(name: str) -> Callable[[TypeT], TypeT]:
     """
     Register a custom accessor on DataFrame objects.
+
+    Use as a decorator to add a custom namespace accessor to DataFrame,
+    allowing domain-specific methods to be called via ``df.<name>``.
 
     Parameters
     ----------
@@ -395,34 +382,13 @@ def register_dataframe_accessor(name: str) -> Callable[[TypeT], TypeT]:
     return _register_accessor(name, DataFrame)
 
 
-_register_series_examples = """
-An accessor that only accepts integers could
-have a class defined like this:
-
->>> @pd.api.extensions.register_series_accessor("int_accessor")
-... class IntAccessor:
-...     def __init__(self, pandas_obj):
-...         if not pandas_obj.dtype == 'int64':
-...             raise AttributeError("The series must contain integer data only")
-...         self._obj = pandas_obj
-...
-...     def sum(self):
-...         return self._obj.sum()
-...
->>> df = pd.Series([1, 2, 'x'])
->>> df.int_accessor
-Traceback (most recent call last):
-...
-AttributeError: The series must contain integer data only.
->>> df = pd.Series([1, 2, 3])
->>> df.int_accessor.sum()
-6"""
-
-
 @set_module("pandas.api.extensions")
 def register_series_accessor(name: str) -> Callable[[TypeT], TypeT]:
     """
     Register a custom accessor on Series objects.
+
+    Use as a decorator to add a custom namespace accessor to Series,
+    allowing domain-specific methods to be called via ``ser.<name>``.
 
     Parameters
     ----------
@@ -488,37 +454,13 @@ def register_series_accessor(name: str) -> Callable[[TypeT], TypeT]:
     return _register_accessor(name, Series)
 
 
-_register_index_examples = """
-An accessor that only accepts integers could
-have a class defined like this:
-
->>> @pd.api.extensions.register_index_accessor("int_accessor")
-... class IntAccessor:
-...     def __init__(self, pandas_obj):
-...         if not all(isinstance(x, int) for x in pandas_obj):
-...             raise AttributeError("The index must only be an integer value")
-...         self._obj = pandas_obj
-...
-...     def even(self):
-...         return [x for x in self._obj if x % 2 == 0]
->>> df = pd.DataFrame.from_dict(
-...     {"row1": {"1": 1, "2": "a"}, "row2": {"1": 2, "2": "b"}}, orient="index"
-... )
->>> df.index.int_accessor
-Traceback (most recent call last):
-...
-AttributeError: The index must only be an integer value.
->>> df = pd.DataFrame(
-...     {"col1": [1, 2, 3, 4], "col2": ["a", "b", "c", "d"]}, index=[1, 2, 5, 8]
-... )
->>> df.index.int_accessor.even()
-[2, 8]"""
-
-
 @set_module("pandas.api.extensions")
 def register_index_accessor(name: str) -> Callable[[TypeT], TypeT]:
     """
     Register a custom accessor on Index objects.
+
+    Use as a decorator to add a custom namespace accessor to Index,
+    allowing domain-specific methods to be called via ``idx.<name>``.
 
     Parameters
     ----------

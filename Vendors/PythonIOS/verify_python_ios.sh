@@ -56,8 +56,8 @@ grep -qx "PYTHON_RUST_PERSONALITY=shared-weak" PYTHON_BUILD_INFO ||
 sort -cu exported_symbols.txt || fail "Python export list must be sorted and unique"
 grep -qx "PYTHON_SLICES=ios-arm64 ios-arm64-simulator macos-arm64" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected slices"
-grep -q "mlx-0.32.2" PYTHON_BUILD_INFO ||
-  fail "PYTHON_BUILD_INFO does not declare MLX 0.32.2"
+grep -q "mlx-0.32.4" PYTHON_BUILD_INFO ||
+  fail "PYTHON_BUILD_INFO does not declare MLX 0.32.4"
 grep -qx "MLX_SLICES=ios-arm64 macos-arm64" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected MLX slices"
 grep -qx "MLX_METAL_LANGUAGE_STANDARD=metal3.1" PYTHON_BUILD_INFO ||
@@ -70,7 +70,7 @@ grep -qx "PYYAML_WHEEL_SHA256=717a12e2e669ac5ab431f9d59c8574eec76182378c7ef3aa95
   fail "PYTHON_BUILD_INFO does not declare the expected pure-Python PyYAML wheel"
 grep -qx "PILLOW_FEATURE_POLICY=zlib=enabled jpeg=libjpeg-turbo freetype=matplotlib raqm=matplotlib tiff=disabled lcms=disabled webp=disabled jpeg2000=disabled imagequant=disabled xcb=disabled avif=disabled" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected Pillow feature policy"
-grep -qx "LIBJPEG_TURBO_SOURCE_SHA256=6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e" PYTHON_BUILD_INFO ||
+grep -qx "LIBJPEG_TURBO_SOURCE_SHA256=c27ad72a68da151177929aa969ae773a2da5ac2af9ce946079314fdac8cece7f" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected libjpeg-turbo source"
 grep -qx "LIBJPEG_TURBO_FEATURE_POLICY=library=static api=jpeg8 simd=required turbojpeg=disabled tools=disabled" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected libjpeg-turbo feature policy"
@@ -100,25 +100,25 @@ grep -qx "SAFETENSORS_CARGO_LOCK_SHA256=f7d484a57bc394042b3424d57dab0a17d6a343f5
   fail "PYTHON_BUILD_INFO does not declare the expected safetensors Cargo lock"
 grep -qx "SAFETENSORS_FEATURE_POLICY=pyo3=0.28.3 abi3=py310 host-python=disabled mmap=enabled pread=enabled lto=disabled interpreter=main-only" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected safetensors interpreter policy"
-grep -q "regex-2026.7.19" PYTHON_BUILD_INFO ||
-  fail "PYTHON_BUILD_INFO does not declare regex 2026.7.19"
+grep -q "regex-2026.9.29" PYTHON_BUILD_INFO ||
+  fail "PYTHON_BUILD_INFO does not declare regex 2026.9.29"
 grep -qx "REGEX_SLICES=ios-arm64 ios-arm64-simulator macos-arm64" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected regex slices"
-grep -qx "REGEX_SOURCE_SHA256=7e77b324909c1617cbb4c668677e2c6ae13f44d7c1de0d4f15f2e3c10f3315b5" PYTHON_BUILD_INFO ||
+grep -qx "REGEX_SOURCE_SHA256=8b5fcc4771732191b2b7d1dd68d8f0353f47f8d90b6150f6dce58bf1112442cb" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected regex source"
 grep -qx "REGEX_FEATURE_POLICY=python=3.14 c-extension=static external-libraries=none interpreter=main-only" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected regex interpreter policy"
-grep -q "tokenizers-0.22.2" PYTHON_BUILD_INFO ||
-  fail "PYTHON_BUILD_INFO does not declare tokenizers 0.22.2"
+grep -q "tokenizers-0.23.3" PYTHON_BUILD_INFO ||
+  fail "PYTHON_BUILD_INFO does not declare tokenizers 0.23.3"
 grep -qx "TOKENIZERS_SLICES=ios-arm64 ios-arm64-simulator macos-arm64" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected tokenizers slices"
 grep -qx "TOKENIZERS_RUST_VERSION=1.89.0" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected tokenizers Rust toolchain"
-grep -qx "TOKENIZERS_SOURCE_SHA256=473b83b915e547aa366d1eee11806deaf419e17be16310ac0a14077f1e28f917" PYTHON_BUILD_INFO ||
+grep -qx "TOKENIZERS_SOURCE_SHA256=cded33237c77caeef62944d32aa9a7ef42bdce2b3497e18d137e072a8c4be438" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected tokenizers source"
-grep -qx "TOKENIZERS_CARGO_LOCK_SHA256=a3ff2022b3790e2f5863fe59732ab76da81dd75bc3a94905127206e87125170d" PYTHON_BUILD_INFO ||
+grep -qx "TOKENIZERS_CARGO_LOCK_SHA256=afcedf7f2ebe008b068d7afd25e77f7d9d8e433c24153bc35a1eb5611083ee5b" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected tokenizers Cargo lock"
-grep -qx "TOKENIZERS_FEATURE_POLICY=pyo3=0.26.0 abi3=py39 onig=vendored esaxx=cpp progressbar=enabled rust-http=disabled lto=disabled interpreter=main-only" PYTHON_BUILD_INFO ||
+grep -qx "TOKENIZERS_FEATURE_POLICY=pyo3=0.29.2 abi3=py310 onig=vendored esaxx=cpp progressbar=enabled rust-http=disabled lto=disabled interpreter=main-only" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare the expected tokenizers feature policy"
 grep -q "sentencepiece-0.2.2" PYTHON_BUILD_INFO ||
   fail "PYTHON_BUILD_INFO does not declare SentencePiece 0.2.2"
@@ -429,22 +429,22 @@ for root in "$IOS_RESOURCES" "$MACOS_RESOURCES"; do
     fail "missing regex package resources under $root"
   [[ -f "$site_packages/regex/_regex_core.py" ]] ||
     fail "missing regex Python implementation resources under $root"
-  grep -qx "Version: 2026.7.19" \
-    "$site_packages/regex-2026.7.19.dist-info/METADATA" ||
-    fail "missing regex 2026.7.19 metadata under $root"
-  [[ -f "$site_packages/regex-2026.7.19.dist-info/licenses/LICENSE.txt" ]] ||
+  grep -qx "Version: 2026.9.29" \
+    "$site_packages/regex-2026.9.29.dist-info/METADATA" ||
+    fail "missing regex 2026.9.29 metadata under $root"
+  [[ -f "$site_packages/regex-2026.9.29.dist-info/licenses/LICENSE.txt" ]] ||
     fail "missing regex license under $root"
   [[ -f "$site_packages/tokenizers/__init__.py" ]] ||
     fail "missing tokenizers package resources under $root"
   [[ -f "$site_packages/tokenizers/models/__init__.py" ]] ||
     fail "missing tokenizers model resources under $root"
-  grep -qx "Version: 0.22.2" \
-    "$site_packages/tokenizers-0.22.2.dist-info/METADATA" ||
-    fail "missing tokenizers 0.22.2 metadata under $root"
-  grep -qx "Requires-Dist: huggingface-hub>=0.16.4,<2.0" \
-    "$site_packages/tokenizers-0.22.2.dist-info/METADATA" ||
+  grep -qx "Version: 0.23.3" \
+    "$site_packages/tokenizers-0.23.3.dist-info/METADATA" ||
+    fail "missing tokenizers 0.23.3 metadata under $root"
+  grep -qx "Requires-Dist: huggingface-hub>=0.16.4,<3.0" \
+    "$site_packages/tokenizers-0.23.3.dist-info/METADATA" ||
     fail "tokenizers metadata does not retain its Python hub dependency under $root"
-  [[ -f "$site_packages/tokenizers-0.22.2.dist-info/licenses/LICENSE" ]] ||
+  [[ -f "$site_packages/tokenizers-0.23.3.dist-info/licenses/LICENSE" ]] ||
     fail "missing tokenizers license under $root"
   [[ -f "$site_packages/sentencepiece/__init__.py" ]] ||
     fail "missing SentencePiece package resources under $root"
@@ -459,12 +459,12 @@ for root in "$IOS_RESOURCES" "$MACOS_RESOURCES"; do
     fail "missing SentencePiece license under $root"
 done
 
-grep -qx "Version: 0.32.2" \
-  "$IOS_RESOURCES/lib/python3.14/site-packages/mlx-0.32.2.dist-info/METADATA" ||
-  fail "missing iOS MLX 0.32.2 metadata"
-grep -qx "Version: 0.32.2" \
-  "$MACOS_RESOURCES/lib/python3.14/site-packages/mlx-0.32.2.dist-info/METADATA" ||
-  fail "missing macOS MLX 0.32.2 metadata"
+grep -qx "Version: 0.32.4" \
+  "$IOS_RESOURCES/lib/python3.14/site-packages/mlx-0.32.4.dist-info/METADATA" ||
+  fail "missing iOS MLX 0.32.4 metadata"
+grep -qx "Version: 0.32.4" \
+  "$MACOS_RESOURCES/lib/python3.14/site-packages/mlx-0.32.4.dist-info/METADATA" ||
+  fail "missing macOS MLX 0.32.4 metadata"
 
 for metallib in \
   "$IOS_MLX/mlx-ios.metallib" \

@@ -2,22 +2,15 @@ from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
+    Any,
     cast,
 )
 
 import numpy as np
 
-from pandas._typing import (
-    FilePath,
-    ReadBuffer,
-    Scalar,
-    StorageOptions,
-)
 from pandas.compat._optional import import_optional_dependency
-from pandas.util._decorators import doc
 
 import pandas as pd
-from pandas.core.shared_docs import _shared_docs
 
 from pandas.io.excel._base import BaseExcelReader
 
@@ -25,15 +18,20 @@ if TYPE_CHECKING:
     from odf.opendocument import OpenDocument
 
     from pandas._libs.tslibs.nattype import NaTType
+    from pandas._typing import (
+        FilePath,
+        ReadBuffer,
+        Scalar,
+        StorageOptions,
+    )
 
 
-@doc(storage_options=_shared_docs["storage_options"])
 class ODFReader(BaseExcelReader["OpenDocument"]):
     def __init__(
         self,
         filepath_or_buffer: FilePath | ReadBuffer[bytes],
         storage_options: StorageOptions | None = None,
-        engine_kwargs: dict | None = None,
+        engine_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """
         Read tables out of OpenDocument formatted files.
@@ -42,7 +40,15 @@ class ODFReader(BaseExcelReader["OpenDocument"]):
         ----------
         filepath_or_buffer : str, path to be parsed or
             an open readable stream.
-        {storage_options}
+        storage_options : dict, optional
+            Extra options that make sense for a particular storage connection,
+            e.g. host, port, username, password, etc. For HTTP(S) URLs the
+            key-value pairs are forwarded to ``urllib.request.Request`` as
+            header options. For other URLs (e.g. starting with "s3://", and
+            "gcs://") the key-value pairs are forwarded to ``fsspec.open``.
+            Please see ``fsspec`` and ``urllib`` for more details, and for
+            more examples on storage options refer `here
+            <https://pandas.pydata.org/docs/user_guide/io.html?#reading-writing-remote-files>`__.
         engine_kwargs : dict, optional
             Arbitrary keyword arguments passed to excel engine.
         """
@@ -105,6 +111,7 @@ class ODFReader(BaseExcelReader["OpenDocument"]):
         """
         Parse an ODF Table into a list of lists
         """
+        from odf.namespaces import OFFICENS
         from odf.table import (
             CoveredTableCell,
             TableCell,
@@ -127,10 +134,14 @@ class ODFReader(BaseExcelReader["OpenDocument"]):
 
             for sheet_cell in sheet_row.childNodes:
                 if hasattr(sheet_cell, "qname") and sheet_cell.qname in cell_names:
-                    if sheet_cell.qname == table_cell_name:
-                        value = self._get_cell_value(sheet_cell)
-                    else:
+                    value: Scalar | NaTType
+                    if (
+                        sheet_cell.qname == covered_cell_name
+                        and (OFFICENS, "value") not in sheet_cell.attributes
+                    ):
                         value = self.empty_value
+                    else:
+                        value = self._get_cell_value(sheet_cell)
 
                     column_repeat = self._get_column_repeat(sheet_cell)
 
@@ -212,7 +223,7 @@ class ODFReader(BaseExcelReader["OpenDocument"]):
         elif cell_type == "time":
             stamp = pd.Timestamp(str(cell))
             # cast needed here because Scalar doesn't include datetime.time
-            return cast(Scalar, stamp.time())
+            return cast("Scalar", stamp.time())
         else:
             self.close()
             raise ValueError(f"Unrecognized type {cell_type}")
@@ -223,23 +234,39 @@ class ODFReader(BaseExcelReader["OpenDocument"]):
         a run length encoded sequence of space characters.
         """
         from odf.element import Element
-        from odf.namespaces import TEXTNS
-        from odf.office import Annotation
-        from odf.text import S
+        from odf.namespaces import (
+            OFFICENS,
+            TEXTNS,
+        )
 
-        office_annotation = Annotation().qname
-        text_s = S().qname
+        # NB: built as plain tuples rather than from odf element instances,
+        # since this runs once per cell.
+        office_annotation = (OFFICENS, "annotation")
+        text_s = (TEXTNS, "s")
+        text_p = (TEXTNS, "p")
+        text_line_break = (TEXTNS, "line-break")
 
         value = []
+        seen_paragraph = False
 
         for fragment in cell.childNodes:
             if isinstance(fragment, Element):
                 if fragment.qname == text_s:
                     spaces = int(fragment.attributes.get((TEXTNS, "c"), 1))
                     value.append(" " * spaces)
+                elif fragment.qname == text_line_break:
+                    # GH#55728: an explicit line break within a paragraph.
+                    value.append("\n")
                 elif fragment.qname == office_annotation:
                     continue
                 else:
+                    if fragment.qname == text_p:
+                        # GH#53924: a cell holding several paragraphs shows them
+                        # on separate lines, which is how LibreOffice and Excel
+                        # store a multi-line cell.
+                        if seen_paragraph:
+                            value.append("\n")
+                        seen_paragraph = True
                     # recursive impl needed in case of nested fragments
                     # with multiple spaces
                     # https://github.com/pandas-dev/pandas/pull/36175#discussion_r484639704

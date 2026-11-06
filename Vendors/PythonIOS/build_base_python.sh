@@ -47,10 +47,10 @@ XZ_SHA256=269e3f2e512cbd3314849982014dc199a7b2148cf5c91cedc6db629acdf5e09b
 ZSTD_VERSION=1.5.7
 ZSTD_SHA256=eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
 IOS_MINIMUM_OS_VERSION=${IOS_MINIMUM_OS_VERSION:-13.0}
-NUMPY_VERSION=2.4.6
+NUMPY_VERSION=2.5.4
 NUMPY_SOURCE_FILENAME=numpy-$NUMPY_VERSION.tar.gz
-NUMPY_SOURCE_URL=https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz
-NUMPY_SOURCE_SHA256=f3a3570c4a2a16746ac2c31a7c7c7b0c186b95ce902e33db6f28094ed7387dda
+NUMPY_SOURCE_URL=https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz
+NUMPY_SOURCE_SHA256=9a94cf751c9ad8ebaa835bcd3d40dacf8534ad086b88c38029b65123c7999d2a
 NUMPY_SOURCE_CACHE_DIR=${NUMPY_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 NUMPY_SOURCE_DIR=$BUILD_DIR/numpy-$NUMPY_VERSION
 NUMPY_IOS_BUILD_DIR=$BUILD_DIR/numpy-ios-build
@@ -76,10 +76,10 @@ NUMPY_BUILD_VERSIONEER_VERSION=0.29
 NUMPY_BUILD_PYBIND11_VERSION=3.0.1
 NUMPY_BUILD_CPPY_VERSION=1.3.0
 NUMPY_BUILD_SETUPTOOLS_SCM_VERSION=9.2.2
-PANDAS_VERSION=3.0.5
+PANDAS_VERSION=3.1.1
 PANDAS_SOURCE_FILENAME=pandas-$PANDAS_VERSION.tar.gz
-PANDAS_SOURCE_URL=https://files.pythonhosted.org/packages/be/4f/5f3422a2afec5ffc46308b79e53291365a93748b498ac2e58bead0197916/pandas-3.0.5.tar.gz
-PANDAS_SOURCE_SHA256=dca3734d6ab7c906e6730f0788b0a1dbb9f2467731f9711f77995c8e9d62d712
+PANDAS_SOURCE_URL=https://files.pythonhosted.org/packages/17/ca/24c6bc92aca3d366146358e47f1d374c0e1a50763ef226fc71eff20a63fb/pandas-3.1.1.tar.gz
+PANDAS_SOURCE_SHA256=05fed3e3b7c99b226f160e29d7d6cb7ef39638c758cbfe42b3f24ba34f04b859
 PANDAS_SOURCE_CACHE_DIR=${PANDAS_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 PANDAS_SOURCE_DIR=$BUILD_DIR/pandas-$PANDAS_VERSION
 PANDAS_IOS_BUILD_DIR=$BUILD_DIR/pandas-ios-build
@@ -102,10 +102,10 @@ PILLOW_IOS_BUILD_DIR=$BUILD_DIR/pillow-ios-build
 PILLOW_IOS_SIMULATOR_BUILD_DIR=$BUILD_DIR/pillow-ios-simulator-build
 PILLOW_MACOS_BUILD_DIR=$BUILD_DIR/pillow-macos-build
 PILLOW_FEATURE_POLICY="zlib=enabled jpeg=libjpeg-turbo freetype=matplotlib raqm=matplotlib tiff=disabled lcms=disabled webp=disabled jpeg2000=disabled imagequant=disabled xcb=disabled avif=disabled"
-LIBJPEG_TURBO_VERSION=3.2.0
+LIBJPEG_TURBO_VERSION=3.2.1
 LIBJPEG_TURBO_SOURCE_FILENAME=libjpeg-turbo-$LIBJPEG_TURBO_VERSION.tar.gz
-LIBJPEG_TURBO_SOURCE_URL=https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz
-LIBJPEG_TURBO_SOURCE_SHA256=6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e
+LIBJPEG_TURBO_SOURCE_URL=https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.1/libjpeg-turbo-3.2.1.tar.gz
+LIBJPEG_TURBO_SOURCE_SHA256=c27ad72a68da151177929aa969ae773a2da5ac2af9ce946079314fdac8cece7f
 LIBJPEG_TURBO_SOURCE_CACHE_DIR=${LIBJPEG_TURBO_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 LIBJPEG_TURBO_SOURCE_DIR=$BUILD_DIR/libjpeg-turbo-$LIBJPEG_TURBO_VERSION
 LIBJPEG_TURBO_IOS_BUILD_DIR=$BUILD_DIR/libjpeg-turbo-ios-build
@@ -115,10 +115,10 @@ LIBJPEG_TURBO_IOS_PREFIX=$BUILD_DIR/libjpeg-turbo-ios-prefix
 LIBJPEG_TURBO_IOS_SIMULATOR_PREFIX=$BUILD_DIR/libjpeg-turbo-ios-simulator-prefix
 LIBJPEG_TURBO_MACOS_PREFIX=$BUILD_DIR/libjpeg-turbo-macos-prefix
 LIBJPEG_TURBO_FEATURE_POLICY="library=static api=jpeg8 simd=required turbojpeg=disabled tools=disabled"
-LIBXML2_VERSION=2.14.6
+LIBXML2_VERSION=2.15.4
 LIBXML2_SOURCE_FILENAME=libxml2-$LIBXML2_VERSION.tar.xz
-LIBXML2_SOURCE_URL=https://download.gnome.org/sources/libxml2/2.14/libxml2-2.14.6.tar.xz
-LIBXML2_SOURCE_SHA256=7ce458a0affeb83f0b55f1f4f9e0e55735dbfc1a9de124ee86fb4a66b597203a
+LIBXML2_SOURCE_URL=https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz
+LIBXML2_SOURCE_SHA256=98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821
 LIBXML2_SOURCE_CACHE_DIR=${LIBXML2_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 LIBXML2_SOURCE_DIR=$BUILD_DIR/libxml2-$LIBXML2_VERSION
 LIBXML2_IOS_BUILD_DIR=$BUILD_DIR/libxml2-ios-build
@@ -127,29 +127,30 @@ LIBXML2_MACOS_BUILD_DIR=$BUILD_DIR/libxml2-macos-build
 LIBXML2_IOS_PREFIX=$BUILD_DIR/libxml2-ios-prefix
 LIBXML2_IOS_SIMULATOR_PREFIX=$BUILD_DIR/libxml2-ios-simulator-prefix
 LIBXML2_MACOS_PREFIX=$BUILD_DIR/libxml2-macos-prefix
-LIBXSLT_VERSION=1.1.43
+LIBXML2_PKG_CONFIG=$BUILD_DIR/libxml2-no-modules-pkg-config
+LIBXSLT_VERSION=1.1.45
 LIBXSLT_SOURCE_FILENAME=libxslt-$LIBXSLT_VERSION.tar.xz
-LIBXSLT_SOURCE_URL=https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.43.tar.xz
-LIBXSLT_SOURCE_SHA256=5a3d6b383ca5afc235b171118e90f5ff6aa27e9fea3303065231a6d403f0183a
+LIBXSLT_SOURCE_URL=https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.45.tar.xz
+LIBXSLT_SOURCE_SHA256=9acfe68419c4d06a45c550321b3212762d92f41465062ca4ea19e632ee5d216e
 LIBXSLT_SOURCE_CACHE_DIR=${LIBXSLT_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 LIBXSLT_SOURCE_DIR=$BUILD_DIR/libxslt-$LIBXSLT_VERSION
 LIBXSLT_IOS_BUILD_DIR=$BUILD_DIR/libxslt-ios-build
 LIBXSLT_IOS_SIMULATOR_BUILD_DIR=$BUILD_DIR/libxslt-ios-simulator-build
 LIBXSLT_MACOS_BUILD_DIR=$BUILD_DIR/libxslt-macos-build
-LXML_VERSION=6.1.2
+LXML_VERSION=6.1.3
 LXML_SOURCE_FILENAME=lxml-$LXML_VERSION.tar.gz
-LXML_SOURCE_URL=https://files.pythonhosted.org/packages/ad/a9/970b8fa0ecc4fbf1dfaed0d89bbc1fc1421b25ec26a2038c91e872dc6c8e/lxml-6.1.2.tar.gz
-LXML_SOURCE_SHA256=1055241852f2b02068af4a625a5d32c087db193c12251928af2562ecd2239f18
+LXML_SOURCE_URL=https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz
+LXML_SOURCE_SHA256=45222d94ddd511536f3b2f7d9deae3b2339b4ce0f075f1ca25703b07cad9dd21
 LXML_SOURCE_CACHE_DIR=${LXML_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 LXML_SOURCE_DIR=$BUILD_DIR/lxml-$LXML_VERSION
 LXML_IOS_BUILD_DIR=$BUILD_DIR/lxml-ios-build
 LXML_IOS_SIMULATOR_BUILD_DIR=$BUILD_DIR/lxml-ios-simulator-build
 LXML_MACOS_BUILD_DIR=$BUILD_DIR/lxml-macos-build
 LXML_FEATURE_POLICY="libxml2=static libxslt=static libexslt=static zlib=sdk iconv=sdk debugger=disabled profiler=enabled crypto=disabled plugins=disabled"
-CONTOURPY_VERSION=1.3.3
+CONTOURPY_VERSION=1.4.0
 CONTOURPY_SOURCE_FILENAME=contourpy-$CONTOURPY_VERSION.tar.gz
-CONTOURPY_SOURCE_URL=https://files.pythonhosted.org/packages/source/c/contourpy/contourpy-1.3.3.tar.gz
-CONTOURPY_SOURCE_SHA256=083e12155b210502d0bca491432bb04d56dc3432f95a979b429f2848c3dbe880
+CONTOURPY_SOURCE_URL=https://files.pythonhosted.org/packages/source/c/contourpy/contourpy-1.4.0.tar.gz
+CONTOURPY_SOURCE_SHA256=20156f5a1ac4f8ce02656e39a61e82164a3d359796dc8026f75b062783d500e1
 CONTOURPY_SOURCE_CACHE_DIR=${CONTOURPY_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 CONTOURPY_SOURCE_DIR=$BUILD_DIR/contourpy-$CONTOURPY_VERSION
 CONTOURPY_IOS_BUILD_DIR=$BUILD_DIR/contourpy-ios-build
@@ -170,10 +171,10 @@ KIWISOLVER_SOURCE_DIR=$BUILD_DIR/kiwisolver-$KIWISOLVER_VERSION
 KIWISOLVER_IOS_BUILD_DIR=$BUILD_DIR/kiwisolver-ios-build
 KIWISOLVER_IOS_SIMULATOR_BUILD_DIR=$BUILD_DIR/kiwisolver-ios-simulator-build
 KIWISOLVER_MACOS_BUILD_DIR=$BUILD_DIR/kiwisolver-macos-build
-MATPLOTLIB_VERSION=3.11.1
+MATPLOTLIB_VERSION=3.11.2
 MATPLOTLIB_SOURCE_FILENAME=matplotlib-$MATPLOTLIB_VERSION.tar.gz
-MATPLOTLIB_SOURCE_URL=https://files.pythonhosted.org/packages/49/64/f9a391af28f518b11ad45a8a712353c94a0aefce09d3703200e5c54b610a/matplotlib-3.11.1.tar.gz
-MATPLOTLIB_SOURCE_SHA256=69647db5746941c793d6e445a4cd349323ffb87d9cc958c2ad84a659b4832d30
+MATPLOTLIB_SOURCE_URL=https://files.pythonhosted.org/packages/e7/c8/9aa712a0afb882649424dd8de8ad9aa6235e796e84c6052e8f6dc1598d0d/matplotlib-3.11.2.tar.gz
+MATPLOTLIB_SOURCE_SHA256=cec596316640f2b394b8f0daa0ea61a8eae82d017b620b9f202befb972a59ea4
 MATPLOTLIB_SOURCE_CACHE_DIR=${MATPLOTLIB_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 MATPLOTLIB_SOURCE_DIR=$BUILD_DIR/matplotlib-$MATPLOTLIB_VERSION
 MATPLOTLIB_IOS_BUILD_DIR=$BUILD_DIR/matplotlib-ios-build
@@ -189,6 +190,10 @@ MATPLOTLIB_FREETYPE_VERSION=2.14.3
 MATPLOTLIB_FREETYPE_SOURCE_FILENAME=freetype-$MATPLOTLIB_FREETYPE_VERSION.tar.xz
 MATPLOTLIB_FREETYPE_SOURCE_URL=https://download.savannah.nongnu.org/releases/freetype/freetype-2.14.3.tar.xz
 MATPLOTLIB_FREETYPE_SOURCE_SHA256=36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f
+# Upstream FreeType fixes applied to matplotlib's pinned 2.14.3 (issues #1436
+# and #1457), so its rendering stays on the version matplotlib tests against.
+MATPLOTLIB_FREETYPE_PATCH=freetype-2.14.3-security-backports.patch
+MATPLOTLIB_FREETYPE_BACKPORTS="5a280ecde6f324de0d226261036e736e0cb49a71 f3ca71c9900fe860849b3163a6e2c1e765b291d9"
 MATPLOTLIB_HARFBUZZ_VERSION=14.1.0
 MATPLOTLIB_HARFBUZZ_SOURCE_FILENAME=harfbuzz-$MATPLOTLIB_HARFBUZZ_VERSION.tar.xz
 MATPLOTLIB_HARFBUZZ_SOURCE_URL=https://github.com/harfbuzz/harfbuzz/releases/download/14.1.0/harfbuzz-14.1.0.tar.xz
@@ -206,38 +211,38 @@ MATPLOTLIB_QHULL_SOURCE_FILENAME=qhull-8.0.2.tgz
 MATPLOTLIB_QHULL_SOURCE_URL=https://github.com/qhull/qhull/archive/v8.0.2/qhull-8.0.2.tar.gz
 MATPLOTLIB_QHULL_SOURCE_SHA256=8774e9a12c70b0180b95d6b0b563c5aa4bea8d5960c15e18ae3b6d2521d64f8b
 MATPLOTLIB_FEATURE_POLICY="backend=Agg macosx=disabled tkagg=disabled freetype=bundled harfbuzz=bundled sheenbidi=bundled libraqm=bundled qhull=bundled lto=disabled"
-PSDTOOLS_VERSION=1.18.0
+PSDTOOLS_VERSION=1.26.0
 PSDTOOLS_SOURCE_FILENAME=psd-tools-$PSDTOOLS_VERSION.tar.gz
 PSDTOOLS_SOURCE_URL=https://github.com/psd-tools/psd-tools/archive/refs/tags/v$PSDTOOLS_VERSION.tar.gz
-PSDTOOLS_SOURCE_SHA256=c0590044f714a51ced823e5011aaa14ea563a6438f735d89a84bfc482e9dac5c
+PSDTOOLS_SOURCE_SHA256=6dc17294417504d9cdc3de0c5bd43d006c61b4d5630ade481fea65489c6f9927
 PSDTOOLS_SOURCE_CACHE_DIR=${PSDTOOLS_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 PSDTOOLS_SOURCE_DIR=$BUILD_DIR/psd-tools-$PSDTOOLS_VERSION
 PSDTOOLS_IOS_BUILD_DIR=$BUILD_DIR/psd-tools-ios-build
 PSDTOOLS_IOS_SIMULATOR_BUILD_DIR=$BUILD_DIR/psd-tools-ios-simulator-build
 PSDTOOLS_MACOS_BUILD_DIR=$BUILD_DIR/psd-tools-macos-build
 PSDTOOLS_FEATURE_POLICY="rle=static-cython limited-api=0x030D0000 composite-extra=disabled"
-REGEX_VERSION=2026.7.19
+REGEX_VERSION=2026.9.29
 REGEX_SOURCE_FILENAME=regex-$REGEX_VERSION.tar.gz
-REGEX_SOURCE_URL=https://files.pythonhosted.org/packages/20/98/04b13f1ddfb63158025291c02e03eb42fbb7acb51d091d541050eb4e35e8/regex-2026.7.19.tar.gz
-REGEX_SOURCE_SHA256=7e77b324909c1617cbb4c668677e2c6ae13f44d7c1de0d4f15f2e3c10f3315b5
+REGEX_SOURCE_URL=https://files.pythonhosted.org/packages/fc/f2/af1da9d3ceed77bfcdce40427d49ba0be94e4fe84245e3bfef68c10e75b6/regex-2026.9.29.tar.gz
+REGEX_SOURCE_SHA256=8b5fcc4771732191b2b7d1dd68d8f0353f47f8d90b6150f6dce58bf1112442cb
 REGEX_SOURCE_CACHE_DIR=${REGEX_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 REGEX_SOURCE_DIR=$BUILD_DIR/regex-$REGEX_VERSION
 REGEX_IOS_BUILD_DIR=$BUILD_DIR/regex-ios-build
 REGEX_IOS_SIMULATOR_BUILD_DIR=$BUILD_DIR/regex-ios-simulator-build
 REGEX_MACOS_BUILD_DIR=$BUILD_DIR/regex-macos-build
 REGEX_FEATURE_POLICY="python=3.14 c-extension=static external-libraries=none interpreter=main-only"
-TOKENIZERS_VERSION=0.22.2
+TOKENIZERS_VERSION=0.23.3
 TOKENIZERS_SOURCE_FILENAME=tokenizers-$TOKENIZERS_VERSION.tar.gz
-TOKENIZERS_SOURCE_URL=https://files.pythonhosted.org/packages/73/6f/f80cfef4a312e1fb34baf7d85c72d4411afde10978d4657f8cdd811d3ccc/tokenizers-0.22.2.tar.gz
-TOKENIZERS_SOURCE_SHA256=473b83b915e547aa366d1eee11806deaf419e17be16310ac0a14077f1e28f917
-TOKENIZERS_CARGO_LOCK_SHA256=a3ff2022b3790e2f5863fe59732ab76da81dd75bc3a94905127206e87125170d
+TOKENIZERS_SOURCE_URL=https://files.pythonhosted.org/packages/e0/7c/2cabb2174e772636683008f2c5621949b645da7d303c596589e84516a184/tokenizers-0.23.3.tar.gz
+TOKENIZERS_SOURCE_SHA256=cded33237c77caeef62944d32aa9a7ef42bdce2b3497e18d137e072a8c4be438
+TOKENIZERS_CARGO_LOCK_SHA256=afcedf7f2ebe008b068d7afd25e77f7d9d8e433c24153bc35a1eb5611083ee5b
 TOKENIZERS_SOURCE_CACHE_DIR=${TOKENIZERS_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 TOKENIZERS_SOURCE_DIR=$BUILD_DIR/tokenizers-$TOKENIZERS_VERSION
 TOKENIZERS_CARGO_HOME=${TOKENIZERS_CARGO_HOME:-$APPLE_DEPS_CACHE_DIR/tokenizers-cargo-$TOKENIZERS_VERSION}
 TOKENIZERS_IOS_BUILD_DIR=$BUILD_DIR/tokenizers-ios-build
 TOKENIZERS_IOS_SIMULATOR_BUILD_DIR=$BUILD_DIR/tokenizers-ios-simulator-build
 TOKENIZERS_MACOS_BUILD_DIR=$BUILD_DIR/tokenizers-macos-build
-TOKENIZERS_FEATURE_POLICY="pyo3=0.26.0 abi3=py39 onig=vendored esaxx=cpp progressbar=enabled rust-http=disabled lto=disabled interpreter=main-only"
+TOKENIZERS_FEATURE_POLICY="pyo3=0.29.2 abi3=py310 onig=vendored esaxx=cpp progressbar=enabled rust-http=disabled lto=disabled interpreter=main-only"
 SENTENCEPIECE_VERSION=0.2.2
 SENTENCEPIECE_SOURCE_FILENAME=sentencepiece-$SENTENCEPIECE_VERSION.tar.gz
 SENTENCEPIECE_SOURCE_URL=https://files.pythonhosted.org/packages/cc/33/ea3cb3839607eb175da835244a798f797f478c5ddf0e8ecdf57ea85a4c70/sentencepiece-0.2.2.tar.gz
@@ -287,10 +292,10 @@ SAFETENSORS_IOS_BUILD_DIR=$BUILD_DIR/safetensors-ios-build
 SAFETENSORS_IOS_SIMULATOR_BUILD_DIR=$BUILD_DIR/safetensors-ios-simulator-build
 SAFETENSORS_MACOS_BUILD_DIR=$BUILD_DIR/safetensors-macos-build
 SAFETENSORS_FEATURE_POLICY="pyo3=0.28.3 abi3=py310 host-python=disabled mmap=enabled pread=enabled lto=disabled interpreter=main-only"
-MLX_VERSION=0.32.2
+MLX_VERSION=0.32.4
 MLX_SOURCE_FILENAME=mlx-$MLX_VERSION.tar.gz
 MLX_SOURCE_URL=https://github.com/ml-explore/mlx/archive/refs/tags/v$MLX_VERSION.tar.gz
-MLX_SOURCE_SHA256=bf892386ccac1d249acc9da21574fd7b95a995f4c58b03310105fe05f077b175
+MLX_SOURCE_SHA256=0276db8d7bf1af8db6d4ae25c7c550abea4d5b3b6a16207610a5d4a0c19fe1a0
 MLX_SOURCE_CACHE_DIR=${MLX_SOURCE_CACHE_DIR:-$APPLE_DEPS_CACHE_DIR/python-packages}
 MLX_SOURCE_DIR=$BUILD_DIR/mlx-$MLX_VERSION
 MLX_IOS_BUILD_DIR=$BUILD_DIR/mlx-ios-build
@@ -301,7 +306,7 @@ MLX_MACOS_METALLIB_NAME=mlx-macos.metallib
 MLX_METAL_CPP_VERSION=26
 MLX_JSON_VERSION=3.11.3
 MLX_FMT_VERSION=12.1.0
-MLX_NANOBIND_VERSION=2.13.0
+MLX_NANOBIND_VERSION=3.1.0
 MLX_GGUF_COMMIT=8fa6eb65236618e28fd7710a0fba565f7faa1848
 MLX_FEATURE_POLICY="platforms=ios-arm64,macos-arm64 cpu=Accelerate metal=precompiled metal-jit=disabled metal-cpp-constants=dynamic gguf=enabled safetensors=enabled lto=disabled"
 HOST_CPU_COUNT=${HOST_CPU_COUNT:-}
@@ -1198,7 +1203,8 @@ build_pandas_ios() {
         "$NUMPY_BUILD_TOOLS_VENV/bin/meson" setup "$PANDAS_IOS_BUILD_DIR" \
             "$PANDAS_SOURCE_DIR" \
             --cross-file="$cross_file" \
-            --prefix="$PANDAS_IOS_INSTALL_PREFIX"
+            --prefix="$PANDAS_IOS_INSTALL_PREFIX" \
+            --wrap-mode=forcefallback
     run_package_meson "$BUILD_DIR/pandas_make_ios.log" \
         PYTHONPATH="$ios_sysconfig_dir:$numpy_site_packages" \
         _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__ios_arm64-iphoneos \
@@ -1221,7 +1227,8 @@ build_pandas_ios_simulator() {
         "$NUMPY_BUILD_TOOLS_VENV/bin/meson" setup "$PANDAS_IOS_SIMULATOR_BUILD_DIR" \
             "$PANDAS_SOURCE_DIR" \
             --cross-file="$cross_file" \
-            --prefix="$PANDAS_IOS_SIMULATOR_INSTALL_PREFIX"
+            --prefix="$PANDAS_IOS_SIMULATOR_INSTALL_PREFIX" \
+            --wrap-mode=forcefallback
     run_package_meson "$BUILD_DIR/pandas_make_ios_simulator.log" \
         PYTHONPATH="$ios_simulator_sysconfig_dir:$numpy_site_packages" \
         _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__ios_arm64-iphonesimulator \
@@ -1240,7 +1247,8 @@ build_pandas_macos() {
         PYTHONPATH="$numpy_site_packages" \
         "$NUMPY_BUILD_TOOLS_VENV/bin/meson" setup "$PANDAS_MACOS_BUILD_DIR" \
             "$PANDAS_SOURCE_DIR" \
-            --prefix="$PANDAS_MACOS_INSTALL_PREFIX"
+            --prefix="$PANDAS_MACOS_INSTALL_PREFIX" \
+            --wrap-mode=forcefallback
     run_package_meson "$BUILD_DIR/pandas_make_macos.log" \
         MACOSX_DEPLOYMENT_TARGET="$MACOS_MINIMUM_OS_VERSION" \
         PYTHONPATH="$numpy_site_packages" \
@@ -1265,7 +1273,7 @@ pandas._libs.indexing PyInit_indexing
 pandas._libs.internals PyInit_internals
 pandas._libs.interval PyInit_interval
 pandas._libs.join PyInit_join
-pandas._libs.json PyInit_json
+pandas._libs._ujson PyInit__ujson
 pandas._libs.lib PyInit_lib
 pandas._libs.missing PyInit_missing
 pandas._libs.ops PyInit_ops
@@ -1358,7 +1366,7 @@ compile_pandas_inittab_macos() {
 pandas_runtime_objects() {
     build_root=$1
     find "$build_root/pandas" -path '*tests*' -prune -o \
-        -path '*.so.p/*.o' \
+        \( -path '*.so.p/*.o' -o -path '*.a.p/*.o' \) \
         -print
     find "$build_root" -path "$build_root/_cyutility*.so.p/*.o" -print
 }
@@ -1681,6 +1689,19 @@ prepare_libxml2_source() {
     tar -xf "$archive" -C "$BUILD_DIR/libxml2-source"
     mv "$BUILD_DIR/libxml2-source/libxml2-$LIBXML2_VERSION" "$LIBXML2_SOURCE_DIR"
     rmdir "$BUILD_DIR/libxml2-source"
+
+    # libxml2 2.15's configure requires a pkg-config program but only uses it
+    # for optional module lookups, falling back to direct zlib and iconv
+    # probes. This stub passes the version check and finds no modules, so no
+    # host .pc file reaches the static build.
+    cat > "$LIBXML2_PKG_CONFIG" <<'EOF'
+#!/bin/sh
+case "$1" in
+    --atleast-pkgconfig-version) exit 0 ;;
+esac
+exit 1
+EOF
+    chmod +x "$LIBXML2_PKG_CONFIG"
 }
 
 prepare_libxslt_source() {
@@ -1720,13 +1741,14 @@ build_libxml2_ios() {
                 CC="xcrun --sdk iphoneos clang" \
                 CFLAGS="-arch arm64 -miphoneos-version-min=$IOS_MINIMUM_OS_VERSION -isysroot $ios_sdk_path -O2 -fPIC" \
                 LDFLAGS="-arch arm64 -miphoneos-version-min=$IOS_MINIMUM_OS_VERSION -isysroot $ios_sdk_path -lz" \
+                PKG_CONFIG="$LIBXML2_PKG_CONFIG" \
                 ./configure \
                     --host=arm-apple-darwin \
                     --prefix="$LIBXML2_IOS_PREFIX" \
                     --enable-static \
                     --disable-shared \
                     --without-python \
-                    --without-lzma \
+                    --with-schematron \
                     --without-icu \
                     --without-readline \
                     --with-zlib \
@@ -1747,13 +1769,14 @@ build_libxml2_ios_simulator() {
                 CC="xcrun --sdk iphonesimulator clang" \
                 CFLAGS="-arch arm64 -mios-simulator-version-min=$IOS_MINIMUM_OS_VERSION -isysroot $ios_simulator_sdk_path -O2 -fPIC" \
                 LDFLAGS="-arch arm64 -mios-simulator-version-min=$IOS_MINIMUM_OS_VERSION -isysroot $ios_simulator_sdk_path -lz" \
+                PKG_CONFIG="$LIBXML2_PKG_CONFIG" \
                 ./configure \
                     --host=arm-apple-darwin \
                     --prefix="$LIBXML2_IOS_SIMULATOR_PREFIX" \
                     --enable-static \
                     --disable-shared \
                     --without-python \
-                    --without-lzma \
+                    --with-schematron \
                     --without-icu \
                     --without-readline \
                     --with-zlib \
@@ -1774,12 +1797,13 @@ build_libxml2_macos() {
                 CC=cc \
                 CFLAGS="-arch arm64 -mmacosx-version-min=$MACOS_MINIMUM_OS_VERSION -isysroot $macos_sdk_path -O2 -fPIC" \
                 LDFLAGS="-arch arm64 -mmacosx-version-min=$MACOS_MINIMUM_OS_VERSION -isysroot $macos_sdk_path -lz" \
+                PKG_CONFIG="$LIBXML2_PKG_CONFIG" \
                 ./configure \
                     --prefix="$LIBXML2_MACOS_PREFIX" \
                     --enable-static \
                     --disable-shared \
                     --without-python \
-                    --without-lzma \
+                    --with-schematron \
                     --without-icu \
                     --without-readline \
                     --with-zlib \
@@ -2259,6 +2283,17 @@ prepare_matplotlib_source() {
     cp "$sheenbidi_archive" "$MATPLOTLIB_SOURCE_DIR/subprojects/packagecache/$MATPLOTLIB_SHEENBIDI_SOURCE_FILENAME"
     cp "$libraqm_archive" "$MATPLOTLIB_SOURCE_DIR/subprojects/packagecache/$MATPLOTLIB_LIBRAQM_SOURCE_FILENAME"
     cp "$qhull_archive" "$MATPLOTLIB_SOURCE_DIR/subprojects/packagecache/$MATPLOTLIB_QHULL_SOURCE_FILENAME"
+
+    freetype_wrap="$MATPLOTLIB_SOURCE_DIR/subprojects/freetype2.wrap"
+    freetype_diff_files="diff_files = freetype-2.14.1-static-harfbuzz.patch, freetype-2.14.1-wasm-visibility.patch"
+    if ! grep -qx "$freetype_diff_files" "$freetype_wrap"; then
+        echo "matplotlib freetype2.wrap diff_files no longer match" >&2
+        exit 1
+    fi
+    cp "$REPO_ROOT/Vendors/PythonIOS/Patches/$MATPLOTLIB_FREETYPE_PATCH" "$MATPLOTLIB_SOURCE_DIR/subprojects/packagefiles/"
+    sed -i.bak "s/^$freetype_diff_files\$/&, $MATPLOTLIB_FREETYPE_PATCH/" "$freetype_wrap"
+    rm -f "$freetype_wrap.bak"
+    grep -qx "$freetype_diff_files, $MATPLOTLIB_FREETYPE_PATCH" "$freetype_wrap"
 }
 
 write_matplotlib_ios_cross_file() {
@@ -3003,7 +3038,7 @@ install_tokenizers_resources() {
     package_root="$site_packages/tokenizers"
     dist_info="$site_packages/tokenizers-$TOKENIZERS_VERSION.dist-info"
     rm -rf "$package_root" "$site_packages"/tokenizers-*.dist-info
-    cp -R "$TOKENIZERS_SOURCE_DIR/bindings/python/py_src/tokenizers" "$package_root"
+    cp -R "$TOKENIZERS_SOURCE_DIR/py_src/tokenizers" "$package_root"
     mkdir -p "$dist_info/licenses"
     cp "$TOKENIZERS_SOURCE_DIR/PKG-INFO" "$dist_info/METADATA"
     cp "$TOKENIZERS_SOURCE_DIR/tokenizers/LICENSE" "$dist_info/licenses/"
@@ -4244,6 +4279,7 @@ fi
     echo "MATPLOTLIB_SOURCE_SHA256=$MATPLOTLIB_SOURCE_SHA256"
     echo "MATPLOTLIB_FREETYPE_SOURCE_URL=$MATPLOTLIB_FREETYPE_SOURCE_URL"
     echo "MATPLOTLIB_FREETYPE_SOURCE_SHA256=$MATPLOTLIB_FREETYPE_SOURCE_SHA256"
+    echo "MATPLOTLIB_FREETYPE_BACKPORTS=$MATPLOTLIB_FREETYPE_BACKPORTS"
     echo "MATPLOTLIB_HARFBUZZ_SOURCE_URL=$MATPLOTLIB_HARFBUZZ_SOURCE_URL"
     echo "MATPLOTLIB_HARFBUZZ_SOURCE_SHA256=$MATPLOTLIB_HARFBUZZ_SOURCE_SHA256"
     echo "MATPLOTLIB_SHEENBIDI_SOURCE_URL=$MATPLOTLIB_SHEENBIDI_SOURCE_URL"

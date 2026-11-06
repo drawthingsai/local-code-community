@@ -1,8 +1,8 @@
 from collections.abc import Sequence
-from typing import Any, Literal, TypeAlias, TypeVar, overload
+from typing import Any, Literal, overload
 
 import numpy as np
-from numpy import _OrderKACF, number
+from numpy import _OrderKACF
 from numpy._typing import (
     NDArray,
     _ArrayLikeBool_co,
@@ -22,14 +22,9 @@ from numpy._typing import (
 
 __all__ = ["einsum", "einsum_path"]
 
-_ArrayT = TypeVar(
-    "_ArrayT",
-    bound=NDArray[np.bool | number],
-)
-
-_OptimizeKind: TypeAlias = bool | Literal["greedy", "optimal"] | Sequence[Any] | None
-_CastingSafe: TypeAlias = Literal["no", "equiv", "safe", "same_kind"]
-_CastingUnsafe: TypeAlias = Literal["unsafe"]
+type _OptimizeKind = bool | Literal["greedy", "optimal"] | Sequence[Any] | None
+type _CastingSafe = Literal["no", "equiv", "safe", "same_kind"]
+type _CastingUnsafe = Literal["unsafe"]
 
 # TODO: Properly handle the `casting`-based combinatorics
 # TODO: We need to evaluate the content `__subscripts` in order
@@ -39,7 +34,7 @@ _CastingUnsafe: TypeAlias = Literal["unsafe"]
 # Something like `is_scalar = bool(__subscripts.partition("->")[-1])`
 @overload
 def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeBool_co,
     out: None = None,
@@ -50,7 +45,7 @@ def einsum(
 ) -> Any: ...
 @overload
 def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeUInt_co,
     out: None = None,
@@ -61,7 +56,7 @@ def einsum(
 ) -> Any: ...
 @overload
 def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeInt_co,
     out: None = None,
@@ -72,7 +67,7 @@ def einsum(
 ) -> Any: ...
 @overload
 def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeFloat_co,
     out: None = None,
@@ -83,7 +78,7 @@ def einsum(
 ) -> Any: ...
 @overload
 def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeComplex_co,
     out: None = None,
@@ -94,7 +89,7 @@ def einsum(
 ) -> Any: ...
 @overload
 def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: Any,
     casting: _CastingUnsafe,
@@ -104,31 +99,31 @@ def einsum(
     optimize: _OptimizeKind = False,
 ) -> Any: ...
 @overload
-def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+def einsum[OutT: NDArray[np.bool | np.number]](
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeComplex_co,
-    out: _ArrayT,
+    out: OutT,
     dtype: _DTypeLikeComplex_co | None = ...,
     order: _OrderKACF = ...,
     casting: _CastingSafe = ...,
     optimize: _OptimizeKind = False,
-) -> _ArrayT: ...
+) -> OutT: ...
 @overload
-def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+def einsum[OutT: NDArray[np.bool | np.number]](
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: Any,
-    out: _ArrayT,
+    out: OutT,
     casting: _CastingUnsafe,
     dtype: _DTypeLikeComplex_co | None = ...,
     order: _OrderKACF = ...,
     optimize: _OptimizeKind = False,
-) -> _ArrayT: ...
+) -> OutT: ...
 
 @overload
 def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeObject_co,
     out: None = None,
@@ -139,7 +134,7 @@ def einsum(
 ) -> Any: ...
 @overload
 def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: Any,
     casting: _CastingUnsafe,
@@ -149,34 +144,34 @@ def einsum(
     optimize: _OptimizeKind = False,
 ) -> Any: ...
 @overload
-def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+def einsum[OutT: NDArray[np.bool | np.number]](
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeObject_co,
-    out: _ArrayT,
+    out: OutT,
     dtype: _DTypeLikeObject | None = ...,
     order: _OrderKACF = ...,
     casting: _CastingSafe = ...,
     optimize: _OptimizeKind = False,
-) -> _ArrayT: ...
+) -> OutT: ...
 @overload
-def einsum(
-    subscripts: str | _ArrayLikeInt_co,
+def einsum[OutT: NDArray[np.bool | np.number]](
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: Any,
-    out: _ArrayT,
+    out: OutT,
     casting: _CastingUnsafe,
     dtype: _DTypeLikeObject | None = ...,
     order: _OrderKACF = ...,
     optimize: _OptimizeKind = False,
-) -> _ArrayT: ...
+) -> OutT: ...
 
 # NOTE: `einsum_call` is a hidden kwarg unavailable for public use.
 # It is therefore excluded from the signatures below.
 # NOTE: In practice the list consists of a `str` (first element)
 # and a variable number of integer tuples.
 def einsum_path(
-    subscripts: str | _ArrayLikeInt_co,
+    subscripts: str | _ArrayLikeComplex_co,
     /,
     *operands: _ArrayLikeComplex_co | _DTypeLikeObject,
     optimize: _OptimizeKind = "greedy",

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import (
     Callable,
+    Mapping,
     Sequence,
 )
 from functools import partial
@@ -11,7 +12,6 @@ import re
 from typing import (
     TYPE_CHECKING,
     Any,
-    DefaultDict,
     TypeAlias,
     TypedDict,
 )
@@ -19,7 +19,7 @@ from uuid import uuid4
 
 import numpy as np
 
-from pandas._config import get_option
+from pandas._config.config import _global_config as config
 
 from pandas._libs import lib
 from pandas.compat._optional import import_optional_dependency
@@ -51,7 +51,7 @@ jinja2 = import_optional_dependency("jinja2", extra="DataFrame.style requires ji
 from markupsafe import escape as escape_html  # markupsafe is jinja2 dependency
 
 BaseFormatter: TypeAlias = str | Callable
-ExtFormatter: TypeAlias = BaseFormatter | dict[Any, BaseFormatter | None]
+ExtFormatter: TypeAlias = BaseFormatter | Mapping[Any, BaseFormatter | None]
 CSSPair: TypeAlias = tuple[str, str | float]
 CSSList: TypeAlias = list[CSSPair]
 CSSProperties: TypeAlias = str | CSSList
@@ -130,28 +130,28 @@ class StylerRenderer:
         self.hide_columns_: list = [False] * self.columns.nlevels
         self.hidden_rows: Sequence[int] = []  # sequence for specific hidden rows/cols
         self.hidden_columns: Sequence[int] = []
-        self.ctx: DefaultDict[tuple[int, int], CSSList] = defaultdict(list)
-        self.ctx_index: DefaultDict[tuple[int, int], CSSList] = defaultdict(list)
-        self.ctx_columns: DefaultDict[tuple[int, int], CSSList] = defaultdict(list)
-        self.cell_context: DefaultDict[tuple[int, int], str] = defaultdict(str)
+        self.ctx: defaultdict[tuple[int, int], CSSList] = defaultdict(list)
+        self.ctx_index: defaultdict[tuple[int, int], CSSList] = defaultdict(list)
+        self.ctx_columns: defaultdict[tuple[int, int], CSSList] = defaultdict(list)
+        self.cell_context: defaultdict[tuple[int, int], str] = defaultdict(str)
         self._todo: list[tuple[Callable, tuple, dict]] = []
         self.tooltips: Tooltips | None = None
         precision = (
-            get_option("styler.format.precision") if precision is None else precision
+            config["styler"]["format"]["precision"] if precision is None else precision
         )
-        self._display_funcs: DefaultDict[  # maps (row, col) -> format func
+        self._display_funcs: defaultdict[  # maps (row, col) -> format func
             tuple[int, int], Callable[[Any], str]
         ] = defaultdict(lambda: partial(_default_formatter, precision=precision))
-        self._display_funcs_index: DefaultDict[  # maps (row, level) -> format func
+        self._display_funcs_index: defaultdict[  # maps (row, level) -> format func
             tuple[int, int], Callable[[Any], str]
         ] = defaultdict(lambda: partial(_default_formatter, precision=precision))
-        self._display_funcs_index_names: DefaultDict[  # maps index level -> format func
+        self._display_funcs_index_names: defaultdict[  # maps index level -> format func
             int, Callable[[Any], str]
         ] = defaultdict(lambda: partial(_default_formatter, precision=precision))
-        self._display_funcs_columns: DefaultDict[  # maps (level, col) -> format func
+        self._display_funcs_columns: defaultdict[  # maps (level, col) -> format func
             tuple[int, int], Callable[[Any], str]
         ] = defaultdict(lambda: partial(_default_formatter, precision=precision))
-        self._display_funcs_column_names: DefaultDict[  # maps col level -> format func
+        self._display_funcs_column_names: defaultdict[  # maps col level -> format func
             int, Callable[[Any], str]
         ] = defaultdict(lambda: partial(_default_formatter, precision=precision))
 
@@ -162,6 +162,7 @@ class StylerRenderer:
         max_rows: int | None = None,
         max_cols: int | None = None,
         blank: str = "",
+        trim: bool = True,
     ):
         """
         Computes and applies styles and then generates the general render dicts.
@@ -184,7 +185,7 @@ class StylerRenderer:
                 "foot": f"{foot}_foot",
             }
             dx = concatenated._render(
-                sparse_index, sparse_columns, max_rows, max_cols, blank
+                sparse_index, sparse_columns, max_rows, max_cols, blank, trim
             )
             dxs.append(dx)
 
@@ -196,7 +197,7 @@ class StylerRenderer:
             ctx_len += len(concatenated.index)
 
         d = self._translate(
-            sparse_index, sparse_columns, max_rows, max_cols, blank, dxs
+            sparse_index, sparse_columns, max_rows, max_cols, blank, dxs, trim
         )
         return d
 
@@ -226,7 +227,8 @@ class StylerRenderer:
         """
         Render a Styler in latex format
         """
-        d = self._render(sparse_index, sparse_columns, None, None)
+        # LaTeX is an export format, so never trim to the display limits, GH#68310
+        d = self._render(sparse_index, sparse_columns, trim=False)
         self._translate_latex(d, clines=clines)
         self.template_latex.globals["parse_wrap"] = _parse_latex_table_wrapping
         self.template_latex.globals["parse_table"] = _parse_latex_table_styles
@@ -247,6 +249,33 @@ class StylerRenderer:
         Render a Styler in typst format
         """
         d = self._render(sparse_index, sparse_columns, max_rows, max_cols)
+        index_levels = self.index.nlevels
+        visible_index_levels = max(1, index_levels - sum(self.hide_index_))
+        column_header_rows = (
+            self.columns.nlevels - sum(self.hide_columns_) if len(self.columns) else 0
+        )
+        hidden_columns_set = set(self.hidden_columns)
+        for r, row in enumerate(d["head"]):
+            if r < column_header_rows:
+                # Keep sparse column placeholders, but remove explicitly hidden columns.
+                d["head"][r] = [
+                    cell for cell in row[:visible_index_levels] if cell["is_visible"]
+                ] + [
+                    cell
+                    for c, cell in enumerate(row[visible_index_levels:])
+                    if cell["is_visible"] or c not in hidden_columns_set
+                ]
+            else:
+                d["head"][r] = [cell for cell in row if cell["is_visible"]]
+        d["body"] = [
+            [
+                cell
+                for c, cell in enumerate(row[:index_levels])
+                if not self.hide_index_[c]
+            ]
+            + [cell for cell in row[index_levels:] if cell["is_visible"]]
+            for row in d["body"]
+        ]
         d.update(kwargs)
         return self.template_typst.render(**d)
 
@@ -290,6 +319,7 @@ class StylerRenderer:
         max_cols: int | None = None,
         blank: str = "&nbsp;",
         dxs: list[dict] | None = None,
+        trim: bool = True,
     ):
         """
         Process Styler data and settings into a dict for template rendering.
@@ -311,6 +341,9 @@ class StylerRenderer:
             Entry to top-left blank cells.
         dxs : list[dict]
             The render dicts of the concatenated Stylers.
+        trim : bool, default True
+            Whether to trim rows and columns to ``max_rows``, ``max_cols`` and the
+            ``styler.render`` options. If False, render all rows and columns.
 
         Returns
         -------
@@ -329,18 +362,23 @@ class StylerRenderer:
             "caption": self.caption,
         }
 
-        max_elements = get_option("styler.render.max_elements")
-        max_rows = max_rows if max_rows else get_option("styler.render.max_rows")
-        max_cols = max_cols if max_cols else get_option("styler.render.max_columns")
-        max_rows, max_cols = _get_trimming_maximums(
-            len(self.data.index),
-            len(self.data.columns),
-            max_elements,
-            max_rows,
-            max_cols,
-        )
+        if trim:
+            max_elements = config["styler"]["render"]["max_elements"]
+            max_rows = max_rows if max_rows else config["styler"]["render"]["max_rows"]
+            max_cols = (
+                max_cols if max_cols else config["styler"]["render"]["max_columns"]
+            )
+            max_rows, max_cols = _get_trimming_maximums(
+                len(self.data.index),
+                len(self.data.columns),
+                max_elements,
+                max_rows,
+                max_cols,
+            )
+        else:
+            max_rows, max_cols = len(self.data.index), len(self.data.columns)
 
-        self.cellstyle_map_columns: DefaultDict[tuple[CSSPair, ...], list[str]] = (
+        self.cellstyle_map_columns: defaultdict[tuple[CSSPair, ...], list[str]] = (
             defaultdict(list)
         )
         head = self._translate_header(sparse_cols, max_cols)
@@ -352,10 +390,10 @@ class StylerRenderer:
         )
         d.update({"index_lengths": idx_lengths})
 
-        self.cellstyle_map: DefaultDict[tuple[CSSPair, ...], list[str]] = defaultdict(
+        self.cellstyle_map: defaultdict[tuple[CSSPair, ...], list[str]] = defaultdict(
             list
         )
-        self.cellstyle_map_index: DefaultDict[tuple[CSSPair, ...], list[str]] = (
+        self.cellstyle_map_index: defaultdict[tuple[CSSPair, ...], list[str]] = (
             defaultdict(list)
         )
         body: list = self._translate_body(idx_lengths, max_rows, max_cols)
@@ -381,7 +419,7 @@ class StylerRenderer:
             )
 
         table_attr = self.table_attributes
-        if not get_option("styler.html.mathjax"):
+        if not config["styler"]["html"]["mathjax"]:
             table_attr = table_attr or ""
             if 'class="' in table_attr:
                 table_attr = table_attr.replace(
@@ -596,7 +634,9 @@ class StylerRenderer:
         column_blanks: list = []
         visible_col_count: int = 0
         if clabels:
-            last_level = self.columns.nlevels - 1  # use last level since never sparsed
+            last_level = (
+                self.columns.nlevels - 1
+            )  # use last level since never sparsified
             for c, value in enumerate(clabels[last_level]):
                 header_element_visible = _is_visible(c, last_level, col_lengths)
                 if header_element_visible:
@@ -633,11 +673,6 @@ class StylerRenderer:
 
         Also add elements to the cellstyle_map for more efficient grouped elements in
         <style></style> block
-
-        Parameters
-        ----------
-        sparsify_index : bool
-            Whether index_headers section will add rowspan attributes (>1) to elements.
 
         Returns
         -------
@@ -989,6 +1024,12 @@ class StylerRenderer:
         r"""
         Format the text display value of cells.
 
+        This method allows control over how each data cell is displayed
+        by assigning a formatter function or format string. It is particularly
+        useful for adjusting floating point precision, handling missing values,
+        escaping special characters in HTML or LaTeX output, and adding
+        hyperlinks.
+
         Parameters
         ----------
         formatter : str, callable, dict or None
@@ -1212,7 +1253,7 @@ class StylerRenderer:
         subset = non_reducing_slice(subset)
         data = self.data.loc[subset]
 
-        if not isinstance(formatter, dict):
+        if not isinstance(formatter, Mapping):
             formatter = dict.fromkeys(data.columns, formatter)
 
         cis = self.columns.get_indexer_for(data.columns)
@@ -1246,6 +1287,12 @@ class StylerRenderer:
     ) -> StylerRenderer:
         r"""
         Format the text display value of index labels or column headers.
+
+        This method assigns a formatting function to the index or column header
+        labels of the DataFrame, similar to :meth:`Styler.format` but applied
+        to the axis labels rather than the data cells. It supports the same
+        formatter types: callables, format strings, and dicts keyed by
+        MultiIndex level.
 
         Parameters
         ----------
@@ -1396,7 +1443,7 @@ class StylerRenderer:
             display_funcs_.clear()
             return self  # clear the formatter / revert to default and avoid looping
 
-        if not isinstance(formatter, dict):
+        if not isinstance(formatter, Mapping):
             formatter = dict.fromkeys(levels_, formatter)
         else:
             formatter = {
@@ -1428,6 +1475,12 @@ class StylerRenderer:
     ) -> StylerRenderer:
         r"""
         Relabel the index, or column header, keys to display a set of specified values.
+
+        This method provides a way to completely replace the displayed index or
+        column header labels with user-specified values without modifying the
+        underlying DataFrame. It is especially useful when the desired display
+        labels are not a simple function of the existing keys, or when
+        enumeration-based labeling is needed.
 
         Parameters
         ----------
@@ -1691,7 +1744,7 @@ class StylerRenderer:
             display_funcs_.clear()
             return self  # clear the formatter / revert to default and avoid looping
 
-        if not isinstance(formatter, dict):
+        if not isinstance(formatter, Mapping):
             formatter = dict.fromkeys(levels_, formatter)
         else:
             formatter = {
@@ -1986,7 +2039,7 @@ def _maybe_wrap_formatter(
         func_0 = formatter
     elif formatter is None:
         precision = (
-            get_option("styler.format.precision") if precision is None else precision
+            config["styler"]["format"]["precision"] if precision is None else precision
         )
         func_0 = partial(
             _default_formatter, precision=precision, thousands=(thousands is not None)
@@ -2246,10 +2299,8 @@ class Tooltips:
 
         Parameters
         ----------
-        styler_data : DataFrame
-            Underlying ``Styler`` DataFrame used for reindexing.
-        uuid : str
-            The underlying ``Styler`` uuid for CSS id.
+        styler : StylerRenderer
+            The renderer whose ``data`` the tooltips are reindexed against.
         d : dict
             The dictionary prior to final render
 

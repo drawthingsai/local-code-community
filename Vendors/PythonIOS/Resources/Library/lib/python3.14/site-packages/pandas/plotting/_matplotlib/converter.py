@@ -7,17 +7,19 @@ from datetime import (
     tzinfo,
 )
 import functools
+from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
     cast,
 )
-import warnings
 
 import matplotlib as mpl
 import matplotlib.dates as mdates
 import matplotlib.units as munits
 import numpy as np
+
+from pandas._config.config import _global_config as config
 
 from pandas._libs import lib
 from pandas._libs.tslibs import (
@@ -28,11 +30,10 @@ from pandas._libs.tslibs.dtypes import (
     FreqGroup,
     periods_per_day,
 )
-from pandas._typing import (
-    F,
-    npt,
-)
 
+from pandas.core.dtypes.base import (
+    _registry as _ea_dtypes_registry,
+)
 from pandas.core.dtypes.common import (
     is_float,
     is_float_dtype,
@@ -44,10 +45,12 @@ from pandas.core.dtypes.common import (
 from pandas import (
     Index,
     Series,
-    get_option,
 )
 import pandas.core.common as com
-from pandas.core.indexes.datetimes import date_range
+from pandas.core.indexes.datetimes import (
+    DatetimeIndex,
+    date_range,
+)
 from pandas.core.indexes.period import (
     Period,
     PeriodIndex,
@@ -61,13 +64,46 @@ if TYPE_CHECKING:
     from matplotlib.axis import Axis
 
     from pandas._libs.tslibs.offsets import BaseOffset
-    from pandas._typing import TimeUnit
+    from pandas._typing import (
+        F,
+        TimeUnit,
+        npt,
+    )
 
 
-_mpl_units: dict = {}  # Cache for units overwritten by us
+# Cache for units overwritten by us
+_mpl_units: dict[type, munits.ConversionInterface] = {}
 
 
-def get_pairs() -> list[tuple[type, type[mdates.DateConverter]]]:
+def plottable_ea_pairs() -> list[tuple[type, type[munits.ConversionInterface]]]:
+    """Return a list of (type, Converter) pairs of all plottable ExtensionDtypes."""
+    converter_pairs = list(
+        chain.from_iterable(
+            dtype._get_plot_converter() for dtype in _ea_dtypes_registry.dtypes
+        )
+    )
+    return converter_pairs
+
+
+def plottable_types() -> list[type]:
+    """Return a list of plottable types."""
+    types: list[type] = [
+        np.number,
+        np.datetime64,
+        np.timedelta64,
+        Timestamp,
+        pydt.date,
+        pydt.datetime,
+        pydt.time,
+        pydt.timedelta,
+    ]
+    # Get the types supported by ExtensionDtypes that are plottable
+    types.extend([pair[0] for pair in plottable_ea_pairs()])
+    return types
+
+
+def get_pairs() -> list[tuple[type, type[munits.ConversionInterface]]]:
+    """Return a list of (type, converter) pairs for the matplotlib units registry."""
     pairs = [
         (Timestamp, DatetimeConverter),
         (Period, PeriodConverter),
@@ -76,6 +112,7 @@ def get_pairs() -> list[tuple[type, type[mdates.DateConverter]]]:
         (pydt.time, TimeConverter),
         (np.datetime64, DatetimeConverter),
     ]
+    pairs.extend(plottable_ea_pairs())
     return pairs
 
 
@@ -89,7 +126,7 @@ def register_pandas_matplotlib_converters(func: F) -> F:
         with pandas_converters():
             return func(*args, **kwargs)
 
-    return cast(F, wrapper)
+    return cast("F", wrapper)
 
 
 @contextlib.contextmanager
@@ -101,7 +138,7 @@ def pandas_converters() -> Generator[None]:
     --------
     register_pandas_matplotlib_converters : Decorator that applies this.
     """
-    value = get_option("plotting.matplotlib.register_converters")
+    value = config["plotting"]["matplotlib"]["register_converters"]
 
     if value:
         # register for True or "auto"
@@ -151,6 +188,31 @@ def time2num(d):
     if isinstance(d, pydt.time):
         return _to_ordinalf(d)
     return d
+
+
+def bday_count(dt) -> int:
+    """Business-day ordinal for a date (replaces deprecated Period[B].ordinal)."""
+    return int(
+        np.busday_count(np.datetime64("1970-01-01", "D"), np.datetime64(dt, "D"))
+    )
+
+
+def bday_to_datetime(ordinal: int) -> datetime:
+    """Inverse of bday_count (replaces Period(ordinal=N, freq='B'))."""
+    dt64 = np.busday_offset(np.datetime64("1970-01-01", "D"), ordinal)
+    return dt64.astype("datetime64[us]").item()
+
+
+def bday_count_array(dates: np.ndarray) -> np.ndarray:
+    """Vectorized bday_count: datetime64 values to business-day ordinals."""
+    return np.busday_count(
+        np.datetime64("1970-01-01", "D"), dates.astype("datetime64[D]")
+    )
+
+
+def bday_offset_array(ordinals: np.ndarray) -> np.ndarray:
+    """Vectorized bday_to_datetime: business-day ordinals to datetime64[D]."""
+    return np.busday_offset(np.datetime64("1970-01-01", "D"), ordinals)
 
 
 class TimeConverter(munits.ConversionInterface):
@@ -247,37 +309,53 @@ class PeriodConverter(mdates.DateConverter):
 
     @staticmethod
     def _convert_1d(values, freq: BaseOffset):
+        # error: "BaseOffset" has no attribute "_period_dtype_code"
+        dtype_code = freq._period_dtype_code  # type: ignore[attr-defined]
+        is_bday = FreqGroup.from_period_dtype_code(dtype_code) == FreqGroup.FR_BUS
+
         valid_types = (str, datetime, Period, pydt.date, np.datetime64)
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", "Period with BDay freq is deprecated", category=FutureWarning
-            )
-            warnings.filterwarnings(
-                "ignore", r"PeriodDtype\[B\] is deprecated", category=FutureWarning
-            )
-            if (
-                isinstance(values, valid_types)
-                or is_integer(values)
-                or is_float(values)
-            ):
-                return _get_datevalue(values, freq)
-            elif isinstance(values, PeriodIndex):
-                return values.asfreq(freq).asi8
-            elif isinstance(values, Index):
-                return values.map(lambda x: _get_datevalue(x, freq))
-            elif lib.infer_dtype(values, skipna=False) == "period":
-                # https://github.com/pandas-dev/pandas/issues/24304
-                # convert ndarray[period] -> PeriodIndex
-                return PeriodIndex(values, freq=freq).asi8
-            elif isinstance(values, (list, tuple, np.ndarray)):
-                return [_get_datevalue(x, freq) for x in values]
+        if isinstance(values, valid_types) or is_integer(values) or is_float(values):
+            return _get_datevalue(values, freq)
+        elif isinstance(values, PeriodIndex):
+            if is_bday:
+                # Return ordinals directly; asfreq would create Period[B].
+                return values.asi8
+            return values.asfreq(freq).asi8
+        elif isinstance(values, Index):
+            return values.map(lambda x: _get_datevalue(x, freq))
+        elif isinstance(values, np.ndarray) and values.dtype.kind in "iuf":
+            # Already ordinal-numeric (e.g. from PeriodIndex._mpl_repr);
+            # nothing to convert.  GH#10578
+            return values
+        elif lib.infer_dtype(values, skipna=False) == "period":
+            # https://github.com/pandas-dev/pandas/issues/24304
+            # convert ndarray[period] -> ordinals
+            if is_bday:
+                return np.array([p.ordinal for p in values], dtype=np.int64)
+            return PeriodIndex(values, freq=freq).asi8
+        elif isinstance(values, (list, tuple, np.ndarray)):
+            return [_get_datevalue(x, freq) for x in values]
         return values
 
 
-def _get_datevalue(date, freq: BaseOffset):
+def _get_datevalue(date, freq):
     if isinstance(date, Period):
+        freq_obj = to_offset(freq, is_period=True)
+        dtype_code = freq_obj._period_dtype_code
+        if FreqGroup.from_period_dtype_code(dtype_code) == FreqGroup.FR_BUS:
+            # Avoid creating deprecated Period[B] via asfreq.  If the Period
+            # is already BDay, its ordinal IS the business-day count; otherwise
+            # convert via timestamp.
+            if date.freqstr == "B":
+                return date.ordinal
+            return bday_count(date.to_timestamp())
         return date.asfreq(freq).ordinal
     elif isinstance(date, (str, datetime, pydt.date, np.datetime64)):
+        freq_obj = to_offset(freq, is_period=True)
+        dtype_code = freq_obj._period_dtype_code
+        if FreqGroup.from_period_dtype_code(dtype_code) == FreqGroup.FR_BUS:
+            # Avoid creating deprecated Period[B]; use numpy business-day count.
+            return bday_count(date)
         return Period(date, freq).ordinal  # pyright: ignore[reportAttributeAccessIssue]
     elif is_integer(date) or is_float(date):
         return date
@@ -323,7 +401,7 @@ class DatetimeConverter(mdates.DateConverter):
                 # Series was skipped. Convert to DatetimeIndex to get asi8
                 values = Index(values)
             if isinstance(values, Index):
-                values = values.values
+                values = values._values
             if not isinstance(values, np.ndarray):
                 values = com.asarray_tuplesafe(values)
 
@@ -497,13 +575,15 @@ def _get_default_annual_spacing(nyears) -> tuple[int, int]:
     return (min_spacing, maj_spacing)
 
 
-def _period_break(dates: PeriodIndex, period: str) -> npt.NDArray[np.intp]:
+def _period_break(
+    dates: PeriodIndex | DatetimeIndex, period: str
+) -> npt.NDArray[np.intp]:
     """
     Returns the indices where the given period changes.
 
     Parameters
     ----------
-    dates : PeriodIndex
+    dates : PeriodIndex or DatetimeIndex
         Array of intervals to monitor.
     period : str
         Name of the period to monitor.
@@ -512,9 +592,16 @@ def _period_break(dates: PeriodIndex, period: str) -> npt.NDArray[np.intp]:
     return np.nonzero(mask)[0]
 
 
-def _period_break_mask(dates: PeriodIndex, period: str) -> npt.NDArray[np.bool_]:
-    current = getattr(dates, period)
-    previous = getattr(dates - 1 * dates.freq, period)
+def _period_break_mask(
+    dates: PeriodIndex | DatetimeIndex, period: str
+) -> npt.NDArray[np.bool_]:
+    # DatetimeIndex has no .week attribute; use .isocalendar().week instead
+    if period == "week" and isinstance(dates, DatetimeIndex):
+        current = dates.isocalendar().week.values
+        previous = (dates - 1 * dates.freq).isocalendar().week.values  # type: ignore[operator]
+    else:
+        current = getattr(dates, period)
+        previous = getattr(dates - 1 * dates.freq, period)  # type: ignore[operator]
     return current != previous
 
 
@@ -559,7 +646,7 @@ def _get_periods_per_ymd(freq: BaseOffset) -> tuple[int, int, int]:
         ppm = 1
         ppy = 12
     elif freq_group == FreqGroup.FR_QTR:
-        ppm = -1  # placerholder
+        ppm = -1  # placeholder
         ppy = 4
     elif freq_group == FreqGroup.FR_ANN:
         ppm = -1  # placeholder
@@ -570,36 +657,81 @@ def _get_periods_per_ymd(freq: BaseOffset) -> tuple[int, int, int]:
     return ppd, ppm, ppy
 
 
+def _finder_view_bounds(
+    vmin: float, vmax: float, freq: BaseOffset, anchor: int | None
+) -> tuple[int, int]:
+    """
+    Integer view bounds for a finder's tick grid.
+
+    The grid runs from the lower bound in steps of ``freq.n``, so that bound
+    fixes its phase.  ``anchor`` is an ordinal the caller needs the grid to
+    fall on: a bar plot pads its limits by half a period either side, which
+    puts ``vmin`` below the first bar and would otherwise put every tick of a
+    multiplied frequency between the bars.  Callers that do not care -- line
+    plots, whose limits already sit on the data -- pass None and get the
+    unshifted grid.
+    """
+    lo, hi = int(vmin), int(vmax)
+    if anchor is not None:
+        n = freq.n
+        # the largest ordinal <= vmin that is congruent to anchor modulo n,
+        # so the grid keeps covering the view but lands on the caller's data
+        lo = anchor + int(np.floor((vmin - anchor) / n)) * n
+    return lo, hi
+
+
 @functools.cache
-def _daily_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
+def _daily_finder(
+    vmin: float, vmax: float, freq: BaseOffset, anchor: int | None = None
+) -> np.ndarray:
     # error: "BaseOffset" has no attribute "_period_dtype_code"
     dtype_code = freq._period_dtype_code  # type: ignore[attr-defined]
+    freq_group = FreqGroup.from_period_dtype_code(dtype_code)
 
     periodsperday, periodspermonth, periodsperyear = _get_periods_per_ymd(freq)
 
+    # When the frequency has a multiplier n > 1 (e.g. '1000ms' instead of
+    # '1ms'), the period_range below steps by n, so span is n times smaller
+    # than the raw ordinal count.  Adjust the per-day/month/year counts to
+    # match so that the threshold comparisons remain correct.  GH#50355
+    n = freq.n
+    if n > 1:
+        if periodsperday > 0:
+            periodsperday = max(1, periodsperday // n)
+            periodspermonth = 28 * periodsperday
+            periodsperyear = 365 * periodsperday
+        else:
+            periodspermonth = max(1, periodspermonth // n)
+            periodsperyear = max(1, periodsperyear // n)
+
     # save this for later usage
     vmin_orig = vmin
-    (vmin, vmax) = (int(vmin), int(vmax))
-    span = vmax - vmin + 1
+    (vmin, vmax) = _finder_view_bounds(vmin, vmax, freq, anchor)
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", "Period with BDay freq is deprecated", category=FutureWarning
+    dates_: DatetimeIndex | PeriodIndex
+    if freq_group == FreqGroup.FR_BUS:
+        # BDay branch: use numpy business-day arithmetic to avoid
+        #  (deprecated) Period[B].
+        ordinals = np.arange(vmin, vmax + 1, step=freq.n, dtype=np.int64)
+        dates_ = DatetimeIndex(
+            bday_offset_array(ordinals).astype("datetime64[ns]"),
+            freq=freq,
         )
-        warnings.filterwarnings(
-            "ignore", r"PeriodDtype\[B\] is deprecated", category=FutureWarning
-        )
+    else:
         dates_ = period_range(
             start=Period(ordinal=vmin, freq=freq),
             end=Period(ordinal=vmax, freq=freq),
             freq=freq,
         )
+        ordinals = dates_.asi8
+
+    span = len(ordinals)
 
     # Initialize the output
     info = np.zeros(
         span, dtype=[("val", np.int64), ("maj", bool), ("min", bool), ("fmt", "|S20")]
     )
-    info["val"][:] = dates_.asi8
+    info["val"][:] = ordinals
     info["fmt"][:] = ""
     info["maj"][[0, -1]] = True
     # .. and set some shortcuts
@@ -743,7 +875,7 @@ def _daily_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
         info_min[month_start] = True
         info_min[year_start] = False
 
-        month_break = dates_[month_start].month
+        month_break = dates_[month_start].month  # pyright: ignore[reportAttributeAccessIssue]
         jan_or_jul = month_start[(month_break == 1) | (month_break == 7)]
         info_fmt[jan_or_jul] = "%b"
         info_fmt[year_start] = "%b\n%Y"
@@ -758,7 +890,7 @@ def _daily_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
     # Case 6. More than 12 years ................
     else:
         year_start = _period_break(dates_, "year")
-        year_break = dates_[year_start].year
+        year_break = dates_[year_start].year  # pyright: ignore[reportAttributeAccessIssue]
         nyears = span / periodsperyear
         (min_anndef, maj_anndef) = _get_default_annual_spacing(nyears)
         major_idx = year_start[(year_break % maj_anndef == 0)]
@@ -771,11 +903,13 @@ def _daily_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
 
 
 @functools.cache
-def _monthly_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
+def _monthly_finder(
+    vmin: float, vmax: float, freq: BaseOffset, anchor: int | None = None
+) -> np.ndarray:
     _, _, periodsperyear = _get_periods_per_ymd(freq)
 
     vmin_orig = vmin
-    (vmin, vmax) = (int(vmin), int(vmax))
+    (vmin, vmax) = _finder_view_bounds(vmin, vmax, freq, anchor)
     span = vmax - vmin + 1
 
     # Initialize the output
@@ -843,10 +977,12 @@ def _monthly_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
 
 
 @functools.cache
-def _quarterly_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
+def _quarterly_finder(
+    vmin: float, vmax: float, freq: BaseOffset, anchor: int | None = None
+) -> np.ndarray:
     _, _, periodsperyear = _get_periods_per_ymd(freq)
     vmin_orig = vmin
-    (vmin, vmax) = (int(vmin), int(vmax))
+    (vmin, vmax) = _finder_view_bounds(vmin, vmax, freq, anchor)
     span = vmax - vmin + 1
 
     info = np.zeros(
@@ -891,9 +1027,11 @@ def _quarterly_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
 
 
 @functools.cache
-def _annual_finder(vmin: float, vmax: float, freq: BaseOffset) -> np.ndarray:
+def _annual_finder(
+    vmin: float, vmax: float, freq: BaseOffset, anchor: int | None = None
+) -> np.ndarray:
     # Note: small difference here vs other finders in adding 1 to vmax
-    (vmin, vmax) = (int(vmin), int(vmax + 1))
+    (vmin, vmax) = _finder_view_bounds(vmin, vmax + 1, freq, anchor)
     span = vmax - vmin + 1
 
     info = np.zeros(
@@ -938,14 +1076,10 @@ class TimeSeries_DateLocator(mpl.ticker.Locator):  # pyright: ignore[reportAttri
     ----------
     freq : BaseOffset
         Valid frequency specifier.
-    minor_locator : {False, True}, optional
-        Whether the locator is for minor ticks (True) or not.
-    dynamic_mode : {True, False}, optional
+    minor_locator : bool, default False
+        Whether the locator is for minor ticks.
+    dynamic_mode : bool, default True
         Whether the locator should work in dynamic mode.
-    base : {int}, optional
-    quarter : {int}, optional
-    month : {int}, optional
-    day : {int}, optional
     """
 
     axis: Axis
@@ -955,25 +1089,19 @@ class TimeSeries_DateLocator(mpl.ticker.Locator):  # pyright: ignore[reportAttri
         freq: BaseOffset,
         minor_locator: bool = False,
         dynamic_mode: bool = True,
-        base: int = 1,
-        quarter: int = 1,
-        month: int = 1,
-        day: int = 1,
         plot_obj=None,
+        anchor: int | None = None,
     ) -> None:
         freq = to_offset(freq, is_period=True)
         self.freq = freq
-        self.base = base
-        (self.quarter, self.month, self.day) = (quarter, month, day)
         self.isminor = minor_locator
-        self.isdynamic = dynamic_mode
-        self.offset = 0
         self.plot_obj = plot_obj
+        self.anchor = anchor
         self.finder = get_finder(freq)
 
     def _get_default_locs(self, vmin, vmax):
         """Returns the default locations of ticks."""
-        locator = self.finder(vmin, vmax, self.freq)
+        locator = self.finder(vmin, vmax, self.freq, self.anchor)
 
         if self.isminor:
             return np.compress(locator["min"], locator["val"])
@@ -981,29 +1109,17 @@ class TimeSeries_DateLocator(mpl.ticker.Locator):  # pyright: ignore[reportAttri
 
     def __call__(self):
         """Return the locations of the ticks."""
-        # axis calls Locator.set_axis inside set_m<xxxx>_formatter
-
         vi = tuple(self.axis.get_view_interval())
         vmin, vmax = vi
         if vmax < vmin:
             vmin, vmax = vmax, vmin
-        if self.isdynamic:
-            locs = self._get_default_locs(vmin, vmax)
-        else:  # pragma: no cover
-            base = self.base
-            (d, m) = divmod(vmin, base)
-            vmin = (d + 1) * base
-            # error: No overload variant of "range" matches argument types "float",
-            # "float", "int"
-            locs = list(range(vmin, vmax + 1, base))  # type: ignore[call-overload]
-        return locs
+        return self._get_default_locs(vmin, vmax)
 
     def autoscale(self):
         """
         Sets the view limits to the nearest multiples of base that contain the
         data.
         """
-        # requires matplotlib >= 0.98.0
         (vmin, vmax) = self.axis.get_data_interval()
 
         locs = self._get_default_locs(vmin, vmax)
@@ -1042,21 +1158,19 @@ class TimeSeries_DateFormatter(mpl.ticker.Formatter):  # pyright: ignore[reportA
         minor_locator: bool = False,
         dynamic_mode: bool = True,
         plot_obj=None,
+        anchor: int | None = None,
     ) -> None:
         freq = to_offset(freq, is_period=True)
-        self.format = None
         self.freq = freq
-        super().set_locs([])  # unused, for matplotlib compat
         self.formatdict: dict[Any, Any] | None = None
         self.isminor = minor_locator
-        self.isdynamic = dynamic_mode
-        self.offset = 0
         self.plot_obj = plot_obj
+        self.anchor = anchor
         self.finder = get_finder(freq)
 
     def _set_default_format(self, vmin, vmax):
         """Returns the default ticks spacing."""
-        info = self.finder(vmin, vmax, self.freq)
+        info = self.finder(vmin, vmax, self.freq, self.anchor)
 
         if self.isminor:
             format = np.compress(info["min"] & np.logical_not(info["maj"]), info)
@@ -1084,13 +1198,13 @@ class TimeSeries_DateFormatter(mpl.ticker.Formatter):  # pyright: ignore[reportA
             fmt = self.formatdict.pop(x, "")
             if isinstance(fmt, np.bytes_):
                 fmt = fmt.decode("utf-8")
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    "Period with BDay freq is deprecated",
-                    category=FutureWarning,
-                )
-                period = Period(ordinal=int(x), freq=self.freq)
+            # error: "BaseOffset" has no attribute "_period_dtype_code"
+            dtype_code = self.freq._period_dtype_code  # type: ignore[attr-defined]
+            freq_group = FreqGroup.from_period_dtype_code(dtype_code)
+            if freq_group == FreqGroup.FR_BUS:
+                # Use bday_to_datetime to avoid (deprecated) Period[B]
+                return bday_to_datetime(int(x)).strftime(fmt)
+            period = Period(ordinal=int(x), freq=self.freq)
             assert isinstance(period, Period)
             return period.strftime(fmt)
 

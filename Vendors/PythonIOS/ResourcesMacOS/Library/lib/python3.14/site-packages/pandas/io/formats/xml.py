@@ -11,8 +11,12 @@ from typing import (
     Any,
     final,
 )
+import warnings
 
-from pandas.errors import AbstractMethodError
+from pandas.errors import (
+    AbstractMethodError,
+    Pandas4Warning,
+)
 from pandas.util._decorators import cache_readonly
 
 from pandas.core.dtypes.common import is_list_like
@@ -22,6 +26,8 @@ from pandas.io.common import get_handle
 from pandas.io.xml import get_data_from_filepath
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable
+
     from pandas._typing import (
         CompressionOptions,
         FilePath,
@@ -218,7 +224,9 @@ class _BaseXMLFormatter:
             df = df.reset_index()
 
         if self.na_rep is not None:
-            df = df.fillna(self.na_rep)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", ".*fill value.*", Pandas4Warning)
+                df = df.fillna(self.na_rep)
 
         return df.to_dict(orient="index")
 
@@ -259,7 +267,7 @@ class _BaseXMLFormatter:
         raise AbstractMethodError(self)
 
     @final
-    def _other_namespaces(self) -> dict:
+    def _other_namespaces(self) -> dict[str, str]:
         """
         Define other namespaces.
 
@@ -300,7 +308,7 @@ class _BaseXMLFormatter:
         return elem_row
 
     @final
-    def _get_flat_col_name(self, col: str | tuple) -> str:
+    def _get_flat_col_name(self, col: str | tuple[Hashable, ...]) -> str:
         flat_col = col
         if isinstance(col, tuple):
             flat_col = (
@@ -551,7 +559,7 @@ class LxmlXMLFormatter(_BaseXMLFormatter):
         )
 
         with handle_data as xml_data:
-            curr_parser = XMLParser(encoding=self.encoding)
+            curr_parser = XMLParser(encoding=self.encoding, resolve_entities="internal")
 
             if isinstance(xml_data, io.StringIO):
                 xsl_doc = fromstring(

@@ -568,6 +568,7 @@ _PyInit__tracemalloc
 _PyInit__tri
 _PyInit__types
 _PyInit__typing
+_PyInit__ujson
 _PyInit__umath_linalg
 _PyInit__uuid
 _PyInit__weakref
@@ -609,7 +610,6 @@ _PyInit_internals
 _PyInit_interval
 _PyInit_itertools
 _PyInit_join
-_PyInit_json
 _PyInit_lapack_lite
 _PyInit_lib
 _PyInit_math

@@ -7,9 +7,7 @@ HTML IO.
 from __future__ import annotations
 
 from collections import abc
-import errno
 import numbers
-import os
 import re
 from re import Pattern
 from typing import (
@@ -130,17 +128,10 @@ def _read(
     -------
     raw_text : str
     """
-    try:
-        with get_handle(
-            obj, "r", encoding=encoding, storage_options=storage_options
-        ) as handles:
-            return handles.handle.read()
-    except OSError as err:
-        if not is_url(obj):
-            raise FileNotFoundError(
-                f"[Errno {errno.ENOENT}] {os.strerror(errno.ENOENT)}: {obj}"
-            ) from err
-        raise
+    with get_handle(
+        obj, "r", encoding=encoding, storage_options=storage_options
+    ) as handles:
+        return handles.handle.read()
 
 
 class _HtmlFrameParser:
@@ -636,16 +627,16 @@ class _BeautifulSoupHtml5LibFrameParser(_HtmlFrameParser):
         return row.find_all(("td", "th"), recursive=False)
 
     def _parse_thead_tr(self, table):
-        return table.select("thead tr")
+        return table.select(":scope thead tr")
 
     def _parse_tbody_tr(self, table):
-        from_tbody = table.select("tbody tr")
+        from_tbody = table.select(":scope tbody tr")
         from_root = table.find_all("tr", recursive=False)
         # HTML spec: at most one of these lists has content
         return from_tbody + from_root
 
     def _parse_tfoot_tr(self, table):
-        return table.select("tfoot tr")
+        return table.select(":scope tfoot tr")
 
     def _setup_build_doc(self):
         raw_text = _read(self.io, self.encoding, self.storage_options)
@@ -761,6 +752,14 @@ class _LxmlFrameParser(_HtmlFrameParser):
     def _equals_tag(self, obj, tag) -> bool:
         return obj.tag == tag
 
+    def _raise_if_unreadable(self) -> None:
+        # lxml does not report an unreadable local file consistently -- some
+        # builds raise an errno-less OSError, others parse it as an empty
+        # document -- so reopen the path to let the real error escape. GH#29125
+        if isinstance(self.io, (str, bytes)) and not is_url(self.io):
+            with open(self.io, "rb"):
+                pass
+
     def _build_doc(self):
         """
         Raises
@@ -792,16 +791,16 @@ class _LxmlFrameParser(_HtmlFrameParser):
             # try to parse the input in the simplest way
             try:
                 r = parse(self.io, parser=parser)
-            except OSError as err:
-                raise FileNotFoundError(
-                    f"[Errno {errno.ENOENT}] {os.strerror(errno.ENOENT)}: {self.io}"
-                ) from err
+            except OSError:
+                self._raise_if_unreadable()
+                raise
         try:
             r = r.getroot()
         except AttributeError:
             pass
         else:
             if not hasattr(r, "text_content"):
+                self._raise_if_unreadable()
                 raise XMLSyntaxError("no text parsed from document", 0, 0, 0)
 
         for br in r.xpath("*//br"):
@@ -1044,6 +1043,15 @@ def read_html(
     r"""
     Read HTML tables into a ``list`` of ``DataFrame`` objects.
 
+    This function requires one of the following libraries:
+    `lxml <https://lxml.de/>`_, `html5lib <https://github.com/html5lib/html5lib-python>`_,
+    or `beautifulsoup4 <https://www.crummy.com/software/BeautifulSoup/>`_.
+
+    This function searches for ``<table>`` elements within an HTML document
+    and parses their rows and columns into DataFrames. It can read from a URL,
+    a file path, or a raw HTML string, and supports filtering tables by
+    matching text content via a regular expression.
+
     Parameters
     ----------
     io : str, path object, or file-like object
@@ -1075,7 +1083,7 @@ def read_html(
         The column (or list of columns) to use to create the index.
 
     skiprows : int, list-like or slice, optional
-        Number of rows to skip after parsing the column integer. 0-based. If a
+        Number of rows to skip after parsing the header. 0-based. If a
         sequence of integers or a slice is given, will skip the rows indexed by
         that sequence.  Note that a single element sequence means 'skip the nth
         row' whereas an integer means 'skip n rows'.

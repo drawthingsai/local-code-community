@@ -22,18 +22,12 @@ from pandas._libs import (
     algos,
     lib,
 )
-from pandas._typing import (
-    ArrayLike,
-    AxisInt,
-    F,
-    ReindexMethod,
-    npt,
-)
 from pandas.compat._optional import import_optional_dependency
 
 from pandas.core.dtypes.cast import infer_dtype_from
 from pandas.core.dtypes.common import (
-    is_array_like,
+    is_array_like_deprecate_non_pandas,
+    is_arrow_temporal_dtype,
     is_bool_dtype,
     is_numeric_dtype,
     is_object_dtype,
@@ -54,6 +48,14 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import TypeAlias
 
+    from pandas._typing import (
+        ArrayLike,
+        AxisInt,
+        F,
+        ReindexMethod,
+        npt,
+    )
+
     from pandas import Index
 
     _CubicBC: TypeAlias = Literal["not-a-knot", "clamped", "natural", "periodic"]
@@ -63,7 +65,12 @@ def check_value_size(value, mask: npt.NDArray[np.bool_], length: int):
     """
     Validate the size of the values passed to ExtensionArray.fillna.
     """
-    if is_array_like(value):
+    if isinstance(value, dict):
+        raise TypeError(
+            "ExtensionArray.fillna does not support filling with a dict. "
+            "Use Series.fillna instead."
+        )
+    if is_array_like_deprecate_non_pandas(value):
         if len(value) != length:
             raise ValueError(
                 f"Length of 'value' does not match. Got ({len(value)}) "
@@ -103,7 +110,7 @@ def mask_missing(arr: ArrayLike, value) -> npt.NDArray[np.bool_]:
             # GH#55127
             if isinstance(arr.dtype, BaseMaskedDtype):
                 # error: "ExtensionArray" has no attribute "_data"  [attr-defined]
-                mask = np.isnan(arr._data) & ~arr.isna()  # type: ignore[attr-defined,operator]
+                mask = np.isnan(arr._data) & ~arr.isna()  # type: ignore[attr-defined]
                 return mask
             else:
                 # error: "ExtensionArray" has no attribute "_pa_array"  [attr-defined]
@@ -258,7 +265,7 @@ def find_valid_index(how: str, is_valid: npt.NDArray[np.bool_]) -> int | None:
 
     if is_valid.ndim == 2:
         # reduce axis 1
-        is_valid = is_valid.any(axis=1)  # type: ignore[assignment]
+        is_valid = is_valid.any(axis=1)
 
     if how == "first":
         idxpos = is_valid[::].argmax()
@@ -389,7 +396,9 @@ def interpolate_2d_inplace(
         fill_value = na_value_for_dtype(data.dtype, compat=False)
 
     if method == "time":
-        if not needs_i8_conversion(index.dtype):
+        if not needs_i8_conversion(index.dtype) and not is_arrow_temporal_dtype(
+            index.dtype
+        ):
             raise ValueError(
                 "time-weighted interpolation only works "
                 "on Series or DataFrames with a "
@@ -424,6 +433,29 @@ def interpolate_2d_inplace(
     np.apply_along_axis(func, axis, data)
 
 
+def _arrow_temporal_to_i8(arr: ArrayLike) -> np.ndarray:
+    """
+    View an ArrowDtype timestamp/duration array as int64.
+
+    ``np.asarray`` is not usable here: for tz-aware timestamps it yields an
+    object array of ``Timestamp`` objects, which cannot be viewed as i8.
+
+    Parameters
+    ----------
+    arr : ArrowExtensionArray
+        Array whose dtype satisfies ``is_arrow_temporal_dtype``.
+
+    Returns
+    -------
+    np.ndarray
+        int64 view of the underlying values, with ``iNaT`` for missing values.
+    """
+    pa = import_optional_dependency("pyarrow")
+    if pa.types.is_timestamp(arr.dtype.pyarrow_dtype):  # type: ignore[union-attr]
+        return arr._to_datetimearray().asi8  # type: ignore[union-attr]
+    return arr._to_timedeltaarray().asi8  # type: ignore[union-attr]
+
+
 def _index_to_interp_indices(index: Index, method: str) -> np.ndarray:
     """
     Convert Index to ndarray of indices to pass to NumPy/SciPy.
@@ -432,10 +464,12 @@ def _index_to_interp_indices(index: Index, method: str) -> np.ndarray:
     if needs_i8_conversion(xarr.dtype):
         # GH#1646 for dt64tz
         xarr = xarr.view("i8")
+    elif is_arrow_temporal_dtype(xarr.dtype):
+        xarr = _arrow_temporal_to_i8(xarr)
 
     if method == "linear":
         inds = xarr
-        inds = cast(np.ndarray, inds)
+        inds = cast("np.ndarray", inds)
     else:
         inds = np.asarray(xarr)
 
@@ -607,15 +641,15 @@ def _interpolate_scipy_wrapper(
         terp = interpolate.interp1d(
             x, y, kind=kind, fill_value=fill_value, bounds_error=bounds_error
         )
-        new_y = terp(new_x)
+        new_y = terp(new_x)  # pyright: ignore[reportOptionalCall]
     elif method == "spline":
         # GH #10633, #24014
-        if isna(order) or (order <= 0):
+        if isna(order) or (order <= 0):  # pyright: ignore[reportOptionalOperand]
             raise ValueError(
                 f"order needs to be specified and greater than 0; got order: {order}"
             )
         terp = interpolate.UnivariateSpline(x, y, k=order, **kwargs)
-        new_y = terp(new_x)
+        new_y = terp(new_x)  # pyright: ignore[reportOptionalCall]
     else:
         # GH 7295: need to be able to write for some reason
         # in some circumstances: check all three
@@ -664,7 +698,7 @@ def _from_derivatives(
         list of derivatives to extract. This number includes the function
         value as 0th derivative.
      extrapolate : bool, optional
-        Whether to extrapolate to ouf-of-bounds points based on first and last
+        Whether to extrapolate to out-of-bounds points based on first and last
         intervals, or to return NaNs. Default: True.
 
     See Also
@@ -897,7 +931,7 @@ def _datetimelike_compat(func: F) -> F:
 
         return func(values, limit=limit, limit_area=limit_area, mask=mask)
 
-    return cast(F, new_func)
+    return cast("F", new_func)
 
 
 @_datetimelike_compat

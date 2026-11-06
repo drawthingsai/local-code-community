@@ -432,7 +432,7 @@ def _wrap_header_guess_version(header):
     except UnicodeEncodeError:
         pass
     else:
-        warnings.warn("Stored array in format 2.0. It can only be"
+        warnings.warn("Stored array in format 2.0. It can only be "
                       "read by NumPy >= 1.9", UserWarning, stacklevel=2)
         return ret
 
@@ -838,9 +838,11 @@ def read_array(fp, allow_pickle=False, pickle_kwargs=None, *,
             array = pickle.load(fp, **pickle_kwargs)
         except UnicodeError as err:
             # Friendlier error message
-            raise UnicodeError("Unpickling a python object failed: %r\n"
-                               "You may need to pass the encoding= option "
-                               "to numpy.load" % (err,)) from err
+            raise UnicodeError(
+                f"Unpickling a python object failed: {err!r}\n"
+                "You may need to pass the encoding= option "
+                "to numpy.load"
+            ) from err
     else:
         if isfileobj(fp):
             # We can use the fast fromfile() function.

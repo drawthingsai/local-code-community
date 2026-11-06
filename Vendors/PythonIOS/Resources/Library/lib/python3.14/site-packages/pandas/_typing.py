@@ -16,6 +16,7 @@ from datetime import (
     tzinfo,
 )
 from os import PathLike
+from types import EllipsisType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -260,11 +261,6 @@ AnyStr_contra = TypeVar("AnyStr_contra", str, bytes, contravariant=True)
 
 
 class BaseBuffer(Protocol):
-    @property
-    def mode(self) -> str:
-        # for _get_filepath_or_buffer
-        ...
-
     def seek(self, offset: int, whence: int = ..., /) -> int:
         # with one argument: gzip.GzipFile, bz2.BZ2File
         # with two arguments: zip.ZipFile, read_sas
@@ -389,12 +385,9 @@ Manager: TypeAlias = Union["BlockManager", "SingleBlockManager"]
 # SequenceIndexer is for list like or slices (but not tuples)
 # PositionalIndexerTuple is extends the PositionalIndexer for 2D arrays
 # These are used in various __getitem__ overloads
-# TODO(typing#684): add Ellipsis, see
-# https://github.com/python/typing/issues/684#issuecomment-548203158
-# https://bugs.python.org/issue41810
 # Using List[int] here rather than Sequence[int] to disallow tuples.
 ScalarIndexer: TypeAlias = int | np.integer
-SequenceIndexer: TypeAlias = slice | list[int] | np.ndarray
+SequenceIndexer: TypeAlias = slice | EllipsisType | list[int] | np.ndarray
 PositionalIndexer: TypeAlias = ScalarIndexer | SequenceIndexer
 PositionalIndexerTuple: TypeAlias = tuple[PositionalIndexer, PositionalIndexer]
 PositionalIndexer2D: TypeAlias = PositionalIndexer | PositionalIndexerTuple
@@ -405,6 +398,10 @@ IgnoreRaise: TypeAlias = Literal["ignore", "raise"]
 
 # Windowing rank methods
 WindowingRankType: TypeAlias = Literal["average", "min", "max"]
+
+# rank tie-breaking methods (Series.rank / DataFrame.rank / GroupBy.rank)
+RankMethod: TypeAlias = Literal["average", "min", "max", "first", "dense"]
+RankNaOption: TypeAlias = Literal["keep", "top", "bottom"]
 
 # read_csv engines
 CSVEngine: TypeAlias = Literal["c", "python", "pyarrow", "python-fwf"]

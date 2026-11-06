@@ -10,6 +10,7 @@ from pandas.compat._optional import import_optional_dependency
 
 from pandas.core.dtypes.cast import find_common_type
 from pandas.core.dtypes.dtypes import SparseDtype
+from pandas.core.dtypes.missing import isna
 
 from pandas.core.accessor import (
     PandasDelegate,
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
         coo_matrix,
         spmatrix,
     )
+
+    from pandas._typing import IndexLabel
 
     from pandas import (
         DataFrame,
@@ -45,7 +48,12 @@ class BaseAccessor:
 )
 class SparseAccessor(BaseAccessor, PandasDelegate):
     """
-    Accessor for SparseSparse from other sparse matrix data types.
+    Accessor for SparseArray from other sparse matrix data types.
+
+    Provides methods and properties to work with the underlying sparse data
+    in a Series or DataFrame. It allows accessing sparse-specific attributes
+    such as fill value, density, and stored non-fill values, as well as
+    converting to and from scipy sparse matrices.
 
     Parameters
     ----------
@@ -149,7 +157,7 @@ class SparseAccessor(BaseAccessor, PandasDelegate):
 
     def to_coo(
         self, row_levels=(0,), column_levels=(1,), sort_labels: bool = False
-    ) -> tuple[coo_matrix, list, list]:
+    ) -> tuple[coo_matrix, list[IndexLabel], list[IndexLabel]]:
         """
         Create a scipy.sparse.coo_matrix from a Series with MultiIndex.
 
@@ -310,6 +318,9 @@ class SparseFrameAccessor(BaseAccessor, PandasDelegate):
         """
         Create a new DataFrame from a scipy sparse matrix.
 
+        This method converts a scipy sparse matrix into a pandas DataFrame
+        with sparse array columns for memory efficiency.
+
         Parameters
         ----------
         data : scipy.sparse.spmatrix
@@ -332,12 +343,12 @@ class SparseFrameAccessor(BaseAccessor, PandasDelegate):
         Examples
         --------
         >>> import scipy.sparse
-        >>> mat = scipy.sparse.eye(3, dtype=int)
+        >>> mat = scipy.sparse.eye(3, dtype=float)
         >>> pd.DataFrame.sparse.from_spmatrix(mat)
              0    1    2
-        0    1    0    0
-        1    0    1    0
-        2    0    0    1
+        0  1.0  0.0  0.0
+        1  0.0  1.0  0.0
+        2  0.0  0.0  1.0
         """
         from pandas._libs.sparse import IntIndex
 
@@ -354,7 +365,9 @@ class SparseFrameAccessor(BaseAccessor, PandasDelegate):
         indices = data.indices
         indptr = data.indptr
         array_data = data.data
-        dtype = SparseDtype(array_data.dtype)
+        # scipy's unstored entries are zeros, not missing values, see GH#59212
+        zero = np.array(0, dtype=array_data.dtype).item()
+        dtype = SparseDtype(array_data.dtype, zero)
         arrays = []
         for i in range(n_columns):
             sl = slice(indptr[i], indptr[i + 1])
@@ -368,6 +381,9 @@ class SparseFrameAccessor(BaseAccessor, PandasDelegate):
     def to_dense(self) -> DataFrame:
         """
         Convert a DataFrame with sparse values to dense.
+
+        This method converts all SparseArray columns in the DataFrame to
+        regular NumPy arrays.
 
         Returns
         -------
@@ -397,11 +413,19 @@ class SparseFrameAccessor(BaseAccessor, PandasDelegate):
         """
         Return the contents of the frame as a sparse SciPy COO matrix.
 
+        This method converts the DataFrame to a scipy COO (Coordinate) sparse
+        matrix format for interoperability with scipy.sparse routines.
+
         Returns
         -------
         scipy.sparse.spmatrix
             If the caller is heterogeneous and contains booleans or objects,
             the result will be of dtype=object. See Notes.
+
+        Raises
+        ------
+        ValueError
+            If any column's ``fill_value`` is not zero.
 
         See Also
         --------
@@ -434,6 +458,9 @@ class SparseFrameAccessor(BaseAccessor, PandasDelegate):
         cols, rows, data = [], [], []
         for col, (_, ser) in enumerate(self._parent.items()):
             sp_arr = ser.array
+            # isna first: `pd.NA != 0` is NA, which is not usable as a condition
+            if isna(sp_arr.fill_value) or sp_arr.fill_value != 0:
+                raise ValueError("fill value must be 0 when converting to COO matrix")
 
             row = sp_arr.sp_index.indices
             cols.append(np.repeat(col, len(row)))
@@ -450,6 +477,10 @@ class SparseFrameAccessor(BaseAccessor, PandasDelegate):
         """
         Ratio of non-sparse points to total (dense) data points.
 
+        This property returns the proportion of the data that is not sparse
+        (i.e., not equal to the fill value), as a value between 0 and 1. An
+        empty DataFrame has no density and returns ``nan``.
+
         See Also
         --------
         DataFrame.sparse.from_spmatrix : Create a new DataFrame from a
@@ -461,8 +492,10 @@ class SparseFrameAccessor(BaseAccessor, PandasDelegate):
         >>> df.sparse.density
         np.float64(0.5)
         """
-        tmp = np.mean([column.array.density for _, column in self._parent.items()])
-        return tmp
+        if len(self._parent.columns) == 0:
+            # mean of an empty list is undefined
+            return np.nan
+        return np.mean([column.array.density for _, column in self._parent.items()])
 
     @staticmethod
     def _prep_index(data, index, columns):

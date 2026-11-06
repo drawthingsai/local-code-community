@@ -7,6 +7,7 @@ from typing import (
     Self,
     cast,
 )
+import warnings
 
 import numpy as np
 
@@ -14,7 +15,9 @@ from pandas._libs import (
     lib,
     missing as libmissing,
 )
+from pandas.errors import Pandas4Warning
 from pandas.util._decorators import set_module
+from pandas.util._exceptions import find_stack_level
 
 from pandas.core.dtypes.common import is_list_like
 from pandas.core.dtypes.dtypes import register_extension_dtype
@@ -22,6 +25,7 @@ from pandas.core.dtypes.missing import isna
 
 from pandas.core import ops
 from pandas.core.array_algos import masked_accumulations
+from pandas.core.arrays import ExtensionArray
 from pandas.core.arrays.masked import (
     BaseMaskedArray,
     BaseMaskedDtype,
@@ -227,7 +231,7 @@ def coerce_to_array(
 
         # mypy does not narrow the type of mask_values to npt.NDArray[np.bool_]
         # within this branch, it assumes it can also be None
-        mask_values = cast("npt.NDArray[np.bool_]", isna(values_object))
+        mask_values = cast("npt.NDArray[np.bool_]", isna(values_object))  # type: ignore[redundant-cast]
         values = np.zeros(len(values), dtype=bool)
         values[~mask_values] = values_object[~mask_values].astype(bool)
 
@@ -388,12 +392,25 @@ class BooleanArray(BaseMaskedArray):
 
     def _logical_method(self, other, op):
         assert op.__name__ in {"or_", "ror_", "and_", "rand_", "xor", "rxor"}
+        ops.disallow_datetimelike_logical_op(self, other, op)
         other_is_scalar = lib.is_scalar(other)
         mask = None
 
         if isinstance(other, BooleanArray):
             other, mask = other._data, other._mask
         elif is_list_like(other):
+            if not isinstance(
+                other, (list, ExtensionArray, np.ndarray)
+            ) and not ops.has_castable_attr(other):
+                warnings.warn(
+                    f"Operation with {type(other).__name__} is deprecated. "
+                    "In a future version these will be treated as scalar-like. "
+                    "To retain the old behavior, explicitly wrap in a Series "
+                    "instead.",
+                    Pandas4Warning,
+                    stacklevel=find_stack_level(),
+                )
+
             other = np.asarray(other, dtype="bool")
             if other.ndim > 1:
                 return NotImplemented

@@ -23,7 +23,7 @@ class _NestedSequence(Protocol[_T_co]):
     Warning
     -------
     `_NestedSequence` currently does not work in combination with typevars,
-    *e.g.* ``def func(a: _NestedSequnce[T]) -> T: ...``.
+    *e.g.* ``def func(a: _NestedSequence[T]) -> T: ...``.
 
     See Also
     --------

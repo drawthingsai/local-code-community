@@ -34,6 +34,7 @@ from pandas.util._decorators import set_module
 
 from pandas.core.dtypes.common import (
     ensure_float64,
+    is_arrow_temporal_dtype,
     is_bool,
     is_integer,
     is_numeric_dtype,
@@ -58,7 +59,7 @@ import pandas.core.common as com
 from pandas.core.indexers.objects import (
     BaseIndexer,
     FixedWindowIndexer,
-    GroupbyIndexer,
+    GroupByIndexer,
     VariableWindowIndexer,
 )
 from pandas.core.indexes.api import (
@@ -113,7 +114,7 @@ if TYPE_CHECKING:
 from pandas.core.arrays.datetimelike import dtype_to_unit
 
 
-class BaseWindow(SelectionMixin):
+class BaseWindow(SelectionMixin["NDFrame"]):
     """Provides utilities for performing windowing operations."""
 
     _attributes: list[str] = []
@@ -321,7 +322,7 @@ class BaseWindow(SelectionMixin):
         attrs = ",".join(attrs_list)
         return f"{type(self).__name__} [{attrs}]"
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> Iterator[Any]:
         obj = self._selected_obj.set_axis(self._on)
         obj = self._create_data(obj)
         indexer = self._get_window_indexer()
@@ -341,10 +342,14 @@ class BaseWindow(SelectionMixin):
 
     def _prep_values(self, values: ArrayLike) -> np.ndarray:
         """Convert input to numpy arrays for Cython routines"""
-        if needs_i8_conversion(values.dtype):
+        if needs_i8_conversion(values.dtype) or is_arrow_temporal_dtype(values.dtype):
+            # GH#66445 ArrowDtype timestamps/durations are not covered by
+            #  needs_i8_conversion, so without the second check they fell through
+            #  to the ExtensionArray branch below and were silently converted to
+            #  float64 counts instead of raising like their NumPy counterparts.
             raise NotImplementedError(
                 f"ops for {type(self).__name__} for this "
-                f"dtype {values.dtype} are not implemented"
+                f"dtype {values.dtype} is not implemented"
             )
         # GH #12373 : rolling functions error on float32 data
         # make sure the data is coerced to float64
@@ -657,7 +662,7 @@ class BaseWindow(SelectionMixin):
     agg = aggregate
 
 
-class BaseWindowGroupby(BaseWindow):
+class BaseWindowGroupBy(BaseWindow):
     """
     Provide the groupby windowing facilities.
     """
@@ -910,8 +915,11 @@ class Window(BaseWindow):
         For a DataFrame, a column label or Index level on which
         to calculate the rolling window, rather than the DataFrame's index.
 
-        Provided integer column is ignored and excluded from result since
-        an integer index is not used to calculate the rolling window.
+        For integer ``window`` values, the window bounds are based on the number
+        of observations and are not calculated using the values of the
+        ``on`` column. The ``on`` column is excluded from the aggregation,
+        but is included in the result when its values differ from the
+        object's index.
 
     closed : str, default None
         Determines the inclusivity of points in the window
@@ -1290,7 +1298,7 @@ class Window(BaseWindow):
         result = ResamplerWindowApply(self, func, args=args, kwargs=kwargs).agg()
         if result is None:
             # these must apply directly
-            result = func(self)
+            result = func(self)  # pyright: ignore[reportOptionalCall]
 
         return result
 
@@ -1299,6 +1307,10 @@ class Window(BaseWindow):
     def sum(self, numeric_only: bool = False, **kwargs):
         """
         Calculate the rolling weighted window sum.
+
+        The window type is determined by the ``win_type`` parameter specified
+        in :meth:`DataFrame.rolling` or :meth:`Series.rolling`. Additional
+        keyword arguments are passed to the SciPy window function.
 
         Parameters
         ----------
@@ -1358,6 +1370,10 @@ class Window(BaseWindow):
         """
         Calculate the rolling weighted window mean.
 
+        The window type is determined by the ``win_type`` parameter specified
+        in :meth:`DataFrame.rolling` or :meth:`Series.rolling`. Additional
+        keyword arguments are passed to the SciPy window function.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -1415,6 +1431,10 @@ class Window(BaseWindow):
         """
         Calculate the rolling weighted window variance.
 
+        The window type is determined by the ``win_type`` parameter specified
+        in :meth:`DataFrame.rolling` or :meth:`Series.rolling`. Additional
+        keyword arguments are passed to the SciPy window function.
+
         Parameters
         ----------
         ddof : int, default 1
@@ -1467,6 +1487,10 @@ class Window(BaseWindow):
     def std(self, ddof: int = 1, numeric_only: bool = False, **kwargs):
         """
         Calculate the rolling weighted window standard deviation.
+
+        The window type is determined by the ``win_type`` parameter specified
+        in :meth:`DataFrame.rolling` or :meth:`Series.rolling`. Additional
+        keyword arguments are passed to the SciPy window function.
 
         Parameters
         ----------
@@ -1885,16 +1909,9 @@ class RollingAndExpandingMixin(BaseWindow):
             )
             self._check_window_bounds(start, end, len(x_array))
 
-            with np.errstate(all="ignore"):
-                mean_x_y = window_aggregations.roll_mean(
-                    x_array * y_array, start, end, min_periods
-                )
-                mean_x = window_aggregations.roll_mean(x_array, start, end, min_periods)
-                mean_y = window_aggregations.roll_mean(y_array, start, end, min_periods)
-                count_x_y = window_aggregations.roll_sum(
-                    notna(x_array + y_array).astype(np.float64), start, end, 0
-                )
-                result = (mean_x_y - mean_x * mean_y) * (count_x_y / (count_x_y - ddof))
+            result = window_aggregations.roll_cov(
+                x_array, y_array, start, end, min_periods, ddof
+            )
             return Series(result, index=x.index, name=x.name, copy=False)
 
         return self._apply_pairwise(
@@ -1932,26 +1949,9 @@ class RollingAndExpandingMixin(BaseWindow):
             )
             self._check_window_bounds(start, end, len(x_array))
 
-            with np.errstate(all="ignore"):
-                mean_x_y = window_aggregations.roll_mean(
-                    x_array * y_array, start, end, min_periods
-                )
-                mean_x = window_aggregations.roll_mean(x_array, start, end, min_periods)
-                mean_y = window_aggregations.roll_mean(y_array, start, end, min_periods)
-                count_x_y = window_aggregations.roll_sum(
-                    notna(x_array + y_array).astype(np.float64), start, end, 0
-                )
-                x_var = window_aggregations.roll_var(
-                    x_array, start, end, min_periods, ddof
-                )
-                y_var = window_aggregations.roll_var(
-                    y_array, start, end, min_periods, ddof
-                )
-                numerator = (mean_x_y - mean_x * mean_y) * (
-                    count_x_y / (count_x_y - ddof)
-                )
-                denominator = (x_var * y_var) ** 0.5
-                result = numerator / denominator
+            result = window_aggregations.roll_corr(
+                x_array, y_array, start, end, min_periods
+            )
             return Series(result, index=x.index, name=x.name, copy=False)
 
         return self._apply_pairwise(
@@ -2041,6 +2041,10 @@ class Rolling(RollingAndExpandingMixin):
         """
         Aggregate using one or more operations over the specified axis.
 
+        This method allows combining multiple aggregation functions (e.g.
+        ``'sum'``, ``'mean'``) in a single call, returning a result for each
+        function applied to each rolling window.
+
         Parameters
         ----------
         func : function, str, list or dict
@@ -2123,6 +2127,9 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling count of non NaN observations.
 
+        This is useful for identifying windows with missing data, as it counts
+        only non-NaN entries within each window.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -2176,6 +2183,9 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling custom aggregation function.
 
+        Applies an arbitrary function to each rolling window. This is useful
+        when the built-in rolling methods do not cover the desired computation.
+
         Parameters
         ----------
         func : function
@@ -2187,7 +2197,9 @@ class Rolling(RollingAndExpandingMixin):
             * ``False`` : passes each row or column as a Series to the
               function.
             * ``True`` : the passed function will receive ndarray
-              objects instead.
+              objects instead. Pandas-only attributes such as ``.iloc``
+              or ``.index`` are not available on ndarrays and will raise
+              ``AttributeError`` if used inside ``func``.
 
             If you are just applying a NumPy reduction function this will
             achieve much better performance.
@@ -2201,12 +2213,12 @@ class Rolling(RollingAndExpandingMixin):
 
         engine_kwargs : dict, default None
             * For ``'cython'`` engine, there are no accepted ``engine_kwargs``
-            * For ``'numba'`` engine, the engine can accept ``nopython``, ``nogil``
+            * For ``'numba'`` engine, the engine can accept  ``nogil``
               and ``parallel`` dictionary keys. The values must either be ``True`` or
               ``False``.
 
             The default ``engine_kwargs`` for the ``'numba'`` engine is
-            ``{'nopython': True, 'nogil': False, 'parallel': False}`` and will be
+            ``{'nogil': False, 'parallel': False}`` and will be
             applied to both the ``func`` and the ``apply`` rolling aggregation.
 
         args : tuple, default None
@@ -2227,6 +2239,15 @@ class Rolling(RollingAndExpandingMixin):
         Series.apply : Aggregating apply for Series.
         DataFrame.apply : Aggregating apply for DataFrame.
 
+        Notes
+        -----
+        When ``raw=False``, the :class:`Series` passed to ``func`` is indexed by the
+        column or :class:`Index` used to compute the rolling window. If
+        :meth:`DataFrame.rolling` was called with ``on=col``, the index of the
+        passed :class:`Series` will be the values of ``col`` rather than the
+        original :class:`DataFrame` index. When ``on`` is not specified, the
+        index of the passed :class:`Series` is the original index of the input.
+
         Examples
         --------
         >>> ser = pd.Series([1, 6, 5, 4])
@@ -2236,6 +2257,26 @@ class Rolling(RollingAndExpandingMixin):
         2    6.0
         3    5.0
         dtype: float64
+
+        By default ``func`` is applied to each column independently. Use
+        ``method="table"`` (which requires ``engine="numba"`` and ``raw=True``) to
+        instead pass the whole :class:`DataFrame` window to ``func`` as a single 2D
+        ndarray, so the function can combine multiple columns. Here a rolling dot
+        product of columns ``A`` and ``B`` is computed; the scalar result is
+        broadcast across the columns.
+
+        >>> df = pd.DataFrame({"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]})
+        >>> def dot(window):
+        ...     return (window[:, 0] * window[:, 1]).sum()
+        >>> df.rolling(3, method="table").apply(
+        ...     dot, engine="numba", raw=True
+        ... )  # doctest: +SKIP
+              A     B
+        0   NaN   NaN
+        1   NaN   NaN
+        2  22.0  22.0
+        3  25.0  25.0
+        4  22.0  22.0
         """
         return super().apply(
             func,
@@ -2358,6 +2399,9 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling sum.
 
+        This is equivalent to applying ``numpy.sum`` over each rolling window.
+        Missing values (NaN) are excluded from the calculation.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -2371,10 +2415,10 @@ class Rolling(RollingAndExpandingMixin):
 
         engine_kwargs : dict, default None
             * For ``'cython'`` engine, there are no accepted ``engine_kwargs``
-            * For ``'numba'`` engine, the engine can accept ``nopython``, ``nogil``
+            * For ``'numba'`` engine, the engine can accept  ``nogil``
               and ``parallel`` dictionary keys. The values must either be ``True`` or
               ``False``. The default ``engine_kwargs`` for the ``'numba'`` engine is
-              ``{'nopython': True, 'nogil': False, 'parallel': False}``.
+              ``{'nogil': False, 'parallel': False}``.
 
         Returns
         -------
@@ -2457,6 +2501,8 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling maximum.
 
+        This is equivalent to applying ``numpy.max`` over each rolling window.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -2473,12 +2519,12 @@ class Rolling(RollingAndExpandingMixin):
 
         engine_kwargs : dict, default None
             * For ``'cython'`` engine, there are no accepted ``engine_kwargs``
-            * For ``'numba'`` engine, the engine can accept ``nopython``, ``nogil``
+            * For ``'numba'`` engine, the engine can accept  ``nogil``
               and ``parallel`` dictionary keys. The values must either be ``True`` or
               ``False``.
 
             The default ``engine_kwargs`` for the ``'numba'`` engine is
-            ``{'nopython': True, 'nogil': False, 'parallel': False}``.
+            ``{'nogil': False, 'parallel': False}``.
 
         **kwargs : mapping, optional
             A dictionary of keyword arguments passed into ``func``.
@@ -2526,6 +2572,8 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling minimum.
 
+        This is equivalent to applying ``numpy.min`` over each rolling window.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -2539,12 +2587,12 @@ class Rolling(RollingAndExpandingMixin):
 
         engine_kwargs : dict, default None
             * For ``'cython'`` engine, there are no accepted ``engine_kwargs``
-            * For ``'numba'`` engine, the engine can accept ``nopython``, ``nogil``
+            * For ``'numba'`` engine, the engine can accept  ``nogil``
               and ``parallel`` dictionary keys. The values must either be ``True`` or
               ``False``.
 
             The default ``engine_kwargs`` for the ``'numba'`` engine is
-            ``{'nopython': True, 'nogil': False, 'parallel': False}``.
+            ``{'nogil': False, 'parallel': False}``.
 
         Returns
         -------
@@ -2592,6 +2640,8 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling mean.
 
+        This is equivalent to applying ``numpy.mean`` over each rolling window.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -2605,12 +2655,12 @@ class Rolling(RollingAndExpandingMixin):
 
         engine_kwargs : dict, default None
             * For ``'cython'`` engine, there are no accepted ``engine_kwargs``
-            * For ``'numba'`` engine, the engine can accept ``nopython``, ``nogil``
+            * For ``'numba'`` engine, the engine can accept  ``nogil``
               and ``parallel`` dictionary keys. The values must either be ``True`` or
               ``False``.
 
             The default ``engine_kwargs`` for the ``'numba'`` engine is
-            ``{'nopython': True, 'nogil': False, 'parallel': False}``.
+            ``{'nogil': False, 'parallel': False}``.
 
         Returns
         -------
@@ -2665,6 +2715,9 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling median.
 
+        This is equivalent to applying ``numpy.median`` over each rolling
+        window.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -2678,12 +2731,12 @@ class Rolling(RollingAndExpandingMixin):
 
         engine_kwargs : dict, default None
             * For ``'cython'`` engine, there are no accepted ``engine_kwargs``
-            * For ``'numba'`` engine, the engine can accept ``nopython``, ``nogil``
+            * For ``'numba'`` engine, the engine can accept  ``nogil``
               and ``parallel`` dictionary keys. The values must either be ``True`` or
               ``False``.
 
             The default ``engine_kwargs`` for the ``'numba'`` engine is
-            ``{'nopython': True, 'nogil': False, 'parallel': False}``.
+            ``{'nogil': False, 'parallel': False}``.
 
         Returns
         -------
@@ -2732,6 +2785,9 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling standard deviation.
 
+        This is equivalent to applying ``numpy.std`` (with the specified
+        ``ddof``) over each rolling window.
+
         Parameters
         ----------
         ddof : int, default 1
@@ -2749,12 +2805,12 @@ class Rolling(RollingAndExpandingMixin):
 
         engine_kwargs : dict, default None
             * For ``'cython'`` engine, there are no accepted ``engine_kwargs``
-            * For ``'numba'`` engine, the engine can accept ``nopython``, ``nogil``
+            * For ``'numba'`` engine, the engine can accept  ``nogil``
               and ``parallel`` dictionary keys. The values must either be ``True`` or
               ``False``.
 
             The default ``engine_kwargs`` for the ``'numba'`` engine is
-            ``{'nopython': True, 'nogil': False, 'parallel': False}``.
+            ``{'nogil': False, 'parallel': False}``.
 
         Returns
         -------
@@ -2806,6 +2862,9 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling variance.
 
+        This is equivalent to applying ``numpy.var`` (with the specified
+        ``ddof``) over each rolling window.
+
         Parameters
         ----------
         ddof : int, default 1
@@ -2823,12 +2882,12 @@ class Rolling(RollingAndExpandingMixin):
 
         engine_kwargs : dict, default None
             * For ``'cython'`` engine, there are no accepted ``engine_kwargs``
-            * For ``'numba'`` engine, the engine can accept ``nopython``, ``nogil``
+            * For ``'numba'`` engine, the engine can accept  ``nogil``
               and ``parallel`` dictionary keys. The values must either be ``True`` or
               ``False``.
 
             The default ``engine_kwargs`` for the ``'numba'`` engine is
-            ``{'nopython': True, 'nogil': False, 'parallel': False}``.
+            ``{'nogil': False, 'parallel': False}``.
 
         Returns
         -------
@@ -2874,6 +2933,9 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling unbiased skewness.
 
+        This is equivalent to applying ``scipy.stats.skew`` over each rolling
+        window. A minimum of three periods is required.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -2914,6 +2976,9 @@ class Rolling(RollingAndExpandingMixin):
     def sem(self, ddof: int = 1, numeric_only: bool = False):
         """
         Calculate the rolling standard error of mean.
+
+        This is computed as the rolling standard deviation divided by the
+        square root of the rolling count. A minimum of one period is required.
 
         Parameters
         ----------
@@ -2959,6 +3024,10 @@ class Rolling(RollingAndExpandingMixin):
     def kurt(self, numeric_only: bool = False):
         """
         Calculate the rolling Fisher's definition of kurtosis without bias.
+
+        This is equivalent to applying ``scipy.stats.kurtosis`` (with
+        ``bias=False``) over each rolling window. A minimum of four periods
+        is required.
 
         Parameters
         ----------
@@ -3008,6 +3077,9 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling First (left-most) element of the window.
 
+        Return the first observed value in each rolling window. This is useful
+        for tracking the starting value of a window as it slides forward.
+
         Parameters
         ----------
         numeric_only : bool, default False
@@ -3042,6 +3114,9 @@ class Rolling(RollingAndExpandingMixin):
     def last(self, numeric_only: bool = False):
         """
         Calculate the rolling Last (right-most) element of the window.
+
+        Return the last observed value in each rolling window. This is useful
+        for tracking the most recent value of a window as it slides forward.
 
         Parameters
         ----------
@@ -3082,6 +3157,10 @@ class Rolling(RollingAndExpandingMixin):
     ):
         """
         Calculate the rolling quantile.
+
+        Return the ``q``-th quantile of the values in each rolling window. The
+        ``interpolation`` parameter controls how quantiles falling between two
+        data points are handled.
 
         Parameters
         ----------
@@ -3146,6 +3225,9 @@ class Rolling(RollingAndExpandingMixin):
     ):
         """
         Calculate the rolling rank.
+
+        Compute the rank of each value within each rolling window. Ties are
+        resolved using the ``method`` parameter.
 
         Parameters
         ----------
@@ -3269,6 +3351,10 @@ class Rolling(RollingAndExpandingMixin):
         """
         Calculate the rolling sample covariance.
 
+        Compute the sample covariance between the calling object and ``other``
+        over each rolling window. If ``other`` is not supplied, pairwise
+        covariances of the columns are computed.
+
         Parameters
         ----------
         other : Series or DataFrame, optional
@@ -3329,6 +3415,10 @@ class Rolling(RollingAndExpandingMixin):
     ):
         """
         Calculate the rolling correlation.
+
+        Compute the Pearson correlation coefficient between the calling object
+        and ``other`` over each rolling window. If ``other`` is not supplied,
+        pairwise correlations of the columns are computed.
 
         Parameters
         ----------
@@ -3455,20 +3545,20 @@ Rolling.__doc__ = Window.__doc__
 
 
 @set_module("pandas.api.typing")
-class RollingGroupby(BaseWindowGroupby, Rolling):
+class RollingGroupBy(BaseWindowGroupBy, Rolling):
     """
     Provide a rolling groupby implementation.
     """
 
-    _attributes = Rolling._attributes + BaseWindowGroupby._attributes
+    _attributes = Rolling._attributes + BaseWindowGroupBy._attributes
 
-    def _get_window_indexer(self) -> GroupbyIndexer:
+    def _get_window_indexer(self) -> GroupByIndexer:
         """
         Return an indexer class that will compute the window start and end bounds
 
         Returns
         -------
-        GroupbyIndexer
+        GroupByIndexer
         """
         rolling_indexer: type[BaseIndexer]
         indexer_kwargs: dict[str, Any] | None = None
@@ -3488,7 +3578,7 @@ class RollingGroupby(BaseWindowGroupby, Rolling):
         else:
             rolling_indexer = FixedWindowIndexer
             window = self.window
-        window_indexer = GroupbyIndexer(
+        window_indexer = GroupByIndexer(
             index_array=index_array,
             window_size=window,
             groupby_indices=self._grouper.indices,

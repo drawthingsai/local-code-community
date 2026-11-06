@@ -4,14 +4,17 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from functools import cached_property
 import sys
-from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from pandas._config import get_option
+from pandas._config.config import _global_config as config
 
 from pandas.io.formats import format as fmt
-from pandas.io.formats.printing import pprint_thing
+from pandas.io.formats.printing import (
+    get_adjustment,
+    pprint_thing,
+)
 
 if TYPE_CHECKING:
     from collections.abc import (
@@ -32,125 +35,7 @@ if TYPE_CHECKING:
         Series,
     )
 
-show_counts_sub = dedent(
-    """\
-    show_counts : bool, optional
-        Whether to show the non-null counts. By default, this is shown
-        only if the DataFrame is smaller than
-        ``pandas.options.display.max_info_rows`` and
-        ``pandas.options.display.max_info_columns``. A value of True always
-        shows the counts, and False never shows the counts."""
-)
-
-series_examples_sub = dedent(
-    """\
-    >>> int_values = [1, 2, 3, 4, 5]
-    >>> text_values = ['alpha', 'beta', 'gamma', 'delta', 'epsilon']
-    >>> s = pd.Series(text_values, index=int_values)
-    >>> s.info()
-    <class 'pandas.Series'>
-    Index: 5 entries, 1 to 5
-    Series name: None
-    Non-Null Count  Dtype
-    --------------  -----
-    5 non-null      object
-    dtypes: object(1)
-    memory usage: 80.0+ bytes
-
-    Prints a summary excluding information about its values:
-
-    >>> s.info(verbose=False)
-    <class 'pandas.Series'>
-    Index: 5 entries, 1 to 5
-    dtypes: object(1)
-    memory usage: 80.0+ bytes
-
-    Pipe output of Series.info to buffer instead of sys.stdout, get
-    buffer content and writes to a text file:
-
-    >>> import io
-    >>> buffer = io.StringIO()
-    >>> s.info(buf=buffer)
-    >>> s = buffer.getvalue()
-    >>> with open("df_info.txt", "w",
-    ...           encoding="utf-8") as f:  # doctest: +SKIP
-    ...     f.write(s)
-    260
-
-    The `memory_usage` parameter allows deep introspection mode, specially
-    useful for big Series and fine-tune memory optimization:
-
-    >>> random_strings_array = np.random.choice(['a', 'b', 'c'], 10 ** 6)
-    >>> s = pd.Series(np.random.choice(['a', 'b', 'c'], 10 ** 6))
-    >>> s.info()
-    <class 'pandas.Series'>
-    RangeIndex: 1000000 entries, 0 to 999999
-    Series name: None
-    Non-Null Count    Dtype
-    --------------    -----
-    1000000 non-null  object
-    dtypes: object(1)
-    memory usage: 7.6+ MB
-
-    >>> s.info(memory_usage='deep')
-    <class 'pandas.Series'>
-    RangeIndex: 1000000 entries, 0 to 999999
-    Series name: None
-    Non-Null Count    Dtype
-    --------------    -----
-    1000000 non-null  object
-    dtypes: object(1)
-    memory usage: 55.3 MB"""
-)
-
-
-series_see_also_sub = dedent(
-    """\
-    Series.describe: Generate descriptive statistics of Series.
-    Series.memory_usage: Memory usage of Series."""
-)
-series_max_cols_sub = dedent(
-    """\
-    max_cols : int, optional
-        Unused, exists only for compatibility with DataFrame.info."""
-)
-
-
-series_sub_kwargs = {
-    "klass": "Series",
-    "type_sub": "",
-    "max_cols_sub": series_max_cols_sub,
-    "show_counts_sub": show_counts_sub,
-    "examples_sub": series_examples_sub,
-    "see_also_sub": series_see_also_sub,
-    "version_added_sub": "\n.. versionadded:: 1.4.0\n",
-}
-
-
-def _put_str(s: str | Dtype, space: int) -> str:
-    """
-    Make string of specified length, padding to the right if necessary.
-
-    Parameters
-    ----------
-    s : Union[str, Dtype]
-        String to be formatted.
-    space : int
-        Length to force string to be of.
-
-    Returns
-    -------
-    str
-        String coerced to given length.
-
-    Examples
-    --------
-    >>> pd.io.formats.info._put_str("panda", 6)
-    'panda '
-    >>> pd.io.formats.info._put_str("panda", 4)
-    'pand'
-    """
-    return str(s)[:space].ljust(space)
+    from pandas.io.formats import printing
 
 
 def _sizeof_fmt(num: float, size_qualifier: str) -> str:
@@ -189,7 +74,7 @@ def _initialize_memory_usage(
 ) -> bool | str:
     """Get memory usage based on inputs and display options."""
     if memory_usage is None:
-        memory_usage = get_option("display.memory_usage")
+        memory_usage = config["display"]["memory_usage"]
     return memory_usage
 
 
@@ -459,7 +344,7 @@ class _DataFrameInfoPrinter(_InfoPrinterAbstract):
     @property
     def max_rows(self) -> int:
         """Maximum info rows to be displayed."""
-        return get_option("display.max_info_rows")
+        return config["display"]["max_info_rows"]
 
     @property
     def exceeds_info_cols(self) -> bool:
@@ -478,7 +363,7 @@ class _DataFrameInfoPrinter(_InfoPrinterAbstract):
 
     def _initialize_max_cols(self, max_cols: int | None) -> int:
         if max_cols is None:
-            return get_option("display.max_info_columns")
+            return config["display"]["max_info_columns"]
         return max_cols
 
     def _initialize_show_counts(self, show_counts: bool | None) -> bool:
@@ -685,6 +570,14 @@ class _TableBuilderVerboseMixin(_TableBuilderAbstract):
     gross_column_widths: Sequence[int]
     with_counts: bool
 
+    @cached_property
+    def _adj(self) -> printing._TextAdjustment:
+        # respects display.unicode.east_asian_width, like DataFrame.__repr__
+        return get_adjustment()
+
+    def _ljust(self, text: str, width: int) -> str:
+        return self._adj.justify([text], width, mode="left")[0]
+
     @property
     @abstractmethod
     def headers(self) -> Sequence[str]:
@@ -693,7 +586,7 @@ class _TableBuilderVerboseMixin(_TableBuilderAbstract):
     @property
     def header_column_widths(self) -> Sequence[int]:
         """Widths of header columns (only titles)."""
-        return [len(col) for col in self.headers]
+        return [self._adj.len(col) for col in self.headers]
 
     def _get_gross_column_widths(self) -> Sequence[int]:
         """Get widths of columns containing both headers and actual content."""
@@ -708,7 +601,7 @@ class _TableBuilderVerboseMixin(_TableBuilderAbstract):
     def _get_body_column_widths(self) -> Sequence[int]:
         """Get widths of table content columns."""
         strcols: Sequence[Sequence[str]] = list(zip(*self.strrows, strict=True))
-        return [max(len(x) for x in col) for col in strcols]
+        return [max(self._adj.len(x) for x in col) for col in strcols]
 
     def _gen_rows(self) -> Iterator[Sequence[str]]:
         """
@@ -732,7 +625,7 @@ class _TableBuilderVerboseMixin(_TableBuilderAbstract):
     def add_header_line(self) -> None:
         header_line = self.SPACING.join(
             [
-                _put_str(header, col_width)
+                self._ljust(header, col_width)
                 for header, col_width in zip(
                     self.headers, self.gross_column_widths, strict=True
                 )
@@ -743,7 +636,7 @@ class _TableBuilderVerboseMixin(_TableBuilderAbstract):
     def add_separator_line(self) -> None:
         separator_line = self.SPACING.join(
             [
-                _put_str("-" * header_colwidth, gross_colwidth)
+                self._ljust("-" * header_colwidth, gross_colwidth)
                 for header_colwidth, gross_colwidth in zip(
                     self.header_column_widths, self.gross_column_widths, strict=True
                 )
@@ -755,7 +648,7 @@ class _TableBuilderVerboseMixin(_TableBuilderAbstract):
         for row in self.strrows:
             body_line = self.SPACING.join(
                 [
-                    _put_str(col, gross_colwidth)
+                    self._ljust(col, gross_colwidth)
                     for col, gross_colwidth in zip(
                         row, self.gross_column_widths, strict=True
                     )

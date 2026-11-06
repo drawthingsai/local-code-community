@@ -89,6 +89,8 @@ NPY_NO_EXPORT  int PyUFunc_GiveFloatingpointErrors \
        (const char *, int);
 NPY_NO_EXPORT  int PyUFunc_AddLoopsFromSpecs \
        (PyUFunc_LoopSlot *);
+NPY_NO_EXPORT  PyUFuncObject_fields * _PyUFuncObject_GET_ITEM_DATA \
+       (const PyUFuncObject *);
 
 #else
 
@@ -255,6 +257,12 @@ static void **PyUFunc_API=NULL;
 #define PyUFunc_AddLoopsFromSpecs \
         (*(int (*)(PyUFunc_LoopSlot *)) \
     PyUFunc_API[47])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyUFuncObject_GET_ITEM_DATA \
+        (*(PyUFuncObject_fields * (*)(const PyUFuncObject *)) \
+    PyUFunc_API[48])
 #endif
 
 static inline int

@@ -3,7 +3,7 @@
 extern PyObject *PyInit_tokenizers(void);
 
 /*
- * PyO3 0.26 does not advertise per-interpreter-GIL support. ios_system keeps
+ * PyO3 0.29 does not advertise per-interpreter-GIL support. ios_system keeps
  * extension compatibility checks enabled for its recursive own-GIL
  * interpreters, so CPython rejects tokenizers there while normal
  * main-interpreter commands can reuse it safely.

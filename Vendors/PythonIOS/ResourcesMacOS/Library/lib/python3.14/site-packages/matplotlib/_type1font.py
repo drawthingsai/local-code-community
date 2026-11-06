@@ -523,12 +523,18 @@ class Type1Font:
 
             # Some values need special parsing
             if key in ('Subrs', 'CharStrings', 'Encoding', 'OtherSubrs'):
-                prop[key], endpos = {
+                parser = {
                     'Subrs': self._parse_subrs,
                     'CharStrings': self._parse_charstrings,
                     'Encoding': self._parse_encoding,
                     'OtherSubrs': self._parse_othersubrs
-                }[key](source, data)
+                }[key]
+                try:
+                    prop[key], endpos = parser(source, data)
+                except StopIteration:
+                    raise RuntimeError(
+                        f"Malformed Type1 font file: Incomplete /{key}"
+                    ) from None
                 pos.setdefault(key, []).append((keypos, endpos))
                 continue
 
@@ -612,8 +618,12 @@ class Type1Font:
                 f"Token following /Subrs must be a number, was {count_token}"
             )
         count = count_token.value()
-        array = [None] * count
         next(t for t in tokens if t.is_keyword('array'))
+        # Accumulate the parsed subrs into a dict and only allocate the result
+        # list once the body has been read. Allocating ``[None] * count`` up
+        # front lets a malformed font declare a huge count in a few bytes and
+        # force a large allocation before it is rejected.
+        entries = {}
         for _ in range(count):
             next(t for t in tokens if t.is_keyword('dup'))
             index_token = next(tokens)
@@ -635,7 +645,16 @@ class Type1Font:
                     f"was {token}"
                 )
             binary_token = tokens.send(1+nbytes_token.value())
-            array[index_token.value()] = binary_token.value()
+            entries[index_token.value()] = binary_token.value()
+
+        # The indices must cover 0 to count-1 exactly.
+        if (len(entries) != count
+                or (count and (min(entries), max(entries)) != (0, count - 1))):
+            raise RuntimeError(
+                "Malformed Type1 font file: /Subrs indices do not cover "
+                f"0 to {count - 1}"
+            )
+        array = [entries[index] for index in range(count)]
 
         return array, next(tokens).endpos()
 

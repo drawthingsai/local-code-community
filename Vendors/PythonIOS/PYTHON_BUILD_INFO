@@ -17,9 +17,9 @@ PYTHON_SYMBOL_VISIBILITY=export-list
 PYTHON_RUST_PERSONALITY=shared-weak
 PYTHON_SLICES=ios-arm64 ios-arm64-simulator macos-arm64
 PYTHON_EMBEDDED_RUNTIME_POLICY=mimetypes-knownfiles-disabled
-PYTHON_NATIVE_PACKAGES=numpy-2.4.6 pandas-3.0.5 pillow-13.0.0 libjpeg-turbo-3.2.0 libxml2-2.14.6 libxslt-1.1.43 lxml-6.1.2 contourpy-1.3.3 kiwisolver-1.5.1 matplotlib-3.11.1 psd-tools-1.18.0 regex-2026.7.19 hf-xet-1.5.2 safetensors-0.8.0 tokenizers-0.22.2 sentencepiece-0.2.2 mlx-0.32.2 cffi-2.1.1 cairo-1.18.6 pixman-0.46.4 libpng-1.6.58
-NUMPY_SOURCE_URL=https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz
-NUMPY_SOURCE_SHA256=f3a3570c4a2a16746ac2c31a7c7c7b0c186b95ce902e33db6f28094ed7387dda
+PYTHON_NATIVE_PACKAGES=numpy-2.5.4 pandas-3.1.1 pillow-13.0.0 libjpeg-turbo-3.2.1 libxml2-2.15.4 libxslt-1.1.45 lxml-6.1.3 contourpy-1.4.0 kiwisolver-1.5.1 matplotlib-3.11.2 psd-tools-1.26.0 regex-2026.9.29 hf-xet-1.5.2 safetensors-0.8.0 tokenizers-0.23.3 sentencepiece-0.2.2 mlx-0.32.4 cffi-2.1.1 cairo-1.18.6 pixman-0.46.4 libpng-1.6.59
+NUMPY_SOURCE_URL=https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz
+NUMPY_SOURCE_SHA256=9a94cf751c9ad8ebaa835bcd3d40dacf8534ad086b88c38029b65123c7999d2a
 NUMPY_IOS_BLAS=Accelerate
 NUMPY_IOS_BLAS_SYMBOL_SUFFIX=
 NUMPY_IOS_SIMULATOR_BLAS=Accelerate
@@ -28,14 +28,14 @@ NUMPY_MACOS_BLAS=Accelerate
 NUMPY_MACOS_BLAS_SYMBOL_SUFFIX=auto
 NUMPY_MACOS_MINIMUM_OS_VERSION=13.3
 NUMPY_BUILD_TOOLS=pip-26.1.2 setuptools-82.0.1 wheel-0.47.0 Cython-3.2.5 ninja-1.13.0 packaging-26.2 meson-1.9.1 meson-python-0.16.0 versioneer-0.29 pybind11-3.0.1 cppy-1.3.0 setuptools-scm-9.2.2
-PANDAS_SOURCE_URL=https://files.pythonhosted.org/packages/be/4f/5f3422a2afec5ffc46308b79e53291365a93748b498ac2e58bead0197916/pandas-3.0.5.tar.gz
-PANDAS_SOURCE_SHA256=dca3734d6ab7c906e6730f0788b0a1dbb9f2467731f9711f77995c8e9d62d712
+PANDAS_SOURCE_URL=https://files.pythonhosted.org/packages/17/ca/24c6bc92aca3d366146358e47f1d374c0e1a50763ef226fc71eff20a63fb/pandas-3.1.1.tar.gz
+PANDAS_SOURCE_SHA256=05fed3e3b7c99b226f160e29d7d6cb7ef39638c758cbfe42b3f24ba34f04b859
 PANDAS_STATIC_SYMBOL_RENAMES=is_leapyear:pandas_datetime_is_leapyear add_minutes_to_datetimestruct:pandas_datetime_add_minutes_to_datetimestruct get_datetimestruct_days:pandas_datetime_get_datetimestruct_days get_datetime_metadata_from_dtype:pandas_datetime_get_datetime_metadata_from_dtype
 PILLOW_SOURCE_URL=https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz
 PILLOW_SOURCE_SHA256=cdcd1ba258178f7356d74170c9a81ba4eab6a5d55748bc402a5a2a6fe6be3510
 PILLOW_FEATURE_POLICY=zlib=enabled jpeg=libjpeg-turbo freetype=matplotlib raqm=matplotlib tiff=disabled lcms=disabled webp=disabled jpeg2000=disabled imagequant=disabled xcb=disabled avif=disabled
-LIBJPEG_TURBO_SOURCE_URL=https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz
-LIBJPEG_TURBO_SOURCE_SHA256=6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e
+LIBJPEG_TURBO_SOURCE_URL=https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.1/libjpeg-turbo-3.2.1.tar.gz
+LIBJPEG_TURBO_SOURCE_SHA256=c27ad72a68da151177929aa969ae773a2da5ac2af9ce946079314fdac8cece7f
 LIBJPEG_TURBO_FEATURE_POLICY=library=static api=jpeg8 simd=required turbojpeg=disabled tools=disabled
 CFFI_SOURCE_URL=https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz
 CFFI_SOURCE_SHA256=dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be
@@ -43,27 +43,28 @@ CAIRO_SOURCE_URL=https://cairographics.org/releases/cairo-1.18.6.tar.xz
 CAIRO_SOURCE_SHA256=1c767308174337a74694da0f3ec069c271452163a1ef4540964c50c301f157d4
 PIXMAN_SOURCE_URL=https://cairographics.org/releases/pixman-0.46.4.tar.xz
 PIXMAN_SOURCE_SHA256=a098c33924754ad43f981b740f6d576c70f9ed1006e12221b1845431ebce1239
-LIBPNG_SOURCE_URL=https://downloads.sourceforge.net/project/libpng/libpng16/1.6.58/libpng-1.6.58.tar.xz
-LIBPNG_SOURCE_SHA256=28eb403f51f0f7405249132cecfe82ea5c0ef97f1b32c5a65828814ae0d34775
+LIBPNG_SOURCE_URL=https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.xz
+LIBPNG_SOURCE_SHA256=d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389
 CAIRO_PKGCONF_SOURCE_URL=https://distfiles.ariadne.space/pkgconf/pkgconf-2.5.1.tar.xz
 CAIRO_PKGCONF_SOURCE_SHA256=cd05c9589b9f86ecf044c10a2269822bc9eb001eced2582cfffd658b0a50c243
 CAIRO_FEATURE_POLICY=binding=static-cffi-api callbacks=compiled font=CoreText png=enabled pdf=enabled ps=enabled svg=enabled xlib=disabled xcb=disabled freetype=disabled fontconfig=disabled
 PYTHON_LD_CLASSIC=/Applications/Xcode 16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld-classic
-LIBXML2_SOURCE_URL=https://download.gnome.org/sources/libxml2/2.14/libxml2-2.14.6.tar.xz
-LIBXML2_SOURCE_SHA256=7ce458a0affeb83f0b55f1f4f9e0e55735dbfc1a9de124ee86fb4a66b597203a
-LIBXSLT_SOURCE_URL=https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.43.tar.xz
-LIBXSLT_SOURCE_SHA256=5a3d6b383ca5afc235b171118e90f5ff6aa27e9fea3303065231a6d403f0183a
-LXML_SOURCE_URL=https://files.pythonhosted.org/packages/ad/a9/970b8fa0ecc4fbf1dfaed0d89bbc1fc1421b25ec26a2038c91e872dc6c8e/lxml-6.1.2.tar.gz
-LXML_SOURCE_SHA256=1055241852f2b02068af4a625a5d32c087db193c12251928af2562ecd2239f18
+LIBXML2_SOURCE_URL=https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz
+LIBXML2_SOURCE_SHA256=98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821
+LIBXSLT_SOURCE_URL=https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.45.tar.xz
+LIBXSLT_SOURCE_SHA256=9acfe68419c4d06a45c550321b3212762d92f41465062ca4ea19e632ee5d216e
+LXML_SOURCE_URL=https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz
+LXML_SOURCE_SHA256=45222d94ddd511536f3b2f7d9deae3b2339b4ce0f075f1ca25703b07cad9dd21
 LXML_FEATURE_POLICY=libxml2=static libxslt=static libexslt=static zlib=sdk iconv=sdk debugger=disabled profiler=enabled crypto=disabled plugins=disabled
-CONTOURPY_SOURCE_URL=https://files.pythonhosted.org/packages/source/c/contourpy/contourpy-1.3.3.tar.gz
-CONTOURPY_SOURCE_SHA256=083e12155b210502d0bca491432bb04d56dc3432f95a979b429f2848c3dbe880
+CONTOURPY_SOURCE_URL=https://files.pythonhosted.org/packages/source/c/contourpy/contourpy-1.4.0.tar.gz
+CONTOURPY_SOURCE_SHA256=20156f5a1ac4f8ce02656e39a61e82164a3d359796dc8026f75b062783d500e1
 KIWISOLVER_SOURCE_URL=https://files.pythonhosted.org/packages/ba/07/bd78e6a8fae171ea041ef5bba3ed21a003522fa088834b069b1909981f30/kiwisolver-1.5.1.tar.gz
 KIWISOLVER_SOURCE_SHA256=f1303ef2eec81262a4b708c3e858afe58d7c75ad91c1c05266eda7673369859a
-MATPLOTLIB_SOURCE_URL=https://files.pythonhosted.org/packages/49/64/f9a391af28f518b11ad45a8a712353c94a0aefce09d3703200e5c54b610a/matplotlib-3.11.1.tar.gz
-MATPLOTLIB_SOURCE_SHA256=69647db5746941c793d6e445a4cd349323ffb87d9cc958c2ad84a659b4832d30
+MATPLOTLIB_SOURCE_URL=https://files.pythonhosted.org/packages/e7/c8/9aa712a0afb882649424dd8de8ad9aa6235e796e84c6052e8f6dc1598d0d/matplotlib-3.11.2.tar.gz
+MATPLOTLIB_SOURCE_SHA256=cec596316640f2b394b8f0daa0ea61a8eae82d017b620b9f202befb972a59ea4
 MATPLOTLIB_FREETYPE_SOURCE_URL=https://download.savannah.nongnu.org/releases/freetype/freetype-2.14.3.tar.xz
 MATPLOTLIB_FREETYPE_SOURCE_SHA256=36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f
+MATPLOTLIB_FREETYPE_BACKPORTS=5a280ecde6f324de0d226261036e736e0cb49a71 f3ca71c9900fe860849b3163a6e2c1e765b291d9
 MATPLOTLIB_HARFBUZZ_SOURCE_URL=https://github.com/harfbuzz/harfbuzz/releases/download/14.1.0/harfbuzz-14.1.0.tar.xz
 MATPLOTLIB_HARFBUZZ_SOURCE_SHA256=ee0eb3a1da2c5a28147f12dff55f6c7d60aeeeb29ac7ef334eabe84c8476c105
 MATPLOTLIB_SHEENBIDI_SOURCE_URL=https://github.com/Tehreer/SheenBidi/archive/refs/tags/v3.0.0/sheenbidi-3.0.0.tar.gz
@@ -73,11 +74,11 @@ MATPLOTLIB_LIBRAQM_SOURCE_SHA256=7f3dd21b4b3bd28a36f2c911d31d91a9d69341697713923
 MATPLOTLIB_QHULL_SOURCE_URL=https://github.com/qhull/qhull/archive/v8.0.2/qhull-8.0.2.tar.gz
 MATPLOTLIB_QHULL_SOURCE_SHA256=8774e9a12c70b0180b95d6b0b563c5aa4bea8d5960c15e18ae3b6d2521d64f8b
 MATPLOTLIB_FEATURE_POLICY=backend=Agg macosx=disabled tkagg=disabled freetype=bundled harfbuzz=bundled sheenbidi=bundled libraqm=bundled qhull=bundled lto=disabled
-PSDTOOLS_SOURCE_URL=https://github.com/psd-tools/psd-tools/archive/refs/tags/v1.18.0.tar.gz
-PSDTOOLS_SOURCE_SHA256=c0590044f714a51ced823e5011aaa14ea563a6438f735d89a84bfc482e9dac5c
+PSDTOOLS_SOURCE_URL=https://github.com/psd-tools/psd-tools/archive/refs/tags/v1.26.0.tar.gz
+PSDTOOLS_SOURCE_SHA256=6dc17294417504d9cdc3de0c5bd43d006c61b4d5630ade481fea65489c6f9927
 PSDTOOLS_FEATURE_POLICY=rle=static-cython limited-api=0x030D0000 composite-extra=disabled
-REGEX_SOURCE_URL=https://files.pythonhosted.org/packages/20/98/04b13f1ddfb63158025291c02e03eb42fbb7acb51d091d541050eb4e35e8/regex-2026.7.19.tar.gz
-REGEX_SOURCE_SHA256=7e77b324909c1617cbb4c668677e2c6ae13f44d7c1de0d4f15f2e3c10f3315b5
+REGEX_SOURCE_URL=https://files.pythonhosted.org/packages/fc/f2/af1da9d3ceed77bfcdce40427d49ba0be94e4fe84245e3bfef68c10e75b6/regex-2026.9.29.tar.gz
+REGEX_SOURCE_SHA256=8b5fcc4771732191b2b7d1dd68d8f0353f47f8d90b6150f6dce58bf1112442cb
 REGEX_SLICES=ios-arm64 ios-arm64-simulator macos-arm64
 REGEX_FEATURE_POLICY=python=3.14 c-extension=static external-libraries=none interpreter=main-only
 HF_XET_SOURCE_URL=https://files.pythonhosted.org/packages/63/39/67be8d71f900d9a55761b6022821d6679fb56c64f1b6063d5af2c2606727/hf_xet-1.5.2.tar.gz
@@ -94,25 +95,25 @@ SAFETENSORS_CARGO_LOCK_SHA256=f7d484a57bc394042b3424d57dab0a17d6a343f5e57e30870b
 SAFETENSORS_SLICES=ios-arm64 ios-arm64-simulator macos-arm64
 SAFETENSORS_RUST_VERSION=1.89.0
 SAFETENSORS_FEATURE_POLICY=pyo3=0.28.3 abi3=py310 host-python=disabled mmap=enabled pread=enabled lto=disabled interpreter=main-only
-TOKENIZERS_SOURCE_URL=https://files.pythonhosted.org/packages/73/6f/f80cfef4a312e1fb34baf7d85c72d4411afde10978d4657f8cdd811d3ccc/tokenizers-0.22.2.tar.gz
-TOKENIZERS_SOURCE_SHA256=473b83b915e547aa366d1eee11806deaf419e17be16310ac0a14077f1e28f917
-TOKENIZERS_CARGO_LOCK_SHA256=a3ff2022b3790e2f5863fe59732ab76da81dd75bc3a94905127206e87125170d
+TOKENIZERS_SOURCE_URL=https://files.pythonhosted.org/packages/e0/7c/2cabb2174e772636683008f2c5621949b645da7d303c596589e84516a184/tokenizers-0.23.3.tar.gz
+TOKENIZERS_SOURCE_SHA256=cded33237c77caeef62944d32aa9a7ef42bdce2b3497e18d137e072a8c4be438
+TOKENIZERS_CARGO_LOCK_SHA256=afcedf7f2ebe008b068d7afd25e77f7d9d8e433c24153bc35a1eb5611083ee5b
 TOKENIZERS_SLICES=ios-arm64 ios-arm64-simulator macos-arm64
 TOKENIZERS_RUST_VERSION=1.89.0
-TOKENIZERS_FEATURE_POLICY=pyo3=0.26.0 abi3=py39 onig=vendored esaxx=cpp progressbar=enabled rust-http=disabled lto=disabled interpreter=main-only
+TOKENIZERS_FEATURE_POLICY=pyo3=0.29.2 abi3=py310 onig=vendored esaxx=cpp progressbar=enabled rust-http=disabled lto=disabled interpreter=main-only
 SENTENCEPIECE_SOURCE_URL=https://files.pythonhosted.org/packages/cc/33/ea3cb3839607eb175da835244a798f797f478c5ddf0e8ecdf57ea85a4c70/sentencepiece-0.2.2.tar.gz
 SENTENCEPIECE_SOURCE_SHA256=3d2b5e824b5622038dc7b490897efe05ebbbb9e7350fc142f3ecc8789ef9bdf6
 SENTENCEPIECE_ABSEIL_COMMIT=5650e9cf76d3be4318d5fa3af38ee483ddfd5e4a
 SENTENCEPIECE_ABSEIL_ABI=lts_20260526
 SENTENCEPIECE_SLICES=ios-arm64 ios-arm64-simulator macos-arm64
 SENTENCEPIECE_FEATURE_POLICY=pybind11=3.0.1 extension=static core=@sentencepiece//:sentencepiece_train core-in-python-archive=none abseil=lts_20260526 interpreter=main-only
-MLX_SOURCE_URL=https://github.com/ml-explore/mlx/archive/refs/tags/v0.32.2.tar.gz
-MLX_SOURCE_SHA256=bf892386ccac1d249acc9da21574fd7b95a995f4c58b03310105fe05f077b175
+MLX_SOURCE_URL=https://github.com/ml-explore/mlx/archive/refs/tags/v0.32.4.tar.gz
+MLX_SOURCE_SHA256=0276db8d7bf1af8db6d4ae25c7c550abea4d5b3b6a16207610a5d4a0c19fe1a0
 MLX_SLICES=ios-arm64 macos-arm64
 MLX_FEATURE_POLICY=platforms=ios-arm64,macos-arm64 cpu=Accelerate metal=precompiled metal-jit=disabled metal-cpp-constants=dynamic gguf=enabled safetensors=enabled lto=disabled
 MLX_METAL_LANGUAGE_STANDARD=metal3.1
 MLX_METAL_COMPILER_VERSION=Apple metal version 32023.921 (metalfe-32023.921.6)
-MLX_BUILD_DEPENDENCIES=metal-cpp-26 json-3.11.3 fmt-12.1.0 nanobind-2.13.0 gguf-8fa6eb65236618e28fd7710a0fba565f7faa1848
+MLX_BUILD_DEPENDENCIES=metal-cpp-26 json-3.11.3 fmt-12.1.0 nanobind-3.1.0 gguf-8fa6eb65236618e28fd7710a0fba565f7faa1848
 PYYAML_SOURCE_URL=https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz
 PYYAML_SOURCE_SHA256=d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f
 PYYAML_WHEEL_SHA256=717a12e2e669ac5ab431f9d59c8574eec76182378c7ef3aa958cb5962b14d254

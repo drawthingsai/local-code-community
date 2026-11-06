@@ -176,18 +176,18 @@ index edc169e..2d8d75e 100644
    DEPENDS ${KERNEL_AIR}
    COMMENT "Building mlx.metallib"
 diff --git a/python/src/CMakeLists.txt b/python/src/CMakeLists.txt
-index 4472715..a537c8e 100644
+index d5cda4d..02b86c2 100644
 --- a/python/src/CMakeLists.txt
 +++ b/python/src/CMakeLists.txt
 @@ -2,8 +2,7 @@ nanobind_add_module(
    core
    NB_STATIC
-   STABLE_ABI
    FREE_THREADED
 -  LTO
    NOMINSIZE
    NB_DOMAIN
    mlx
+   ${CMAKE_CURRENT_SOURCE_DIR}/mlx.cpp
 @@ -84,6 +83,11 @@ set_target_properties(
               LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL
               ${MLX_PYTHON_BINDINGS_OUTPUT_DIRECTORY})

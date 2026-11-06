@@ -27,7 +27,6 @@ from typing import (
     AnyStr,
     Final,
     Self,
-    cast,
 )
 import warnings
 
@@ -39,6 +38,7 @@ from pandas._libs.writers import max_len_string_array
 from pandas.errors import (
     CategoricalConversionWarning,
     InvalidColumnName,
+    OutOfBoundsDatetime,
     Pandas4Warning,
     PossiblePrecisionLoss,
     ValueLabelTypeMismatch,
@@ -68,7 +68,6 @@ from pandas.core.frame import DataFrame
 from pandas.core.indexes.base import Index
 from pandas.core.indexes.range import RangeIndex
 from pandas.core.series import Series
-from pandas.core.shared_docs import _shared_docs
 
 from pandas.io.common import get_handle
 
@@ -89,66 +88,24 @@ if TYPE_CHECKING:
         WriteBuffer,
     )
 
+# The format versions each header reader accepts. _version_error enumerates
+#  both, so keep them in sync -- GH#63082 dropped four of these from the
+#  message while the readers went on accepting them.
+_old_format_versions: Final = [102, 103, 104, 105, 108, 110, 111, 113, 114, 115]
+_new_format_versions: Final = [117, 118, 119]
+
+# Error shown when a version number was parsed but is not supported.
+# Wording intentionally mentions “either not a valid Stata dataset or
+# an unsupported version” to avoid confusing users when input is not a
+#  real .dta.
 _version_error = (
-    "Version of given Stata file is {version}. pandas supports importing "
-    "versions 102, 103, 104, 105, 108, 110 (Stata 7), 111 (Stata 7SE),  "
-    "113 (Stata 8/9), 114 (Stata 10/11), 115 (Stata 12), 117 (Stata 13), "
-    "118 (Stata 14/15/16), and 119 (Stata 15/16, over 32,767 variables)."
+    "This is either not a valid Stata dataset or a Stata dataset from a "
+    "version pandas does not support (detected: {version}). pandas "
+    "supports importing versions 102, 103, 104, 105, 108, 110 (Stata 7), "
+    "111 (Stata 7SE), 113 (Stata 8/9), 114 (Stata 10/11), 115 (Stata 12), "
+    "117 (Stata 13), 118 (Stata 14/15/16), and 119 (Stata 15/16, over "
+    "32,767 variables)."
 )
-
-_statafile_processing_params1 = """\
-convert_dates : bool, default True
-    Convert date variables to DataFrame time values.
-convert_categoricals : bool, default True
-    Read value labels and convert columns to Categorical/Factor variables."""
-
-_statafile_processing_params2 = """\
-index_col : str, optional
-    Column to set as index.
-convert_missing : bool, default False
-    Flag indicating whether to convert missing values to their Stata
-    representations.  If False, missing values are replaced with nan.
-    If True, columns containing missing values are returned with
-    object data types and missing values are represented by
-    StataMissingValue objects.
-preserve_dtypes : bool, default True
-    Preserve Stata datatypes. If False, numeric data are upcast to pandas
-    default types for foreign data (float64 or int64).
-columns : list or None
-    Columns to retain.  Columns will be returned in the given order.  None
-    returns all columns.
-order_categoricals : bool, default True
-    Flag indicating whether converted categorical data are ordered."""
-
-_chunksize_params = """\
-chunksize : int, default None
-    Return StataReader object for iterations, returns chunks with
-    given number of lines."""
-
-_reader_notes = """\
-Notes
------
-Categorical variables read through an iterator may not have the same
-categories and dtype. This occurs when  a variable stored in a DTA
-file is associated to an incomplete set of value labels that only
-label a strict subset of the values."""
-
-_stata_reader_doc = f"""\
-Class for reading Stata dta files.
-
-Parameters
-----------
-path_or_buf : path (string), buffer or path object
-    string, pathlib.Path or object
-    implementing a binary read() functions.
-{_statafile_processing_params1}
-{_statafile_processing_params2}
-{_chunksize_params}
-{_shared_docs["decompression_options"]}
-{_shared_docs["storage_options"]}
-
-{_reader_notes}
-"""
 
 
 _date_formats = ["%tc", "%tC", "%td", "%d", "%tw", "%tm", "%tq", "%th", "%ty"]
@@ -156,6 +113,46 @@ _date_formats = ["%tc", "%tC", "%td", "%d", "%tw", "%tm", "%tq", "%th", "%ty"]
 
 stata_epoch: Final = datetime(1960, 1, 1)
 unix_epoch: Final = datetime(1970, 1, 1)
+
+
+def _stata_ordinals_to_datetime64(
+    ordinals: Series | np.ndarray,
+    fmt: str,
+    unit: str,
+    shift: np.timedelta64 | None = None,
+    mult: int = 1,
+) -> np.ndarray:
+    """
+    Cast Stata date ordinals to ``datetime64[unit]``, scaling by `mult` and
+    then adding `shift`.
+
+    Casting a float to datetime64 saturates at the int64 bounds instead of
+    raising, so an ordinal too far from the epoch would otherwise decode to a
+    bogus date. Reject those up front, naming the caller's own ordinal rather
+    than the scaled one, and let ``Series`` do the range-checked conversion to
+    the caller's resolution (GH#36096).
+    """
+    values = np.asarray(ordinals)
+    if values.dtype.kind == "f":
+        # The scaled ordinal has to survive the int64 cast on its own, and the
+        #  shifted result has to fit too; `shift` is one-signed, so it buys
+        #  headroom at one end and costs it at the other. Take both bounds.
+        #  int64 min doubles as the NaT sentinel, so that end is exclusive.
+        offset = 0 if shift is None else shift.astype("i8")
+        lower = max(-(2.0**63), -(2.0**63) - offset) / mult
+        upper = min(2.0**63, 2.0**63 - offset) / mult
+        # NaN compares False both ways and casts to NaT, which is what we want.
+        out_of_range = (values <= lower) | (values >= upper)
+        if out_of_range.any():
+            raise OutOfBoundsDatetime(
+                f"Out of bounds date value {values[out_of_range][0]} for format {fmt}"
+            )
+    if mult != 1:
+        values = values * mult
+    res = values.astype(f"M8[{unit}]")
+    if shift is not None:
+        res += shift
+    return res
 
 
 def _stata_elapsed_date_to_datetime_vec(dates: Series, fmt: str) -> Series:
@@ -208,38 +205,56 @@ def _stata_elapsed_date_to_datetime_vec(dates: Series, fmt: str) -> Series:
     if fmt.startswith(("%tc", "tc")):
         # Delta ms relative to base
         td = np.timedelta64(stata_epoch - unix_epoch, "ms")
-        res = np.array(dates._values, dtype="M8[ms]") + td
+        res = _stata_ordinals_to_datetime64(dates._values, fmt, "ms", td)
         return Series(res, index=dates.index)
 
     elif fmt.startswith(("%td", "td", "%d", "d")):
         # Delta days relative to base
         td = np.timedelta64(stata_epoch - unix_epoch, "D")
-        res = np.array(dates._values, dtype="M8[D]") + td
+        res = _stata_ordinals_to_datetime64(dates._values, fmt, "D", td)
         return Series(res, index=dates.index)
 
     elif fmt.startswith(("%tm", "tm")):
-        # Delta months relative to base
-        ordinals = dates + (stata_epoch.year - unix_epoch.year) * 12
-        res = np.array(ordinals, dtype="M8[M]").astype("M8[s]")
+        # Delta months relative to base. Stata stores these in anything from a
+        #  byte to a double, so widen before shifting the epoch: the narrow
+        #  integer types overflow on the way (GH#36096).
+        ordinals = dates.astype("f8") + (stata_epoch.year - unix_epoch.year) * 12
+        res = _stata_ordinals_to_datetime64(ordinals, fmt, "M")
         return Series(res, index=dates.index)
 
     elif fmt.startswith(("%tq", "tq")):
-        # Delta quarters relative to base
-        ordinals = dates + (stata_epoch.year - unix_epoch.year) * 4
-        res = np.array(ordinals, dtype="M8[3M]").astype("M8[s]")
+        # Delta quarters relative to base, expressed in months because the
+        #  conversion below reads datetime64[3M] as datetime64[M]. Truncate to
+        #  whole quarters first, as the datetime64[3M] cast used to.
+        quarters = dates.astype("f8") + (stata_epoch.year - unix_epoch.year) * 4
+        res = _stata_ordinals_to_datetime64(np.trunc(quarters), fmt, "M", mult=3)
         return Series(res, index=dates.index)
 
     elif fmt.startswith(("%th", "th")):
-        # Delta half-years relative to base
-        ordinals = dates + (stata_epoch.year - unix_epoch.year) * 2
-        res = np.array(ordinals, dtype="M8[6M]").astype("M8[s]")
+        # Delta half-years relative to base, expressed in months (see %tq)
+        halves = dates.astype("f8") + (stata_epoch.year - unix_epoch.year) * 2
+        res = _stata_ordinals_to_datetime64(np.trunc(halves), fmt, "M", mult=6)
         return Series(res, index=dates.index)
 
     elif fmt.startswith(("%ty", "ty")):
         # Years -- not delta
-        ordinals = dates - 1970
-        res = np.array(ordinals, dtype="M8[Y]").astype("M8[s]")
+        ordinals = dates.astype("f8") - 1970
+        res = _stata_ordinals_to_datetime64(ordinals, fmt, "Y")
         return Series(res, index=dates.index)
+
+    if fmt.startswith(("%tC", "tC")):
+        warnings.warn(
+            "Encountered %tC format. Leaving in Stata Internal Format.",
+            stacklevel=find_stack_level(),
+        )
+        # Converts nothing, so hand back the file's own numbers; this must stay
+        #  above the int64 cast below, which saturates out-of-bounds values
+        #  (GH#68034).
+        conv_dates = Series(dates, dtype=object)
+        na_locs = isna(dates)
+        if na_locs.any():
+            conv_dates[na_locs] = NaT
+        return conv_dates
 
     bad_locs = np.isnan(dates)
     has_bad_values = False
@@ -248,26 +263,13 @@ def _stata_elapsed_date_to_datetime_vec(dates: Series, fmt: str) -> Series:
         dates._values[bad_locs] = 1.0  # Replace with NaT
     dates = dates.astype(np.int64)
 
-    if fmt.startswith(("%tC", "tC")):
-        warnings.warn(
-            "Encountered %tC format. Leaving in Stata Internal Format.",
-            stacklevel=find_stack_level(),
-        )
-        conv_dates = Series(dates, dtype=object)
-        if has_bad_values:
-            conv_dates[bad_locs] = NaT
-        return conv_dates
     # does not count leap days - 7 days is a week.
     # 52nd week may have more than 7 days
-    elif fmt.startswith(("%tw", "tw")):
+    if fmt.startswith(("%tw", "tw")):
         year = stata_epoch.year + dates // 52
         days = (dates % 52) * 7
-        per_y = (year - 1970).array.view("Period[Y]")
-        per_d = per_y.asfreq("D", how="S")
-        per_d_shifted = per_d + days._values
-        per_s = per_d_shifted.asfreq("s", how="S")
-        conv_dates_arr = per_s.view("M8[s]")
-        conv_dates = Series(conv_dates_arr, index=dates.index)
+        res = _stata_ordinals_to_datetime64(year - 1970, fmt, "Y")
+        conv_dates = Series(res, index=dates.index) + days._values.astype("m8[D]")
 
     else:
         raise ValueError(f"Date fmt {fmt} not understood")
@@ -332,9 +334,16 @@ def _datetime_to_stata_elapsed_vec(dates: Series, fmt: str) -> Series:
                 v = np.vectorize(f)
                 d["delta"] = v(delta) // 1_000  # convert back to ms
             if year:
-                year_month = dates.apply(lambda x: 100 * x.year + x.month)
-                d["year"] = year_month._values // 100
-                d["month"] = year_month._values - d["year"] * 100
+                try:
+                    date_index = DatetimeIndex(dates)
+                except ValueError:
+                    # GH#64556 entries not sharing a single tzinfo cannot be
+                    #  cast to datetime64, but we only need each object's fields
+                    d["year"] = [date.year for date in dates]
+                    d["month"] = [date.month for date in dates]
+                else:
+                    d["year"] = date_index.year
+                    d["month"] = date_index.month
             if days:
 
                 def g(x: datetime) -> int:
@@ -1019,8 +1028,72 @@ class StataParser:
 
 
 @set_module("pandas.api.typing")
-class StataReader(StataParser, abc.Iterator):
-    __doc__ = _stata_reader_doc
+class StataReader(StataParser, abc.Iterator[DataFrame]):
+    """
+    Class for reading Stata dta files.
+
+    Parameters
+    ----------
+    path_or_buf : path (string), buffer or path object
+        string, pathlib.Path or object
+        implementing a binary read() functions.
+    convert_dates : bool, default True
+        Convert date variables to DataFrame time values.
+    convert_categoricals : bool, default True
+        Read value labels and convert columns to Categorical/Factor variables.
+    index_col : str, optional
+        Column to set as index.
+    convert_missing : bool, default False
+        Flag indicating whether to convert missing values to their Stata
+        representations.  If False, missing values are replaced with nan.
+        If True, columns containing missing values are returned with
+        object data types and missing values are represented by
+        StataMissingValue objects.
+    preserve_dtypes : bool, default True
+        Preserve Stata datatypes. If False, numeric data are upcast to pandas
+        default types for foreign data (float64 or int64).
+    columns : list or None
+        Columns to retain.  Columns will be returned in the given order.  None
+        returns all columns.
+    order_categoricals : bool, default True
+        Flag indicating whether converted categorical data are ordered.
+    chunksize : int, default None
+        Return StataReader object for iterations, returns chunks with
+        given number of lines.
+    compression : str or dict, default 'infer'
+        For on-the-fly decompression of on-disk data. If 'infer' and '%s' is
+        path-like, then detect compression from the following extensions: '.gz',
+        '.bz2', '.zip', '.xz', '.zst', '.tar', '.tar.gz', '.tar.xz' or '.tar.bz2'
+        (otherwise no compression).
+        If using 'zip' or 'tar', the ZIP file must contain only one data file
+        to be read in.
+        Set to ``None`` for no decompression.
+        Can also be a dict with key ``'method'`` set
+        to one of ``'zip'``, ``'gzip'``, ``'bz2'``, ``'zstd'``, ``'xz'``, ``'tar'`` and
+        other key-value pairs are forwarded to
+        ``zipfile.ZipFile``, ``gzip.GzipFile``,
+        ``bz2.BZ2File``, ``zstandard.ZstdDecompressor``, ``lzma.LZMAFile`` or
+        ``tarfile.TarFile``, respectively.
+        As an example, the following could be passed for Zstandard decompression using a
+        custom compression dictionary:
+        ``compression={'method': 'zstd', 'dict_data': my_compression_dict}``.
+    storage_options : dict, optional
+        Extra options that make sense for a particular storage connection, e.g.
+        host, port, username, password, etc. For HTTP(S) URLs the key-value pairs
+        are forwarded to ``urllib.request.Request`` as header options. For other
+        URLs (e.g. starting with "s3://", and "gcs://") the key-value pairs are
+        forwarded to ``fsspec.open``. Please see ``fsspec`` and ``urllib`` for more
+        details, and for more examples on storage options refer `here
+        <https://pandas.pydata.org/docs/user_guide/io.html?
+        highlight=storage_options#reading-writing-remote-files>`_.
+
+    Notes
+    -----
+    Categorical variables read through an iterator may not have the same
+    categories and dtype. This occurs when  a variable stored in a DTA
+    file is associated to an incomplete set of value labels that only
+    label a strict subset of the values.
+    """
 
     _path_or_buf: IO[bytes]  # Will be assigned by `_open_file`.
 
@@ -1176,7 +1249,7 @@ class StataReader(StataParser, abc.Iterator):
         # The first part of the header is common to 117 - 119.
         self._path_or_buf.read(27)  # stata_dta><header><release>
         self._format_version = int(self._path_or_buf.read(3))
-        if self._format_version not in [117, 118, 119]:
+        if self._format_version not in _new_format_versions:
             raise ValueError(_version_error.format(version=self._format_version))
         self._set_encoding()
         self._path_or_buf.read(21)  # </release><byteorder>
@@ -1337,18 +1410,7 @@ class StataReader(StataParser, abc.Iterator):
 
     def _read_old_header(self, first_char: bytes) -> None:
         self._format_version = int(first_char[0])
-        if self._format_version not in [
-            102,
-            103,
-            104,
-            105,
-            108,
-            110,
-            111,
-            113,
-            114,
-            115,
-        ]:
+        if self._format_version not in _old_format_versions:
             raise ValueError(_version_error.format(version=self._format_version))
         self._set_encoding()
         # Note 102 format will have a zero in this header position, so support
@@ -1376,9 +1438,9 @@ class StataReader(StataParser, abc.Iterator):
             typlist = []
             for tp in typlistb:
                 if tp in self.OLD_TYPE_MAPPING:
-                    typlist.append(self.OLD_TYPE_MAPPING[tp])
+                    typlist.append(self.OLD_TYPE_MAPPING[tp])  # type: ignore[index]
                 else:
-                    typlist.append(tp - 127)  # bytes
+                    typlist.append(tp - 127)  # type: ignore[arg-type]
 
         try:
             self._typlist = [self.TYPE_MAP[typ] for typ in typlist]
@@ -1434,7 +1496,6 @@ class StataReader(StataParser, abc.Iterator):
         dtypes = []  # Convert struct data types to numpy data type
         for i, typ in enumerate(self._typlist):
             if typ in self.NUMPY_TYPE_MAP:
-                typ = cast(str, typ)  # only strs in NUMPY_TYPE_MAP
                 dtypes.append((f"s{i}", f"{self._byteorder}{self.NUMPY_TYPE_MAP[typ]}"))
             else:
                 dtypes.append((f"s{i}", f"S{typ}"))
@@ -1794,13 +1855,11 @@ the string values returned are correct."""
                 if fmt not in self.OLD_VALID_RANGE:
                     continue
 
-                fmt = cast(str, fmt)  # only strs in OLD_VALID_RANGE
                 nmin, nmax = self.OLD_VALID_RANGE[fmt]
             else:
                 if fmt not in self.VALID_RANGE:
                     continue
 
-                fmt = cast(str, fmt)  # only strs in VALID_RANGE
                 nmin, nmax = self.VALID_RANGE[fmt]
             series = data.iloc[:, i]
 
@@ -1867,16 +1926,16 @@ the string values returned are correct."""
             fmtlist = []
             lbllist = []
             for col in columns:
-                i = data.columns.get_loc(col)  # type: ignore[no-untyped-call]
+                i = data.columns.get_loc(col)
                 dtyplist.append(self._dtyplist[i])
                 typlist.append(self._typlist[i])
                 fmtlist.append(self._fmtlist[i])
                 lbllist.append(self._lbllist[i])
 
-            self._dtyplist = dtyplist
-            self._typlist = typlist
-            self._fmtlist = fmtlist
-            self._lbllist = lbllist
+            self._dtyplist = dtyplist  # type: ignore[assignment]
+            self._typlist = typlist  # type: ignore[assignment]
+            self._fmtlist = fmtlist  # type: ignore[assignment]
+            self._lbllist = lbllist  # type: ignore[assignment]
             self._column_selector_set = True
 
         return data[columns]
@@ -1945,7 +2004,8 @@ pandas categoricals.
 
 Either read the file with `convert_categoricals` set to False or use the
 low level interface in `StataReader` to separately read the values and the
-value_labels.
+value_labels. This column's labels are stored under the key '{label}' in
+`StataReader.value_labels()`.
 
 The repeated labels are:
 {repeats}
@@ -2044,7 +2104,7 @@ The repeated labels are:
 
     def value_labels(self) -> dict[str, dict[int, str]]:
         """
-        Return a nested dict associating each variable name to its value and label.
+        Return a nested dict mapping each value label name to its values and labels.
 
         This method retrieves the value labels from a Stata file. Value labels are
         mappings between the coded values and their corresponding descriptive labels
@@ -2053,7 +2113,8 @@ The repeated labels are:
         Returns
         -------
         dict
-            A python dictionary.
+            A python dictionary keyed by value label name, which need not match a
+            variable name. Several variables can share one value label set.
 
         See Also
         --------
@@ -2105,12 +2166,20 @@ def read_stata(
     """
     Read Stata file into DataFrame.
 
+    This function reads ``.dta`` files produced by Stata, with support for
+    converting date variables, categorical data, and missing value
+    representations.
+
     Parameters
     ----------
     filepath_or_buffer : str, path object or file-like object
         Any valid string path is acceptable. The string could be a URL. Valid
         URL schemes include http, ftp, s3, and file. For file URLs, a host is
         expected. A local file could be: ``file://localhost/path/to/table.dta``.
+
+        Certain URL schemes may require additional packages. For example, S3
+        URLs require the ``s3fs`` library. See
+        :ref:`install.optional_dependencies` for a full list.
 
         If you want to pass in a path object, pandas accepts any ``os.PathLike``.
 
@@ -2279,8 +2348,10 @@ def _convert_datetime_to_stata_type(fmt: str) -> np.dtype:
         raise NotImplementedError(f"Format {fmt} not implemented")
 
 
-def _maybe_convert_to_int_keys(convert_dates: dict, varlist: list[Hashable]) -> dict:
-    new_dict = {}
+def _maybe_convert_to_int_keys(
+    convert_dates: dict[Hashable, str], varlist: list[Hashable]
+) -> dict[Hashable, str]:
+    new_dict: dict[Hashable, str] = {}
     for key, value in convert_dates.items():
         if not value.startswith("%"):  # make sure proper fmts
             convert_dates[key] = "%" + value
@@ -2699,7 +2770,7 @@ class StataWriter(StataParser):
         # Check date conversion, and fix key if needed
         if self._convert_dates:
             for c, o in zip(columns, original_columns, strict=True):
-                if c != o:
+                if c != o and o in self._convert_dates:
                     self._convert_dates[c] = self._convert_dates[o]
                     del self._convert_dates[o]
 
@@ -2986,7 +3057,7 @@ supported types."""
         # time stamp, 18 bytes, char, null terminated
         # format dd Mon yyyy hh:mm
         if time_stamp is None:
-            time_stamp = datetime.now()
+            time_stamp = datetime.now()  # noqa: TID251
         elif not isinstance(time_stamp, datetime):
             raise ValueError("time_stamp should be datetime type")
         # GH #13856
@@ -3530,7 +3601,7 @@ class StataWriter117(StataWriter):
         # time stamp, 18 bytes, char, null terminated
         # format dd Mon yyyy hh:mm
         if time_stamp is None:
-            time_stamp = datetime.now()
+            time_stamp = datetime.now()  # noqa: TID251
         elif not isinstance(time_stamp, datetime):
             raise ValueError("time_stamp should be datetime type")
         # Avoid locale-specific month conversion

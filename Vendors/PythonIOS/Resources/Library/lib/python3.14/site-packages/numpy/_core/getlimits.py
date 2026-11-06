@@ -5,36 +5,27 @@ __all__ = ['finfo', 'iinfo']
 
 import math
 import types
-import warnings
 from functools import cached_property
 
 from numpy._utils import set_module
 
 from . import numeric, numerictypes as ntypes
-from ._multiarray_umath import _populate_finfo_constants
+from ._multiarray_umath import _finfo_get_realdtype, _populate_finfo_constants
 
 
 def _fr0(a):
     """fix rank-0 --> rank-1"""
     if a.ndim == 0:
-        a = a.copy()
-        a.shape = (1,)
+        a = a.reshape((1,))
     return a
 
 
 def _fr1(a):
     """fix rank > 0 --> rank-0"""
     if a.size == 1:
-        a = a.copy()
-        a.shape = ()
+        a = a.reshape(())
     return a
 
-
-_convert_to_float = {
-    ntypes.csingle: ntypes.single,
-    ntypes.complex128: ntypes.float64,
-    ntypes.clongdouble: ntypes.longdouble
-    }
 
 # Parameters for creating MachAr / MachAr-like objects
 _title_fmt = 'numpy {} precision floating point number'
@@ -171,26 +162,20 @@ class finfo:
 
     """
 
-    _finfo_cache = {}
+    _finfo_cache = {}  # noqa: RUF012
 
     __class_getitem__ = classmethod(types.GenericAlias)
 
     def __new__(cls, dtype):
+        if dtype is None:
+            raise TypeError("dtype must not be None")
+
         try:
             obj = cls._finfo_cache.get(dtype)  # most common path
             if obj is not None:
                 return obj
         except TypeError:
             pass
-
-        if dtype is None:
-            # Deprecated in NumPy 1.25, 2023-01-16
-            warnings.warn(
-                "finfo() dtype cannot be None. This behavior will "
-                "raise an error in the future. (Deprecated in NumPy 1.25)",
-                DeprecationWarning,
-                stacklevel=2
-            )
 
         try:
             dtype = numeric.dtype(dtype)
@@ -202,17 +187,19 @@ class finfo:
         if obj is not None:
             return obj
         dtypes = [dtype]
-        newdtype = ntypes.obj2sctype(dtype)
+        # Call result_type to normalize to e.g. native byte-order:
+        newdtype = numeric.result_type(dtype)
         if newdtype is not dtype:
             dtypes.append(newdtype)
             dtype = newdtype
-        if not issubclass(dtype, numeric.inexact):
-            raise ValueError(f"data type {dtype!r} not inexact")
+
         obj = cls._finfo_cache.get(dtype)
         if obj is not None:
             return obj
-        if not issubclass(dtype, numeric.floating):
-            newdtype = _convert_to_float[dtype]
+
+        sctype = newdtype.type
+        if sctype is not None and not issubclass(sctype, numeric.floating):
+            newdtype = _finfo_get_realdtype(dtype)
             if newdtype is not dtype:
                 # dtype changed, for example from complex128 to float64
                 dtypes.append(newdtype)
@@ -404,8 +391,8 @@ class iinfo:
 
     """
 
-    _min_vals = {}
-    _max_vals = {}
+    _min_vals = {}  # noqa: RUF012
+    _max_vals = {}  # noqa: RUF012
 
     __class_getitem__ = classmethod(types.GenericAlias)
 
@@ -416,7 +403,7 @@ class iinfo:
             self.dtype = numeric.dtype(type(int_type))
         self.kind = self.dtype.kind
         self.bits = self.dtype.itemsize * 8
-        self.key = "%s%d" % (self.kind, self.bits)
+        self.key = f"{self.kind}{self.bits}"
         if self.kind not in 'iu':
             raise ValueError(f"Invalid integer data type {self.kind!r}.")
 
@@ -458,5 +445,5 @@ class iinfo:
         return fmt % {'dtype': self.dtype, 'min': self.min, 'max': self.max}
 
     def __repr__(self):
-        return "%s(min=%s, max=%s, dtype=%s)" % (self.__class__.__name__,
-                                    self.min, self.max, self.dtype)
+        name = self.__class__.__name__
+        return f'{name}(min={self.min}, max={self.max}, dtype={self.dtype})'

@@ -1,51 +1,15 @@
-# Generated content DO NOT EDIT
-class PostProcessor:
-    """
-    Base class for all post-processors
+"""
+Processors Module
+"""
 
-    This class is not supposed to be instantiated directly. Instead, any implementation of
-    a PostProcessor will return an instance of this class when instantiated.
-    """
-    def __getstate__(self):
-        """ """
-        pass
+from collections.abc import Sequence as Sequence2
+from typing import Any, final
 
-    def __setstate__(self, state):
-        """ """
-        pass
+from _typeshed import Incomplete
 
-    def num_special_tokens_to_add(self, is_pair):
-        """
-        Return the number of special tokens that would be added for single/pair sentences.
+from tokenizers import Encoding
 
-        Args:
-            is_pair (:obj:`bool`):
-                Whether the input would be a pair of sequences
-
-        Returns:
-            :obj:`int`: The number of tokens to add
-        """
-        pass
-
-    def process(self, encoding, pair=None, add_special_tokens=True):
-        """
-        Post-process the given encodings, generating the final one
-
-        Args:
-            encoding (:class:`~tokenizers.Encoding`):
-                The encoding for the first sequence
-
-            pair (:class:`~tokenizers.Encoding`, `optional`):
-                The encoding for the pair sequence
-
-            add_special_tokens (:obj:`bool`):
-                Whether to add the special tokens
-
-        Return:
-            :class:`~tokenizers.Encoding`: The final encoding
-        """
-        pass
-
+@final
 class BertProcessing(PostProcessor):
     """
     This post-processor takes care of adding the special tokens needed by
@@ -60,74 +24,26 @@ class BertProcessing(PostProcessor):
 
         cls (:obj:`Tuple[str, int]`):
             A tuple with the string representation of the CLS token, and its id
+
+    Example::
+
+        >>> from tokenizers.processors import BertProcessing
+        >>> processor = BertProcessing(("[SEP]", 102), ("[CLS]", 101))
+        >>> processor.process(encoding)
+        # Encoding with [CLS] at start and [SEP] at end
     """
-    def __init__(self, sep, cls):
-        pass
-
-    def __getnewargs__(self):
-        """ """
-        pass
-
-    def __getstate__(self):
-        """ """
-        pass
-
-    def __setstate__(self, state):
-        """ """
-        pass
-
+    def __getnewargs__(self, /) -> tuple: ...
+    def __new__(cls, /, sep: tuple[str, int], cls_token: tuple[str, int]) -> BertProcessing: ...
     @property
-    def cls(self):
-        """ """
-        pass
-
+    def cls(self, /) -> tuple: ...
     @cls.setter
-    def cls(self, value):
-        """ """
-        pass
-
-    def num_special_tokens_to_add(self, is_pair):
-        """
-        Return the number of special tokens that would be added for single/pair sentences.
-
-        Args:
-            is_pair (:obj:`bool`):
-                Whether the input would be a pair of sequences
-
-        Returns:
-            :obj:`int`: The number of tokens to add
-        """
-        pass
-
-    def process(self, encoding, pair=None, add_special_tokens=True):
-        """
-        Post-process the given encodings, generating the final one
-
-        Args:
-            encoding (:class:`~tokenizers.Encoding`):
-                The encoding for the first sequence
-
-            pair (:class:`~tokenizers.Encoding`, `optional`):
-                The encoding for the pair sequence
-
-            add_special_tokens (:obj:`bool`):
-                Whether to add the special tokens
-
-        Return:
-            :class:`~tokenizers.Encoding`: The final encoding
-        """
-        pass
-
+    def cls(self, /, cls: tuple) -> None: ...
     @property
-    def sep(self):
-        """ """
-        pass
-
+    def sep(self, /) -> tuple: ...
     @sep.setter
-    def sep(self, value):
-        """ """
-        pass
+    def sep(self, /, sep: tuple) -> None: ...
 
+@final
 class ByteLevel(PostProcessor):
     """
     This post-processor takes care of trimming the offsets.
@@ -143,29 +59,46 @@ class ByteLevel(PostProcessor):
             If :obj:`True`, keeps the first token's offset as is. If :obj:`False`, increments
             the start of the first token's offset by 1. Only has an effect if :obj:`trim_offsets`
             is set to :obj:`True`.
+
+    Example::
+
+        >>> from tokenizers.processors import ByteLevel
+        >>> processor = ByteLevel(trim_offsets=True)
+        >>> # Offsets will be trimmed to exclude leading whitespace bytes
     """
-    def __init__(self, add_prefix_space=None, trim_offsets=None, use_regex=None):
-        pass
-
-    def __getstate__(self):
-        """ """
-        pass
-
-    def __setstate__(self, state):
-        """ """
-        pass
-
+    def __new__(
+        cls,
+        /,
+        add_prefix_space: bool | None = None,
+        trim_offsets: bool | None = None,
+        use_regex: bool | None = None,
+        **_kwargs,
+    ) -> ByteLevel: ...
     @property
-    def add_prefix_space(self):
-        """ """
-        pass
-
+    def add_prefix_space(self, /) -> bool: ...
     @add_prefix_space.setter
-    def add_prefix_space(self, value):
-        """ """
-        pass
+    def add_prefix_space(self, /, add_prefix_space: bool) -> None: ...
+    @property
+    def trim_offsets(self, /) -> bool: ...
+    @trim_offsets.setter
+    def trim_offsets(self, /, trim_offsets: bool) -> None: ...
+    @property
+    def use_regex(self, /) -> bool: ...
+    @use_regex.setter
+    def use_regex(self, /, use_regex: bool) -> None: ...
 
-    def num_special_tokens_to_add(self, is_pair):
+class PostProcessor:
+    """
+    Base class for all post-processors
+
+    This class is not supposed to be instantiated directly. Instead, any implementation of
+    a PostProcessor will return an instance of this class when instantiated.
+    """
+    def __getstate__(self, /) -> Any: ...
+    def __repr__(self, /) -> str: ...
+    def __setstate__(self, /, state: Any) -> None: ...
+    def __str__(self, /) -> str: ...
+    def num_special_tokens_to_add(self, /, is_pair: bool) -> int:
         """
         Return the number of special tokens that would be added for single/pair sentences.
 
@@ -176,9 +109,9 @@ class ByteLevel(PostProcessor):
         Returns:
             :obj:`int`: The number of tokens to add
         """
-        pass
-
-    def process(self, encoding, pair=None, add_special_tokens=True):
+    def process(
+        self, /, encoding: Encoding, pair: Encoding | None = None, add_special_tokens: bool = True
+    ) -> "Encoding":
         """
         Post-process the given encodings, generating the final one
 
@@ -195,28 +128,8 @@ class ByteLevel(PostProcessor):
         Return:
             :class:`~tokenizers.Encoding`: The final encoding
         """
-        pass
 
-    @property
-    def trim_offsets(self):
-        """ """
-        pass
-
-    @trim_offsets.setter
-    def trim_offsets(self, value):
-        """ """
-        pass
-
-    @property
-    def use_regex(self):
-        """ """
-        pass
-
-    @use_regex.setter
-    def use_regex(self, value):
-        """ """
-        pass
-
+@final
 class RobertaProcessing(PostProcessor):
     """
     This post-processor takes care of adding the special tokens needed by
@@ -243,161 +156,63 @@ class RobertaProcessing(PostProcessor):
         add_prefix_space (:obj:`bool`, `optional`, defaults to :obj:`True`):
             Whether the add_prefix_space option was enabled during pre-tokenization. This
             is relevant because it defines the way the offsets are trimmed out.
+
+    Example::
+
+        >>> from tokenizers.processors import RobertaProcessing
+        >>> processor = RobertaProcessing(("</s>", 2), ("<s>", 0))
+        >>> processor.process(encoding)
+        # Encoding with <s> at start and </s> at end
     """
-    def __init__(self, sep, cls, trim_offsets=True, add_prefix_space=True):
-        pass
-
-    def __getnewargs__(self):
-        """ """
-        pass
-
-    def __getstate__(self):
-        """ """
-        pass
-
-    def __setstate__(self, state):
-        """ """
-        pass
-
+    def __getnewargs__(self, /) -> tuple: ...
+    def __new__(
+        cls,
+        /,
+        sep: tuple[str, int],
+        cls_token: tuple[str, int],
+        trim_offsets: bool = True,
+        add_prefix_space: bool = True,
+    ) -> RobertaProcessing: ...
     @property
-    def add_prefix_space(self):
-        """ """
-        pass
-
+    def add_prefix_space(self, /) -> bool: ...
     @add_prefix_space.setter
-    def add_prefix_space(self, value):
-        """ """
-        pass
-
+    def add_prefix_space(self, /, add_prefix_space: bool) -> None: ...
     @property
-    def cls(self):
-        """ """
-        pass
-
+    def cls(self, /) -> tuple: ...
     @cls.setter
-    def cls(self, value):
-        """ """
-        pass
-
-    def num_special_tokens_to_add(self, is_pair):
-        """
-        Return the number of special tokens that would be added for single/pair sentences.
-
-        Args:
-            is_pair (:obj:`bool`):
-                Whether the input would be a pair of sequences
-
-        Returns:
-            :obj:`int`: The number of tokens to add
-        """
-        pass
-
-    def process(self, encoding, pair=None, add_special_tokens=True):
-        """
-        Post-process the given encodings, generating the final one
-
-        Args:
-            encoding (:class:`~tokenizers.Encoding`):
-                The encoding for the first sequence
-
-            pair (:class:`~tokenizers.Encoding`, `optional`):
-                The encoding for the pair sequence
-
-            add_special_tokens (:obj:`bool`):
-                Whether to add the special tokens
-
-        Return:
-            :class:`~tokenizers.Encoding`: The final encoding
-        """
-        pass
-
+    def cls(self, /, cls: tuple) -> None: ...
     @property
-    def sep(self):
-        """ """
-        pass
-
+    def sep(self, /) -> tuple: ...
     @sep.setter
-    def sep(self, value):
-        """ """
-        pass
-
+    def sep(self, /, sep: tuple) -> None: ...
     @property
-    def trim_offsets(self):
-        """ """
-        pass
-
+    def trim_offsets(self, /) -> bool: ...
     @trim_offsets.setter
-    def trim_offsets(self, value):
-        """ """
-        pass
+    def trim_offsets(self, /, trim_offsets: bool) -> None: ...
 
+@final
 class Sequence(PostProcessor):
     """
     Sequence Processor
 
+    Chains multiple post-processors together, applying them in order. Each processor
+    in the sequence processes the output of the previous one.
+
     Args:
-        processors (:obj:`List[PostProcessor]`)
-            The processors that need to be chained
+        processors (:obj:`List[PostProcessor]`):
+            The list of post-processors to chain together.
+
+    Example::
+
+        >>> from tokenizers.processors import BertProcessing, ByteLevel, Sequence
+        >>> processor = Sequence([ByteLevel(trim_offsets=True), BertProcessing(("[SEP]", 102), ("[CLS]", 101))])
     """
-    def __init__(self, processors):
-        pass
+    def __getitem__(self, index: int, /) -> Any: ...
+    def __getnewargs__(self, /) -> tuple: ...
+    def __new__(cls, /, processors_py: list) -> Sequence: ...
+    def __setitem__(self, index: int, value: Any, /) -> None: ...
 
-    def __getitem__(self, key):
-        """
-        Return self[key].
-        """
-        pass
-
-    def __getnewargs__(self):
-        """ """
-        pass
-
-    def __getstate__(self):
-        """ """
-        pass
-
-    def __setitem__(self, key, value):
-        """
-        Set self[key] to value.
-        """
-        pass
-
-    def __setstate__(self, state):
-        """ """
-        pass
-
-    def num_special_tokens_to_add(self, is_pair):
-        """
-        Return the number of special tokens that would be added for single/pair sentences.
-
-        Args:
-            is_pair (:obj:`bool`):
-                Whether the input would be a pair of sequences
-
-        Returns:
-            :obj:`int`: The number of tokens to add
-        """
-        pass
-
-    def process(self, encoding, pair=None, add_special_tokens=True):
-        """
-        Post-process the given encodings, generating the final one
-
-        Args:
-            encoding (:class:`~tokenizers.Encoding`):
-                The encoding for the first sequence
-
-            pair (:class:`~tokenizers.Encoding`, `optional`):
-                The encoding for the pair sequence
-
-            add_special_tokens (:obj:`bool`):
-                Whether to add the special tokens
-
-        Return:
-            :class:`~tokenizers.Encoding`: The final encoding
-        """
-        pass
-
+@final
 class TemplateProcessing(PostProcessor):
     """
     Provides a way to specify templates in order to add the special tokens to each
@@ -465,55 +280,14 @@ class TemplateProcessing(PostProcessor):
              The given dict expects the provided :obj:`ids` and :obj:`tokens` lists to have
              the same length.
     """
-    def __init__(self, single=None, pair=None, special_tokens=None):
-        pass
-
-    def __getstate__(self):
-        """ """
-        pass
-
-    def __setstate__(self, state):
-        """ """
-        pass
-
-    def num_special_tokens_to_add(self, is_pair):
-        """
-        Return the number of special tokens that would be added for single/pair sentences.
-
-        Args:
-            is_pair (:obj:`bool`):
-                Whether the input would be a pair of sequences
-
-        Returns:
-            :obj:`int`: The number of tokens to add
-        """
-        pass
-
-    def process(self, encoding, pair=None, add_special_tokens=True):
-        """
-        Post-process the given encodings, generating the final one
-
-        Args:
-            encoding (:class:`~tokenizers.Encoding`):
-                The encoding for the first sequence
-
-            pair (:class:`~tokenizers.Encoding`, `optional`):
-                The encoding for the pair sequence
-
-            add_special_tokens (:obj:`bool`):
-                Whether to add the special tokens
-
-        Return:
-            :class:`~tokenizers.Encoding`: The final encoding
-        """
-        pass
-
+    def __new__(
+        cls,
+        /,
+        single: Incomplete | None = None,
+        pair: Incomplete | None = None,
+        special_tokens: Sequence2[Incomplete] | None = None,
+    ) -> TemplateProcessing: ...
     @property
-    def single(self):
-        """ """
-        pass
-
+    def single(self, /) -> str: ...
     @single.setter
-    def single(self, value):
-        """ """
-        pass
+    def single(self, /, single: Incomplete) -> None: ...

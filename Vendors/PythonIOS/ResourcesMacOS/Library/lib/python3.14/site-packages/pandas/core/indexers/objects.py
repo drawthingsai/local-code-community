@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -16,11 +17,19 @@ from pandas.core.indexes.datetimes import DatetimeIndex
 
 from pandas.tseries.offsets import Nano
 
+if TYPE_CHECKING:
+    from collections.abc import Hashable
+    from typing import Any
+
 
 @set_module("pandas.api.indexers")
 class BaseIndexer:
     """
     Base class for window bounds calculations.
+
+    Subclasses should implement ``get_window_bounds`` to define custom
+    windowing logic for use with :meth:`DataFrame.rolling` or
+    :meth:`Series.rolling`.
 
     Parameters
     ----------
@@ -84,8 +93,6 @@ class BaseIndexer:
         ----------
         num_values : int, default 0
             number of values that will be aggregated over
-        window_size : int, default 0
-            the number of rows in a window
         min_periods : int, default None
             min_periods passed from the top level rolling API
         center : bool, default None
@@ -94,8 +101,6 @@ class BaseIndexer:
             closed passed from the top level rolling API
         step : int, default None
             step passed from the top level rolling API
-        win_type : str, default None
-            win_type passed from the top level rolling API
 
         Returns
         -------
@@ -123,8 +128,6 @@ class FixedWindowIndexer(BaseIndexer):
         ----------
         num_values : int, default 0
             number of values that will be aggregated over
-        window_size : int, default 0
-            the number of rows in a window
         min_periods : int, default None
             min_periods passed from the top level rolling API
         center : bool, default None
@@ -133,8 +136,6 @@ class FixedWindowIndexer(BaseIndexer):
             closed passed from the top level rolling API
         step : int, default None
             step passed from the top level rolling API
-        win_type : str, default None
-            win_type passed from the top level rolling API
 
         Returns
         -------
@@ -177,8 +178,6 @@ class VariableWindowIndexer(BaseIndexer):
         ----------
         num_values : int, default 0
             number of values that will be aggregated over
-        window_size : int, default 0
-            the number of rows in a window
         min_periods : int, default None
             min_periods passed from the top level rolling API
         center : bool, default None
@@ -187,8 +186,6 @@ class VariableWindowIndexer(BaseIndexer):
             closed passed from the top level rolling API
         step : int, default None
             step passed from the top level rolling API
-        win_type : str, default None
-            win_type passed from the top level rolling API
 
         Returns
         -------
@@ -219,6 +216,10 @@ class VariableWindowIndexer(BaseIndexer):
 class VariableOffsetWindowIndexer(BaseIndexer):
     """
     Calculate window boundaries based on a non-fixed offset such as a BusinessDay.
+
+    Unlike the default fixed-size window, this indexer uses a
+    :class:`DateOffset` to determine variable-width window boundaries
+    based on the datetime index of the data.
 
     Parameters
     ----------
@@ -308,8 +309,6 @@ class VariableOffsetWindowIndexer(BaseIndexer):
         ----------
         num_values : int, default 0
             number of values that will be aggregated over
-        window_size : int, default 0
-            the number of rows in a window
         min_periods : int, default None
             min_periods passed from the top level rolling API
         center : bool, default None
@@ -318,8 +317,6 @@ class VariableOffsetWindowIndexer(BaseIndexer):
             closed passed from the top level rolling API
         step : int, default None
             step passed from the top level rolling API
-        win_type : str, default None
-            win_type passed from the top level rolling API
 
         Returns
         -------
@@ -413,8 +410,6 @@ class ExpandingIndexer(BaseIndexer):
         ----------
         num_values : int, default 0
             number of values that will be aggregated over
-        window_size : int, default 0
-            the number of rows in a window
         min_periods : int, default None
             min_periods passed from the top level rolling API
         center : bool, default None
@@ -423,8 +418,6 @@ class ExpandingIndexer(BaseIndexer):
             closed passed from the top level rolling API
         step : int, default None
             step passed from the top level rolling API
-        win_type : str, default None
-            win_type passed from the top level rolling API
 
         Returns
         -------
@@ -441,6 +434,10 @@ class ExpandingIndexer(BaseIndexer):
 class FixedForwardWindowIndexer(BaseIndexer):
     """
     Creates window boundaries for fixed-length windows that include the current row.
+
+    This indexer produces forward-looking windows, where each window starts at
+    the current row and extends ``window_size`` rows ahead, unlike the default
+    backward-looking behavior of :meth:`DataFrame.rolling`.
 
     Parameters
     ----------
@@ -498,8 +495,6 @@ class FixedForwardWindowIndexer(BaseIndexer):
         ----------
         num_values : int, default 0
             number of values that will be aggregated over
-        window_size : int, default 0
-            the number of rows in a window
         min_periods : int, default None
             min_periods passed from the top level rolling API
         center : bool, default None
@@ -508,8 +503,6 @@ class FixedForwardWindowIndexer(BaseIndexer):
             closed passed from the top level rolling API
         step : int, default None
             step passed from the top level rolling API
-        win_type : str, default None
-            win_type passed from the top level rolling API
 
         Returns
         -------
@@ -533,16 +526,16 @@ class FixedForwardWindowIndexer(BaseIndexer):
         return start, end
 
 
-class GroupbyIndexer(BaseIndexer):
+class GroupByIndexer(BaseIndexer):
     """Calculate bounds to compute groupby rolling, mimicking df.groupby().rolling()"""
 
     def __init__(
         self,
         index_array: np.ndarray | None = None,
         window_size: int | BaseIndexer = 0,
-        groupby_indices: dict | None = None,
+        groupby_indices: dict[Hashable, np.ndarray] | None = None,
         window_indexer: type[BaseIndexer] = BaseIndexer,
-        indexer_kwargs: dict | None = None,
+        indexer_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         """
@@ -587,8 +580,6 @@ class GroupbyIndexer(BaseIndexer):
         ----------
         num_values : int, default 0
             number of values that will be aggregated over
-        window_size : int, default 0
-            the number of rows in a window
         min_periods : int, default None
             min_periods passed from the top level rolling API
         center : bool, default None
@@ -597,8 +588,6 @@ class GroupbyIndexer(BaseIndexer):
             closed passed from the top level rolling API
         step : int, default None
             step passed from the top level rolling API
-        win_type : str, default None
-            win_type passed from the top level rolling API
 
         Returns
         -------
@@ -668,8 +657,6 @@ class ExponentialMovingWindowIndexer(BaseIndexer):
         ----------
         num_values : int, default 0
             number of values that will be aggregated over
-        window_size : int, default 0
-            the number of rows in a window
         min_periods : int, default None
             min_periods passed from the top level rolling API
         center : bool, default None
@@ -678,8 +665,6 @@ class ExponentialMovingWindowIndexer(BaseIndexer):
             closed passed from the top level rolling API
         step : int, default None
             step passed from the top level rolling API
-        win_type : str, default None
-            win_type passed from the top level rolling API
 
         Returns
         -------

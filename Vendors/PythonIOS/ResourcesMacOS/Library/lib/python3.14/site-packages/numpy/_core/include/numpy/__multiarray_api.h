@@ -596,6 +596,26 @@ NPY_NO_EXPORT  PyArray_DTypeMeta * PyArray_PromoteDTypeSequence \
        (npy_intp, PyArray_DTypeMeta **);
 NPY_NO_EXPORT  PyArray_ArrFuncs * _PyDataType_GetArrFuncs \
        (const PyArray_Descr *);
+NPY_NO_EXPORT  PyArrayObject_fields * _PyArray_GET_ITEM_DATA \
+       (const PyArrayObject *);
+NPY_NO_EXPORT  PyArrayIterObject_fields * _PyArrayIter_GET_ITEM_DATA \
+       (const PyArrayIterObject *);
+NPY_NO_EXPORT  _PyArray_LegacyDescr_fields * _PyArray_LegacyDescr_GET_ITEM_DATA \
+       (const _PyArray_LegacyDescr *);
+NPY_NO_EXPORT  PyArray_Descr_fields * _PyDataType_GET_ITEM_DATA \
+       (const PyArray_Descr *);
+NPY_NO_EXPORT  PyArrayMultiIterObject_fields * _PyArrayMultiIter_GET_ITEM_DATA \
+       (const PyArrayMultiIterObject *);
+NPY_NO_EXPORT  PyArrayNeighborhoodIterObject_fields * _PyArrayNeighborhoodIter_GET_ITEM_DATA \
+       (const PyArrayNeighborhoodIterObject *);
+NPY_NO_EXPORT  PyArray_DatetimeMetaData _PyDatetimeScalarObject_GetMetadata \
+       (PyObject *);
+NPY_NO_EXPORT  PyArray_DatetimeMetaData _PyTimedeltaScalarObject_GetMetadata \
+       (PyObject *);
+NPY_NO_EXPORT  npy_datetime _PyDatetimeScalarObject_GetValue \
+       (PyObject *);
+NPY_NO_EXPORT  npy_timedelta _PyTimedeltaScalarObject_GetValue \
+       (PyObject *);
 
 #else
 
@@ -1481,6 +1501,66 @@ static int PyArray_RUNTIME_VERSION = 0;
         (*(PyArray_ArrFuncs * (*)(const PyArray_Descr *)) \
     PyArray_API[365])
 
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyArray_GET_ITEM_DATA \
+        (*(PyArrayObject_fields * (*)(const PyArrayObject *)) \
+    PyArray_API[369])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyArrayIter_GET_ITEM_DATA \
+        (*(PyArrayIterObject_fields * (*)(const PyArrayIterObject *)) \
+    PyArray_API[370])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyArray_LegacyDescr_GET_ITEM_DATA \
+        (*(_PyArray_LegacyDescr_fields * (*)(const _PyArray_LegacyDescr *)) \
+    PyArray_API[371])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyDataType_GET_ITEM_DATA \
+        (*(PyArray_Descr_fields * (*)(const PyArray_Descr *)) \
+    PyArray_API[372])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyArrayMultiIter_GET_ITEM_DATA \
+        (*(PyArrayMultiIterObject_fields * (*)(const PyArrayMultiIterObject *)) \
+    PyArray_API[373])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyArrayNeighborhoodIter_GET_ITEM_DATA \
+        (*(PyArrayNeighborhoodIterObject_fields * (*)(const PyArrayNeighborhoodIterObject *)) \
+    PyArray_API[374])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyDatetimeScalarObject_GetMetadata \
+        (*(PyArray_DatetimeMetaData (*)(PyObject *)) \
+    PyArray_API[375])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyTimedeltaScalarObject_GetMetadata \
+        (*(PyArray_DatetimeMetaData (*)(PyObject *)) \
+    PyArray_API[376])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyDatetimeScalarObject_GetValue \
+        (*(npy_datetime (*)(PyObject *)) \
+    PyArray_API[377])
+#endif
+
+#if NPY_FEATURE_VERSION >= NPY_2_5_API_VERSION
+#define _PyTimedeltaScalarObject_GetValue \
+        (*(npy_timedelta (*)(PyObject *)) \
+    PyArray_API[378])
+#endif
+
 /*
  * The DType classes are inconvenient for the Python generation so exposed
  * manually in the header below  (may be moved).
@@ -1488,7 +1568,7 @@ static int PyArray_RUNTIME_VERSION = 0;
 #include "numpy/_public_dtype_api_table.h"
 
 #if !defined(NO_IMPORT_ARRAY) && !defined(NO_IMPORT)
-static int
+static inline int
 _import_array(void)
 {
   int st;

@@ -119,7 +119,7 @@ initialization. The committed resources carry the Python packages and metadata,
 not `.so` extension modules. The macOS NumPy build targets
 macOS 13.3 or newer because NumPy's Accelerate BLAS backend requires Apple's
 newer Accelerate LAPACK interface. Pillow is built against SDK zlib and a
-static libjpeg-turbo 3.2.0 (jpeg8 API, Neon SIMD). `ImageFont` uses FreeType
+static libjpeg-turbo 3.2.1 (jpeg8 API, Neon SIMD). `ImageFont` uses FreeType
 and Raqm layout from Matplotlib's bundled static FreeType, HarfBuzz, SheenBidi,
 and libraqm, so Pillow builds after Matplotlib and the archive carries one copy
 of each library. TIFF, LCMS, WebP, JPEG2000, imagequant, XCB, and AVIF support
@@ -127,8 +127,11 @@ remain disabled. `ImageFont.truetype` searches the macOS font directories only
 on macOS; on iOS pass a font path, or use `ImageFont.load_default(size=...)`
 for Pillow's embedded font. lxml is built
 against static libxml2, libxslt, and libexslt with SDK zlib/iconv; libxslt
-debugger, crypto, and plugin support are disabled. Matplotlib is packaged for
-non-interactive Agg rendering with bundled FreeType and Qhull; Tk/Cocoa GUI
+debugger, crypto, and plugin support are disabled. libxml2 2.15 builds
+Schematron only on request, so it is enabled to keep `lxml.etree.Schematron`.
+Matplotlib is packaged for non-interactive Agg rendering with bundled FreeType
+and Qhull. FreeType stays on Matplotlib's pinned 2.14.3 with two later upstream
+fixes applied (`Patches/freetype-2.14.3-security-backports.patch`); Tk/Cocoa GUI
 backends, LaTeX rendering, and ffmpeg/ImageMagick writers are not part of the
 current payload; raster output uses Pillow's PNG and JPEG codecs. On iOS
 devices and macOS, MLX includes its Accelerate CPU backend and Metal backend. `mlx.core` is registered
@@ -136,7 +139,7 @@ statically, Metal JIT is disabled, and each supported platform slice uses a
 precompiled Metal library stored beside the MLX Python package. MLX is not
 linked or bundled for the iOS simulator.
 
-regex 2026.7.19 is compiled directly from its two upstream C sources and does
+regex 2026.9.29 is compiled directly from its two upstream C sources and does
 not add an external native library. Its legacy single-phase extension uses
 process-global state, so normal commands use it through ios_system's persistent
 main interpreter while recursive own-GIL interpreters reject it through
@@ -172,7 +175,7 @@ available where MLX is bundled. As with hf-xet, normal commands use safetensors
 through the persistent main interpreter, while recursive own-GIL interpreters
 retain CPython's native-extension compatibility check and reject it cleanly.
 
-tokenizers 0.22.2 uses its upstream PyO3 0.26 binding and the same Rust 1.89.0
+tokenizers 0.23.3 uses its upstream PyO3 0.29 binding and the same Rust 1.89.0
 toolchain. Its default native features retain vendored Oniguruma, the C++ ESAXX
 implementation, and progress reporting, while the optional Rust HTTP client is
 disabled. The upstream Python metadata still declares `huggingface_hub`, so pip
@@ -194,7 +197,7 @@ PythonIOS. pybind11 marks the module as unsupported in subinterpreters by
 default, so recursive own-GIL interpreters reject it while normal commands reuse
 it in the persistent main interpreter.
 
-CairoSVG 2.9.1 uses Cairo 1.18.6, Pixman 0.46.4, libpng 1.6.58, and CFFI
+CairoSVG 2.9.1 uses Cairo 1.18.6, Pixman 0.46.4, libpng 1.6.59, and CFFI
 2.1.1 on all three slices. `cairosvg_build.sh` supplies its native build steps;
 `generate_cairo_binding.py` generates a CFFI API binding compiled and registered
 as `cairocffi._ffi` alongside `_cffi_backend`. The binding directly links Cairo

@@ -3287,8 +3287,7 @@ class LookAroundConditional(RegexBase):
             self.no_item.dump(indent + 1, reverse)
 
     def is_empty(self):
-        return (self.subpattern.is_empty() and self.yes_item.is_empty() or
-          self.no_item.is_empty())
+        return self.subpattern.is_empty() and self.yes_item.is_empty()
 
     def __eq__(self, other):
         return type(self) is type(other) and (self.subpattern, self.yes_item,

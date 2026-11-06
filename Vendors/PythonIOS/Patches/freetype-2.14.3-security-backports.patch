@@ -1,0 +1,109 @@
+From 5a280ecde6f324de0d226261036e736e0cb49a71 Mon Sep 17 00:00:00 2001
+From: Alexei Podtelezhnikov <apodtele@gmail.com>
+Date: Wed, 13 May 2026 21:53:23 -0400
+Subject: [PATCH] * src/truetype/ttgxvar.c (TT_Get_Var_Design): Zero extras.
+
+Fixes #1436.
+---
+ src/truetype/ttgxvar.c | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/truetype/ttgxvar.c b/src/truetype/ttgxvar.c
+index d006dab8..95de8221 100644
+--- a/src/truetype/ttgxvar.c
++++ b/src/truetype/ttgxvar.c
+@@ -3453,9 +3453,7 @@
+     TT_Face       ttface = (TT_Face)face;
+     FT_Error      error  = FT_Err_Ok;
+     GX_Blend      blend;
+-    FT_MM_Var*    mmvar;
+-    FT_Var_Axis*  a;
+-    FT_UInt       i, nc;
++    FT_UInt       i;
+ 
+ 
+     if ( !ttface->blend )
+@@ -3474,31 +3472,30 @@
+         return error;
+     }
+ 
+-    nc = num_coords;
+     if ( num_coords > blend->num_axis )
+     {
+       FT_TRACE2(( "TT_Get_Var_Design:"
+                   " only using first %u of %u coordinates\n",
+                   blend->num_axis, num_coords ));
+-      nc = blend->num_axis;
++
++      FT_ARRAY_ZERO( coords + blend->num_axis, num_coords - blend->num_axis );
++      num_coords = blend->num_axis;
+     }
+ 
+-    mmvar = blend->mmvar;
+-    a     = mmvar->axis;
+     if ( ttface->doblend )
+     {
+-      for ( i = 0; i < nc; i++, a++ )
++      for ( i = 0; i < num_coords; i++ )
+         coords[i] = blend->coords[i];
+     }
+     else
+     {
+-      for ( i = 0; i < nc; i++, a++ )
++      FT_Var_Axis*  a = blend->mmvar->axis;
++
++
++      for ( i = 0; i < num_coords; i++, a++ )
+         coords[i] = a->def;
+     }
+ 
+-    for ( ; i < num_coords; i++, a++ )
+-      coords[i] = a->def;
+-
+     return FT_Err_Ok;
+   }
+ 
+-- 
+2.54.0
+
+From f3ca71c9900fe860849b3163a6e2c1e765b291d9 Mon Sep 17 00:00:00 2001
+From: Alexei Podtelezhnikov <apodtele@gmail.com>
+Date: Mon, 7 Sep 2026 15:02:23 -0400
+Subject: [PATCH] * src/cid/cidload.c (cid_read_subrs): Limit overlaps.
+
+Overlaps between subroutine dictionaries can be useful but prone to
+abuses. The arbitrary limit can be adjusted in the future. Fixes #1457.
+---
+ src/cid/cidload.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/cid/cidload.c b/src/cid/cidload.c
+index 1a0e6b15..b9ab1b9e 100644
+--- a/src/cid/cidload.c
++++ b/src/cid/cidload.c
+@@ -517,6 +517,7 @@
+     CID_Subrs      subr;
+     FT_UInt        max_offsets = 0;
+     FT_ULong*      offsets = NULL;
++    FT_ULong       cum_len = 0;
+     PSAux_Service  psaux = (PSAux_Service)face->psaux;
+ 
+ 
+@@ -584,6 +585,14 @@
+       /* now, compute the size of subrs charstrings, */
+       /* allocate, and read them                     */
+       data_len = offsets[num_subrs] - offsets[0];
++      cum_len += data_len;
++
++      if ( cum_len / 4 > stream->size )
++      {
++        FT_ERROR(( "cid_read_subrs: excessive overlaps\n" ));
++        error = FT_THROW( Invalid_File_Format );
++        goto Fail;
++      }
+ 
+       if ( FT_QNEW_ARRAY( subr->code, num_subrs + 1 ) ||
+            FT_QALLOC( subr->code[0], data_len )       )
+-- 
+2.54.0
+

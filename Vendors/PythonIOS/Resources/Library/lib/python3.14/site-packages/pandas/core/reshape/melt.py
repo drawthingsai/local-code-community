@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Any,
+)
 
 import numpy as np
 
@@ -27,7 +30,7 @@ if TYPE_CHECKING:
     from pandas import DataFrame
 
 
-def ensure_list_vars(arg_vars, variable: str, columns) -> list:
+def ensure_list_vars(arg_vars, variable: str, columns) -> list[Hashable]:
     if arg_vars is not None:
         if not is_list_like(arg_vars):
             return [arg_vars]
@@ -109,19 +112,19 @@ def melt(
     ...     }
     ... )
     >>> df
-    A  B  C
+       A  B  C
     0  a  1  2
     1  b  3  4
     2  c  5  6
 
     >>> pd.melt(df, id_vars=["A"], value_vars=["B"])
-    A variable  value
+       A variable  value
     0  a        B      1
     1  b        B      3
     2  c        B      5
 
     >>> pd.melt(df, id_vars=["A"], value_vars=["B", "C"])
-    A variable  value
+       A variable  value
     0  a        B      1
     1  b        B      3
     2  c        B      5
@@ -138,7 +141,7 @@ def melt(
     ...     var_name="myVarname",
     ...     value_name="myValname",
     ... )
-    A myVarname  myValname
+       A myVarname  myValname
     0  a         B          1
     1  b         B          3
     2  c         B          5
@@ -146,7 +149,7 @@ def melt(
     Original index values can be kept around:
 
     >>> pd.melt(df, id_vars=["A"], value_vars=["B", "C"], ignore_index=False)
-    A variable  value
+       A variable  value
     0  a        B      1
     1  b        B      3
     2  c        B      5
@@ -158,20 +161,20 @@ def melt(
 
     >>> df.columns = [list("ABC"), list("DEF")]
     >>> df
-    A  B  C
-    D  E  F
+       A  B  C
+       D  E  F
     0  a  1  2
     1  b  3  4
     2  c  5  6
 
     >>> pd.melt(df, col_level=0, id_vars=["A"], value_vars=["B"])
-    A variable  value
+       A variable  value
     0  a        B      1
     1  b        B      3
     2  c        B      5
 
     >>> pd.melt(df, id_vars=[("A", "D")], value_vars=[("B", "E")])
-    (A, D) variable_0 variable_1  value
+      (A, D) variable_0 variable_1  value
     0      a          B          E      1
     1      b          B          E      3
     2      c          B          E      5
@@ -240,6 +243,11 @@ def melt(
     else:
         var_name = [var_name]
 
+    output_names = (*id_vars, *var_name, value_name)
+    dups = list({x for x in output_names if output_names.count(x) > 1})
+    if dups:
+        raise ValueError(f"melt output columns cannot contain duplicate names: {dups}")
+
     num_rows, K = frame.shape
     num_cols_adjusted = K - len(id_vars)
 
@@ -263,7 +271,7 @@ def melt(
     ):
         mdata[value_name] = concat(
             [frame.iloc[:, i] for i in range(frame.shape[1])], ignore_index=True
-        ).values
+        )._values
     else:
         mdata[value_name] = frame._values.ravel("F")
     for i, col in enumerate(var_name):
@@ -279,7 +287,9 @@ def melt(
 
 
 @set_module("pandas")
-def lreshape(data: DataFrame, groups: dict, dropna: bool = True) -> DataFrame:
+def lreshape(
+    data: DataFrame, groups: dict[Any, list[Any]], dropna: bool = True
+) -> DataFrame:
     """
     Reshape wide-format data to long. Generalized inverse of DataFrame.pivot.
 
@@ -351,7 +361,7 @@ def lreshape(data: DataFrame, groups: dict, dropna: bool = True) -> DataFrame:
         pivot_cols.append(target)
         all_cols = all_cols.union(names)
 
-    id_cols = list(data.columns.difference(all_cols))
+    id_cols = list(data.columns.difference(all_cols))  # type: ignore[arg-type]
     for col in id_cols:
         mdata[col] = np.tile(data[col]._values, K)
 
