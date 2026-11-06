@@ -3654,6 +3654,7 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
     if (!ios_python_append(&script,
         "def _ios_run(\n"
         "    _ios_builtins=__import__('builtins'),\n"
+        "    _ios_codecs=__import__('codecs'),\n"
         "    _ios_importlib=__import__('importlib'),\n"
         "    _ios_importlib_util=__import__('importlib.util', fromlist=['util']),\n"
         "    _ios_io=__import__('io'),\n"
@@ -3713,8 +3714,15 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
         "        target.update(saved)\n"
         // The bundled runtime cannot change while the app runs, so its modules stay
         // loaded across commands. Built-in, frozen, and synthetic modules have no
-        // source location and stay as well.
-        "    def _ios_is_runtime_module(module):\n"
+        // source location and stay as well. The bundled pure-Python packages in
+        // _ios_command_packages reload with each command instead, as in a new
+        // process, because their module state would outlive the script: reportlab
+        // keeps the first font registered under a name, so a later command would
+        // otherwise draw with an earlier command's font file.
+        "    _ios_command_packages = ('reportlab',)\n"
+        "    def _ios_is_runtime_module(module_name, module):\n"
+        "        if _ios_isinstance(module_name, _ios_str) and module_name.partition('.')[0] in _ios_command_packages:\n"
+        "            return False\n"
         "        spec = _ios_getattr(module, '__spec__', None)\n"
         "        origin = _ios_getattr(spec, 'origin', None) or _ios_getattr(module, '__file__', None)\n"
         "        locations = _ios_list(_ios_getattr(spec, 'submodule_search_locations', None) or ())\n"
@@ -3734,11 +3742,19 @@ static char *ios_python_build_script(int argc, char **argv, const IOSPythonInvoc
         "        unloaded_modules = []\n"
         "        for module_name, module in _ios_list(_ios_saved_modules.items()):\n"
         "            saved_module = _ios_saved_module_entries.get(module_name)\n"
-        "            if module_name == '__main__' or module is saved_module or _ios_is_runtime_module(module):\n"
+        "            if module_name == '__main__' or module is saved_module or _ios_is_runtime_module(module_name, module):\n"
         "                continue\n"
-        "            if saved_module is not None and not _ios_is_runtime_module(saved_module):\n"
+        "            if saved_module is not None and not _ios_is_runtime_module(module_name, saved_module):\n"
         "                saved_module = None\n"
         "            unloaded_modules.append((module_name, saved_module))\n"
+        // reportlab registers a codec search function on import. Unregister it with
+        // the package, or each reload would keep the previous copy alive through it.
+        "        rl_codecs = _ios_saved_modules.get('reportlab.pdfbase.rl_codecs')\n"
+        "        if rl_codecs is not None:\n"
+        "            try:\n"
+        "                _ios_codecs.unregister(rl_codecs.RL_Codecs._rl_codecs)\n"
+        "            except _ios_exception:\n"
+        "                pass\n"
         "        for module_name, saved_module in unloaded_modules:\n"
         "            if saved_module is not None:\n"
         "                _ios_saved_modules[module_name] = saved_module\n"

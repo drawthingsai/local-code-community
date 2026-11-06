@@ -229,12 +229,18 @@ Pure-Python convenience packages are pinned in `pure_python_requirements.txt`
 and installed into both resource trees with hash checking. The current base set
 is `requests`, pandas runtime dependencies (`python-dateutil`, `six`,
 `tzdata`), matplotlib runtime dependencies (`cycler`, `fonttools`, `pyparsing`),
-PDF support (`pypdf`), spreadsheet support (`openpyxl`, `et_xmlfile`,
+PDF support (`pypdf`, `reportlab`), spreadsheet support (`openpyxl`, `et_xmlfile`,
 `XlsxWriter`), Word/PowerPoint support (`python-docx`, `python-pptx`,
 `typing_extensions`), YAML support (`PyYAML`), progress reporting (`tqdm`), and
 `packaging`. PyYAML is built reproducibly from its pinned source archive as a
 `py3-none-any` wheel with LibYAML disabled, so it uses the upstream pure-Python
 loaders and dumpers without adding a native extension.
+reportlab runs on its pure-Python fallbacks; its optional C accelerator and
+bitmap renderer are not installed, so PDF and SVG output are available but
+`renderPM` is not. Its GPL DarkGarden font and HarfBuzz test font are removed.
+Other bundled modules stay loaded across Python commands, but reportlab reloads
+with each one: its font registry keeps the first font registered under a name,
+so a later command would otherwise draw with an earlier command's font.
 The optional tqdm monitor thread and multiprocessing lock are disabled because
 they can outlive or deadlock an in-process Python command. Normal iterable and
 manually updated progress bars, including their thread lock, remain available.

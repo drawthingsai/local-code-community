@@ -741,6 +741,22 @@ install_pure_python_packages() {
         grep -qF "tqdm/std.py,sha256=hszFPDhpsf0t7ldMTlu1aYAtxrjJ5M6WQoZmZohN3Z8,58168" \
             "$tqdm_record"
     fi
+    # reportlab's GPL DarkGarden font only serves its graphics demo, and
+    # hb-test.ttf only its HarfBuzz tests; drop them and their RECORD entries.
+    reportlab_fonts="$site_packages/reportlab/fonts"
+    if [ -d "$reportlab_fonts" ]; then
+        rm -f "$reportlab_fonts"/DarkGarden* "$reportlab_fonts/hb-test.ttf"
+        reportlab_record=$(echo "$site_packages"/reportlab-*.dist-info/RECORD)
+        sed -i.bak \
+            -e '/^reportlab\/fonts\/DarkGarden/d' \
+            -e '/^reportlab\/fonts\/hb-test\.ttf,/d' \
+            "$reportlab_record"
+        rm -f "$reportlab_record.bak"
+        if grep -Eq 'DarkGarden|hb-test' "$reportlab_record"; then
+            echo "reportlab record still lists pruned fonts" >&2
+            exit 1
+        fi
+    fi
     rm -rf "$site_packages/bin"
     remove_pycache "$site_packages"
 }

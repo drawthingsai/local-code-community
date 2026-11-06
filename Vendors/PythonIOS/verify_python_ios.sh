@@ -409,6 +409,15 @@ for root in "$IOS_RESOURCES" "$MACOS_RESOURCES"; do
   grep -qF "tqdm/std.py,sha256=hszFPDhpsf0t7ldMTlu1aYAtxrjJ5M6WQoZmZohN3Z8,58168" \
     "$site_packages/tqdm-4.70.0.dist-info/RECORD" ||
     fail "tqdm wheel record does not match the embedded runtime patch under $root"
+  grep -qx "Version: 5.1.0" "$site_packages/reportlab-5.1.0.dist-info/METADATA" ||
+    fail "missing reportlab 5.1.0 metadata under $root"
+  [[ -f "$site_packages/reportlab/fonts/Vera.ttf" ]] ||
+    fail "missing reportlab's bundled Vera fonts under $root"
+  if compgen -G "$site_packages/reportlab/fonts/DarkGarden*" > /dev/null ||
+    [[ -e "$site_packages/reportlab/fonts/hb-test.ttf" ]] ||
+    grep -Eq 'DarkGarden|hb-test' "$site_packages/reportlab-5.1.0.dist-info/RECORD"; then
+    fail "reportlab test fonts are not pruned under $root"
+  fi
   [[ -f "$site_packages/hf_xet/__init__.py" ]] ||
     fail "missing hf_xet package resources under $root"
   grep -qx "Version: 1.5.2" \

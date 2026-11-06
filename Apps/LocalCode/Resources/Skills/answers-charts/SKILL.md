@@ -5,7 +5,7 @@ description: Create polished data charts as inline images with bundled Python an
 
 # Create Charts with Matplotlib
 
-Use the bundled Python runtime with Matplotlib 3.11.1 and Pillow 12.3.0. Do not install packages or use the network.
+Use the bundled Python runtime with Matplotlib 3.11.2 and Pillow 13.0.0. Do not install packages or use the network.
 
 ## Build the chart
 
