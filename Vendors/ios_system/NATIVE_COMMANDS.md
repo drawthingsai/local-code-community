@@ -346,8 +346,8 @@ older-OS filesystem path.
 ## ssh-keygen and project SSH paths
 
 `ssh-keygen` is built from `ssh-keygen.c` and `sshsig.c` in the OpenSSH revision
-pinned in `WORKSPACE.darwin`. It shares `libssh`, the prefixed SwiftCrypto
-BoringSSL, and the compatibility patch in `Vendors/OpenSSH/ios.patch` with
+pinned in `WORKSPACE.darwin`. It shares `libssh`, swift-nio-ssl's prefixed
+BoringSSL (the copy curl also uses), and the compatibility patch in `Vendors/OpenSSH/ios.patch` with
 `ssh`, `scp`, and `sftp`. No additional crypto runtime is bundled.
 
 Local Code passes `<project>/.localc` to `ios_setSystemPaths` as the documents

@@ -9,7 +9,7 @@ cc_library(
 )
 
 # curl's OpenSSL backend includes <openssl/...>; these map it to swift-nio-ssl's
-# prefixed BoringSSL, like OpenSSH's shims for swift-crypto's.
+# prefixed BoringSSL, the same copy OpenSSH's shims use.
 cc_library(
     name = "boringssl_headers",
     hdrs = glob(["BoringSSL/openssl/*.h"]),
