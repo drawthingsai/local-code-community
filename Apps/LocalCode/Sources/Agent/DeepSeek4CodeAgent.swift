@@ -808,14 +808,6 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
           compactionState = .handoffSummary
           prefixTokensBeforeContextCheckpointCompaction = prefixTokens
           state.prefixEmbedSpansBeforeContextCheckpointCompaction = prefixEmbedSpans
-          if let tokensWithoutSystemReminder = Self.replaceSystemReminder(
-            in: prefixTokens, embedSpans: prefixEmbedSpans, with: [],
-            startTokens: systemReminderDelimiters.start,
-            endTokens: systemReminderDelimiters.end)
-          {
-            prefixTokens = tokensWithoutSystemReminder.tokens
-            prefixEmbedSpans = tokensWithoutSystemReminder.embedSpans
-          }
           shouldReinsertSystemReminderAfterCompaction = !systemReminderTokens.isEmpty
           tokensToContinueAfterContextCheckpointCompaction = tokens
           state.embedSpansToContinueAfterContextCheckpointCompaction = embedSpans
@@ -1187,9 +1179,9 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
               forcedTerminalTokens.append(Self.endOfSentenceToken)
             }
           }
-          if (stoppedForCompletedToolCalls || stoppedByUser)
-            && !forcedTerminalTokens.isEmpty
-          {
+          // Evaluate the terminal tokens rather than resetting, so a compaction summary extends
+          // the cache.
+          if !forcedTerminalTokens.isEmpty {
             let forcedTokenGPU = graph.variable(
               Tensor<Int32>(
                 forcedTerminalTokens, kind: .CPU, format: .NHWC,
@@ -1207,9 +1199,6 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
               cachedTokenLength = forcedTokenOffset + prefillStart
               return prefillStart < prefillLength ? .continue : .abort
             }
-          } else if shouldTriggerCompaction {
-            kvCache = KVCache()
-            cachedTokenLength = 0
           }
           generation.outputTokens += forcedTerminalTokens
           latestParsed = parseSuspendedGeneration(
@@ -1230,8 +1219,16 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
             let (_, safeHandoffTokens, _, _, _) = safeTokenizer.tokenize(
               text: handoffSummary, truncation: false, maxLength: 0, paddingToken: nil,
               addSpecialTokens: false)
+            // Strip the reminder only after the summary, so the summary turn extended the cache.
+            // The bridge turn reinserts it.
+            let withoutSystemReminder =
+              Self.replaceSystemReminder(
+                in: prefixTokens, embedSpans: prefixEmbedSpans, with: [],
+                startTokens: systemReminderDelimiters.start,
+                endTokens: systemReminderDelimiters.end)
+              ?? (tokens: prefixTokens, embedSpans: prefixEmbedSpans)
             let retained = Self.retainedConversationTokens(
-              in: prefixTokens, embedSpans: prefixEmbedSpans,
+              in: withoutSystemReminder.tokens, embedSpans: withoutSystemReminder.embedSpans,
               tokenBudget: Self.contextCheckpointCompactionHistoryTokenBudget)
             prefixTokens = retained.tokens
             prefixEmbedSpans = retained.embedSpans
