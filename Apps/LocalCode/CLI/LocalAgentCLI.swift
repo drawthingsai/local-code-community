@@ -15,7 +15,9 @@ struct LocalAgentCLI: ParsableCommand {
 
   @OptionGroup var options: AgentCLIOptions
 
-  @Option(help: "Image file path to prepend to the prompt; may be repeated (Qwen or DeepSeek 4.1).")
+  @Option(
+    help:
+      "Image file path to prepend to the prompt; may be repeated (Qwen, DeepSeek 4.1 or GLM-5.3).")
   var image: [String] = []
 
   @Option(help: "Model file identifier or display name from the models command.")
@@ -140,7 +142,7 @@ struct LocalAgentCLI: ParsableCommand {
     let prefixTokens = restored?.prefixTokens ?? []
     let prefixEmbedSpans = restored?.prefixEmbedSpans ?? []
     guard
-      (![.deepseek_4_flash, .glm_5_3_flash].contains(specification.version))
+      specification.version != .deepseek_4_flash
         || (image.isEmpty && prefixEmbedSpans.isEmpty)
     else {
       throw ValidationError("This model does not support image input.")

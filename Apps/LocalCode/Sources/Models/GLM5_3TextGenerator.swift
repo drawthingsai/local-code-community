@@ -24,6 +24,10 @@ public struct GLM5_3TextGenerator: TextGenerator {
   static let thinkStartToken: Int32 = 154_841
   static let thinkEndToken: Int32 = 154_842
   static let toolCallStartToken: Int32 = 154_843
+  static let imageStartToken: Int32 = 154_830
+  static let imageEndToken: Int32 = 154_831
+  /// One `<|image|>` per merged image token; its rows take the vision tower's embeddings.
+  static let imageToken: Int32 = 154_854
   /// generation_config.json: the model ends a turn with the role that comes next.
   static let stopTokens: Set<Int32> = [endOfTextToken, userToken, observationToken]
 
@@ -66,6 +70,8 @@ public struct GLM5_3TextGenerator: TextGenerator {
     var layers = [Layer]()
     /// How many tokens it holds, which is where the next decode continues from.
     public internal(set) var tokenLength = 0
+    /// An unavailable image kept its placeholder rows, so checkpoints would not match its digest.
+    var hasPaddedImages = false
 
     public init() {}
 
@@ -137,11 +143,27 @@ public struct GLM5_3TextGenerator: TextGenerator {
       return model
     }
 
+    var isVisionLoaded = false
+    private var cachedVision: ModelBuilder<(t: Int, h: Int, w: Int)>?
+
+    // Patches arrive block-major and the grid enters only through the rotary table, so one graph
+    // per patch count serves every image geometry.
+    var vision: ModelBuilder<(t: Int, h: Int, w: Int)> {
+      if let cachedVision { return cachedVision }
+      let vision = ModelBuilder { (grid: (t: Int, h: Int, w: Int), _) in
+        GLM5_3VisionTransformer(Float16.self, gridThw: [grid], configuration: .glm5_3Flash)
+      }
+      cachedVision = vision
+      return vision
+    }
+
     func reset() {
       os_unfair_lock_lock(&lock)
       defer { os_unfair_lock_unlock(&lock) }
       cachedModel = nil
       isLoaded = false
+      cachedVision = nil
+      isVisionLoaded = false
     }
   }
 
@@ -194,6 +216,41 @@ public struct GLM5_3TextGenerator: TextGenerator {
   /// Safe from a tool worker; graph-owned conversation caches stay with the agent.
   public func unload() { storage.reset() }
 
+  /// `<|image|>` placeholders for an image file, or nil when it is not a readable image.
+  public static func imageTokenCount(filePath: String) -> Int? {
+    GLM5_3Image.grid(filePath: filePath).map { GLM5_3VisionTokenCount(gridThw: $0) }
+  }
+
+  /// Image embeddings `[tokenCount, hiddenSize]`, loading the vision tower from the same store on
+  /// the first image. Nil when the image or the tower cannot load.
+  private func encodeImage(graph: DynamicGraph, image: GLM5_3Image)
+    -> DynamicGraph.Tensor<Float16>?
+  {
+    guard let patches = image.patches() else { return nil }
+    let inputs: [DynamicGraph.AnyTensor] = [
+      graph.variable(Tensor<Float16>(from: patches).toGPU(0)),
+      graph.variable(
+        GLM5_3VisionRotaryEmbedding(
+          gridThw: [image.grid], configuration: .glm5_3Flash, of: Float16.self
+        ).toGPU(0)),
+      graph.variable(GLM5_3VisionSequenceOffsets(gridThw: [image.grid]).offsets.toGPU(0)),
+    ]
+    let vision = storage.vision
+    if !storage.isVisionLoaded {
+      vision.compile(image.grid, inputs: inputs)
+      let result = try? graph.openStore(filePath, flags: .readOnly) { store in
+        try store.read(
+          "vision_model", model: vision, strict: true,
+          codec: [.jit, .i8x, .ezm7, .externalData(.wholeFile)])
+      }
+      guard let result, (try? result.get()) != nil else { return nil }
+      storage.isVisionLoaded = true
+    }
+    // Outputs belong to the model and are reused by its next call.
+    return vision(image.grid, inputs: inputs[0], Array(inputs.dropFirst()))[0]
+      .as(of: Float16.self).copied()
+  }
+
   /// Prefills `tokens` after the `tokenOffset` tokens `kvCache` holds, then generates until a stop
   /// token, which is evaluated and returned last. Every returned token is in the cache, except the
   /// one pending prediction a pause returns; an abort returns only evaluated tokens. The handler
@@ -237,6 +294,8 @@ public struct GLM5_3TextGenerator: TextGenerator {
     let prefillStart = min(restoredTokenLength, tokenLength - 1)
     kvCache.tokenLength = tokenOffset + prefillStart
 
+    // Absent token or image inputs are zero-sized.
+    let emptyTokens = graph.variable(.GPU(0), format: .NHWC, shape: [0], of: Int32.self)
     let emptyInjected = graph.variable(.GPU(0), format: .NHWC, shape: [0], of: Float16.self)
     // Upload before wrapping: a graph-level toGPU under a stream copies asynchronously from a CPU
     // buffer released when this returns.
@@ -256,13 +315,13 @@ public struct GLM5_3TextGenerator: TextGenerator {
       let chunk = min(chunkedPrefillMaxLength, capacity - 1)
       model.compile(
         (cached: capacity - chunk, count: chunk),
-        inputs: [tokenInput(Array(repeating: 0, count: chunk)), emptyInjected]
+        inputs: [tokenInput(Array(repeating: 0, count: chunk)), emptyInjected, emptyTokens]
           + Self.cacheInputs(kvCache, cached: capacity - chunk, count: chunk), isEager: isEager)
     }
     func compileDecode() {
       model.compile(
         (cached: capacity - 1, count: 1),
-        inputs: [tokenInput([0]), emptyInjected]
+        inputs: [tokenInput([0]), emptyInjected, emptyTokens]
           + Self.cacheInputs(kvCache, cached: capacity - 1, count: 1), isEager: true)
     }
     if !storage.isLoaded {
@@ -310,23 +369,90 @@ public struct GLM5_3TextGenerator: TextGenerator {
       return tokenInput([Self.thinkEndToken])
     }
 
+    // Images encode when a chunk first reaches them. One that cannot keeps its placeholder rows.
+    var encodedImages = [[UInt8]: DynamicGraph.Tensor<Float16>]()
+    var unavailableImages = Set<[UInt8]>()
+    func encodeImages(overlapping range: Range<Int>) {
+      for span in embedSpans
+      where Int(span.start) < range.upperBound
+        && Int(span.end) > range.lowerBound && encodedImages[span.digest] == nil
+        && !unavailableImages.contains(span.digest)
+      {
+        if span.kind == .image, span.digest.count == 32, let projectPath {
+          let path = EmbedsFileStore(projectPath: projectPath).filePath(for: Data(span.digest))
+          if let image = GLM5_3Image(filePath: path) {
+            if Array(image.digest) != span.digest {
+              print("Warning: GLM-5.3 image digest mismatch at \(path).")
+            }
+            if image.tokenCount == span.length {
+              encodedImages[span.digest] = encodeImage(graph: graph, image: image)
+            } else {
+              print(
+                "Warning: GLM-5.3 image token count changed from \(span.length) to \(image.tokenCount) at \(path)."
+              )
+            }
+          }
+        }
+        if encodedImages[span.digest] == nil {
+          print(
+            "Warning: GLM-5.3 image at token \(span.start) is unavailable; using image placeholder tokens."
+          )
+          unavailableImages.insert(span.digest)
+        }
+      }
+    }
+
     var pendingToken: DynamicGraph.Tensor<Int32>?
     var chunkStart = prefillStart
     let prefillStartTime = CACurrentMediaTime()
     let initialPrefillDuration = recentInteractionStatistics[statisticsIndex].prefillDurationSoFar
     while chunkStart < tokenLength {
-      let length = chunkLength(start: chunkStart)
       let position = tokenOffset + chunkStart
+      var end = position + chunkLength(start: chunkStart)
+      encodeImages(overlapping: position..<end)
+      // A chunk holds at most one image, with text rows before and after it, the order
+      // GLM5_3Embedding takes, so it ends where the next image starts. Unavailable images stay
+      // text rows.
+      let images = embedSpans.filter {
+        Int($0.start) < end && Int($0.end) > position && encodedImages[$0.digest] != nil
+      }.sorted { $0.start < $1.start }
+      if images.count > 1 { end = Int(images[1].start) }
+      var textEnd = end
+      var postStart = end
+      var injected = emptyInjected
+      if let span = images.first, let embeddings = encodedImages[span.digest] {
+        textEnd = max(position, Int(span.start))
+        postStart = min(end, Int(span.end))
+        injected = embeddings.reshaped(
+          .WC(postStart - textEnd, configuration.hiddenSize),
+          offset: [textEnd - Int(span.start), 0], strides: [configuration.hiddenSize, 1]
+        ).copied()
+      }
+      if embedSpans.contains(where: {
+        Int($0.start) < end && Int($0.end) > position && unavailableImages.contains($0.digest)
+      }) {
+        kvCache.hasPaddedImages = true
+      }
+      let length = end - position
       let flags = DynamicGraph.flags
       // Partial chunks would otherwise specialize every GEMM on a new M.
       if length != min(chunkedPrefillMaxLength, capacity - 1) {
         DynamicGraph.flags.insert(.disableMFAGEMMSpecializingM)
       }
+      let textTokens =
+        textEnd > position
+        ? tokens.reshaped(
+          format: .NHWC, shape: [textEnd - position], offset: [chunkStart], strides: [1]
+        ).copied() : emptyTokens
+      let postTokens =
+        postStart < end
+        ? tokens.reshaped(
+          format: .NHWC, shape: [end - postStart], offset: [postStart - tokenOffset],
+          strides: [1]
+        ).copied() : emptyTokens
       let outputs = model(
-        (cached: position, count: length),
-        inputs: tokens.reshaped(format: .NHWC, shape: [length], offset: [chunkStart], strides: [1])
-          .copied(),
-        [emptyInjected] + Self.cacheInputs(kvCache, cached: position, count: length))
+        (cached: position, count: length), inputs: textTokens,
+        [injected, postTokens] + Self.cacheInputs(kvCache, cached: position, count: length))
       DynamicGraph.flags = flags
       Self.keepStates(&kvCache)
       kvCache.tokenLength = position + length
@@ -334,7 +460,7 @@ public struct GLM5_3TextGenerator: TextGenerator {
       if chunkStart == tokenLength {
         pendingToken = forcingThinkingEnd(select(outputs[0].as(of: Float16.self)))
       }
-      if kvCache.tokenLength.isMultiple(of: checkpointStride) {
+      if !kvCache.hasPaddedImages, kvCache.tokenLength.isMultiple(of: checkpointStride) {
         contextCache.save(
           graph: graph, tokens: contextTokens, checkpointLength: kvCache.tokenLength,
           configuration: configuration, kvCache: kvCache, hasher: &hasher,
@@ -386,7 +512,7 @@ public struct GLM5_3TextGenerator: TextGenerator {
       let pending = pendingToken.toCPU()
       let outputs = model(
         (cached: position, count: 1), inputs: pendingToken,
-        [emptyInjected] + Self.cacheInputs(kvCache, cached: position, count: 1))
+        [emptyInjected, emptyTokens] + Self.cacheInputs(kvCache, cached: position, count: 1))
       Self.keepStates(&kvCache)
       kvCache.tokenLength = position + 1
       let token = pending[0]
@@ -398,7 +524,7 @@ public struct GLM5_3TextGenerator: TextGenerator {
       pendingToken = forcingThinkingEnd(select(outputs[0].as(of: Float16.self)))
       generated.append(token)
       runningContextTokens.append(token)
-      if kvCache.tokenLength.isMultiple(of: checkpointStride) {
+      if !kvCache.hasPaddedImages, kvCache.tokenLength.isMultiple(of: checkpointStride) {
         contextCache.save(
           graph: graph, tokens: runningContextTokens, checkpointLength: kvCache.tokenLength,
           configuration: configuration, kvCache: kvCache, hasher: &hasher,

@@ -318,7 +318,7 @@ public final class GLM5_3CodeAgent: CodeAgent {
       for (id, request) in requests {
         group.enter()
         environment.invoke(
-          request, context: context, isImageSupported: false
+          request, context: context, isImageSupported: true
         ) { [weak self] response in
           guard let self else { return }
           os_unfair_lock_lock(&lock)
@@ -443,8 +443,31 @@ public final class GLM5_3CodeAgent: CodeAgent {
   ) -> CodeAgentResult {
     precondition(suspensionState == nil && temporaryState == nil)
     self.environment = environment
-    // Image input is deferred until the vision tower is wired into prefill.
-    let imageSpans = [EmbedSpan]()
+    var imageTokens = [Int32]()
+    var imageSpans = [EmbedSpan]()
+    for path in imagePaths {
+      guard let cachePath = environment.cachePath else { continue }
+      let store = EmbedsFileStore(projectPath: cachePath)
+      let filePath =
+        (path as NSString).isAbsolutePath
+        ? path : (cachePath as NSString).appendingPathComponent(path)
+      guard let digest = try? store.insert(filePath: filePath),
+        let count = GLM5_3TextGenerator.imageTokenCount(filePath: store.filePath(for: digest))
+      else { continue }
+      // Label each image with its path as given. The template joins content blocks without
+      // separators, so each label starts its own line.
+      let (_, labelTokens, _, _, _) = safeTokenizer.tokenize(
+        text: (imageTokens.isEmpty ? "" : "\n") + "Image from \(path):", truncation: false,
+        maxLength: 0, paddingToken: nil, addSpecialTokens: false)
+      imageTokens += labelTokens
+      imageTokens.append(GLM5_3TextGenerator.imageStartToken)
+      imageSpans.append(
+        EmbedSpan(
+          start: Int64(imageTokens.count), length: Int64(count), digest: Array(digest),
+          kind: .image))
+      imageTokens += Array(repeating: GLM5_3TextGenerator.imageToken, count: count)
+      imageTokens.append(GLM5_3TextGenerator.imageEndToken)
+    }
     bashToolContext = bashToolContext.with(bashUserInteraction: BashUserInteraction())
     if isMemoryEnabled != !systemSeenMemoryContext.isEmpty {
       setSystemReminderTokensAndMemoryContext(
@@ -464,9 +487,9 @@ public final class GLM5_3CodeAgent: CodeAgent {
     let thinkingBudget = Int(self.thinkingBudget)
     let deterministic = self.deterministic
     let (_, textTokens, _, _, _) = safeTokenizer.tokenize(
-      text: prompt, truncation: false,
+      text: imageTokens.isEmpty || prompt.isEmpty ? prompt : "\n" + prompt, truncation: false,
       maxLength: 0, paddingToken: nil, addSpecialTokens: false)
-    let userTokens = textTokens
+    let userTokens = imageTokens + textTokens
     let seedHash = ContextCachePrefixHasher.hash(tokens: userTokens, embeddingSpans: imageSpans)
     let seed = seedHash.prefix(4).reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
     let (_, compactionPromptTokens, _, _, _) = safeTokenizer.tokenize(
@@ -730,11 +753,13 @@ public final class GLM5_3CodeAgent: CodeAgent {
         // The previous round ended on <|observation|>, so its completed results must follow it
         // even when the user stops before the next assistant round.
         func keepToolResults() {
-          let resultTokens =
-            (prefixTokens.last == Self.observationToken ? [] : [Self.observationToken])
-            + userTokens
-          logTokens += resultTokens
-          prefixTokens += resultTokens
+          let roleTokens = prefixTokens.last == Self.observationToken ? [] : [Self.observationToken]
+          logEmbedSpans += userEmbedSpans.map { $0.offset(by: logTokens.count + roleTokens.count) }
+          prefixEmbedSpans += userEmbedSpans.map {
+            $0.offset(by: prefixTokens.count + roleTokens.count)
+          }
+          logTokens += roleTokens + userTokens
+          prefixTokens += roleTokens + userTokens
         }
 
         func beginContextCheckpointCompaction(
@@ -1357,28 +1382,44 @@ extension GLM5_3CodeAgent {
     environment: any CodeAgentEnvironment
   ) -> (tokens: [Int32], embedSpans: [EmbedSpan]) {
     var result = [Int32]()
+    var embedSpans = [EmbedSpan]()
     for toolCall in toolCalls {
       let response = responses[toolCall.id] ?? ToolResponse(text: "")
       result.append(154_845)
-      let text = response.content.compactMap { part -> String? in
-        if case .text(let text) = part { return text }
-        return nil
-      }.joined()
-      var responseTokens = tokenizer.tokenize(text: text, addSpecialTokens: false).0
-      if toolCall.request.function == ToolsRegistry.Tool.read.rawValue {
-        if responseTokens.count > readResponsePreviewTokenThreshold {
-          responseTokens = previewedReadResponseTokens(
-            responseTokens, request: toolCall.request, tokenizer: tokenizer)
+      // The template joins a result's text and image blocks without separators.
+      for part in response.content {
+        switch part {
+        case .text(let text):
+          var responseTokens = tokenizer.tokenize(text: text, addSpecialTokens: false).0
+          if toolCall.request.function == ToolsRegistry.Tool.read.rawValue {
+            if responseTokens.count > readResponsePreviewTokenThreshold {
+              responseTokens = previewedReadResponseTokens(
+                responseTokens, request: toolCall.request, tokenizer: tokenizer)
+            }
+          } else if responseTokens.count > toolResponseExternalizationTokenThreshold,
+            let compactedTokens = compactedToolResponseTokens(
+              responseTokens, tokenizer: tokenizer,
+              saveToolResponse: environment.saveToolResponse)
+          {
+            responseTokens = compactedTokens
+          }
+          result += responseTokens
+        case .imageDigest(let digest):
+          guard let cachePath = environment.cachePath,
+            let count = GLM5_3TextGenerator.imageTokenCount(
+              filePath: EmbedsFileStore(projectPath: cachePath).filePath(for: digest))
+          else { continue }
+          result.append(GLM5_3TextGenerator.imageStartToken)
+          embedSpans.append(
+            EmbedSpan(
+              start: Int64(result.count), length: Int64(count), digest: Array(digest),
+              kind: .image))
+          result += Array(repeating: GLM5_3TextGenerator.imageToken, count: count)
+          result.append(GLM5_3TextGenerator.imageEndToken)
         }
-      } else if responseTokens.count > toolResponseExternalizationTokenThreshold,
-        let compactedTokens = compactedToolResponseTokens(
-          responseTokens, tokenizer: tokenizer, saveToolResponse: environment.saveToolResponse)
-      {
-        responseTokens = compactedTokens
       }
-      result += responseTokens
       result.append(154_846)
     }
-    return (result, [])
+    return (result, embedSpans)
   }
 }

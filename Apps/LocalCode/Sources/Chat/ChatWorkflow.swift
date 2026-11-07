@@ -1480,10 +1480,11 @@ final class ChatWorkflow: Workflow {
     dispatchPrecondition(condition: .onQueue(.main))
     guard let bookmarkData = bookmarkData(for: url) else { return }
     let standardizedPath = url.standardizedFileURL.resolvingSymlinksInPath().path
-    let currentPath = projectURL?.standardizedFileURL.resolvingSymlinksInPath().path
-    if currentPath != standardizedPath,
+    let oldPath = projectURL?.standardizedFileURL.resolvingSymlinksInPath().path
+    let oldThreadId = projectHistoryManager?.threadId
+    if oldPath != standardizedPath,
       remoteChatProviders.values.contains(where: {
-        $0.hasActiveConversations(projectPath: currentPath)
+        $0.hasActiveConversations(projectPath: oldPath)
       })
     {
       return
@@ -1505,7 +1506,7 @@ final class ChatWorkflow: Workflow {
       chatInputController.sendState = .idle
     }
     cancelRemoteStatusRequests()
-    if currentPath != standardizedPath || projectHistoryManager == nil {
+    if oldPath != standardizedPath || projectHistoryManager == nil {
       stopProjectSecurityScopedResourceAccess(refreshVisibleCells: false)
       let activeProjectWorkspace = residentProjectWorkspace(projectPath: standardizedPath)
       let retiringResources:
@@ -1597,6 +1598,15 @@ final class ChatWorkflow: Workflow {
       requestedThreadId == -1 || projectHistoryManager.thread(id: requestedThreadId) != nil
     {
       projectHistoryManager.threadId = requestedThreadId
+    }
+    // The input is shared by every thread, so it only keeps a restored draft while that thread
+    // stays open. Read before clearing: the dictionary skips a nil assignment to a key this launch
+    // never loaded.
+    if let oldPath,
+      oldPath != standardizedPath || oldThreadId != projectHistoryManager.threadId,
+      workspace.dictionary["restored_draft", Int.self] != nil
+    {
+      workspace.dictionary["restored_draft", Int.self] = nil
     }
     settingsWorkflow.setProjectHistoryManager(
       projectHistoryManager, project: projectWorkspace, projectURL: url)
@@ -1954,13 +1964,17 @@ final class ChatWorkflow: Workflow {
     if let index = history.lastIndex(where: { $0.role != .memory }),
       case let node = history[index], node.role == .user
     {
-      let prompt =
-        node.plaintext ?? safeTokenizer.decode(node.tokens)
-      prompts.insert(prompt, at: 0)
-      if node.textEdits >= 0, node.textLineage >= 0,
-        let textEdits = Int(exactly: node.textEdits)
-      {
-        let _ = textHistoryManager.seek(to: textEdits, lineage: node.textLineage)
+      // The unanswered message goes back to the input once while its thread stays open; from then
+      // on the input's history keeps it, so a cleared input stays cleared across relaunches.
+      // Sending it again replaces the message, and the new one has a new datetime.
+      if workspace.dictionary["restored_draft", Int.self] != Int(node.datetime) {
+        workspace.dictionary["restored_draft", Int.self] = Int(node.datetime)
+        prompts.insert(node.plaintext ?? safeTokenizer.decode(node.tokens), at: 0)
+        if node.textEdits >= 0, node.textLineage >= 0,
+          let textEdits = Int(exactly: node.textEdits)
+        {
+          let _ = textHistoryManager.seek(to: textEdits, lineage: node.textLineage)
+        }
       }
       restoredUserNode = (threadId: node.threadId, datetime: node.datetime)
       history.remove(at: index)

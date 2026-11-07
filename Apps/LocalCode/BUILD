@@ -679,6 +679,7 @@ swift_test(
         "Sources/Agent/TextGenerator.swift",
         "Sources/Models/ContextCache.swift",
         "Sources/Models/GLM5_3ContextCache.swift",
+        "Sources/Models/GLM5_3Image.swift",
         "Sources/Models/GLM5_3TextGenerator.swift",
     ] + glob(["Tests/GLM5_3ContextCacheTests/**/*.swift"]),
     deps = [
@@ -940,6 +941,7 @@ swift_library(
         "Sources/Models/DeepSeek4_1Image.swift",
         "Sources/Models/DeepSeek4_1TextGenerator.swift",
         "Sources/Models/GLM5_3ContextCache.swift",
+        "Sources/Models/GLM5_3Image.swift",
         "Sources/Models/GLM5_3TextGenerator.swift",
         "Sources/Models/Qwen3_5ContextCache.swift",
         "Sources/Models/Qwen3_5Image.swift",

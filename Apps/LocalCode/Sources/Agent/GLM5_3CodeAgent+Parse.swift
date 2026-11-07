@@ -125,8 +125,10 @@ extension GLM5_3CodeAgent {
     return tokens
   }
 
+  // A transcript cannot carry images, so their tokens stay out of its text; labels remain.
   private static func decoded(_ tokens: [Int32]) -> String {
-    GLM5_3TextGenerator.unsafeTokenizer.decode(tokens)
+    let imageTokens: Set<Int32> = [154_830, 154_831, 154_854]
+    return GLM5_3TextGenerator.unsafeTokenizer.decode(tokens.filter { !imageTokens.contains($0) })
   }
 
   private static func safeTokens(_ text: String) -> [Int32] {

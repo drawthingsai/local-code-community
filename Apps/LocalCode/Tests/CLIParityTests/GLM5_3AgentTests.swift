@@ -1,4 +1,6 @@
+import CoreGraphics
 import Foundation
+import ImageIO
 import NNC
 import ProjectHistoryManager
 import XCTest
@@ -248,5 +250,116 @@ final class GLM5_3AgentTests: XCTestCase {
       .abort
     }
     XCTAssertEqual(agent.statistics.contextUsedTokens, originalLength)
+  }
+
+  private func writeImage(_ name: String, width: Int, height: Int, orientation: Int? = nil)
+    throws -> URL
+  {
+    let url = directory.appendingPathComponent(name)
+    let context = try XCTUnwrap(
+      CGContext(
+        data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    context.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    let type = name.hasSuffix(".jpg") ? "public.jpeg" : "public.png"
+    let destination = try XCTUnwrap(
+      CGImageDestinationCreateWithURL(url as CFURL, type as CFString, 1, nil))
+    CGImageDestinationAddImage(
+      destination, try XCTUnwrap(context.makeImage()),
+      orientation.map { [kCGImagePropertyOrientation: $0] as CFDictionary })
+    XCTAssertTrue(CGImageDestinationFinalize(destination))
+    return url
+  }
+
+  func testUserImagesAreLabeledBlocksBeforeTheText() throws {
+    let source = try writeImage("image.png", width: 64, height: 96)
+    let invalid = directory.appendingPathComponent("invalid.png")
+    try Data("not an image".utf8).write(to: invalid)
+    let missing = directory.appendingPathComponent("missing.png").path
+    let store = EmbedsFileStore(projectPath: directory.path)
+    let digest = try store.insert(filePath: source.path)
+    let image = try XCTUnwrap(GLM5_3Image(filePath: store.filePath(for: digest)))
+    XCTAssertEqual(image.digest, digest)
+    XCTAssertEqual(GLM5_3TextGenerator.imageTokenCount(filePath: source.path), image.tokenCount)
+    XCTAssertEqual(try XCTUnwrap(image.patches()).shape[0], image.grid.h * image.grid.w)
+    let safe = GLM5_3TextGenerator.safeTokenizer
+    let cases: [(paths: [String], label: String?)] = [
+      ([missing, invalid.path, source.path, missing], "Image from \(source.path):"),
+      // Relative paths resolve against the project and label the image as given.
+      (["image.png", "invalid.png"], "Image from image.png:"),
+      ([missing, invalid.path], nil),
+    ]
+    for (index, (paths, label)) in cases.enumerated() {
+      let threadId = Int64(100 + index)
+      let agent = makeAgent()
+      _ = agent.ask(
+        "Describe it", imagePaths: paths, isMemoryEnabled: false, threadId: threadId,
+        environment: ProjectEnvironment(projectPath: directory.path)
+      ) { _, _ in .pause }
+      try agent.hibernate(threadId: threadId)
+      let data = try XCTUnwrap(
+        GLM5_3ContextCache(projectPath: directory.path, checkpointStride: 4096)
+          .loadSuspension(threadId: threadId))
+      let state = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+      let tokens = (state["userTokens"] as! [Int]).map(Int32.init)
+      let spans = state["userEmbedSpans"] as? [[String: Any]] ?? []
+      guard let label else {
+        XCTAssertTrue(spans.isEmpty)
+        XCTAssertEqual(safe.decode(tokens), "Describe it")
+        continue
+      }
+      XCTAssertEqual(spans.count, 1)
+      XCTAssertEqual(spans.first?["digest"] as? String, digest.base64EncodedString())
+      let start = try XCTUnwrap(spans.first?["start"] as? Int)
+      let end = start + (try XCTUnwrap(spans.first?["length"] as? Int))
+      XCTAssertEqual(end - start, image.tokenCount)
+      XCTAssertEqual(safe.decode(Array(tokens[..<(start - 1)])), label)
+      XCTAssertEqual(tokens[start - 1], 154_830)
+      XCTAssertEqual(Set(tokens[start..<end]), [154_854])
+      XCTAssertEqual(tokens[end], 154_831)
+      XCTAssertEqual(safe.decode(Array(tokens[(end + 1)...])), "\nDescribe it")
+      // A transcript keeps the label and the text, but not the image.
+      XCTAssertEqual(GLM5_3CodeAgent.parse([154_827] + tokens), [.user(label + "\nDescribe it")])
+    }
+  }
+
+  func testToolResultImagesRenderInline() throws {
+    let source = try writeImage("view.png", width: 40, height: 40)
+    let digest = try EmbedsFileStore(projectPath: directory.path).insert(filePath: source.path)
+    let count = try XCTUnwrap(GLM5_3TextGenerator.imageTokenCount(filePath: source.path))
+    let (tokens, spans) = GLM5_3CodeAgent.toolResultTokens(
+      for: [ToolCall(id: 0, request: .init(function: "view", parameters: [:]))],
+      responses: [
+        0: ToolResponse([.text("Viewed view.png"), .imageDigest(digest), .text("Done")])
+      ],
+      tokenizer: GLM5_3TextGenerator.safeTokenizer,
+      environment: ProjectEnvironment(projectPath: directory.path))
+    // The template joins a result's blocks without separators.
+    let unsafe = GLM5_3TextGenerator.unsafeTokenizer
+    XCTAssertEqual(
+      tokens,
+      unsafe.tokenize(
+        text: "<tool_response>Viewed view.png<|begin_of_image|>"
+          + String(repeating: "<|image|>", count: count) + "<|end_of_image|>Done</tool_response>",
+        addSpecialTokens: false
+      ).0)
+    XCTAssertEqual(spans.count, 1)
+    XCTAssertEqual(spans.first.map { tokens[Int($0.start) - 1] }, 154_830)
+    XCTAssertEqual(spans.first?.length, Int64(count))
+    XCTAssertEqual(spans.first?.digest, Array(digest))
+    XCTAssertEqual(
+      GLM5_3CodeAgent.parse([154_829] + tokens),
+      [.toolResults([.init(content: "Viewed view.pngDone", isError: false)])])
+  }
+
+  func testImageGridFollowsOrientation() throws {
+    // Stored 64 wide and 160 tall, shown rotated a quarter turn.
+    let rotated = try writeImage("rotated.jpg", width: 64, height: 160, orientation: 6)
+    let image = try XCTUnwrap(GLM5_3Image(filePath: rotated.path))
+    let grid = try XCTUnwrap(GLM5_3Image.grid(filePath: rotated.path))
+    XCTAssertEqual([grid.t, grid.h, grid.w], [image.grid.t, image.grid.h, image.grid.w])
+    XCTAssertGreaterThan(grid.w, grid.h)
   }
 }
