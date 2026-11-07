@@ -1151,6 +1151,11 @@ extension DeepSeek4_1TextGenerator {
           return
         }
       }
+      // A pause can return a pending end of sentence. After evaluating it, the turn is done.
+      if contextTokens.last == 1 {
+        generated.removeAll()
+        return
+      }
       guard let firstToken = generated.first, firstToken != 1 else { return }
       recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
       guard kvCache.tokenLength < Self.maximumContextLength else { return }

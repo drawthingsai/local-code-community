@@ -68,7 +68,8 @@ public protocol DeepSeekTextGenerator: TextGenerator {
   static var isImageSupported: Bool { get }
   static func imageTokenCount(filePath: String) -> Int?
 
-  /// Pause retains one pending prediction; abort returns only evaluated tokens.
+  /// Pause retains one pending prediction; abort returns only evaluated tokens. A context that ends
+  /// in end of sentence, such as a pending one a pause returned, is evaluated and generates nothing.
   mutating func decode(
     graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
     thinkingBudget: Int, deterministic: Bool, kvCache: inout KVCache,

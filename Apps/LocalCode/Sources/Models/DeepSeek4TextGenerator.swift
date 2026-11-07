@@ -1033,6 +1033,11 @@ extension DeepSeek4TextGenerator {
         return []
       }
     }
+    // A pause can return a pending end of sentence. After evaluating it, the turn is done.
+    if let last = contextTokens.last, Self.eosTokenIds.contains(last) {
+      graph.joined()
+      return []
+    }
     guard let prefillTokenCPU else { return [] }
     let firstToken = prefillTokenCPU[0]
     guard !Self.eosTokenIds.contains(firstToken) else { return [firstToken] }

@@ -940,9 +940,9 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
           let tokenOffset: Int
           let contextTokens: [Int32]
           if cachedTokenLength < generation.baseContextTokens.count {
-            let replayedOutputCount =
-              cachedTokenLength == 0 ? max(0, existingOutputTokens.count - 1) : 0
-            outputTokensBeforeDecode = Array(existingOutputTokens.prefix(replayedOutputCount))
+            // Replay all but the last output token, which decoding predicts again. An interrupted
+            // replay can leave the cache partway through the base context, so replay from there.
+            outputTokensBeforeDecode = Array(existingOutputTokens.dropLast())
             let replayContextTokens = generation.baseContextTokens + outputTokensBeforeDecode
             tokenOffset = cachedTokenLength
             inputTokens = Array(replayContextTokens.dropFirst(cachedTokenLength))
@@ -1127,7 +1127,11 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
             }
             return .continue
           }
-          generation.outputTokens = outputTokensBeforeDecode + thisOutputTokens
+          let decodedOutputTokens = outputTokensBeforeDecode + thisOutputTokens
+          // A replay stopped before it predicts the dropped token again keeps the saved output.
+          generation.outputTokens =
+            decodedOutputTokens.count < existingOutputTokens.count
+            ? existingOutputTokens : decodedOutputTokens
           generation.stoppedByUser = stoppedByUser
           generation.stoppedForCompletedToolCalls = stoppedForCompletedToolCalls
           generation.resultAtCompactionTrigger = resultAtCompactionTrigger.map(SuspendedResult.init)
@@ -1158,11 +1162,10 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
             cachedTokenLength = 0
             break
           }
-          if generation.outputTokens.count > 1,
-            generation.outputTokens.last == Self.endOfSentenceToken
-          {
+          if thisOutputTokens.count > 1, thisOutputTokens.last == Self.endOfSentenceToken {
             // The generator does not report the terminal token through the callback, but it has
             // evaluated that token into the cache. A first-token EOS is only predicted, not cached.
+            // Count only this decode: a replayed or kept output was not decoded here.
             cachedTokenLength = generation.baseContextTokens.count + generation.outputTokens.count
           }
 
