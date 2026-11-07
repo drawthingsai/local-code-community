@@ -1,13 +1,15 @@
 import Foundation
 
 public struct RemoteAgentConfiguration: Equatable, Sendable {
-  public static let defaultCompactionThreshold = 0.50
+  // The compaction threshold and reserve are fractions of the input room, the context window less
+  // the reserved output. The compaction target is a fraction of the context window.
+  public static let defaultCompactionThreshold = 0.90
   public static let minimumCompactionThreshold = 0.35
-  public static let maximumCompactionThreshold = 0.85
+  public static let maximumCompactionThreshold = 0.90
   public static let defaultCompactionTarget = 0.30
   public static let minimumCompactionTarget = 0.15
   public static let compactionTargetMargin = 0.05
-  public static let compactionReserveFraction = 0.15
+  public static let compactionReserveFraction = 0.05
 
   public var contextWindowTokens: Int
   public var reservedOutputTokens: Int
@@ -32,9 +34,13 @@ public struct RemoteAgentConfiguration: Equatable, Sendable {
     self.compactionThreshold = min(
       max(Self.minimumCompactionThreshold, compactionThreshold),
       Self.maximumCompactionThreshold)
+    // Keep the target below the threshold once both are measured against the context window.
+    let inputFraction =
+      Double(self.contextWindowTokens - self.reservedOutputTokens)
+      / Double(self.contextWindowTokens)
     self.compactionTarget = min(
       max(Self.minimumCompactionTarget, compactionTarget),
-      self.compactionThreshold - Self.compactionTargetMargin)
+      self.compactionThreshold * inputFraction - Self.compactionTargetMargin)
     self.maximumRounds = max(1, maximumRounds)
     self.maximumCompactionsPerRequest = max(1, maximumCompactionsPerRequest)
     self.maximumRequestRetries = max(0, maximumRequestRetries)
@@ -135,19 +141,22 @@ enum RemoteContext {
     checkpoint body.
     """
 
-  static func compactionReserveTokens(contextWindowTokens: Int) -> Int {
-    max(
-      512,
-      Int(ceil(Double(contextWindowTokens) * RemoteAgentConfiguration.compactionReserveFraction)))
+  static func compactionReserveTokens(
+    contextWindowTokens: Int, configuration: RemoteAgentConfiguration
+  ) -> Int {
+    let inputTokens = contextWindowTokens - configuration.reservedOutputTokens
+    return max(
+      512, Int(ceil(Double(inputTokens) * RemoteAgentConfiguration.compactionReserveFraction)))
   }
 
   static func compactionThresholdTokens(
     contextWindowTokens: Int, configuration: RemoteAgentConfiguration
   ) -> Int {
-    let configured = Int(Double(contextWindowTokens) * configuration.compactionThreshold)
-    let reserve = compactionReserveTokens(contextWindowTokens: contextWindowTokens)
-    let capacity = contextWindowTokens - configuration.reservedOutputTokens - reserve
-    return max(1_024, min(configured, capacity))
+    let inputTokens = contextWindowTokens - configuration.reservedOutputTokens
+    let configured = Int(Double(inputTokens) * configuration.compactionThreshold)
+    let reserve = compactionReserveTokens(
+      contextWindowTokens: contextWindowTokens, configuration: configuration)
+    return max(1_024, min(configured, inputTokens - reserve))
   }
 
   static func normalized(
@@ -248,9 +257,11 @@ enum RemoteContext {
     }
     guard !candidates.isEmpty else { return nil }
 
-    let reserve = max(
-      configuration.reservedOutputTokens,
-      compactionReserveTokens(contextWindowTokens: contextWindowTokens))
+    // The checkpoint request must also stay under the hard limit.
+    let reserve =
+      configuration.reservedOutputTokens
+      + compactionReserveTokens(
+        contextWindowTokens: contextWindowTokens, configuration: configuration)
     func materializedRequest(for candidate: Int) -> RemoteCompactionRequest? {
       var events = removingOldReasoning(
         Array(state.transcript.prefix(candidate)), protectLast: 0)
@@ -333,7 +344,8 @@ enum RemoteContext {
   ) -> Bool {
     let contextWindowTokens =
       state.effectiveContextWindowTokens ?? configuration.contextWindowTokens
-    let compactionReserve = compactionReserveTokens(contextWindowTokens: contextWindowTokens)
+    let compactionReserve = compactionReserveTokens(
+      contextWindowTokens: contextWindowTokens, configuration: configuration)
     return preparedContext.estimatedTokens + configuration.reservedOutputTokens
       >= contextWindowTokens - compactionReserve
   }

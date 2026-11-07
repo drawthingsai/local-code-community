@@ -9,7 +9,7 @@ final class RemoteContextTests: XCTestCase {
       let call = Self.call("call-\(index)")
       transcript.append(
         .assistant(
-          String(repeating: "tool-turn-\(index) context ", count: 600), toolCalls: [call]))
+          String(repeating: "tool-turn-\(index) context ", count: 830), toolCalls: [call]))
       transcript.append(Self.result(for: call))
     }
     XCTAssertEqual(
@@ -26,10 +26,13 @@ final class RemoteContextTests: XCTestCase {
       prepared.estimatedTokens,
       RemoteContext.compactionThresholdTokens(
         contextWindowTokens: 16_384, configuration: configuration))
+    XCTAssertFalse(
+      RemoteContext.isHardLimitExceeded(prepared, state: state, configuration: configuration))
 
     let request = RemoteContext.compactionRequest(
       state: state, preparedContext: prepared, systemPrompt: "System",
       tools: [Self.readTool], configuration: configuration, force: false)
+    XCTAssertEqual(request?.requiresCapacityRecovery, false)
     let sourceMessageCount = try XCTUnwrap(request?.sourceMessageCount)
     XCTAssertTrue([3, 5, 7, 9, 11, 13, 15].contains(sourceMessageCount))
     XCTAssertEqual(transcript[sourceMessageCount - 1].role, .toolResult)

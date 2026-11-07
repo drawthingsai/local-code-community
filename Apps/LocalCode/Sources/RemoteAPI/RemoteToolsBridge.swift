@@ -14,10 +14,12 @@ struct RemoteToolsBridge {
   private let projectPath: String
   private let workspacePath: String
   private let webSearchProvider: WebSearchProvider
+  private let isMemoryEnabled: Bool
 
   init(
     projectPath: String, workspacePath: String,
     webSearchProvider: WebSearchProvider,
+    isMemoryEnabled: Bool = true,
     supportsImageInput: Bool = false,
     bashToolContext: BashToolContext = .init()
   ) {
@@ -26,6 +28,7 @@ struct RemoteToolsBridge {
     self.projectPath = projectPath
     self.workspacePath = workspacePath
     self.webSearchProvider = webSearchProvider
+    self.isMemoryEnabled = isMemoryEnabled
     let formatter = DateFormatter()
     formatter.calendar = Calendar(identifier: .gregorian)
     formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -36,6 +39,7 @@ struct RemoteToolsBridge {
       guard
         $0.name != ToolsRegistry.Tool.webSearch.rawValue
           || webSearchProvider != .disabled,
+        $0.name != ToolsRegistry.Tool.memory.rawValue || isMemoryEnabled,
         $0.name != ToolsRegistry.Tool.view.rawValue || supportsImageInput
       else { return nil }
       var tool = $0
@@ -61,6 +65,14 @@ struct RemoteToolsBridge {
       completion(
         RemoteToolExecutionResult(
           content: "View is not available because this provider does not accept images.",
+          subtitle: LocalizedString.format(key: "could_not_run_tool", call.name),
+          isError: true))
+      return nil
+    }
+    guard isMemoryEnabled || call.name != ToolsRegistry.Tool.memory.rawValue else {
+      completion(
+        RemoteToolExecutionResult(
+          content: "Memory is not available because it is turned off in Settings.",
           subtitle: LocalizedString.format(key: "could_not_run_tool", call.name),
           isError: true))
       return nil

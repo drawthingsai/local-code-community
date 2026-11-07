@@ -2464,7 +2464,6 @@
 "remote_api_tool_call" = "Llamada de herramienta remota";
 "remote_context_used" = "Contexto usado (tokens)";
 "remote_context_free" = "Contexto libre (tokens)";
-"remote_compaction_trigger" = "Umbral de compactación";
 "claude_api" = "API de Claude";
 "claude_api_configuration_detail" = "Introduce el identificador del modelo Claude y la clave API de Anthropic. Deja la clave en blanco para conservar la guardada.";
 "claude_api_invalid_configuration" = "Introduce un identificador de modelo Claude.";

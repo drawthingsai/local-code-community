@@ -17,6 +17,7 @@ final class RemoteChatProvider {
     var profile: RemoteProviderProfile
     var workspacePath: String
     var webSearchProvider: WebSearchProvider
+    var isMemoryEnabled: Bool
     var systemPromptContext: RemoteSystemPromptContext
   }
 
@@ -105,10 +106,11 @@ final class RemoteChatProvider {
     completion: @escaping (Result<Void, Error>) -> Void = { _ in }
   ) {
     let projectURL = URL(fileURLWithPath: id.projectPath, isDirectory: true)
+    let isMemoryEnabled = workspace.dictionary["is_memory_enabled", Bool.self] ?? true
     let environment = Environment(
       profile: profile,
       workspacePath: URL(fileURLWithPath: workspacePath).standardizedFileURL.path,
-      webSearchProvider: webSearchProvider,
+      webSearchProvider: webSearchProvider, isMemoryEnabled: isMemoryEnabled,
       systemPromptContext: RemoteSystemPromptContext(
         runtime: .currentApp,
         skillCatalog: SkillCatalog.find(
@@ -120,7 +122,7 @@ final class RemoteChatProvider {
           model: profile.model, provider: provider.rawValue,
           pythonLibraryURL: Bundle.main.resourceURL?.appendingPathComponent(
             "Library", isDirectory: true)),
-        memoryContext: (workspace.dictionary["is_memory_enabled", Bool.self] ?? true)
+        memoryContext: isMemoryEnabled
           ? MemoryContext.load(projectPath: id.projectPath) : .empty))
     let conversation = conversations[id] ?? Conversation()
     conversations[id] = conversation
@@ -322,8 +324,7 @@ final class RemoteChatProvider {
     }
     let configuration = RemoteAgentConfiguration(
       contextWindowTokens: limits.contextWindowTokens,
-      reservedOutputTokens: limits.maximumOutputTokens,
-      compactionThreshold: environment.profile.compactionThreshold)
+      reservedOutputTokens: limits.maximumOutputTokens)
     let provider = try environment.profile.endpoint.makeChatProvider(
       authorization: environment.profile.authorization,
       maximumOutputTokens: configuration.reservedOutputTokens,
@@ -331,6 +332,7 @@ final class RemoteChatProvider {
     let bridge = RemoteToolsBridge(
       projectPath: id.projectPath, workspacePath: environment.workspacePath,
       webSearchProvider: environment.webSearchProvider,
+      isMemoryEnabled: environment.isMemoryEnabled,
       supportsImageInput: provider.supportsImageInput,
       bashToolContext: bashToolContext.with(
         projectURL: URL(fileURLWithPath: id.projectPath, isDirectory: true), threadId: id.threadId))

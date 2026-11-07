@@ -48,7 +48,10 @@ struct RemoteAgentCLI: AsyncParsableCommand {
   @Option(help: "Maximum model/tool rounds.")
   var maximumRounds: Int = 64
 
-  @Option(help: "Fraction of the selected remote model context that triggers compaction.")
+  @Option(
+    help:
+      "Fraction of the input room (the context window less the reserved output) that triggers compaction."
+  )
   var compactionThreshold = RemoteAgentConfiguration.defaultCompactionThreshold
 
   @Option(help: "Target fraction of the remote model context used after compaction.")
@@ -72,7 +75,7 @@ struct RemoteAgentCLI: AsyncParsableCommand {
         .minimumCompactionThreshold...RemoteAgentConfiguration.maximumCompactionThreshold).contains(
           compactionThreshold)
     else {
-      throw ValidationError("--compaction-threshold must be between 0.35 and 0.85.")
+      throw ValidationError("--compaction-threshold must be between 0.35 and 0.9.")
     }
     guard compactionTarget >= RemoteAgentConfiguration.minimumCompactionTarget,
       compactionTarget
@@ -143,6 +146,14 @@ struct RemoteAgentCLI: AsyncParsableCommand {
       contextWindowTokens: contextTokens, reservedOutputTokens: requestedOutputTokens,
       compactionThreshold: compactionThreshold, compactionTarget: compactionTarget,
       maximumRounds: maximumRounds)
+    // The target is a share of the context window and the threshold a share of the input room,
+    // so the model's limits decide how high the target can go.
+    guard configuration.compactionTarget == compactionTarget else {
+      throw ValidationError(
+        "--compaction-target must be at most "
+          + String(format: "%.3f", (configuration.compactionTarget * 1_000).rounded(.down) / 1_000)
+          + " for this model's limits and --compaction-threshold.")
+    }
     let underlyingProvider = try endpoint.makeChatProvider(
       authorization: authorization, maximumOutputTokens: configuration.reservedOutputTokens,
       reasoningEffort: reasoningEffort, sessionConfiguration: sessionConfiguration)

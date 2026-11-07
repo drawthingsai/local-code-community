@@ -12,7 +12,6 @@ private struct RemoteProviderAppConfiguration {
   var modelDictionaryKey: String
   var modelsDictionaryKey: String
   var baseURLDictionaryKey: String?
-  var compactionThresholdDictionaryKey: String
   var titleKey: String
   var detailKey: String
   var invalidKey: String
@@ -38,7 +37,6 @@ extension RemoteProvider {
         profileTitle: LocalizedString.forKey("cloud_compute"),
         modelDictionaryKey: "localcode_model", modelsDictionaryKey: "localcode_models",
         baseURLDictionaryKey: nil,
-        compactionThresholdDictionaryKey: "localcode_compaction_threshold",
         titleKey: "cloud_compute",
         detailKey: "cloud_compute_configuration_detail",
         invalidKey: "remote_api_invalid_configuration",
@@ -48,7 +46,6 @@ extension RemoteProvider {
         title: "OpenRouter", profileTitle: "OpenRouter",
         modelDictionaryKey: "openrouter_model", modelsDictionaryKey: "openrouter_models",
         baseURLDictionaryKey: nil,
-        compactionThresholdDictionaryKey: "openrouter_compaction_threshold",
         titleKey: "openrouter_api", detailKey: "openrouter_api_configuration_detail",
         invalidKey: "openrouter_api_invalid_configuration",
         keyRequiredKey: "openrouter_api_key_required")
@@ -59,7 +56,6 @@ extension RemoteProvider {
         modelDictionaryKey: "openai_compatible_model",
         modelsDictionaryKey: "openai_compatible_models",
         baseURLDictionaryKey: "openai_compatible_base_url",
-        compactionThresholdDictionaryKey: "openai_compatible_compaction_threshold",
         titleKey: "remote_api", detailKey: "remote_api_configuration_detail",
         invalidKey: "remote_api_invalid_configuration",
         keyRequiredKey: "remote_api_key_required")
@@ -68,7 +64,6 @@ extension RemoteProvider {
         title: "OpenAI", profileTitle: "OpenAI",
         modelDictionaryKey: "openai_model", modelsDictionaryKey: "openai_models",
         baseURLDictionaryKey: nil,
-        compactionThresholdDictionaryKey: "openai_compaction_threshold",
         titleKey: "openai_sign_in_provider", detailKey: "openai_sign_in_configuration_detail",
         invalidKey: "remote_api_invalid_configuration",
         keyRequiredKey: "remote_api_key_required")
@@ -77,7 +72,6 @@ extension RemoteProvider {
         title: "Anthropic", profileTitle: "Claude",
         modelDictionaryKey: "anthropic_model", modelsDictionaryKey: "anthropic_models",
         baseURLDictionaryKey: nil,
-        compactionThresholdDictionaryKey: "anthropic_compaction_threshold",
         titleKey: "claude_api", detailKey: "claude_api_configuration_detail",
         invalidKey: "claude_api_invalid_configuration",
         keyRequiredKey: "claude_api_key_required")
@@ -120,7 +114,7 @@ extension RemoteProvider {
     return RemoteProviderProfile(
       endpoint: endpoint, modelDisplayName: modelDisplayName(model, in: workspace),
       credentialIdentifier: account.credentialIdentifier,
-      authorization: account.authorization, compactionThreshold: compactionThreshold(in: workspace),
+      authorization: account.authorization,
       reasoningEffort: RemoteReasoningEffort(rawValue: reasoningEffort.rawValue) ?? .high,
       fallbackLimits: self == .openAICompatible
         ? RemoteModelLimits(
@@ -188,21 +182,6 @@ extension RemoteProvider {
     (workspace.dictionary[appConfiguration.modelsDictionaryKey, [String].self] ?? []).contains(
       model)
   }
-
-  func compactionThreshold(in workspace: SQLiteWorkspace) -> Double {
-    let value =
-      workspace.dictionary[appConfiguration.compactionThresholdDictionaryKey, Double.self]
-      ?? RemoteAgentConfiguration.defaultCompactionThreshold
-    return min(
-      max(RemoteAgentConfiguration.minimumCompactionThreshold, value),
-      RemoteAgentConfiguration.maximumCompactionThreshold)
-  }
-
-  func setCompactionThreshold(_ value: Double, in workspace: SQLiteWorkspace) {
-    workspace.dictionary[appConfiguration.compactionThresholdDictionaryKey, Double.self] = min(
-      max(RemoteAgentConfiguration.minimumCompactionThreshold, value),
-      RemoteAgentConfiguration.maximumCompactionThreshold)
-  }
 }
 
 struct RemoteProviderAccount {
@@ -216,7 +195,6 @@ struct RemoteProviderProfile: Equatable {
   let modelDisplayName: String
   let credentialIdentifier: String
   let authorization: any RemoteAuthorizationProviding
-  let compactionThreshold: Double
   let reasoningEffort: RemoteReasoningEffort
   let fallbackLimits: RemoteModelLimits
 
@@ -229,7 +207,6 @@ struct RemoteProviderProfile: Equatable {
   static func == (lhs: RemoteProviderProfile, rhs: RemoteProviderProfile) -> Bool {
     lhs.endpoint == rhs.endpoint && lhs.credentialIdentifier == rhs.credentialIdentifier
       && lhs.authorization.kind == rhs.authorization.kind
-      && lhs.compactionThreshold == rhs.compactionThreshold
       && lhs.reasoningEffort == rhs.reasoningEffort
       && lhs.fallbackLimits == rhs.fallbackLimits
   }

@@ -266,7 +266,7 @@ public final class RemoteAgent {
     let effectiveContextWindowTokens =
       state.effectiveContextWindowTokens ?? configuration.contextWindowTokens
     let compactionReserveTokens = RemoteContext.compactionReserveTokens(
-      contextWindowTokens: effectiveContextWindowTokens)
+      contextWindowTokens: effectiveContextWindowTokens, configuration: configuration)
     return RemoteAgentStatus(
       estimatedContextTokens: preparedContext.estimatedTokens,
       configuredContextWindowTokens: configuration.contextWindowTokens,

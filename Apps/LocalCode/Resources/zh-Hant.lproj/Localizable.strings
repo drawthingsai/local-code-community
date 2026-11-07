@@ -2479,7 +2479,6 @@
 "remote_api_tool_call" = "遠端工具呼叫";
 "remote_context_used" = "已用上下文（權杖）";
 "remote_context_free" = "可用上下文（權杖）";
-"remote_compaction_trigger" = "壓縮觸發閾值";
 "claude_api" = "Claude API";
 "claude_api_configuration_detail" = "輸入 Claude 模型識別碼和 Anthropic API 金鑰。金鑰留空可保留已儲存的金鑰。";
 "claude_api_invalid_configuration" = "請輸入 Claude 模型識別碼。";

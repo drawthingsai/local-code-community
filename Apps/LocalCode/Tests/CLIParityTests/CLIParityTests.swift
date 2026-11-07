@@ -669,6 +669,34 @@ final class CLIParityTests: XCTestCase {
       restored.state.transcript.flatMap(\.images).map(\.data), [imageData, imageData, imageData])
   }
 
+  func testRemoteCommandRejectsCompactionTargetAboveModelBound() async throws {
+    let environmentName = "LOCAL_CODE_CLI_TEST_KEY"
+    let previousKey = ProcessInfo.processInfo.environment[environmentName]
+    setenv(environmentName, "test-key", 1)
+    defer {
+      if let previousKey {
+        setenv(environmentName, previousKey, 1)
+      } else {
+        unsetenv(environmentName)
+      }
+    }
+    // A 32K window with 8K output leaves 0.75 of it as input room, so a 0.5 threshold allows at
+    // most 0.5 * 0.75 - 0.05 = 0.325 of the window as the target.
+    var command = try RemoteAgentCLI.parse([
+      "--provider", "openai-compatible", "--base-url", "https://cli-parity.invalid/v1",
+      "--model", "fixture", "--api-key-environment", environmentName,
+      "--context-window-tokens", "32768", "--maximum-output-tokens", "8192",
+      "--compaction-threshold", "0.5", "--compaction-target", "0.4",
+      "--project", directory.path, "--message", "fixture",
+    ])
+    do {
+      try await command.run(sessionConfiguration: .ephemeral)
+      XCTFail("A target above the model's bound should be rejected")
+    } catch let error as ValidationError {
+      XCTAssertTrue(error.message.contains("at most 0.32"), error.message)
+    }
+  }
+
   func testRemoteCommandExecutesToolsAndResumesItsSavedConversation() async throws {
     let environmentName = "LOCAL_CODE_CLI_TEST_KEY"
     let previousKey = ProcessInfo.processInfo.environment[environmentName]
@@ -1375,7 +1403,7 @@ final class CLIParityTests: XCTestCase {
     for arguments in [
       ["--context-window-tokens", "4095"], ["--maximum-output-tokens", "0"],
       ["--maximum-rounds", "0"], ["--compaction-threshold", "nan"],
-      ["--compaction-threshold", "0.9"], ["--compaction-target", "0.8"],
+      ["--compaction-threshold", "0.95"], ["--compaction-target", "0.9"],
     ] {
       XCTAssertThrowsError(try LocalCodeCLI.parseAsRoot(remote + arguments))
     }

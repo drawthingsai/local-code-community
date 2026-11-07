@@ -2504,7 +2504,6 @@
 "remote_api_tool_call" = "Appel d’outil distant";
 "remote_context_used" = "Contexte utilisé (jetons)";
 "remote_context_free" = "Contexte libre (jetons)";
-"remote_compaction_trigger" = "Seuil de compactage";
 "claude_api" = "API Claude";
 "claude_api_configuration_detail" = "Saisissez l’identifiant du modèle Claude et la clé API Anthropic. Laissez la clé vide pour conserver celle enregistrée.";
 "claude_api_invalid_configuration" = "Saisissez un identifiant de modèle Claude.";

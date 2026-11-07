@@ -229,9 +229,10 @@ threshold preserves the intended effectiveness of low-effort maintenance.
 ## Remote-agent compaction strategy
 
 `RemoteAgent` compacts provider-neutral content blocks and keeps completed tool
-exchanges atomic. Its pressure threshold is derived from the selected model's
-context and output limits, the configured compaction percentage, and a
-15-percent compaction reserve. Runtime token estimates remain session state.
+exchanges atomic. Its input room is the selected model's context window less the
+reserved output. Compaction starts at 90 percent of the input room, and a request
+above 95 percent fails unless compaction makes room. The app does not expose the
+threshold. Runtime token estimates remain session state.
 
 Before summarizing, it bounds oversized tool results, retains a recent tail,
 and reduces older thinking and completed tool exchanges. These request-time

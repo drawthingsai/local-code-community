@@ -2505,7 +2505,6 @@
 "remote_api_tool_call" = "원격 도구 호출";
 "remote_context_used" = "사용 중인 컨텍스트(토큰)";
 "remote_context_free" = "사용 가능한 컨텍스트(토큰)";
-"remote_compaction_trigger" = "압축 임계값";
 "claude_api" = "Claude API";
 "claude_api_configuration_detail" = "Claude 모델 식별자와 Anthropic API 키를 입력하세요. 저장된 키를 유지하려면 키를 비워 두세요.";
 "claude_api_invalid_configuration" = "Claude 모델 식별자를 입력하세요.";

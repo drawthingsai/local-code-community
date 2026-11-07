@@ -2759,7 +2759,6 @@
 "remote_api_tool_call" = "Remote tool call";
 "remote_context_used" = "Context Used (Tokens)";
 "remote_context_free" = "Context Free (Tokens)";
-"remote_compaction_trigger" = "Compaction Trigger";
 "claude_api" = "Claude API";
 "claude_api_configuration_detail" = "Enter the Claude model identifier and Anthropic API key. Leave the key blank to keep the existing saved key.";
 "claude_api_invalid_configuration" = "Enter a Claude model identifier.";

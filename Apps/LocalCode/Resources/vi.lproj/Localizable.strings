@@ -2759,7 +2759,6 @@
 "remote_api_tool_call" = "Lệnh gọi công cụ từ xa";
 "remote_context_used" = "Ngữ cảnh đã dùng (token)";
 "remote_context_free" = "Ngữ cảnh còn trống (token)";
-"remote_compaction_trigger" = "Ngưỡng thu gọn";
 "claude_api" = "Claude API";
 "claude_api_configuration_detail" = "Nhập mã định danh mô hình Claude và khóa API Anthropic. Để trống ô khóa để giữ khóa đã lưu hiện có.";
 "claude_api_invalid_configuration" = "Nhập mã định danh mô hình Claude.";

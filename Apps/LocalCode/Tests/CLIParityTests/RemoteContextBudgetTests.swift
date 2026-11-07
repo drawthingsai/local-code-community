@@ -27,7 +27,7 @@ final class RemoteContextBudgetTests: XCTestCase {
         state: state, systemPrompt: remoteSystemPrompt(runtime: runtime, skillCatalog: catalog),
         tools: RemoteToolSchema.tools, configuration: configuration)
       let reserve = RemoteContext.compactionReserveTokens(
-        contextWindowTokens: limits.contextWindowTokens)
+        contextWindowTokens: limits.contextWindowTokens, configuration: configuration)
       // Leave room for a small prompt or tool result beyond the fixed instructions.
       XCTAssertTrue(
         prepared.estimatedTokens + configuration.reservedOutputTokens + reserve + 1_024

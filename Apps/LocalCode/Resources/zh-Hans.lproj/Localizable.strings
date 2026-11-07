@@ -2480,7 +2480,6 @@
 "remote_api_tool_call" = "远程工具调用";
 "remote_context_used" = "已用上下文（令牌）";
 "remote_context_free" = "可用上下文（令牌）";
-"remote_compaction_trigger" = "压缩触发阈值";
 "claude_api" = "Claude API";
 "claude_api_configuration_detail" = "输入 Claude 模型标识和 Anthropic API 密钥。密钥留空可保留已保存的密钥。";
 "claude_api_invalid_configuration" = "请输入 Claude 模型标识。";

@@ -2502,7 +2502,6 @@
 "remote_api_tool_call" = "リモートツール呼び出し";
 "remote_context_used" = "使用中のコンテキスト（トークン）";
 "remote_context_free" = "空きコンテキスト（トークン）";
-"remote_compaction_trigger" = "コンパクションしきい値";
 "claude_api" = "Claude API";
 "claude_api_configuration_detail" = "Claude のモデル識別子と Anthropic API キーを入力してください。保存済みのキーを維持するには空欄のままにします。";
 "claude_api_invalid_configuration" = "Claude のモデル識別子を入力してください。";

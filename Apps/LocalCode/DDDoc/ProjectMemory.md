@@ -99,7 +99,8 @@ refresh when the memory setting changes or semantic compaction succeeds, and
 display-only review every ten completed user turns in local DS4/Qwen conversations.
 A workspace setting enables memory by default. The shared tool registry also
 exposes explicit memory operations to remote providers. Remote app conversations
-load the same memory context during preparation and honor the memory setting.
+load the same memory context during preparation and honor the memory setting; with
+memory off they neither load the context nor offer the memory tool.
 Automatic remote review remains future work.
 
 The rest of this document records the contract and remaining design details.

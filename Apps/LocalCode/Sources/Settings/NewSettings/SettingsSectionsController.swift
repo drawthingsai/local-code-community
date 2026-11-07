@@ -84,9 +84,6 @@ protocol SettingsSectionsControllerDelegate: AnyObject {
   func settingsSectionsController(
     _ controller: SettingsSectionsController, didRequest action: RemoteAccountAction,
     forRemoteProvider provider: RemoteProvider)
-  func settingsSectionsController(
-    _ controller: SettingsSectionsController, didChangeRemoteCompactionThreshold value: Double,
-    provider: RemoteProvider)
   func settingsSectionsControllerDidRequestTopUp(_ controller: SettingsSectionsController)
   func settingsSectionsControllerDidRequestModelSpeed(_ controller: SettingsSectionsController)
   func settingsSectionsControllerDidSelectModelsInApp(_ controller: SettingsSectionsController)
@@ -537,7 +534,7 @@ final class SettingsSectionsController {
   }
 
   private func memorySection() -> SettingsSectionItem {
-    var section = SettingsSectionItem(
+    SettingsSectionItem(
       settingsItems: [
         SettingsSwitchItem(
           value: isMemoryEnabled,
@@ -549,8 +546,6 @@ final class SettingsSectionsController {
       ], title: LocalizedString.forKey("memory"),
       detail: LocalizedString.forKey(isBotModeEnabled ? "bot_memory_detail" : "memory_detail"),
       lookUpKey: "local_code_memory_detail_hidden", workspace: workspace)
-    section.isHidden = remoteProvider != nil
-    return section
   }
 
   private func thinkingBudgetSection() -> SettingsSectionItem {
@@ -680,17 +675,7 @@ final class SettingsSectionsController {
                     self, didRequest: .signOut, forRemoteProvider: row.provider)
                 },
               ])
-          }),
-        SettingsSliderItem(
-          title: LocalizedString.forKey("remote_compaction_trigger"),
-          minValue: Float(RemoteAgentConfiguration.minimumCompactionThreshold),
-          maxValue: Float(RemoteAgentConfiguration.maximumCompactionThreshold),
-          value: Float(provider.compactionThreshold(in: workspace)), valueType: .percent()
-        ) { [weak self] value in
-          guard let self, remoteProvider == provider else { return }
-          self.delegate?.settingsSectionsController(
-            self, didChangeRemoteCompactionThreshold: Double(value), provider: provider)
-        },
+          })
       ], title: provider.title, detail: provider.configurationDetail,
       lookUpKey: "local_code_remote_provider_detail_hidden", individualSectionStyle: false,
       workspace: workspace)

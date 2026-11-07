@@ -2504,7 +2504,6 @@
 "remote_api_tool_call" = "Remote-Tool-Aufruf";
 "remote_context_used" = "Kontext verwendet (Token)";
 "remote_context_free" = "Kontext frei (Token)";
-"remote_compaction_trigger" = "Komprimierung ab";
 "claude_api" = "Claude API";
 "claude_api_configuration_detail" = "Claude-Modellkennung und Anthropic-API-Schlüssel eingeben. Das Schlüsselfeld leer lassen, um den gespeicherten Schlüssel beizubehalten.";
 "claude_api_invalid_configuration" = "Eine Claude-Modellkennung eingeben.";

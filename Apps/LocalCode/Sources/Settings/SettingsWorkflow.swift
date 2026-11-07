@@ -2359,14 +2359,6 @@ extension SettingsWorkflow: SettingsSectionsControllerDelegate {
   ) {
     delegate?.settingsWorkflow(self, didRequest: action, forRemoteProvider: provider)
   }
-
-  func settingsSectionsController(
-    _ controller: SettingsSectionsController, didChangeRemoteCompactionThreshold value: Double,
-    provider: RemoteProvider
-  ) {
-    provider.setCompactionThreshold(value, in: workspace)
-    refreshRemoteProviderConfiguration()
-  }
 }
 
 extension SettingsWorkflow: KitSectionsControllerDelegate {
