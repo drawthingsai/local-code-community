@@ -207,7 +207,7 @@ public struct DeepSeek4TextGenerator: DeepSeekTextGenerator {
       "<｜end▁of▁sentence｜>": 1,
       "<｜▁pad▁｜>": 2,
     ], unknownToken: "<｜▁pad▁｜>", startToken: "<｜begin▁of▁sentence｜>",
-    endToken: "<｜end▁of▁sentence｜>", pretokenizer: .joyAI)
+    endToken: "<｜end▁of▁sentence｜>", pretokenizer: .joyAI, splitSpecialTokens: true)
 
   public let filePath: String
   private let configuration: DeepSeek4ModelConfiguration

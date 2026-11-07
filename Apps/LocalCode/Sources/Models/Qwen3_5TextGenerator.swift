@@ -102,7 +102,8 @@ public struct Qwen3_5TextGenerator {
     vocabulary: BinaryResources.vocab_qwen3_5_json,
     merges: BinaryResources.merges_qwen3_5_txt,
     specialTokens: ["<|endoftext|>": 248_044], unknownToken: "<|endoftext|>",
-    startToken: "<|endoftext|>", endToken: "<|endoftext|>", pretokenizer: .qwen3_5)
+    startToken: "<|endoftext|>", endToken: "<|endoftext|>", pretokenizer: .qwen3_5,
+    splitSpecialTokens: true)
 
   public var ropeDelta = 0
   // Like ropeDelta, this belongs to the session's KV state.

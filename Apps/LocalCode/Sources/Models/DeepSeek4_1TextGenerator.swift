@@ -182,7 +182,7 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     merges: BinaryResources.merges_deepseek4_txt,
     specialTokens: ["<｜begin▁of▁sentence｜>": 0, "<｜end▁of▁sentence｜>": 1, "<｜▁pad▁｜>": 2],
     unknownToken: "<｜▁pad▁｜>", startToken: "<｜begin▁of▁sentence｜>",
-    endToken: "<｜end▁of▁sentence｜>", pretokenizer: .joyAI)
+    endToken: "<｜end▁of▁sentence｜>", pretokenizer: .joyAI, splitSpecialTokens: true)
 
   private static let tokenMap: [Int32] = {
     let vocabularyMap = try! JSONDecoder().decode(
