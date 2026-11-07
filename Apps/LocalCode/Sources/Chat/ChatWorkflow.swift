@@ -277,6 +277,10 @@ final class ChatWorkflow: Workflow {
           filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
           configuration: .qwen3_5_27B, tieEmbedding: false,
           chunkedPrefillMaxLength: chunkedPrefillMaxLength)
+      case .glm_5_3_flash:
+        textGenerator = GLM5_3TextGenerator(
+          filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
+          chunkedPrefillMaxLength: chunkedPrefillMaxLength)
       case .deepseek_4_1_flash:
         guard let engram = specification.engram else {
           preconditionFailure("DeepSeek 4.1 requires an Engram companion")
@@ -648,6 +652,8 @@ final class ChatWorkflow: Workflow {
       codeAgent.reasoningEffort = .init(reasoningEffort)
     case let codeAgent as DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>:
       codeAgent.reasoningEffort = .init(reasoningEffort)
+    case let codeAgent as GLM5_3CodeAgent:
+      codeAgent.reasoningEffort = .init(reasoningEffort)
     default:
       preconditionFailure("Unsupported code agent")
     }
@@ -765,7 +771,7 @@ final class ChatWorkflow: Workflow {
       return #imageLiteral(resourceName: "qwen-20")
     case .deepseek_4_1_flash, .deepseek_4_flash:
       return #imageLiteral(resourceName: "deepseek-20")
-    case nil:
+    case .glm_5_3_flash, nil:
       return #imageLiteral(resourceName: "cube").withRenderingMode(.alwaysTemplate)
     }
   }
@@ -988,6 +994,9 @@ final class ChatWorkflow: Workflow {
       return Qwen3_5TextGenerator(
         filePath: filePath, configuration: .qwen3_5_27B, tieEmbedding: false,
         chunkedPrefillMaxLength: chunkedPrefillMaxLength)
+    case .glm_5_3_flash:
+      return GLM5_3TextGenerator(
+        filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength)
     case .deepseek_4_1_flash:
       guard let engram = specification.engram else { return nil }
       return DeepSeek4_1TextGenerator(
@@ -1823,6 +1832,11 @@ final class ChatWorkflow: Workflow {
         DeepSeek4ContextCache(
           projectPath: projectURL.path, checkpointStride: textGenerator.checkpointStride
         ).loadSuspension(threadId: threadId) != nil
+    case let textGenerator as GLM5_3TextGenerator:
+      hasPersistedSuspension =
+        GLM5_3ContextCache(
+          projectPath: projectURL.path, checkpointStride: textGenerator.checkpointStride
+        ).loadSuspension(threadId: threadId) != nil
     default:
       preconditionFailure("Unsupported text generator")
     }
@@ -1929,6 +1943,8 @@ final class ChatWorkflow: Workflow {
         safeTokenizer = DeepSeek4TextGenerator.safeTokenizer
       case .deepseek_4_1_flash:
         safeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
+      case .glm_5_3_flash:
+        safeTokenizer = GLM5_3TextGenerator.safeTokenizer
       case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
         safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
       }
@@ -2000,6 +2016,8 @@ final class ChatWorkflow: Workflow {
         toolCallSpecialTokens = codeAgent.toolCallSpecialTokens
       } else if textGenerator is any DeepSeekTextGenerator {
         toolCallSpecialTokens = DeepSeek4ToolCallParser.toolCallSpecialTokens
+      } else if textGenerator is GLM5_3TextGenerator {
+        toolCallSpecialTokens = GLM5_3ToolCallParser.toolCallSpecialTokens
       } else {
         toolCallSpecialTokens = Qwen3_5ToolCallParser.toolCallSpecialTokens
       }
@@ -2014,6 +2032,9 @@ final class ChatWorkflow: Workflow {
       case .deepseek_4_1_flash:
         safeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
         toolCallSpecialTokens = DeepSeek4ToolCallParser.toolCallSpecialTokens
+      case .glm_5_3_flash:
+        safeTokenizer = GLM5_3TextGenerator.safeTokenizer
+        toolCallSpecialTokens = GLM5_3ToolCallParser.toolCallSpecialTokens
       case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
         safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
         toolCallSpecialTokens = Qwen3_5ToolCallParser.toolCallSpecialTokens

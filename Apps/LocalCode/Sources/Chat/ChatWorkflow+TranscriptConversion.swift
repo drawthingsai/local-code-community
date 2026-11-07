@@ -21,6 +21,8 @@ extension ChatWorkflow {
       targetSafeTokenizer = DeepSeek4TextGenerator.safeTokenizer
     case .deepseek_4_1_flash:
       targetSafeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
+    case .glm_5_3_flash:
+      targetSafeTokenizer = GLM5_3TextGenerator.safeTokenizer
     }
     if parseRemoteThreadModelIdentifier(sourceModel) != nil {
       do {
@@ -78,16 +80,18 @@ extension ChatWorkflow {
       switch targetVersion {
       case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b:
         return history
-      case .deepseek_4_flash, .deepseek_4_1_flash:
+      case .deepseek_4_flash, .deepseek_4_1_flash, .glm_5_3_flash:
         break
       }
     case .deepseek_4_flash, .deepseek_4_1_flash:
       switch targetVersion {
-      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b:
+      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, .glm_5_3_flash:
         break
       case .deepseek_4_flash, .deepseek_4_1_flash:
         return history
       }
+    case .glm_5_3_flash:
+      if targetVersion == .glm_5_3_flash { return history }
     }
     let sourceSafeTokenizer: TiktokenTokenizer
     switch sourceVersion {
@@ -97,6 +101,8 @@ extension ChatWorkflow {
       sourceSafeTokenizer = DeepSeek4TextGenerator.safeTokenizer
     case .deepseek_4_1_flash:
       sourceSafeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
+    case .glm_5_3_flash:
+      sourceSafeTokenizer = GLM5_3TextGenerator.safeTokenizer
     }
 
     return history.map { node in
@@ -140,6 +146,8 @@ extension ChatWorkflow {
       sourceSafeTokenizer = DeepSeek4TextGenerator.safeTokenizer
     case .deepseek_4_1_flash:
       sourceSafeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
+    case .glm_5_3_flash:
+      sourceSafeTokenizer = GLM5_3TextGenerator.safeTokenizer
     }
     do {
       return try history.map { node in
@@ -158,6 +166,9 @@ extension ChatWorkflow {
             case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b:
               text = sourceSafeTokenizer.decode(
                 node.tokens, specialTokens: Qwen3_5ToolCallParser.toolCallSpecialTokens)
+            case .glm_5_3_flash:
+              text = sourceSafeTokenizer.decode(
+                node.tokens, specialTokens: GLM5_3ToolCallParser.toolCallSpecialTokens)
             case .deepseek_4_flash, .deepseek_4_1_flash:
               text = sourceSafeTokenizer.decode(
                 node.tokens, specialTokens: DeepSeek4ToolCallParser.toolCallSpecialTokens)
@@ -236,6 +247,24 @@ extension ChatWorkflow {
         prefixTokens: prefixTokens, prefixEmbedSpans: prefixEmbedSpans,
         bashToolContext: bashToolContext,
         shouldInjectSystemSeenMemoryContext: shouldInjectSystemSeenMemoryContext)
+    case let textGenerator as GLM5_3TextGenerator:
+      guard prefixEmbedSpans.isEmpty else { return nil }
+      let systemPromptTemplate = SystemPromptTemplate.load(
+        projectURL: projectURL, model: systemPromptModel,
+        template: systemPromptForGLM5_3)
+      codeAgent = GLM5_3CodeAgent(
+        textGenerator: textGenerator, graph: graph, streamContext: streamContext,
+        unsafeTokenizer: GLM5_3TextGenerator.unsafeTokenizer,
+        safeTokenizer: textGenerator.safeTokenizer,
+        systemPromptTemplate: systemPromptTemplate,
+        reasoningEffort: .init(reasoningEffort),
+        skillCatalog: skillCatalog,
+        projectContext: projectContext,
+        environmentContext: environmentContext,
+        memoryContext: systemSeenMemoryContext,
+        prefixTokens: prefixTokens, prefixEmbedSpans: prefixEmbedSpans,
+        bashToolContext: bashToolContext,
+        shouldInjectSystemSeenMemoryContext: shouldInjectSystemSeenMemoryContext)
     case let textGenerator as DeepSeek4TextGenerator:
       guard prefixEmbedSpans.isEmpty else { return nil }
       let systemPromptTemplate = SystemPromptTemplate.load(
@@ -291,6 +320,8 @@ extension ChatWorkflow {
       return DeepSeek4CodeAgent<DeepSeek4TextGenerator>.parse(tokens)
     case .deepseek_4_1_flash:
       return DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.parse(tokens)
+    case .glm_5_3_flash:
+      return GLM5_3CodeAgent.parse(tokens)
     }
   }
 
@@ -304,6 +335,8 @@ extension ChatWorkflow {
       return DeepSeek4CodeAgent<DeepSeek4TextGenerator>.parse(transcript)
     case .deepseek_4_1_flash:
       return DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.parse(transcript)
+    case .glm_5_3_flash:
+      return GLM5_3CodeAgent.parse(transcript)
     }
   }
 

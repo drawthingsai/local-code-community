@@ -596,6 +596,7 @@ swift_test(
     name = "ToolCallParserTests",
     srcs = [
         "Sources/Agent/DeepSeek4ToolCallParser.swift",
+        "Sources/Agent/GLM5_3ToolCallParser.swift",
         "Sources/Agent/Qwen3_5ToolCallParser.swift",
         "Sources/Agent/ToolCallParser.swift",
     ] + glob(["Tests/ToolCallParserTests/**/*.swift"]),
@@ -661,6 +662,25 @@ swift_test(
         "Sources/Models/DeepSeek4ContextCache.swift",
         "Sources/Models/DeepSeek4TextGenerator.swift",
     ] + glob(["Tests/DeepSeek4ContextCacheTests/**/*.swift"]),
+    deps = [
+        "//Libraries/BinaryResources",
+        "//Libraries/DataModels",
+        "//Libraries/ProjectHistoryManager",
+        "//Libraries/SwiftDiffusion",
+        "//Libraries/SwiftLLM",
+        "//Libraries/Tokenizer",
+        "@s4nnc//nnc",
+    ],
+)
+
+swift_test(
+    name = "GLM5_3ContextCacheTests",
+    srcs = [
+        "Sources/Agent/TextGenerator.swift",
+        "Sources/Models/ContextCache.swift",
+        "Sources/Models/GLM5_3ContextCache.swift",
+        "Sources/Models/GLM5_3TextGenerator.swift",
+    ] + glob(["Tests/GLM5_3ContextCacheTests/**/*.swift"]),
     deps = [
         "//Libraries/BinaryResources",
         "//Libraries/DataModels",
@@ -884,6 +904,10 @@ swift_library(
         "Sources/Agent/EnvironmentContext.swift",
         "Sources/Agent/EnvironmentContext+Detection.swift",
         "Sources/Agent/FileTools.swift",
+        "Sources/Agent/GLM5_3CodeAgent.swift",
+        "Sources/Agent/GLM5_3CodeAgent+Compact.swift",
+        "Sources/Agent/GLM5_3CodeAgent+Parse.swift",
+        "Sources/Agent/GLM5_3ToolCallParser.swift",
         "Sources/Agent/MarkdownCode.swift",
         "Sources/Agent/MemoryContext.swift",
         "Sources/Agent/MemoryTool.swift",
@@ -915,6 +939,8 @@ swift_library(
         "Sources/Models/DeepSeek4_1EngramCache.swift",
         "Sources/Models/DeepSeek4_1Image.swift",
         "Sources/Models/DeepSeek4_1TextGenerator.swift",
+        "Sources/Models/GLM5_3ContextCache.swift",
+        "Sources/Models/GLM5_3TextGenerator.swift",
         "Sources/Models/Qwen3_5ContextCache.swift",
         "Sources/Models/Qwen3_5Image.swift",
         "Sources/Models/Qwen3_5TextGenerator.swift",
@@ -996,6 +1022,7 @@ swift_test(
     srcs = glob(["Tests/CLIParityTests/**/*.swift"]),
     data = glob([
         "Resources/Skills/**",
+        "Tests/CLIParityTests/Fixtures/**",
         "Resources/NodeMobile/Runtime/**",
     ]) + [
         "//Apps/HyperFramesCLI:RuntimeFiles",

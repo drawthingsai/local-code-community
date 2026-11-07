@@ -27,7 +27,7 @@ extension DeepSeek4CodeAgent {
         case .medium, .high: self = .high
         case .max: self = .max
         }
-      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b:
+      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, .glm_5_3_flash:
         fatalError("DeepSeek reasoning effort requires a DeepSeek model version")
       }
     }
@@ -58,7 +58,7 @@ extension DeepSeek4CodeAgent {
             + "You MUST be very thorough in your thinking and comprehensively decompose the problem to resolve the root cause, rigorously stress-testing your logic against all potential paths, edge cases, and adversarial scenarios.\n"
             + "Explicitly write out your entire deliberation process, documenting every intermediate step, considered alternative, and rejected hypothesis to ensure absolutely no assumption is left unchecked.\n\n"
         }
-      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b:
+      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, .glm_5_3_flash:
         fatalError("DeepSeek reasoning effort requires a DeepSeek model version")
       }
       return sections.map { section in
@@ -699,7 +699,7 @@ public final class DeepSeek4CodeAgent<Generator: DeepSeekTextGenerator>: CodeAge
       shouldUpdateSystemPrompt =
         reasoningEffort != systemPromptReasoningEffort
         || thinkingEnabled != systemPromptThinkingEnabled
-    case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b:
+    case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, .glm_5_3_flash:
       fatalError("DeepSeek system prompt requires a DeepSeek model version")
     }
     if shouldUpdateSystemPrompt {

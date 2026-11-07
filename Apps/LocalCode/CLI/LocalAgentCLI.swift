@@ -115,6 +115,8 @@ struct LocalAgentCLI: ParsableCommand {
       else { throw ValidationError("The saved conversation uses a different model or project.") }
       let vocabularySize: Int
       switch specification.version {
+      case .glm_5_3_flash:
+        vocabularySize = GLM5_3ModelConfiguration.glm5_3Flash.vocabularySize
       case .deepseek_4_flash:
         vocabularySize = DeepSeek4ModelConfiguration.deepSeekV4Flash.vocabularySize
       case .deepseek_4_1_flash:
@@ -138,7 +140,8 @@ struct LocalAgentCLI: ParsableCommand {
     let prefixTokens = restored?.prefixTokens ?? []
     let prefixEmbedSpans = restored?.prefixEmbedSpans ?? []
     guard
-      specification.version != .deepseek_4_flash || (image.isEmpty && prefixEmbedSpans.isEmpty)
+      (![.deepseek_4_flash, .glm_5_3_flash].contains(specification.version))
+        || (image.isEmpty && prefixEmbedSpans.isEmpty)
     else {
       throw ValidationError("This model does not support image input.")
     }
@@ -179,6 +182,18 @@ struct LocalAgentCLI: ParsableCommand {
         safeTokenizer: Qwen3_5TextGenerator.safeTokenizer,
         systemPromptTemplate: SystemPromptTemplate.load(
           projectURL: directories.project, model: templateModel, template: systemPromptForQwen3_5),
+        reasoningEffort: .init(reasoningEffort), skillCatalog: catalog,
+        projectContext: projectContext, environmentContext: environment, prefixTokens: prefixTokens,
+        prefixEmbedSpans: prefixEmbedSpans)
+    case .glm_5_3_flash:
+      let generator = GLM5_3TextGenerator(
+        filePath: checkpoint, chunkedPrefillMaxLength: chunkLength)
+      agent = GLM5_3CodeAgent(
+        textGenerator: generator, graph: graph, streamContext: stream,
+        unsafeTokenizer: GLM5_3TextGenerator.unsafeTokenizer,
+        safeTokenizer: GLM5_3TextGenerator.safeTokenizer,
+        systemPromptTemplate: SystemPromptTemplate.load(
+          projectURL: directories.project, model: templateModel, template: systemPromptForGLM5_3),
         reasoningEffort: .init(reasoningEffort), skillCatalog: catalog,
         projectContext: projectContext, environmentContext: environment, prefixTokens: prefixTokens,
         prefixEmbedSpans: prefixEmbedSpans)
@@ -340,6 +355,7 @@ private final class LocalAgentTrace {
   private let workspace: String
   private var text = ""
   private var completedToolCount = 0
+  private var reportedRestoredTokenLength = 0
   private var phase: String?
 
   init(agent: any CodeAgent, project: String, workspace: String) {
@@ -358,6 +374,14 @@ private final class LocalAgentTrace {
       if phase != "prefill" {
         FileHandle.standardError.write(Data("\n[prefill] \(total) tokens\n".utf8))
         phase = "prefill"
+        reportedRestoredTokenLength = 0
+      }
+      if let glm = agent as? GLM5_3CodeAgent,
+        glm.restoredTokenLength > reportedRestoredTokenLength
+      {
+        FileHandle.standardError.write(
+          Data("[cache] restoredTokenLength=\(glm.restoredTokenLength)\n".utf8))
+        reportedRestoredTokenLength = glm.restoredTokenLength
       }
       return
     case .compact:

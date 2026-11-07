@@ -148,6 +148,8 @@ struct SpeedometerCLI: ParsableCommand {
         model: specification.file, contextLengths: contextLengths, graph: graph,
         streamContext: stream, storePath: storePath, libraryURL: libraryURL,
         thinkingBudget: thinkingBudget, deterministic: deterministic)
+    case .glm_5_3_flash:
+      throw ValidationError("Model Speed is not available for GLM 5.3 yet.")
     case .deepseek_4_flash:
       speedometer = DeepSeek4Speedometer(
         textGenerator: DeepSeek4TextGenerator(

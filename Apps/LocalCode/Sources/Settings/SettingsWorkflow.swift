@@ -1919,6 +1919,8 @@ extension SettingsWorkflow: ProjectControllerDelegate {
       safeTokenizer = DeepSeek4TextGenerator.safeTokenizer
     case .deepseek_4_1_flash:
       safeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
+    case .glm_5_3_flash:
+      safeTokenizer = GLM5_3TextGenerator.safeTokenizer
     case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
       safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
     }
@@ -2043,6 +2045,8 @@ extension SettingsWorkflow: ProjectControllerDelegate {
           unsafeTokenizer = DeepSeek4TextGenerator.unsafeTokenizer
         case .deepseek_4_1_flash:
           unsafeTokenizer = DeepSeek4_1TextGenerator.unsafeTokenizer
+        case .glm_5_3_flash:
+          unsafeTokenizer = GLM5_3TextGenerator.unsafeTokenizer
         }
         contents = unsafeTokenizer.decode(ProjectHistoryManager.context(history: history).tokens)
         pathExtension = "txt"

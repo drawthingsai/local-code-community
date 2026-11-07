@@ -162,6 +162,8 @@ enum RemoteConversationCodec {
       return DeepSeek4TextGenerator.safeTokenizer.decode(tokens)
     case .deepseek_4_1_flash:
       return DeepSeek4_1TextGenerator.safeTokenizer.decode(tokens)
+    case .glm_5_3_flash:
+      return GLM5_3TextGenerator.safeTokenizer.decode(tokens)
     }
   }
 
@@ -178,6 +180,9 @@ enum RemoteConversationCodec {
     case .deepseek_4_1_flash:
       decoded = DeepSeek4_1TextGenerator.safeTokenizer.decode(
         tokens, specialTokens: DeepSeek4ToolCallParser.toolCallSpecialTokens)
+    case .glm_5_3_flash:
+      decoded = GLM5_3TextGenerator.safeTokenizer.decode(
+        tokens, specialTokens: GLM5_3ToolCallParser.toolCallSpecialTokens)
     }
     return decoded.trimmingCharacters(in: .whitespacesAndNewlines)
   }
