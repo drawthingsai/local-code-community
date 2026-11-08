@@ -7,27 +7,28 @@ each sparse layer (3 through 44) per weights-streaming tier. They were fitted on
 ## Budget
 
 Every routed expert is 6.65625 MiB (gate, up, down and row scales) in every layer, so a tier's
-budget is a slot count. The other text weights that stay resident take 8.61 GiB: attention and
-KDA 5.84, the FP16 head 1.18, shared experts 0.99, dense MLPs, mHC, routers and norms. The
-embedding (1.18 GiB) is read by row and the vision tower loads only with images, so neither
-counts. A tier's pool is the tier minus 8.61 GiB:
+budget is a slot count. The checkpoint stores every other text weight first, embedding first, and
+the loader maps and pins (mlocks) that prefix whole: 9.79 GiB, of which attention and KDA take
+5.84, the embedding 1.18, the FP16 head 1.18 and shared experts 0.99. The vision tower loads
+separately, only with images. A tier's pool is the tier minus 9.79 GiB:
 
 | Tier | Pool slots | Calibration hit | Held-out category | Uniform slots | Decode hit | Decode reads per token |
 |---|---:|---:|---:|---:|---:|---:|
 | 8 GiB | 336 (8 per layer) | 19.4% | 19.4% | 19.4% | 26.6% | 1,643 MiB |
-| 16 GiB | 1,136 | 41.2% | 41.1% | 38.8% | 47.6% | 1,172 MiB |
-| 24 GiB | 2,364 | 57.6% | 57.5% | 57.3% | 63.3% | 821 MiB |
-| 32 GiB | 3,596 | 69.8% | 69.7% | 68.9% | 74.5% | 569 MiB |
-| 40 GiB | 4,828 | 79.0% | 79.0% | 77.7% | 82.8% | 386 MiB |
-| 48 GiB | 6,056 | 86.0% | 85.9% | 85.3% | 88.7% | 254 MiB |
-| 56 GiB | 7,288 | 91.1% | 91.1% | 90.3% | 93.1% | 155 MiB |
-| 64 GiB | 8,520 | 94.9% | 94.9% | 94.0% | 96.2% | 84 MiB |
-| 72 GiB | 9,752 | 97.5% | 97.5% | 97.1% | 98.3% | 38 MiB |
+| 16 GiB | 952 | 37.9% | 37.8% | 35.4% | 44.5% | 1,242 MiB |
+| 24 GiB | 2,184 | 55.5% | 55.5% | 55.5% | 61.5% | 862 MiB |
+| 32 GiB | 3,416 | 68.2% | 68.2% | 67.3% | 73.2% | 600 MiB |
+| 40 GiB | 4,644 | 77.8% | 77.8% | 76.5% | 81.7% | 409 MiB |
+| 48 GiB | 5,876 | 85.1% | 85.0% | 83.6% | 87.9% | 270 MiB |
+| 56 GiB | 7,108 | 90.5% | 90.4% | 89.7% | 92.5% | 168 MiB |
+| 64 GiB | 8,336 | 94.4% | 94.4% | 93.6% | 95.9% | 93 MiB |
+| 72 GiB | 9,568 | 97.2% | 97.2% | 96.4% | 98.1% | 43 MiB |
 
 The 8 GiB tier cannot hold even the other text weights, so it keeps only the routing width, 8
-slots per layer, and claims 10.79 GiB. The 72 GiB tier keeps the 64 GiB plan and claims 64 GiB:
-its own plan (row above) decoded only 1.4 to 2.4 tok/s faster with the checkpoint cached. No
-tier keeps a layer fully resident.
+slots per layer, and claims 11.97 GiB. The 72 GiB tier keeps the 64 GiB plan and claims 64 GiB:
+its own plan decoded only 1.4 to 2.4 tok/s faster with the checkpoint cached. No tier keeps a
+layer fully resident. A full layer would also pin every layer stored before it, since the banks
+follow in layer order.
 
 ## Method
 
@@ -55,11 +56,13 @@ on the corpus (0.22 by chance), and 2.12 in decoded text. Layers 3 to 6 are the 
   0.1 points.
 - Decode: 60 prompts stratified over categories, each sampled for up to 1,024 tokens at T=1 with
   min-p 0.01, as thinking decodes (35,285 tokens). The calibration plans score 1 to 7 points
-  higher there than on the corpus (more at small tiers), and within 0.8 points of plans refitted
+  higher there than on the corpus (more at small tiers), and within 0.9 points of plans refitted
   on the decode trace.
 - Policy: ccv's policy beats plain LRU by 0.1 to 2.7 points, and the dynamic pool beats pinning
   each layer's most frequent experts (fitted in sample) by about 10 points at every size.
-- Runtime (`GLM5_3Generate --expert-resident-slots`, AIME case, 1,024 tokens): fully resident
+- Runtime, measured with plans fitted before the embedding counted (181 more slots per tier; the
+  hit rates above moved 0.3 to 3 points) (`GLM5_3Generate --expert-resident-slots`, AIME case,
+  1,024 tokens): fully resident
   65.6 tok/s; streaming at 72 / 64 / 56 / 48 / 32 / 16 GiB 48.8-49.8 / 47.4 / 44.3 / 39.6 / 33.0
   / 27.7 tok/s, and after a 20K prompt 49.4 / 48.0 / 45.1 / 40.5 / - / 28.4. The
   checkpoint was in the page cache (256 GiB machine), so expert loads did not read the SSD and
