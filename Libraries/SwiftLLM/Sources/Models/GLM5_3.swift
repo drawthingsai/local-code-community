@@ -1,6 +1,11 @@
 import Foundation
 import NNC
-import SQLite3
+
+#if canImport(SQLite3)
+  import SQLite3
+#else
+  import _SQLite3Shims
+#endif
 
 /// GLM-5.3-Flash text decoder: Kimi Delta Attention (KDA) linear attention, NoPE
 /// multi-latent attention with a KPool DSA indexer, sigmoid-routed MoE, and four
@@ -231,7 +236,9 @@ public func GLM5_3ResidentMappingSize(
     let length = data.loadUnaligned(fromByteOffset: bytes - 8, as: UInt64.self)
     end = max(end, trailerOffset + Int(offset) + Int(length))
   }
-  let pageSize = Int(vm_page_size)
+  // On Metal a tensor's buffer takes up whole pages, however short its stored bytes are, and
+  // has to fit inside the mapping. Elsewhere the limit is ignored.
+  let pageSize = Int(getpagesize())
   return (end + pageSize - 1) & -pageSize
 }
 
