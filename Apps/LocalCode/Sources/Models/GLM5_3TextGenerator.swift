@@ -1,4 +1,5 @@
 import BinaryResources
+import DataModels
 import Foundation
 import LLM
 import NNC
@@ -6,6 +7,94 @@ import ProjectHistoryManager
 import QuartzCore
 import Tokenizer
 import os.lock
+
+extension DeviceCapability.WeightsStreaming {
+  // Decode pool slots of sparse layers 3 through 44, calibrated for
+  // glm_5.3_flash_i2x_lgain_trailer.ckpt. See Debug/GLM5_3ResidentSlots.md for the fit and
+  // validation. The other text weights take 8.61 GiB, so 8 GiB keeps only the routing width. 72 GiB
+  // keeps the 64 GiB plan: its 98.3% hit rate over 96.2% was worth about 2 tok/s.
+  var expertResidentSlotsForGLM5_3: [Int] {
+    switch self {
+    case ._8GiB:
+      return Array(repeating: 8, count: 42)
+    case ._16GiB:
+      return [
+        16, 16, 16, 20, 24, 24, 28, 24, 28, 28, 28, 28, 28, 28,
+        32, 32, 32, 32, 32, 32, 28, 32, 28, 28, 32, 24, 28, 24,
+        24, 28, 28, 28, 24, 24, 28, 28, 28, 28, 32, 28, 28, 28,
+      ]
+    case ._24GiB:
+      return [
+        72, 48, 52, 72, 52, 64, 52, 64, 64, 44, 52, 44, 52, 52,
+        52, 52, 52, 52, 52, 64, 52, 56, 64, 64, 64, 52, 64, 64,
+        52, 64, 52, 52, 52, 52, 52, 52, 52, 52, 64, 52, 64, 64,
+      ]
+    case ._32GiB:
+      return [
+        132, 132, 124, 124, 92, 104, 92, 104, 92, 72, 72, 64, 72, 72,
+        72, 64, 72, 72, 72, 84, 72, 76, 84, 84, 84, 84, 92, 92,
+        84, 84, 72, 76, 76, 84, 84, 72, 84, 84, 84, 84, 84, 92,
+      ]
+    case ._40GiB:
+      return [
+        172, 176, 172, 164, 124, 132, 132, 144, 124, 92, 92, 92, 96, 104,
+        104, 84, 84, 92, 104, 104, 104, 104, 108, 104, 108, 108, 116, 124,
+        112, 116, 104, 104, 112, 112, 112, 104, 112, 112, 112, 112, 116, 124,
+      ]
+    case ._48GiB:
+      return [
+        204, 208, 208, 196, 152, 164, 164, 172, 152, 124, 124, 124, 124, 128,
+        124, 104, 112, 112, 124, 128, 128, 128, 132, 132, 132, 136, 148, 156,
+        148, 148, 132, 136, 144, 144, 148, 140, 144, 144, 144, 144, 148, 152,
+      ]
+    case ._56GiB:
+      return [
+        240, 252, 248, 228, 184, 192, 192, 200, 180, 152, 156, 148, 152, 156,
+        148, 128, 132, 136, 152, 152, 156, 156, 160, 160, 156, 168, 176, 180,
+        180, 180, 160, 168, 176, 180, 180, 168, 180, 176, 168, 172, 180, 180,
+      ]
+    case ._64GiB, ._72GiB:
+      return [
+        272, 280, 280, 264, 216, 220, 228, 236, 208, 184, 188, 180, 180, 188,
+        180, 156, 156, 160, 180, 180, 180, 180, 184, 188, 180, 196, 200, 208,
+        208, 208, 188, 200, 208, 208, 208, 200, 208, 208, 200, 200, 208, 216,
+      ]
+    case .disabled:
+      return Array(repeating: 288, count: 42)
+    }
+  }
+
+  // What the weights hold at this tier.
+  var residentSizeForGLM5_3: UInt64 {
+    switch self {
+    case ._8GiB:
+      return 11_587_528_568  // The other text weights and 8 experts of 6.65625 MiB per layer.
+    case ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB, ._56GiB, ._64GiB:
+      return UInt64(rawValue) * 1_024 * 1_024 * 1_024
+    case ._72GiB:
+      return 64 * 1_024 * 1_024 * 1_024
+    case .disabled:
+      return 96_066_945_024  // The whole glm_5.3_flash_i2x_lgain_trailer.ckpt, about 89.47 GiB.
+    }
+  }
+
+  // Treat this tier as a ceiling: pick the largest tier at or below it whose resident weights fit
+  // in 75% of available memory, falling back to the smallest tier when none fits.
+  func residentTierForGLM5_3(availableMemory: UInt64) -> Self {
+    let budget = availableMemory / 4 * 3
+    // allCases ascends by resident size, ending with .disabled, which loads every weight.
+    let ceiling = Self.allCases.firstIndex(of: self)!
+    return Self.allCases[...ceiling].last { $0.residentSizeForGLM5_3 <= budget } ?? ._8GiB
+  }
+
+  // An explicit .disabled always loads every weight. Otherwise the requested tier, or the automatic
+  // one when nil, is a ceiling for what fits in the memory available now.
+  static func residentTierForGLM5_3(requested: Self?) -> Self {
+    guard requested != .disabled else { return .disabled }
+    return (requested ?? DeviceCapability.weightsStreaming).residentTierForGLM5_3(
+      availableMemory: DeviceCapability.availableMemory)
+  }
+}
 
 /// Loaded model storage is shared by copies. KV caches belong to the caller's session; use the
 /// same graph and generator while continuing a session.
@@ -127,12 +216,24 @@ public struct GLM5_3TextGenerator: TextGenerator {
     // finish; subsequent decoding can immediately reload.
     var lock = os_unfair_lock()
     var isLoaded = false
+    let requestedWeightsStreaming: DeviceCapability.WeightsStreaming?
+    // Expert residency is resolved whenever the model is built, so each weights load sees the
+    // memory available then.
+    private(set) var configuration = GLM5_3ModelConfiguration.glm5_3Flash
     private var cachedModel: ModelBuilder<(cached: Int, count: Int)>?
+
+    init(requestedWeightsStreaming: DeviceCapability.WeightsStreaming?) {
+      self.requestedWeightsStreaming = requestedWeightsStreaming
+    }
 
     // One whole-model graph for every chunk and decode step.
     var model: ModelBuilder<(cached: Int, count: Int)> {
       if let cachedModel { return cachedModel }
-      let configuration = GLM5_3ModelConfiguration.glm5_3Flash
+      configuration.expertResidentSlots =
+        DeviceCapability.WeightsStreaming.residentTierForGLM5_3(
+          requested: requestedWeightsStreaming
+        ).expertResidentSlotsForGLM5_3
+      let configuration = configuration
       let model = ModelBuilder { (shape: (cached: Int, count: Int), _) in
         GLM5_3CausalLM(
           Float16.self, tokenLength: shape.count, cachedTokenLength: shape.cached,
@@ -168,15 +269,23 @@ public struct GLM5_3TextGenerator: TextGenerator {
   }
 
   // Copies share model storage. Graphs and conversation caches stay on the generation queue.
-  private let storage = Storage()
+  private let storage: Storage
   public let filePath: String
   public let chunkedPrefillMaxLength: Int
+  /// The requested tier, or nil for automatic. An explicit `.disabled` disables streaming;
+  /// otherwise the tier is a ceiling for what fits in the memory available when the weights load.
+  public let weightsStreaming: DeviceCapability.WeightsStreaming?
   private static let recentStatisticsLimit = 3
   private var recentInteractionStatistics = [Statistics]()
 
-  public init(filePath: String, chunkedPrefillMaxLength: Int) {
+  public init(
+    filePath: String, chunkedPrefillMaxLength: Int,
+    weightsStreaming: DeviceCapability.WeightsStreaming? = nil
+  ) {
     self.filePath = filePath
     self.chunkedPrefillMaxLength = chunkedPrefillMaxLength
+    self.weightsStreaming = weightsStreaming
+    storage = Storage(requestedWeightsStreaming: weightsStreaming)
   }
 
   /// Checkpoints land on whole prefill chunks: the chunk length rounded down to a multiple of
@@ -206,10 +315,9 @@ public struct GLM5_3TextGenerator: TextGenerator {
     recentInteractionStatistics.last ?? Statistics()
   }
 
+  /// At the requested or automatic tier; a load settles on that tier or a smaller one.
   public var residentWeightsSize: UInt64 {
-    let fileSize =
-      (try? URL(fileURLWithPath: filePath).resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
-    return UInt64(fileSize)
+    (weightsStreaming ?? DeviceCapability.weightsStreaming).residentSizeForGLM5_3
   }
 
   /// Drops only shared model weights, waiting for an active decode to return.
@@ -326,11 +434,39 @@ public struct GLM5_3TextGenerator: TextGenerator {
     }
     if !storage.isLoaded {
       compilePrefill(isEager: false)
+      // Streamed expert banks stay out of the pinned whole-file mapping.
+      let streamingConfiguration = storage.configuration
+      DynamicGraph.setWholeFileMappingSizeLimit(
+        GLM5_3ResidentMappingSize(checkpoint: filePath, configuration: streamingConfiguration))
+      defer { DynamicGraph.setWholeFileMappingSizeLimit(0) }
       let result = try? graph.openStore(filePath, flags: .readOnly) { store in
         let codec: DynamicGraph.Store.Codec = [.jit, .i8x, .ezm7, .externalData(.wholeFile)]
-        try store.read(
-          "text_model", model: model, strict: true, codec: codec,
-          reader: GLM5_3TextModelReader(store, codec: codec))
+        try store.read("text_model", model: model, strict: true, codec: codec) {
+          name, _, _, _ in
+          // Streaming layers read their expert banks on demand; MoEWeightStreaming loads experts from
+          // the file.
+          if name.contains(".mlp.experts"),
+            let layer = name.components(separatedBy: "layers.").last?.components(separatedBy: ".")
+              .first
+              .flatMap(Int.init), streamingConfiguration.isStreamingLayer(layer)
+          {
+            return .continue(
+              name
+                .replacingOccurrences(
+                  of: ".mlp.experts.streaming_gate-0-0]", with: ".mlp.experts-0-0]"
+                )
+                .replacingOccurrences(
+                  of: ".mlp.experts.streaming_up-0-0]", with: ".mlp.experts-0-1]"),
+              codec: [.jit, .externalOnDemand, .i8x])
+          }
+          // The resident sparse layers fuse the shared expert into the routed SwiGLU and down projection.
+          return .continue(
+            name
+              .replacingOccurrences(of: ".mlp.experts-0-2]", with: ".mlp.shared_experts-0-0]")
+              .replacingOccurrences(of: ".mlp.experts-0-3]", with: ".mlp.shared_experts-0-1]")
+              .replacingOccurrences(
+                of: ".mlp.experts.down_proj-0-1]", with: ".mlp.shared_experts.down_proj-0-0]"))
+        }
       }
       guard let result, (try? result.get()) != nil else { return [] }
       // Keep whole-file weights pinned across interactions; model destruction releases them.

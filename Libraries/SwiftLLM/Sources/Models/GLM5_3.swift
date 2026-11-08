@@ -1,5 +1,6 @@
 import Foundation
 import NNC
+import SQLite3
 
 /// GLM-5.3-Flash text decoder: Kimi Delta Attention (KDA) linear attention, NoPE
 /// multi-latent attention with a KPool DSA indexer, sigmoid-routed MoE, and four
@@ -33,6 +34,9 @@ public struct GLM5_3ModelConfiguration: Codable, Sendable {
   public var sharedIntermediateSize = 2_048
   public var routedScalingFactor: Float = 2.5
   public var swigluLimit: Float = 10
+  /// Decode expert pool slots of each sparse layer (`denseLayers..<layers`). A layer with fewer
+  /// than `expertCount` streams its routed experts through MoEWeightStreaming.
+  public var expertResidentSlots = Array(repeating: 288, count: 42)
 
   public init() {}
 
@@ -51,6 +55,11 @@ public struct GLM5_3ModelConfiguration: Codable, Sendable {
   public func isSparseLayer(_ layerIndex: Int) -> Bool {
     precondition(layerIndex >= 0 && layerIndex < layers)
     return layerIndex >= denseLayers
+  }
+
+  /// Whether sparse layer `layerIndex` streams its routed experts.
+  public func isStreamingLayer(_ layerIndex: Int) -> Bool {
+    isSparseLayer(layerIndex) && expertResidentSlots[layerIndex - denseLayers] < expertCount
   }
 }
 
@@ -146,7 +155,7 @@ public func GLM5_3LinearAttention<FloatType: TensorNumeric>(
     Dense(count: headDim, noBias: true, name: "\(prefix).f_a_proj")(x)
   ).reshaped([1, tokenLength, heads, headDim])
   let dtBias = Parameter<Float>(.GPU(0), .C(linearDim), name: "\(prefix).dt_bias")
-  // GLM5_3TextModelReader loads exp(A_log), so decode does not take the exp of a constant.
+  // The checkpoint stores A = exp(A_log), so decode does not take the exp of a constant.
   let a = Parameter<Float>(.GPU(0), .NHWC(1, 1, heads, 1), name: "\(prefix).A")
   let beta = Dense(count: heads, noBias: true, name: "\(prefix).b_proj")(x)
     .reshaped([1, tokenLength, heads])
@@ -175,36 +184,55 @@ public func GLM5_3LinearAttention<FloatType: TensorNumeric>(
   return out
 }
 
-/// Reads GLM5_3 text-model graphs from a converted store. The sparse layers fuse the shared
-/// expert into the routed SwiGLU and down projection, so its weights load from `shared_experts`,
-/// and each KDA layer's `A` is exp(`A_log`), taken on the GPU with the kernel the graph used to
-/// run. With `head`, the vocabulary projection loads from that store instead.
-public func GLM5_3TextModelReader(
-  _ store: DynamicGraph.Store, codec: DynamicGraph.Store.Codec, head: DynamicGraph.Store? = nil
-) -> (String, DataType, TensorFormat, TensorShape) -> DynamicGraph.Store.ModelReaderResult {
-  let parameterCodec = codec
-  // A plain read of the source tensor; JIT decoding applies to model parameters only.
-  let codec = codec.subtracting(.jit)
-  return { name, _, _, _ in
-    if let head, name.hasSuffix("[t-lm_head-0-0]") {
-      return .continue(name, codec: parameterCodec, store: head)
-    }
-    if name.hasSuffix(".self_attn.A-0-0]") {
-      guard
-        let aLog = store.read(
-          name.replacingOccurrences(of: ".A-0-0]", with: ".A_log-0-0]"), kind: .CPU, codec: codec)
-      else { return .fail }
-      let graph = DynamicGraph()
-      return .final(
-        Functional.exp(graph.variable(Tensor<Float>(from: aLog).toGPU(0))).rawValue.toCPU())
-    }
-    return .continue(
-      name
-        .replacingOccurrences(of: ".mlp.experts-0-2]", with: ".mlp.shared_experts-0-0]")
-        .replacingOccurrences(of: ".mlp.experts-0-3]", with: ".mlp.shared_experts-0-1]")
-        .replacingOccurrences(
-          of: ".mlp.experts.down_proj-0-1]", with: ".mlp.shared_experts.down_proj-0-0]"))
+/// How much of the checkpoint to map with `DynamicGraph.setWholeFileMappingSizeLimit`: up to the
+/// end of the last text tensor loaded whole, which is everything but the expert banks of streaming
+/// layers, so those stay out of the pinned mapping; 0 maps the whole checkpoint, and 1 (when the
+/// layout cannot be read) maps each tensor on its own. Tensors kept
+/// outside SQLite record their position past the trailer, whose start is the header's user version
+/// (DeepSeek4_1TextGenerator.residentMappingSize).
+public func GLM5_3ResidentMappingSize(
+  checkpoint filePath: String, configuration: GLM5_3ModelConfiguration
+)
+  -> Int
+{
+  guard (0..<configuration.layers).contains(where: { configuration.isStreamingLayer($0) }) else {
+    return 0
   }
+  var database: OpaquePointer?
+  defer { sqlite3_close(database) }
+  var trailer: OpaquePointer?
+  defer { sqlite3_finalize(trailer) }
+  var statement: OpaquePointer?
+  defer { sqlite3_finalize(statement) }
+  guard sqlite3_open_v2(filePath, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+    sqlite3_prepare_v2(database, "PRAGMA user_version", -1, &trailer, nil) == SQLITE_OK,
+    sqlite3_step(trailer) == SQLITE_ROW,
+    sqlite3_prepare_v2(database, "SELECT name, type, data FROM tensors", -1, &statement, nil)
+      == SQLITE_OK
+  else { return 1 }
+  let trailerOffset = Int(UInt32(truncatingIfNeeded: sqlite3_column_int64(trailer, 0)))
+  var end = 0
+  while sqlite3_step(statement) == SQLITE_ROW {
+    guard let name = sqlite3_column_text(statement, 0).map({ String(cString: $0) }),
+      name.hasPrefix("__text_model__["),
+      (sqlite3_column_int64(statement, 1) >> 32) & 0x1000_0000 != 0,
+      let data = sqlite3_column_blob(statement, 2)
+    else { continue }
+    if name.contains(".mlp.experts"),
+      let layer = name.components(separatedBy: "layers.").last?.components(separatedBy: ".").first
+        .flatMap(Int.init), configuration.isStreamingLayer(layer)
+    {
+      continue
+    }
+    // Codecs with a block size lead with it, in a word of its own.
+    let bytes = Int(sqlite3_column_bytes(statement, 2))
+    guard bytes == 16 || bytes == 24 else { return 1 }
+    let offset = data.loadUnaligned(fromByteOffset: bytes - 16, as: UInt64.self)
+    let length = data.loadUnaligned(fromByteOffset: bytes - 8, as: UInt64.self)
+    end = max(end, trailerOffset + Int(offset) + Int(length))
+  }
+  let pageSize = Int(vm_page_size)
+  return (end + pageSize - 1) & -pageSize
 }
 
 /// KPool DSA indexer. Writes this chunk's per-token indexer key and pooling gate into the
@@ -345,10 +373,16 @@ public func GLM5_3MLP(
 /// Sigmoid-scored MoE with a shared expert. Experts evaluate and accumulate in FP32.
 /// Input: normalized FP32 hidden `[T, hidden]`. Outputs: the routed experts' sum and the shared
 /// expert, which the layer adds in its expansion.
+/// With `residentSlots` below `expertCount`, the routed experts stream through a decode pool of that
+/// many slots: loaders read their banks as `.externalOnDemand`, and the shared
+/// expert runs on its own, before the routed experts wait for their weights. With `outputRouting`,
+/// `routing` holds the pairs' tokens grouped by expert, then each group's expert and count
+/// (MoERouting); otherwise it is empty, since an output nothing reads breaks the graph build.
 public func GLM5_3MoE<FloatType: TensorNumeric>(
   _ dataType: FloatType.Type, prefix: String, x: Model.IO, tokenLength: Int,
+  residentSlots: Int? = nil, outputRouting: Bool = false,
   configuration: GLM5_3ModelConfiguration = .glm5_3Flash
-) -> (routed: Model.IO, shared: Model.IO) {
+) -> (routed: Model.IO, shared: Model.IO, routing: [Model.IO]) {
   let logits = Dense(count: configuration.expertCount, noBias: true, name: "\(prefix).gate")(x)
   let bias = Parameter<Float>(
     .GPU(0), .C(configuration.expertCount), name: "\(prefix).gate.e_score_correction_bias")
@@ -357,6 +391,52 @@ public func GLM5_3MoE<FloatType: TensorNumeric>(
     normalizationEpsilon: 1e-20, singleInputToken: true, sigmoid: true,
     name: "\(prefix).routing")(logits, bias, x)
   let pairs = tokenLength * configuration.routedExperts
+  if let residentSlots, residentSlots < configuration.expertCount {
+    precondition(residentSlots >= configuration.routedExperts)
+    let gateWeight = Parameter<Float>(
+      .GPU(0),
+      .HWC(
+        configuration.expertCount, configuration.expertIntermediateSize, configuration.hiddenSize),
+      name: "\(prefix).experts.streaming_gate")()
+    let upWeight = Parameter<Float>(
+      .GPU(0),
+      .HWC(
+        configuration.expertCount, configuration.expertIntermediateSize, configuration.hiddenSize),
+      name: "\(prefix).experts.streaming_up")()
+    let downWeight = Parameter<Float>(
+      .GPU(0),
+      .HWC(
+        configuration.expertCount, configuration.hiddenSize, configuration.expertIntermediateSize),
+      name: "\(prefix).experts.down_proj")()
+    let resident = MoEWeightStreaming(
+      residentSlots: residentSlots, routingWidth: configuration.routedExperts,
+      name: "\(prefix).expert_streaming")([
+        prepared[3], prepared[4], prepared[1].reshaped([pairs, 1]), gateWeight, upWeight,
+        downWeight,
+      ])
+    let sharedHidden = SwiGLU(
+      count: configuration.sharedIntermediateSize, clamp: configuration.swigluLimit,
+      name: "\(prefix).shared_experts")(x)
+    sharedHidden.add(dependencies: [resident[3], resident[4], resident[5]])
+    let shared = Dense(
+      count: configuration.hiddenSize, noBias: true, name: "\(prefix).shared_experts.down_proj")(
+        sharedHidden)
+    let hidden = SegmentedSwiGLU(
+      segments: 0, count: configuration.expertIntermediateSize, clamp: configuration.swigluLimit,
+      functional: true, name: "\(prefix).experts.functional")([
+        prepared[0], resident[0], resident[1], resident[3], resident[4], resident[2],
+      ])
+    hidden.add(dependencies: [shared])
+    let routed = SegmentedDense(
+      segments: 0, count: configuration.hiddenSize, noBias: true, functional: true,
+      name: "\(prefix).experts.functional.down_proj")([
+        hidden, resident[0], resident[1], resident[5],
+      ])
+    let scattered = Functional.scatterAdd(
+      count: tokenLength, countPerOutput: configuration.routedExperts, routed, index: prepared[2]
+    ).reshaped([tokenLength, configuration.hiddenSize])
+    return (scattered, shared, outputRouting ? [prepared[2], prepared[3], prepared[4]] : [])
+  }
   // The shared expert joins the routed decode dispatch with the routed experts' intermediate
   // width. Its gate and up weights follow theirs as `experts-0-2` and `experts-0-3`, which
   // loaders map to the checkpoint's `shared_experts-0-0` and `shared_experts-0-1`.
@@ -375,7 +455,7 @@ public func GLM5_3MoE<FloatType: TensorNumeric>(
   let scattered = Functional.scatterAdd(
     count: tokenLength, countPerOutput: configuration.routedExperts, down[0], index: prepared[2]
   ).reshaped([tokenLength, configuration.hiddenSize])
-  return (scattered, down[1])
+  return (scattered, down[1], outputRouting ? [prepared[2], prepared[3], prepared[4]] : [])
 }
 
 /// One decoder layer. Inputs: FP32 residual streams `[T, hc, hidden]`, followed by
@@ -384,7 +464,8 @@ public func GLM5_3MoE<FloatType: TensorNumeric>(
 /// residual streams.
 public func GLM5_3Layer<FloatType: TensorNumeric>(
   _ dataType: FloatType.Type, tokenLength: Int, cachedTokenLength: Int, layerIndex: Int,
-  stateCheckpointCount: Int = 0, configuration: GLM5_3ModelConfiguration = .glm5_3Flash
+  stateCheckpointCount: Int = 0, outputRouting: Bool = false,
+  configuration: GLM5_3ModelConfiguration = .glm5_3Flash
 ) -> Model {
   let prefix = "layers.\(layerIndex)"
   let residual = Input()
@@ -419,10 +500,13 @@ public func GLM5_3Layer<FloatType: TensorNumeric>(
     prefix: "\(prefix).hc_ffn", normName: "\(prefix).post_attention_layernorm",
     residual: afterAttention, tokenLength: tokenLength, configuration: configuration)
   let expanded: Model.IO
+  var routing = [Model.IO]()
   if configuration.isSparseLayer(layerIndex) {
     let moe = GLM5_3MoE(
       dataType, prefix: "\(prefix).mlp", x: normalizedFFN, tokenLength: tokenLength,
-      configuration: configuration)
+      residentSlots: configuration.expertResidentSlots[layerIndex - configuration.denseLayers],
+      outputRouting: outputRouting, configuration: configuration)
+    routing = moe.routing
     expanded =
       HyperConnection(count: configuration.hcCount, operation: .expandSum)(
         moe.routed, afterAttention, ffnPost, ffnCombination, moe.shared)[0]
@@ -434,7 +518,7 @@ public func GLM5_3Layer<FloatType: TensorNumeric>(
       HyperConnection(count: configuration.hcCount, operation: .expand)(
         ffn, afterAttention, ffnPost, ffnCombination)[0]
   }
-  return Model(inputs, [expanded])
+  return Model(inputs, [expanded] + routing)
 }
 
 /// Complete text model. Inputs: token IDs, image embeddings `[rows, hidden]` placed after
@@ -446,13 +530,14 @@ public func GLM5_3Layer<FloatType: TensorNumeric>(
 /// 2 * indexerHeadDim]` (updated in place). Outputs: logits for the last `logitTokenLength`
 /// tokens, then each layer's residual streams when `outputResiduals` is set, then, with
 /// `targetLayers`, the mean streams entering those layers for the last `targetTokenLength` tokens,
-/// concatenated as FP32 `[targetTokenLength, targetLayers.count * hidden]`.
+/// concatenated as FP32 `[targetTokenLength, targetLayers.count * hidden]`. With `outputRouting`,
+/// last come each sparse layer's MoERouting token indices, expert ids and counts (Int32).
 /// `stateCheckpointCount` also keeps the KDA states before each of the last rows. Input order
 /// depends only on the architecture, so one graph serves every chunk.
 public func GLM5_3CausalLM<FloatType: TensorNumeric>(
   _ dataType: FloatType.Type, tokenLength: Int, cachedTokenLength: Int = 0,
   logitTokenLength: Int = 1, outputResiduals: Bool = false, targetLayers: [Int] = [],
-  targetTokenLength: Int = 0, stateCheckpointCount: Int = 0,
+  targetTokenLength: Int = 0, stateCheckpointCount: Int = 0, outputRouting: Bool = false,
   configuration: GLM5_3ModelConfiguration = .glm5_3Flash
 ) -> Model {
   precondition(logitTokenLength >= 1 && logitTokenLength <= tokenLength)
@@ -468,6 +553,7 @@ public func GLM5_3CausalLM<FloatType: TensorNumeric>(
     dataType, tokenLength: tokenLength, configuration: configuration)(
       tokens, injected, postTokens)
   var targets = [Model.IO]()
+  var routing = [Model.IO]()
   for layerIndex in 0..<configuration.layers {
     if targetLayers.contains(layerIndex) {
       targets.append(
@@ -480,10 +566,13 @@ public func GLM5_3CausalLM<FloatType: TensorNumeric>(
       Input()
     }
     inputs.append(contentsOf: layerInputs)
-    residual = GLM5_3Layer(
+    let layerOutputRouting = outputRouting && configuration.isSparseLayer(layerIndex)
+    let layerOutputs = GLM5_3Layer(
       dataType, tokenLength: tokenLength, cachedTokenLength: cachedTokenLength,
       layerIndex: layerIndex, stateCheckpointCount: stateCheckpointCount,
-      configuration: configuration)([residual] + layerInputs)
+      outputRouting: layerOutputRouting, configuration: configuration)([residual] + layerInputs)
+    residual = layerOutputRouting ? layerOutputs[0] : layerOutputs
+    if layerOutputRouting { routing.append(contentsOf: (1...3).map { layerOutputs[$0] }) }
     if outputResiduals { residuals.append(residual) }
   }
   let last = residual.reshaped(
@@ -497,7 +586,7 @@ public func GLM5_3CausalLM<FloatType: TensorNumeric>(
     concat.flags = [.disableOpt]
     targetOutputs.append(concat(targets))
   }
-  return Model(inputs, [logits] + residuals + targetOutputs)
+  return Model(inputs, [logits] + residuals + targetOutputs + routing)
 }
 
 /// GLM-5.3 collapses the final streams with an unweighted mean, unlike DeepSeek-V4's

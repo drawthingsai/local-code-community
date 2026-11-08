@@ -280,7 +280,7 @@ final class ChatWorkflow: Workflow {
       case .glm_5_3_flash:
         textGenerator = GLM5_3TextGenerator(
           filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
-          chunkedPrefillMaxLength: chunkedPrefillMaxLength)
+          chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming)
       case .deepseek_4_1_flash:
         guard let engram = specification.engram else {
           preconditionFailure("DeepSeek 4.1 requires an Engram companion")
@@ -996,7 +996,8 @@ final class ChatWorkflow: Workflow {
         chunkedPrefillMaxLength: chunkedPrefillMaxLength)
     case .glm_5_3_flash:
       return GLM5_3TextGenerator(
-        filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength)
+        filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength,
+        weightsStreaming: weightsStreaming)
     case .deepseek_4_1_flash:
       guard let engram = specification.engram else { return nil }
       return DeepSeek4_1TextGenerator(

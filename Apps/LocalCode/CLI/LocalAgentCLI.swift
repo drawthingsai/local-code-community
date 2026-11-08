@@ -43,7 +43,7 @@ struct LocalAgentCLI: ParsableCommand {
 
   @Option(
     help:
-      "Maximum DeepSeek weight tier in GiB: 8, 16, 24, 32, 40, 48, 56, 64, 72, or 0 for no streaming. Loads the largest tier at or below it that fits in 72% of available memory; 0 always loads every weight. V4 uses 48 for 56 and 64, and is fully resident at 72."
+      "Maximum DeepSeek or GLM weight tier in GiB: 8, 16, 24, 32, 40, 48, 56, 64, 72, or 0 for no streaming. Loads the largest tier at or below it that fits in available memory (72% for V4, 75% for V4.1 and GLM); 0 always loads every weight. V4 uses 48 for 56 and 64, and is fully resident at 72."
   )
   var weightsStreaming: Int?
 
@@ -71,9 +71,9 @@ struct LocalAgentCLI: ParsableCommand {
     }
     let specification = try specification()
     if weightsStreaming != nil, specification.version != .deepseek_4_flash,
-      specification.version != .deepseek_4_1_flash
+      specification.version != .deepseek_4_1_flash, specification.version != .glm_5_3_flash
     {
-      throw ValidationError("--weights-streaming applies only to DeepSeek models.")
+      throw ValidationError("--weights-streaming applies only to DeepSeek and GLM models.")
     }
   }
 
@@ -189,7 +189,9 @@ struct LocalAgentCLI: ParsableCommand {
         prefixEmbedSpans: prefixEmbedSpans)
     case .glm_5_3_flash:
       let generator = GLM5_3TextGenerator(
-        filePath: checkpoint, chunkedPrefillMaxLength: chunkLength)
+        filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
+        weightsStreaming: weightsStreaming.flatMap(
+          DeviceCapability.WeightsStreaming.init(rawValue:)))
       agent = GLM5_3CodeAgent(
         textGenerator: generator, graph: graph, streamContext: stream,
         unsafeTokenizer: GLM5_3TextGenerator.unsafeTokenizer,
