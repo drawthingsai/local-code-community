@@ -40,6 +40,7 @@ protocol ResponsesToolCallScanner {
 /// that don't yet form a whole character.
 struct ResponsesOutputParser {
   private let thinkEndToken: Int32
+  private let toolCallStartToken: Int32?
   private let isTerminal: (Int32) -> Bool
   private var scanner: any ResponsesToolCallScanner
   private var thinkStreamer: TiktokenTokenizer.TokenStreamer
@@ -50,12 +51,16 @@ struct ResponsesOutputParser {
   private var output = ""
   private(set) var thinkTokenCount = 0
 
+  /// - Parameter toolCallStartToken: For a model that can start a tool call without closing its
+  ///   thinking first, as GLM can; the call then ends the thinking.
   init(
-    isThinking: Bool, thinkEndToken: Int32, isTerminal: @escaping (Int32) -> Bool,
-    safeTokenizer: TiktokenTokenizer, unsafeTokenizer: TiktokenTokenizer,
-    toolCallSpecialTokens: [Int32: String], scanner: any ResponsesToolCallScanner
+    isThinking: Bool, thinkEndToken: Int32, toolCallStartToken: Int32? = nil,
+    isTerminal: @escaping (Int32) -> Bool, safeTokenizer: TiktokenTokenizer,
+    unsafeTokenizer: TiktokenTokenizer, toolCallSpecialTokens: [Int32: String],
+    scanner: any ResponsesToolCallScanner
   ) {
     self.thinkEndToken = thinkEndToken
+    self.toolCallStartToken = toolCallStartToken
     self.isTerminal = isTerminal
     self.scanner = scanner
     isThinkingOpen = isThinking
@@ -75,14 +80,14 @@ struct ResponsesOutputParser {
 
   mutating func append(_ tokens: [Int32]) {
     for token in tokens where !isTerminal(token) {
+      if isThinkingOpen, token == thinkEndToken || token == toolCallStartToken {
+        isThinkingOpen = false
+        think += thinkStreamer.finish()
+        if token == thinkEndToken { continue }
+      }
       if isThinkingOpen {
-        if token == thinkEndToken {
-          isThinkingOpen = false
-          think += thinkStreamer.finish()
-        } else {
-          thinkTokenCount += 1
-          think += thinkStreamer.append([token])
-        }
+        thinkTokenCount += 1
+        think += thinkStreamer.append([token])
       } else {
         output += outputStreamer.append([token])
         scanner.append(toolCallStreamer.append([token]))
@@ -107,6 +112,8 @@ func responsesModelAdapter(for textGenerator: any TextGenerator, projectPath: St
     return DeepSeekResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
   case let textGenerator as DeepSeek4_1TextGenerator:
     return DeepSeekResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
+  case let textGenerator as GLM5_3TextGenerator:
+    return GLM5_3ResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
   default:
     return nil
   }
@@ -421,5 +428,133 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
 
   func resetCaches() {
     kvCache = Generator.KVCache()
+  }
+}
+
+final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
+  private struct Scanner: ResponsesToolCallScanner {
+    var parser = GLM5_3ToolCallParser()
+    var toolCalls: [ToolCall] { parser.toolCalls }
+    // The model ends its turn after the calls it wants.
+    var didCompleteToolCalls: Bool { false }
+    mutating func append(_ text: String) { parser.append(text) }
+    func visibleText(in output: String) -> String {
+      GLM5_3ToolCallParser.removeToolCalls(output)
+    }
+  }
+
+  private var textGenerator: GLM5_3TextGenerator
+  private let projectPath: String
+  private var kvCache = GLM5_3TextGenerator.KVCache()
+  var kvCacheTokenLength: Int { kvCache.tokenLength }
+  private(set) var restoredTokenLength: Int?
+
+  init(textGenerator: GLM5_3TextGenerator, projectPath: String) {
+    self.textGenerator = textGenerator
+    self.projectPath = projectPath
+  }
+
+  var filePath: String { textGenerator.filePath }
+  var maximumContextLength: Int { GLM5_3CodeAgent.maximumContextLength }
+  var minimumGenerationReserve: Int { GLM5_3CodeAgent.minimumGenerationReserve }
+
+  func promptTokens(for request: ResponsesRequest, isThinking: Bool) -> [Int32] {
+    let systemTokens = tokenizeSystemPromptSections(
+      Self.systemSections(instructions: request.instructions, tools: request.tools),
+      unsafeTokenizer: GLM5_3TextGenerator.unsafeTokenizer,
+      safeTokenizer: GLM5_3TextGenerator.safeTokenizer)
+    let assistantTokens =
+      isThinking
+      ? [GLM5_3TextGenerator.assistantToken, GLM5_3TextGenerator.thinkStartToken]
+      : [
+        GLM5_3TextGenerator.assistantToken, GLM5_3TextGenerator.thinkStartToken,
+        GLM5_3TextGenerator.thinkEndToken,
+      ]
+    // The agent's renderer keeps each turn's thinking and writes calls the way the model does.
+    return systemTokens + GLM5_3CodeAgent.parse(request.transcript) + assistantTokens
+  }
+
+  /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
+  /// The effort is the agent's default.
+  static func systemSections(instructions: String, tools: [ResponsesRequest.Tool])
+    -> [SystemPromptSection]
+  {
+    var sections: [SystemPromptSection] = [("[gMASK]<sop><|system|>Reasoning Effort: High", true)]
+    if !tools.isEmpty {
+      sections.append(
+        (
+          """
+          <|system|>
+          # Tools
+
+          You may call one or more functions to assist with the user query.
+
+          You are provided with function signatures within <tools></tools> XML tags:
+          <tools>
+
+          """, true
+        ))
+      sections.append((tools.map(\.functionSchemaLine).joined(separator: "\n"), false))
+      sections.append(
+        (
+          """
+
+          </tools>
+
+          For each function call, output the function name and arguments within the following XML format:
+          <tool_call>{function-name}<arg_key>{arg-key-1}</arg_key><arg_value>{arg-value-1}</arg_value><arg_key>{arg-key-2}</arg_key><arg_value>{arg-value-2}</arg_value>...</tool_call>
+          """, true
+        ))
+    }
+    if !instructions.isEmpty {
+      sections.append(("<|system|>", true))
+      sections.append((instructions, false))
+    }
+    return sections
+  }
+
+  func makeOutputParser(isThinking: Bool) -> ResponsesOutputParser {
+    ResponsesOutputParser(
+      isThinking: isThinking, thinkEndToken: GLM5_3TextGenerator.thinkEndToken,
+      toolCallStartToken: GLM5_3TextGenerator.toolCallStartToken,
+      isTerminal: { [self] in
+        isTerminal($0)
+      }, safeTokenizer: GLM5_3TextGenerator.safeTokenizer,
+      unsafeTokenizer: GLM5_3TextGenerator.unsafeTokenizer,
+      toolCallSpecialTokens: GLM5_3ToolCallParser.toolCallSpecialTokens, scanner: Scanner())
+  }
+
+  func isTerminal(_ token: Int32) -> Bool {
+    GLM5_3TextGenerator.stopTokens.contains(token)
+  }
+
+  func decode(
+    graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
+    contextTokens: [Int32], thinkingBudget: Int, deterministic: Bool,
+    handler: (Int, Int, [Int32], CodeAgentStatistics) -> ContinuationState
+  ) -> [Int32] {
+    let contextCache = GLM5_3ContextCache(
+      projectPath: projectPath, checkpointStride: textGenerator.checkpointStride)
+    defer { restoredTokenLength = contextCache.restoredTokenLength }
+    return textGenerator.decode(
+      graph: graph, tokens: tokens, tokenOffset: tokenOffset, thinkingBudget: thinkingBudget,
+      deterministic: deterministic, kvCache: &kvCache, contextTokens: contextTokens,
+      contextCache: contextCache
+    ) { prefillStart, prefillLength, generatedTokens, statistics in
+      GLM5_3TextGenerator.ContinuationState(
+        handler(
+          prefillStart, prefillLength, generatedTokens,
+          CodeAgentStatistics(
+            prefillDurationSoFar: statistics.prefillDurationSoFar,
+            prefillTokensSoFar: statistics.prefillTokensSoFar,
+            tokenGenerationDurationSoFar: statistics.tokenGenerationDurationSoFar,
+            tokenGeneratedSoFar: statistics.tokenGeneratedSoFar,
+            contextUsedTokens: contextTokens.count + generatedTokens.count,
+            contextWindowTokens: GLM5_3CodeAgent.maximumContextLength)))
+    }
+  }
+
+  func resetCaches() {
+    kvCache = GLM5_3TextGenerator.KVCache()
   }
 }

@@ -148,6 +148,11 @@ final class ModelSpeedWorkflow: Workflow {
         textGenerator: textGenerator, contextLengths: SpeedometerReading.contextLengths,
         graph: graph, streamContext: streamContext, storePath: Self.storePath,
         libraryURL: Self.libraryURL, thinkingBudget: thinkingBudget, deterministic: deterministic)
+    case let textGenerator as GLM5_3TextGenerator:
+      return GLM5_3Speedometer(
+        textGenerator: textGenerator, contextLengths: SpeedometerReading.contextLengths,
+        graph: graph, streamContext: streamContext, storePath: Self.storePath,
+        libraryURL: Self.libraryURL, thinkingBudget: thinkingBudget, deterministic: deterministic)
     default:
       return nil
     }

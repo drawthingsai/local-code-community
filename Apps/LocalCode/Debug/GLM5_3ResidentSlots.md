@@ -25,9 +25,10 @@ separately, only with images. A tier's pool is the tier minus 9.79 GiB:
 | 72 GiB | 9,568 | 97.2% | 97.2% | 96.4% | 98.1% | 43 MiB |
 
 The 8 GiB tier cannot hold even the other text weights, so it keeps only the routing width, 8
-slots per layer, and claims 11.97 GiB. The 72 GiB tier keeps the 64 GiB plan and claims 64 GiB:
-its own plan decoded only 1.4 to 2.4 tok/s faster with the checkpoint cached. No tier keeps a
-layer fully resident. A full layer would also pin every layer stored before it, since the banks
+slots per layer, and claims 11.97 GiB. The 72 GiB tier loads every weight, as DeepSeek V4's
+does, and claims the whole 89.47 GiB checkpoint, so it is picked only where that fits; its row
+above is the fit, which no tier uses (it decoded only 1.4 to 2.4 tok/s faster than the 64 GiB plan
+with the checkpoint cached). No streaming tier keeps a layer fully resident. A full layer would also pin every layer stored before it, since the banks
 follow in layer order.
 
 ## Method

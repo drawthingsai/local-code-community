@@ -23,7 +23,7 @@ enum ResponsesServeProbe {
       let cachePath = values["--cache-project-path"]
     else {
       print(
-        "Usage: --model-path <ckpt> --family <qwen_3_5_27b|deepseek_4|deepseek_4_1> --cache-project-path <dir> [--chat-seconds 8] [--hot-limit 1] [--time-slice 2] [--weights-streaming 48] [--ip 0.0.0.0] [--port 11435]"
+        "Usage: --model-path <ckpt> --family <qwen_3_5_27b|deepseek_4|deepseek_4_1|glm_5_3> --cache-project-path <dir> [--chat-seconds 8] [--hot-limit 1] [--time-slice 2] [--weights-streaming 48] [--ip 0.0.0.0] [--port 11435]"
       )
       exit(2)
     }
@@ -175,7 +175,7 @@ private final class Probe: ServeControllerDelegate {
   private func makeScheduler() -> AgentScheduler {
     let scheduler = AgentScheduler(queue: queue, maximumHotCodeAgentCount: hotLimit ?? Int.max)
     scheduler.set(
-      filePath: modelPath, residentWeightsSize: textGenerator.residentWeightsSize,
+      filePaths: textGenerator.filePaths, residentWeightsSize: textGenerator.residentWeightsSize,
       estimatedKVCacheSize: type(of: textGenerator).estimatedKVCacheSize)
     return scheduler
   }
@@ -214,6 +214,9 @@ private final class Probe: ServeControllerDelegate {
           "\(name).engram"
         ).path,
         chunkedPrefillMaxLength: chunk, weightsStreaming: weightsStreaming, drafterFile: nil)
+    case "glm_5_3":
+      return GLM5_3TextGenerator(
+        filePath: modelPath, chunkedPrefillMaxLength: chunk, weightsStreaming: weightsStreaming)
     default:
       fatalError("Unknown family \(family)")
     }

@@ -12,8 +12,8 @@ extension DeviceCapability.WeightsStreaming {
   // Decode pool slots of sparse layers 3 through 44, calibrated for
   // glm_5.3_flash_i2x_lgain_trailer.ckpt. See Debug/GLM5_3ResidentSlots.md for the fit and
   // validation. The other text weights, pinned with the embedding, take 9.79 GiB, so 8 GiB keeps
-  // only the routing width. 72 GiB keeps the 64 GiB plan: its higher hit rate was worth about
-  // 2 tok/s.
+  // only the routing width. 72 GiB loads every weight, as it does for DeepSeek V4, so it is
+  // picked only where the whole checkpoint fits.
   var expertResidentSlotsForGLM5_3: [Int] {
     switch self {
     case ._8GiB:
@@ -54,13 +54,13 @@ extension DeviceCapability.WeightsStreaming {
         148, 128, 128, 132, 144, 148, 152, 148, 156, 156, 156, 160, 168, 180,
         176, 180, 156, 160, 168, 176, 176, 168, 176, 168, 168, 168, 172, 180,
       ]
-    case ._64GiB, ._72GiB:
+    case ._64GiB:
       return [
         268, 276, 276, 260, 208, 220, 220, 228, 204, 180, 180, 176, 180, 180,
         172, 148, 156, 160, 172, 176, 180, 180, 180, 180, 180, 188, 196, 208,
         200, 208, 188, 188, 200, 208, 208, 196, 200, 200, 200, 200, 200, 208,
       ]
-    case .disabled:
+    case ._72GiB, .disabled:
       return Array(repeating: 288, count: 42)
     }
   }
@@ -73,9 +73,7 @@ extension DeviceCapability.WeightsStreaming {
       return 10_511_165_304 + 42 * 8 * 6_979_584
     case ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB, ._56GiB, ._64GiB:
       return UInt64(rawValue) * 1_024 * 1_024 * 1_024
-    case ._72GiB:
-      return 64 * 1_024 * 1_024 * 1_024
-    case .disabled:
+    case ._72GiB, .disabled:
       return 96_066_945_024  // The whole glm_5.3_flash_i2x_lgain_trailer.ckpt, about 89.47 GiB.
     }
   }
@@ -476,6 +474,10 @@ public struct GLM5_3TextGenerator: TextGenerator {
       storage.isLoaded = true
     }
     compilePrefill(isEager: true)
+    // With the context restored and the weights loaded, before the timed prefill.
+    guard continuationHandler(prefillStart, tokenLength, [], statistics) == .continue else {
+      return []
+    }
 
     // The current assistant turn decides whether thinking is still open and how much of the budget
     // it used, so a resumed generation keeps both.

@@ -14,11 +14,19 @@ struct ResponsesRequest {
 
     /// One line in the shape the models' tool schemas use. Keys are sorted so the same tools
     /// always produce the same tokens, which keeps the context cache's prefix valid.
-    var schemaLine: String {
+    var schemaLine: String { Self.line(["type": "function", "function": function]) }
+
+    /// The function alone, the way GLM's chat template lists a tool.
+    var functionSchemaLine: String { Self.line(function) }
+
+    private var function: [String: Any] {
       var function: [String: Any] = ["name": name]
       if let description { function["description"] = description }
       if let parameters { function["parameters"] = parameters }
-      let object: [String: Any] = ["type": "function", "function": function]
+      return function
+    }
+
+    private static func line(_ object: [String: Any]) -> String {
       guard
         let data = try? JSONSerialization.data(
           withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes])
