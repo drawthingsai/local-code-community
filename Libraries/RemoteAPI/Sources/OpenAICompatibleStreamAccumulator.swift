@@ -81,6 +81,13 @@ struct OpenAICompatibleStreamAccumulator {
       if incoming["id"] == nil {
         incoming["id"] = .null
       }
+      // Claude's reasoning signature can arrive in its own delta without text; treat it as
+      // empty text so it merges into the reasoning it signs.
+      if incoming["type"] == .string("reasoning.text"),
+        incoming["text"] == nil || incoming["text"] == .null
+      {
+        incoming["text"] = .string("")
+      }
       let normalized = RemoteJSONValue.object(incoming)
       guard normalized.isValidOpenRouterReasoningDetail,
         case .number(let index)? = incoming["index"],

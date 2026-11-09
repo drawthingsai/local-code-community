@@ -48,6 +48,34 @@ final class RemoteSSEParserTests: XCTestCase {
     XCTAssertEqual(accumulator.completion.stopReason, "tool_calls")
   }
 
+  func testAccumulatorMergesSignatureOnlyReasoningDelta() throws {
+    var accumulator = OpenAICompatibleStreamAccumulator()
+    _ = try accumulator.append(
+      #"{"choices":[{"index":0,"delta":{"reasoning":"Plan.","reasoning_details":[{"type":"reasoning.text","text":"Plan.","format":"anthropic-claude-v1","index":0}]}}]}"#
+    )
+    _ = try accumulator.append(
+      #"{"choices":[{"index":0,"delta":{"reasoning_details":[{"type":"reasoning.text","signature":"sig","format":"anthropic-claude-v1","index":0}],"tool_calls":[{"index":0,"id":"call","type":"function","function":{"name":"read","arguments":"{}"}}]},"finish_reason":"tool_calls"}]}"#
+    )
+    let thinking = try XCTUnwrap(
+      accumulator.completion.content.compactMap { block -> RemoteThinking? in
+        guard case .thinking(let thinking) = block else { return nil }
+        return thinking
+      }.first)
+    XCTAssertEqual(
+      thinking.providerMetadata,
+      [
+        .object([
+          "type": .string("reasoning.text"),
+          "text": .string("Plan."),
+          "signature": .string("sig"),
+          "id": .null,
+          "format": .string("anthropic-claude-v1"),
+          "index": .number(0),
+        ])
+      ])
+    XCTAssertTrue(thinking.providerMetadata?.allSatisfy(\.isValidOpenRouterReasoningDetail) == true)
+  }
+
   func testRejectsOversizedMalformedAndProviderErrorEvents() throws {
     var parser = RemoteSSEParser(maximumEventBytes: 4)
     XCTAssertThrowsError(try parser.append(Data("data: 12345\n\n".utf8))) { error in

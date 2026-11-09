@@ -174,7 +174,9 @@ public struct RemoteProviderEndpoint: Equatable, Sendable {
     switch provider {
     case .localCode, .openRouter:
       guard authorization.kind == .apiKey else {
-        throw RemoteChatError.authentication("OpenRouter requires an API key.")
+        throw RemoteChatError.authentication(
+          provider == .localCode
+            ? "Local Code requires an API key." : "OpenRouter requires an API key.")
       }
       return OpenAICompatibleClient(
         configuration: try OpenAICompatibleConfiguration(

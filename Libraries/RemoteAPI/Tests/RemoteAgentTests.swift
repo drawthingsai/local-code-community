@@ -212,13 +212,15 @@ final class RemoteAgentTests: XCTestCase {
 
     let malformedReasoningProvider = RecordingProvider(
       modelIdentity: RemoteModelIdentity(
-        provider: RemoteProvider.openRouter.rawValue, model: "vendor/model")
-    ) { _, _ in
-      .success(
+        provider: RemoteProvider.localCode.rawValue, model: "vendor/model")
+    ) { _, index in
+      guard index == 0 else { return .success(RemoteCompletion(text: "Done", toolCalls: [])) }
+      return .success(
         RemoteCompletion(
           text: "",
-          toolCalls: [RemoteToolCall(id: "unsafe", name: "read", arguments: "{}")],
+          toolCalls: [RemoteToolCall(id: "call", name: "read", arguments: "{}")],
           thinking: RemoteThinking(
+            text: "Read the file first.",
             providerMetadata: [
               .object([
                 "type": .string("reasoning.encrypted"),
@@ -226,10 +228,12 @@ final class RemoteAgentTests: XCTestCase {
               ])
             ])))
     }
+    var executedCalls = [String]()
     let malformedReasoningAgent = makeAgent(
       provider: malformedReasoningProvider,
-      executor: { _, _, _ in
-        XCTFail("A tool call with malformed reasoning metadata must not be executed.")
+      executor: { call, _, completion in
+        executedCalls.append(call.id)
+        completion(RemoteToolExecutionResult(content: "ok", subtitle: call.name))
         return nil
       })
     var malformedReasoningResult: Result<RemoteAgentCompletion, RemoteChatError>?
@@ -240,11 +244,13 @@ final class RemoteAgentTests: XCTestCase {
     }
     wait(for: [malformedReasoningCompletion], timeout: 1)
 
-    guard case .failure(.malformedStream(let message)) = malformedReasoningResult else {
-      return XCTFail("Expected malformed reasoning metadata to fail before tool execution.")
-    }
-    XCTAssertTrue(message.contains("reasoning_details"))
-    XCTAssertTrue(malformedReasoningAgent.state.transcript.last?.toolCalls.isEmpty == true)
+    // Reasoning metadata outside the schema is dropped, and the turn carries on.
+    XCTAssertEqual(try malformedReasoningResult?.get().text, "Done")
+    XCTAssertEqual(executedCalls, ["call"])
+    XCTAssertEqual(malformedReasoningProvider.requests.count, 2)
+    let replayedThinking = malformedReasoningProvider.requests[1].messages.flatMap(\.thinking)
+    XCTAssertEqual(replayedThinking.map(\.text), ["Read the file first."])
+    XCTAssertTrue(replayedThinking.allSatisfy { $0.providerMetadata == nil })
   }
 
   func testCompactionReplacesSummarizedPrefixAndSendsIterativeCheckpoint() throws {
@@ -640,7 +646,8 @@ final class RemoteAgentTests: XCTestCase {
 
     XCTAssertEqual(snapshots.first?.thinking, "Plan")
     XCTAssertEqual(snapshots.first?.text, "")
-    XCTAssertTrue(snapshots.contains { $0.thinking == "Plan the read." && !$0.streamingToolCalls.isEmpty })
+    XCTAssertTrue(
+      snapshots.contains { $0.thinking == "Plan the read." && !$0.streamingToolCalls.isEmpty })
     // A new request starts without the previous request's reasoning, which ends at its text.
     XCTAssertTrue(snapshots.contains { $0.thinking == "Wrap up" && $0.text.isEmpty })
     XCTAssertEqual(snapshots.last?.text, "Done")

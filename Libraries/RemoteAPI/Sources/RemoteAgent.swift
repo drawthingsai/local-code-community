@@ -648,10 +648,13 @@ public final class RemoteAgent {
         guard let metadata = $0.providerMetadata else { return false }
         return !metadata.allSatisfy(\.isValidOpenRouterReasoningDetail)
       }
+    // Reasoning metadata outside the documented schema is not replayed; keep the reasoning
+    // text and carry on with the turn rather than failing it.
     if hasMalformedReasoningDetails {
-      completion.content.removeAll { block in
-        if case .thinking = block { return true }
-        return false
+      completion.content = completion.content.compactMap { block in
+        guard case .thinking(var thinking) = block else { return block }
+        thinking.providerMetadata = nil
+        return thinking.text?.isEmpty == false ? .thinking(thinking) : nil
       }
     }
     var progressCallback: ((RemoteAgentProgress) -> Void)?
@@ -707,17 +710,7 @@ public final class RemoteAgent {
     generation.streamingToolCalls = completion.toolCalls
     progressCallback = generation.progress
 
-    if hasMalformedReasoningDetails, !completion.toolCalls.isEmpty {
-      closeIncompleteTurn(
-        generation,
-        note:
-          "[The remote provider returned malformed reasoning metadata, so its tool call was not executed.]"
-      )
-      completionCallback = generation.completion
-      completionResult = .failure(
-        .malformedStream("reasoning_details did not match the documented OpenRouter schema"))
-      activeGeneration = nil
-    } else if let stopReason = completion.stopReason?.lowercased(),
+    if let stopReason = completion.stopReason?.lowercased(),
       ["length", "max_tokens", "max_output_tokens", "content_filter", "error"].contains(stopReason)
     {
       closeIncompleteTurn(
