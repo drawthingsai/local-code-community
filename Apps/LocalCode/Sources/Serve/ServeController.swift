@@ -66,12 +66,19 @@ final class ServeController {
     workspace.dictionary["serve_ip", String.self] ?? "127.0.0.1"
   }
 
-  /// The chat's model until one is picked for serving.
   /// The chat's Thinking Budget, with its default and limit.
   private static func thinkingBudget(workspace: SQLiteWorkspace) -> Int {
-    min(max(workspace.dictionary["thinking_budget", Int.self] ?? 131_072, 0), 256 * 1024)
+    min(
+      max(workspace.dictionary["thinking_budget", Int.self] ?? defaultThinkingBudget, 0),
+      maximumThinkingBudget)
   }
 
+  /// The chat's Reasoning Effort.
+  private static func reasoningEffort(workspace: SQLiteWorkspace) -> ReasoningEffort {
+    workspace.dictionary["reasoning_effort", ReasoningEffort.self] ?? .high
+  }
+
+  /// The chat's model until one is picked for serving.
   static func model(workspace: SQLiteWorkspace) -> String? {
     workspace.dictionary["serve_model", String.self]
       ?? workspace.dictionary["llm_model", String.self]
@@ -86,6 +93,8 @@ final class ServeController {
   /// The most agents kept, running or idle, each with a KV cache. A fixed number rather than a share
   /// of the scheduler's hot limit, as serving while chatting is the exception.
   private static let maximumAgents = 8
+  private static let defaultThinkingBudget = 131_072
+  private static let maximumThinkingBudget = 256 * 1024
   private static let maximumQueuedRequests = 128
   private static let keepAliveInterval: TimeInterval = 15
   /// A turn's thread as the scheduler knows it. Serving has no threads, and no project to clash
@@ -100,6 +109,8 @@ final class ServeController {
     let arrivalDate: Date
     /// As it was on arrival, since the prompt opens the model's thinking only when it's above 0.
     let thinkingBudget: Int
+    /// As it was on arrival, since the prompt states it.
+    let reasoningEffort: ReasoningEffort
     /// The model `baseTokens` are for. Nil until the tokenizer is done with it.
     var tokenized: (model: String, baseTokens: [Int32])?
   }
@@ -148,6 +159,8 @@ final class ServeController {
   private var portSubscription: Workspace.Subscription?
   private var thinkingBudget: Int
   private var thinkingBudgetSubscription: Workspace.Subscription?
+  private var reasoningEffort: ReasoningEffort
+  private var reasoningEffortSubscription: Workspace.Subscription?
 
   /// Serves from the start, as it only exists while "serve_responses_enabled" is on.
   init(
@@ -160,6 +173,7 @@ final class ServeController {
     self.streamContext = streamContext
     self.timeSlice = timeSlice
     thinkingBudget = Self.thinkingBudget(workspace: workspace)
+    reasoningEffort = Self.reasoningEffort(workspace: workspace)
     var newState = state.value
     newState.isEnabled = true
     newState.model = Self.model(workspace: workspace)
@@ -199,6 +213,14 @@ final class ServeController {
       DispatchQueue.main.async {
         guard let self, let workspace else { return }
         self.thinkingBudget = Self.thinkingBudget(workspace: workspace)
+      }
+    }
+    reasoningEffortSubscription = workspace.dictionary.subscribe(
+      "reasoning_effort", of: ReasoningEffort.self
+    ) { [weak self, weak workspace] _ in
+      DispatchQueue.main.async {
+        guard let self, let workspace else { return }
+        self.reasoningEffort = Self.reasoningEffort(workspace: workspace)
       }
     }
     updateContextCacheSize()
@@ -409,9 +431,22 @@ final class ServeController {
     // A stream's status and first events go out now, so a client can tell it was accepted however
     // long the queue is. Later errors arrive in the stream.
     writer.start()
+    // What the client asked for, and the chat's settings for what it didn't.
+    let thinkingBudget: Int
+    switch request.thinking {
+    case nil:
+      thinkingBudget = self.thinkingBudget
+    case .disabled?:
+      thinkingBudget = 0
+    case .enabled(let budget)?:
+      // A client that asks for thinking gets it even while the chat thinks not at all.
+      thinkingBudget = min(
+        budget ?? (self.thinkingBudget > 0 ? self.thinkingBudget : Self.defaultThinkingBudget),
+        Self.maximumThinkingBudget)
+    }
     let pendingRequest = PendingRequest(
       request: request, connection: connection, writer: writer, arrivalDate: Date(),
-      thinkingBudget: thinkingBudget)
+      thinkingBudget: thinkingBudget, reasoningEffort: request.reasoningEffort ?? reasoningEffort)
     pendingRequests.append(pendingRequest)
     updateActiveState()
     tokenize(pendingRequest, for: model)
@@ -431,7 +466,8 @@ final class ServeController {
     }
     tokenizationQueue.async { [weak self] in
       let baseTokens = adapter.promptTokens(
-        for: pendingRequest.request, isThinking: pendingRequest.thinkingBudget > 0)
+        for: pendingRequest.request, reasoningEffort: pendingRequest.reasoningEffort,
+        isThinking: pendingRequest.thinkingBudget > 0)
       DispatchQueue.main.async {
         guard let self,
           let index = self.pendingRequests.firstIndex(where: {

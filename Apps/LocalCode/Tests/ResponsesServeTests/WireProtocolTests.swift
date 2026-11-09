@@ -103,6 +103,93 @@ final class MessagesRequestTests: XCTestCase {
     XCTAssertTrue(request.tools.isEmpty)
   }
 
+  func testThinkingAndEffort() throws {
+    let messages = [["role": "user", "content": "x"]]
+    let unset = try request(["messages": messages, "thinking": NSNull()])
+    XCTAssertNil(unset.thinking)
+    XCTAssertNil(unset.reasoningEffort)
+    let cases: [([String: Any], ResponsesRequest.Thinking)] = [
+      (["type": "enabled", "budget_tokens": 16_384], .enabled(budget: 16_384)),
+      (["type": "enabled"], .enabled(budget: nil)),
+      (["type": "adaptive", "display": "summarized"], .enabled(budget: nil)),
+      (["type": "disabled"], .disabled),
+      (["type": "between_tools"], .disabled),
+    ]
+    for (thinking, expected) in cases {
+      XCTAssertEqual(try request(["messages": messages, "thinking": thinking]).thinking, expected)
+    }
+    let efforts: [(String, CodeAgentReasoningEffort)] = [
+      ("low", .low), ("medium", .medium), ("high", .high), ("xhigh", .max), ("max", .max),
+    ]
+    for (effort, expected) in efforts {
+      let request = try request(["messages": messages, "output_config": ["effort": effort]])
+      XCTAssertEqual(request.reasoningEffort, expected)
+      // The effort says how hard to think, not whether to.
+      XCTAssertNil(request.thinking)
+    }
+    let invalid: [[String: Any]] = [
+      ["messages": messages, "thinking": ["type": "enabled", "budget_tokens": 0]],
+      ["messages": messages, "thinking": ["type": "enabled", "budget_tokens": 1.5]],
+      ["messages": messages, "thinking": ["type": "sometimes"]],
+      ["messages": messages, "thinking": "enabled"],
+      ["messages": messages, "output_config": ["effort": "none"]],
+    ]
+    for object in invalid {
+      XCTAssertThrowsError(try request(object)) { error in
+        guard case ResponsesRequestError.invalid = error else { return XCTFail("\(error)") }
+      }
+    }
+  }
+
+  func testLastEffortMessageSetsTheEffortAndLeavesTheConversation() throws {
+    let request = try request([
+      "system": "A",
+      "output_config": ["effort": "low"],
+      "thinking": ["type": "adaptive"],
+      "messages": [
+        ["role": "system", "content": [Any](), "output_config": ["effort": "low"]],
+        ["role": "user", "content": "B"],
+        ["role": "assistant", "content": "C"],
+        ["role": "user", "content": "D"],
+        ["role": "system", "content": [Any](), "output_config": ["effort": "xhigh"]],
+      ],
+    ])
+    XCTAssertEqual(request.reasoningEffort, .max)
+    XCTAssertEqual(request.instructions, "A")
+    XCTAssertEqual(
+      request.transcript,
+      [.user("B"), .assistant(text: "C", thinking: "", toolCalls: []), .user("D")])
+  }
+
+  func testEffortChangeDuringToolUseWaitsForNewInput() throws {
+    let toolUse: [String: Any] = [
+      "role": "assistant",
+      "content": [["type": "tool_use", "id": "c1", "name": "f", "input": [String: Any]()]],
+    ]
+    let toolResult: [String: Any] = [
+      "role": "user", "content": [["type": "tool_result", "tool_use_id": "c1", "content": "B"]],
+    ]
+    let toolLoop: [[String: Any]] = [
+      ["role": "user", "content": "A"],
+      toolUse,
+      // Empty text for content, between a call and its result.
+      ["role": "system", "content": "", "output_config": ["effort": "medium"]],
+      toolResult,
+      ["role": "system", "content": [Any](), "output_config": ["effort": "max"]],
+    ]
+    let request = try request(["output_config": ["effort": "low"], "messages": toolLoop])
+    XCTAssertEqual(request.reasoningEffort, .low)
+    let withoutChanges = try self.request(["messages": [toolLoop[0], toolUse, toolResult]])
+    XCTAssertEqual(request.transcript, withoutChanges.transcript)
+    let nextTurn = try self.request([
+      "output_config": ["effort": "low"],
+      "messages": toolLoop + [
+        ["role": "assistant", "content": "C"], ["role": "user", "content": "D"],
+      ],
+    ])
+    XCTAssertEqual(nextTurn.reasoningEffort, .max)
+  }
+
   func testWhatTheServerCannotDoIsRefused() {
     let messages = [["role": "user", "content": "x"]]
     let cases: [([String: Any], String)] = [
@@ -200,6 +287,41 @@ final class ChatCompletionsRequestTests: XCTestCase {
       ])
     XCTAssertEqual(request.maximumOutputTokens, 32)
     XCTAssertFalse(request.includesStreamUsage)
+  }
+
+  func testReasoningEffortAndTheProvidersSwitches() throws {
+    let messages = [["role": "user", "content": "x"]]
+    let unset = try request(["messages": messages])
+    XCTAssertNil(unset.thinking)
+    XCTAssertNil(unset.reasoningEffort)
+    let effort = try request(["messages": messages, "reasoning_effort": "xhigh"])
+    XCTAssertEqual(effort.reasoningEffort, .max)
+    XCTAssertEqual(effort.thinking, .enabled(budget: nil))
+    XCTAssertEqual(
+      try request(["messages": messages, "reasoning_effort": "none"]).thinking, .disabled)
+    // As a client set up for DeepSeek's API sends them.
+    let deepSeek = try request([
+      "messages": messages, "thinking": ["type": "enabled"], "reasoning_effort": "max",
+    ])
+    XCTAssertEqual(deepSeek.reasoningEffort, .max)
+    XCTAssertEqual(deepSeek.thinking, .enabled(budget: nil))
+    XCTAssertEqual(
+      try request(["messages": messages, "thinking": ["type": "disabled"]]).thinking, .disabled)
+    XCTAssertEqual(
+      try request(["messages": messages, "enable_thinking": false]).thinking, .disabled)
+    XCTAssertEqual(
+      try request(["messages": messages, "enable_thinking": true]).thinking,
+      .enabled(budget: nil))
+    let invalid: [[String: Any]] = [
+      ["messages": messages, "reasoning_effort": "extreme"],
+      ["messages": messages, "thinking": ["type": "adaptive"]],
+      ["messages": messages, "enable_thinking": "yes"],
+    ]
+    for object in invalid {
+      XCTAssertThrowsError(try request(object)) { error in
+        guard case ResponsesRequestError.invalid = error else { return XCTFail("\(error)") }
+      }
+    }
   }
 
   func testNullNewerLimitLeavesTheOlderOne() throws {

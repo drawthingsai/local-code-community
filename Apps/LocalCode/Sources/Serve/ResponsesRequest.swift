@@ -36,10 +36,21 @@ struct ResponsesRequest {
     }
   }
 
+  /// What a request says about thinking. The chat's settings say the rest.
+  enum Thinking: Equatable {
+    case disabled
+    /// Up to the client's budget, if it gave one.
+    case enabled(budget: Int?)
+  }
+
   var instructions = ""
   var transcript = [AgentTranscriptEntry]()
   var tools = [Tool]()
   var isStreaming = false
+  /// Nil leaves it to the chat's Thinking Budget.
+  var thinking: Thinking?
+  /// Nil leaves it to the chat's Reasoning Effort.
+  var reasoningEffort: CodeAgentReasoningEffort?
   var maximumOutputTokens: Int?
   /// `temperature: 0` asks for the most likely token when the model is not thinking.
   var isDeterministic = false
@@ -88,9 +99,21 @@ struct ResponsesRequest {
     default:
       throw ResponsesRequestError.invalid("input must be a string or an array of items.")
     }
+    // A configuration_update item sets the effort from where it is on, so that changing it leaves
+    // the input before it as it was. The effort is in the system prompt here, so the last one is
+    // the one that counts.
+    let configurationUpdates = items.filter { $0["type"] as? String == "configuration_update" }
     try self.init(
-      object: object, instructions: object["instructions"] as? String, items: items, tools: tools,
+      object: object, instructions: object["instructions"] as? String,
+      items: items.filter { $0["type"] as? String != "configuration_update" }, tools: tools,
       maximumOutputTokensParameter: "max_output_tokens")
+    try setOpenAIReasoningEffort(
+      (object["reasoning"] as? [String: Any])?["effort"], parameter: "reasoning.effort")
+    for update in configurationUpdates {
+      try setOpenAIReasoningEffort(
+        (update["reasoning"] as? [String: Any])?["effort"],
+        parameter: "configuration_update.reasoning.effort")
+    }
   }
 
   /// What every wire protocol's body has in common, once its conversation is in input items.
@@ -118,6 +141,30 @@ struct ResponsesRequest {
       throw ResponsesRequestError.invalid("The request holds no conversation.")
     }
     self.instructions = systemMessages.joined(separator: "\n\n")
+  }
+
+  /// OpenAI's efforts go from `none`, which turns the thinking off, to `xhigh`. Some clients send
+  /// `max` for a model they don't know.
+  mutating func setOpenAIReasoningEffort(_ value: Any?, parameter: String) throws {
+    guard let value, !(value is NSNull) else { return }
+    switch value as? String {
+    case "none":
+      thinking = .disabled
+      reasoningEffort = nil
+      return
+    case "minimal", "low":
+      reasoningEffort = .low
+    case "medium":
+      reasoningEffort = .medium
+    case "high":
+      reasoningEffort = .high
+    case "xhigh", "max":
+      reasoningEffort = .max
+    default:
+      throw ResponsesRequestError.invalid(
+        "\(parameter) must be none, minimal, low, medium, high or xhigh.")
+    }
+    thinking = .enabled(budget: nil)
   }
 
   static func object(from body: Data) throws -> [String: Any] {
@@ -188,6 +235,12 @@ struct ResponsesRequest {
     for item in items {
       switch item["type"] as? String ?? "message" {
       case "message":
+        let text = try messageText(item["content"])
+        // A system message with nothing in it, such as a Messages change of effort with empty text
+        // for its content, is no part of the conversation, even between a call and its output.
+        if ["system", "developer"].contains(item["role"] as? String), text.isEmpty {
+          continue
+        }
         // Qwen can write text after its calls, so the response holds a message after them, ahead
         // of their outputs. Only once the outputs are in does the next one start a new round.
         if item["role"] as? String != "assistant" {
@@ -195,7 +248,6 @@ struct ResponsesRequest {
         } else if case .toolResults? = transcript.last {
           try endToolCalls()
         }
-        let text = try messageText(item["content"])
         if item["role"] as? String != "assistant" {
           endThinkingOnlyTurn()
         }

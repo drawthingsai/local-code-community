@@ -88,6 +88,28 @@ extension ResponsesRequest {
       object: object, instructions: nil, items: items, tools: tools,
       maximumOutputTokensParameter: (object["max_completion_tokens"] ?? NSNull()) is NSNull
         ? "max_tokens" : "max_completion_tokens")
+    try setOpenAIReasoningEffort(object["reasoning_effort"], parameter: "reasoning_effort")
+    // How DeepSeek's and Z.ai's own APIs turn the thinking on and off, which a client set up for
+    // them sends along with the effort.
+    switch object["thinking"] {
+    case nil, is NSNull:
+      break
+    case let value as [String: Any] where value["type"] as? String == "enabled":
+      thinking = .enabled(budget: nil)
+    case let value as [String: Any] where value["type"] as? String == "disabled":
+      thinking = .disabled
+    default:
+      throw ResponsesRequestError.invalid("thinking.type must be enabled or disabled.")
+    }
+    // And how Qwen's does.
+    switch object["enable_thinking"] {
+    case nil, is NSNull:
+      break
+    case let value as Bool:
+      thinking = value ? .enabled(budget: nil) : .disabled
+    default:
+      throw ResponsesRequestError.invalid("enable_thinking must be true or false.")
+    }
     includesStreamUsage =
       (object["stream_options"] as? [String: Any])?["include_usage"] as? Bool ?? false
   }

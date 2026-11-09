@@ -14,8 +14,11 @@ protocol ResponsesModelAdapter: AnyObject {
   var restoredTokenLength: Int? { get }
   /// How many tokens the KV cache holds after the latest decode.
   var kvCacheTokenLength: Int { get }
-  /// The whole conversation up to and including the assistant's opening tokens.
-  func promptTokens(for request: ResponsesRequest, isThinking: Bool) -> [Int32]
+  /// The whole conversation up to and including the assistant's opening tokens, with the effort
+  /// where the model's chat template has it.
+  func promptTokens(
+    for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
+  ) -> [Int32]
   func makeOutputParser(isThinking: Bool) -> ResponsesOutputParser
   func isTerminal(_ token: Int32) -> Bool
   func decode(
@@ -151,9 +154,14 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
   var maximumContextLength: Int { Qwen3_5CodeAgent.maximumContextLength }
   var minimumGenerationReserve: Int { Qwen3_5CodeAgent.minimumGenerationReserve }
 
-  func promptTokens(for request: ResponsesRequest, isThinking: Bool) -> [Int32] {
+  func promptTokens(
+    for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
+  ) -> [Int32] {
     let systemTokens = tokenizeSystemPromptSections(
-      Self.systemSections(instructions: request.instructions, tools: request.tools),
+      Self.systemSections(
+        instructions: request.instructions, tools: request.tools,
+        // As the agent does, which leaves the effort out when the model doesn't think.
+        reasoningEffort: isThinking ? Qwen3_5CodeAgent.ReasoningEffort(reasoningEffort) : .medium),
       unsafeTokenizer: Qwen3_5TextGenerator.unsafeTokenizer,
       safeTokenizer: Qwen3_5TextGenerator.safeTokenizer)
     let assistantTokens = Qwen3_5TextGenerator.unsafeTokenizer.tokenize(
@@ -205,11 +213,14 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
   }
 
   /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
-  static func systemSections(instructions: String, tools: [ResponsesRequest.Tool])
-    -> [SystemPromptSection]
-  {
-    guard !instructions.isEmpty || !tools.isEmpty else { return [] }
-    var sections: [SystemPromptSection] = [("<|im_start|>system\n", true)]
+  /// The effort opens it, as it opens the agent's.
+  static func systemSections(
+    instructions: String, tools: [ResponsesRequest.Tool],
+    reasoningEffort: Qwen3_5CodeAgent.ReasoningEffort
+  ) -> [SystemPromptSection] {
+    // Only the opening has the placeholder, so that the client's text can't be taken for it.
+    var sections = reasoningEffort.emitSections([("<|im_start|>system\n{{REASONING_EFFORT}}", true)]
+    )
     if !tools.isEmpty {
       sections.append(("# Tools\n\nYou have access to the following functions:\n\n<tools>\n", true))
       sections.append((tools.map(\.schemaLine).joined(separator: "\n") + "\n", false))
@@ -248,6 +259,8 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
       sections.append((instructions, false))
     }
     sections.append(("<|im_end|>\n", true))
+    // A system message with nothing in it is left out.
+    guard sections.map(\.text).joined() != "<|im_start|>system\n<|im_end|>\n" else { return [] }
     return sections
   }
 
@@ -336,10 +349,16 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
   var maximumContextLength: Int { DeepSeek4CodeAgent<Generator>.maximumContextLength }
   var minimumGenerationReserve: Int { DeepSeek4CodeAgent<Generator>.minimumGenerationReserve }
 
-  func promptTokens(for request: ResponsesRequest, isThinking: Bool) -> [Int32] {
+  func promptTokens(
+    for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
+  ) -> [Int32] {
     let systemTokens = tokenizeSystemPromptSections(
       Self.systemSections(
-        instructions: request.instructions, tools: request.tools, version: Generator.version),
+        instructions: request.instructions, tools: request.tools, version: Generator.version,
+        // As the agent does, which states an effort only for the thinking.
+        reasoningEffort: isThinking
+          ? DeepSeek4CodeAgent<Generator>.ReasoningEffort(reasoningEffort) : .high,
+        isThinking: isThinking),
       unsafeTokenizer: Generator.unsafeTokenizer, safeTokenizer: Generator.safeTokenizer)
     return systemTokens + DeepSeek4CodeAgent<Generator>.parse(request.transcript) + [
       Self.assistantToken, isThinking ? Self.thinkStartToken : Self.thinkEndToken,
@@ -347,16 +366,21 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
   }
 
   /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
+  /// The effort comes right after the start, as in the agent's prompt and the model's template.
   static func systemSections(
-    instructions: String, tools: [ResponsesRequest.Tool], version: LLMVersion
+    instructions: String, tools: [ResponsesRequest.Tool], version: LLMVersion,
+    reasoningEffort: DeepSeek4CodeAgent<Generator>.ReasoningEffort, isThinking: Bool
   ) -> [SystemPromptSection] {
     let format = DeepSeek4ToolCallParser.Format(version: version)
-    var sections: [SystemPromptSection] = [
-      (
-        version == .deepseek_4_1_flash
-          ? "<｜begin▁of▁sentence｜><｜System｜>" : "<｜begin▁of▁sentence｜>", true
-      )
-    ]
+    // Only the opening has the placeholder, so that the client's text can't be taken for it.
+    var sections = reasoningEffort.emitSections(
+      [
+        (
+          version == .deepseek_4_1_flash
+            ? "<｜begin▁of▁sentence｜><｜System｜>{{REASONING_EFFORT}}"
+            : "<｜begin▁of▁sentence｜>{{REASONING_EFFORT}}", true
+        )
+      ], thinkingEnabled: isThinking)
     if !instructions.isEmpty {
       sections.append((instructions + (tools.isEmpty ? "" : "\n\n"), false))
     }
@@ -458,9 +482,13 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
   var maximumContextLength: Int { GLM5_3CodeAgent.maximumContextLength }
   var minimumGenerationReserve: Int { GLM5_3CodeAgent.minimumGenerationReserve }
 
-  func promptTokens(for request: ResponsesRequest, isThinking: Bool) -> [Int32] {
+  func promptTokens(
+    for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
+  ) -> [Int32] {
     let systemTokens = tokenizeSystemPromptSections(
-      Self.systemSections(instructions: request.instructions, tools: request.tools),
+      Self.systemSections(
+        instructions: request.instructions, tools: request.tools,
+        reasoningEffort: GLM5_3CodeAgent.ReasoningEffort(reasoningEffort)),
       unsafeTokenizer: GLM5_3TextGenerator.unsafeTokenizer,
       safeTokenizer: GLM5_3TextGenerator.safeTokenizer)
     let assistantTokens =
@@ -475,11 +503,15 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
   }
 
   /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
-  /// The effort is the agent's default.
-  static func systemSections(instructions: String, tools: [ResponsesRequest.Tool])
-    -> [SystemPromptSection]
-  {
-    var sections: [SystemPromptSection] = [("[gMASK]<sop><|system|>Reasoning Effort: High", true)]
+  /// The template states the effort whether or not the model thinks, and so does the agent.
+  static func systemSections(
+    instructions: String, tools: [ResponsesRequest.Tool],
+    reasoningEffort: GLM5_3CodeAgent.ReasoningEffort
+  ) -> [SystemPromptSection] {
+    // Only the opening has the placeholder, so that the client's text can't be taken for it.
+    var sections = reasoningEffort.emitSections([
+      ("[gMASK]<sop><|system|>Reasoning Effort: {{REASONING_EFFORT}}", true)
+    ])
     if !tools.isEmpty {
       sections.append(
         (

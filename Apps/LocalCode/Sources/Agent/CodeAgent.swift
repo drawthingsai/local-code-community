@@ -1,15 +1,6 @@
 import BashToolContext
 import ProjectHistoryManager
 
-enum CodeAgentReasoningEffort: String, Codable, CaseIterable {
-  case low
-  case medium
-  case high
-  case max
-}
-
-typealias ReasoningEffort = CodeAgentReasoningEffort
-
 public struct CodeAgentStatistics: Sendable {
   public var prefillDurationSoFar: Float
   public var prefillTokensSoFar: Int

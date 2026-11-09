@@ -188,6 +188,56 @@ final class ResponsesRequestTests: XCTestCase {
     }
   }
 
+  func testReasoningEffortSetsTheThinking() throws {
+    let unset = try request(["input": "x"])
+    XCTAssertNil(unset.thinking)
+    XCTAssertNil(unset.reasoningEffort)
+    XCTAssertNil(try request(["input": "x", "reasoning": ["effort": NSNull()]]).thinking)
+    let efforts: [(String, CodeAgentReasoningEffort)] = [
+      ("minimal", .low), ("low", .low), ("medium", .medium), ("high", .high), ("xhigh", .max),
+      ("max", .max),
+    ]
+    for (effort, expected) in efforts {
+      let request = try request(["input": "x", "reasoning": ["effort": effort, "summary": "auto"]])
+      XCTAssertEqual(request.thinking, .enabled(budget: nil))
+      XCTAssertEqual(request.reasoningEffort, expected)
+    }
+    let none = try request(["input": "x", "reasoning": ["effort": "none"]])
+    XCTAssertEqual(none.thinking, .disabled)
+    XCTAssertNil(none.reasoningEffort)
+    for value: Any in ["extreme", 3] {
+      XCTAssertThrowsError(try request(["input": "x", "reasoning": ["effort": value]])) { error in
+        guard case ResponsesRequestError.invalid = error else { return XCTFail("\(error)") }
+      }
+    }
+  }
+
+  func testLastConfigurationUpdateSetsTheEffortAndLeavesTheConversation() throws {
+    let request = try request([
+      "reasoning": ["effort": "medium"],
+      "input": [
+        ["type": "configuration_update", "reasoning": ["effort": "low"]],
+        ["role": "user", "content": "A"],
+        ["role": "assistant", "content": "B"],
+        ["type": "configuration_update", "reasoning": ["effort": "xhigh"]],
+        ["role": "user", "content": "C"],
+      ],
+    ])
+    XCTAssertEqual(request.reasoningEffort, .max)
+    XCTAssertEqual(request.thinking, .enabled(budget: nil))
+    XCTAssertEqual(
+      request.transcript,
+      [.user("A"), .assistant(text: "B", thinking: "", toolCalls: []), .user("C")])
+    let off = try self.request([
+      "reasoning": ["effort": "high"],
+      "input": [
+        ["role": "user", "content": "A"],
+        ["type": "configuration_update", "reasoning": ["effort": "none"]],
+      ],
+    ])
+    XCTAssertEqual(off.thinking, .disabled)
+  }
+
   func testOutputLimitIsAWholeNumberAboveZero() throws {
     XCTAssertEqual(try request(["input": "x", "max_output_tokens": 64]).maximumOutputTokens, 64)
     XCTAssertEqual(try request(["input": "x", "max_output_tokens": 64.0]).maximumOutputTokens, 64)
