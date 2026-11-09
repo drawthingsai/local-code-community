@@ -1106,9 +1106,7 @@ extension DeepSeek4_1TextGenerator {
               selected = Functional.gumbelArgmax(logits, axis: 1, scale: scale)
                 .reshaped(format: .NHWC, shape: [1])
             }
-            let cpu = selected.toCPU()
-            graph.joined()
-            token = cpu.rawValue[0]
+            token = selected.toCPU()[0]
           }
           for layer in 0..<config.layers {
             kvCache.layers[layer].rawTokenLength += layerLengths[layer]

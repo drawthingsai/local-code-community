@@ -188,10 +188,15 @@ struct LocalAgentCLI: ParsableCommand {
         projectContext: projectContext, environmentContext: environment, prefixTokens: prefixTokens,
         prefixEmbedSpans: prefixEmbedSpans)
     case .glm_5_3_flash:
+      // Without the drafter beside the checkpoint, decoding runs without DFlash2.
       let generator = GLM5_3TextGenerator(
         filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
         weightsStreaming: weightsStreaming.flatMap(
-          DeviceCapability.WeightsStreaming.init(rawValue:)))
+          DeviceCapability.WeightsStreaming.init(rawValue:)),
+        drafterFile: specification.draftFile.map {
+          URL(fileURLWithPath: checkpoint).deletingLastPathComponent().appendingPathComponent($0)
+            .path
+        })
       agent = GLM5_3CodeAgent(
         textGenerator: generator, graph: graph, streamContext: stream,
         unsafeTokenizer: GLM5_3TextGenerator.unsafeTokenizer,

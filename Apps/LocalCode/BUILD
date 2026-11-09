@@ -22,6 +22,9 @@ exports_files([
     "Sources/Models/DeepSeek4_1TextGenerator.swift",
     "Sources/Models/DeepSeek4_1EngramCache.swift",
     "Sources/Models/DeepSeek4_1Image.swift",
+    "Sources/Models/GLM5_3ContextCache.swift",
+    "Sources/Models/GLM5_3Image.swift",
+    "Sources/Models/GLM5_3TextGenerator.swift",
 ])
 
 xcodeproj(

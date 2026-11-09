@@ -150,6 +150,45 @@ public final class GLM5_3ContextCache: ContextCache {
           0..<1, 0..<recurrentShape[1], 0..<recurrentShape[2], 0..<recurrentShape[3]] =
           graph.variable(state.recurrent.toGPU(0))
       }
+      // The drafter's state saved with this snapshot, restored into allocated drafter caches only
+      // when every part is present.
+      kvCache.draftData = nil
+      if !kvCache.draftKeys.isEmpty {
+        let draft = GLM5_3DFlash2Configuration.glm5_3Flash
+        let window = draft.windowRows - 1
+        let width = draft.targetLayers.count * configuration.hiddenSize
+        let keys = kvCache.draftKeys.indices.compactMap {
+          store.read("\(snapshot.key)/dflash2/keys/\($0)", kind: .CPU)
+        }
+        let values = kvCache.draftValues.indices.compactMap {
+          store.read("\(snapshot.key)/dflash2/values/\($0)", kind: .CPU)
+        }
+        if let targets = store.read("\(snapshot.key)/dflash2/targets", kind: .CPU),
+          targets.dataType == .Float32, (1...draft.blockSize).contains(targets.shape[0]),
+          Array(targets.shape) == [targets.shape[0], width],
+          let historyStart = store.read("\(snapshot.key)/dflash2/history", kind: .CPU),
+          historyStart.dataType == .Int32, Array(historyStart.shape) == [1],
+          keys.count == kvCache.draftKeys.count, values.count == kvCache.draftValues.count,
+          (keys + values).allSatisfy({
+            $0.dataType == .Float16 && Array($0.shape) == [window, draft.keyValueWidth]
+          })
+        {
+          let rows = targets.shape[0]
+          for (layer, (keys, values)) in zip(keys, values).enumerated() {
+            var keyCache = kvCache.draftKeys[layer]
+            keyCache[0..<window, 0..<draft.keyValueWidth] = graph.variable(
+              Tensor<Float16>(keys).toGPU(0))
+            var valueCache = kvCache.draftValues[layer]
+            valueCache[0..<window, 0..<draft.keyValueWidth] = graph.variable(
+              Tensor<Float16>(values).toGPU(0))
+          }
+          kvCache.draftCacheOrigin = snapshot.end - rows - window
+          kvCache.draftData = (
+            graph.variable(Tensor<Float>(targets).toGPU(0)), rows, snapshot.end - rows
+          )
+          kvCache.draftHistoryStart = Int(Tensor<Int32>(historyStart)[0])
+        }
+      }
       kvCache.tokenLength = snapshot.end
       hasher = snapshot.hasher
       return snapshot.end
@@ -228,6 +267,37 @@ public final class GLM5_3ContextCache: ContextCache {
           graph.joined()
           store.write("\(key)/conv/\(layerIndex)", tensor: conv.rawValue)
           store.write("\(key)/recurrent/\(layerIndex)", tensor: recurrent.rawValue)
+        }
+        // The drafter's state when a verify's committed rows reach the checkpoint: each layer's keys
+        // and values of the window before those rows, the rows, and where its history starts.
+        let draft = GLM5_3DFlash2Configuration.glm5_3Flash
+        if let draftData = kvCache.draftData, draftData.first + draftData.rows == checkpointLength,
+          draftData.rows <= draft.blockSize, !kvCache.draftKeys.isEmpty
+        {
+          let window = draft.windowRows - 1
+          let width = draft.keyValueWidth
+          let base = draftData.first - window - kvCache.draftCacheOrigin
+          for (layerIndex, (keys, values)) in zip(kvCache.draftKeys, kvCache.draftValues)
+            .enumerated()
+          {
+            for (name, cache) in [("keys", keys), ("values", values)] {
+              let rows = cache.reshaped(
+                .WC(window, width), offset: [base, 0], strides: [width, 1]
+              )
+              .toCPU()
+              graph.joined()
+              store.write("\(key)/dflash2/\(name)/\(layerIndex)", tensor: rows.rawValue)
+            }
+          }
+          let targetWidth = draftData.targets.shape[1]
+          let targets = draftData.targets.reshaped(
+            .WC(draftData.rows, targetWidth), offset: [0, 0], strides: [targetWidth, 1]
+          ).toCPU()
+          graph.joined()
+          store.write("\(key)/dflash2/targets", tensor: targets.rawValue)
+          store.write(
+            "\(key)/dflash2/history",
+            tensor: Tensor<Int32>([Int32(kvCache.draftHistoryStart)], .CPU, .C(1)))
         }
         // Written last: a snapshot counts only once all of its states are in.
         store.write(

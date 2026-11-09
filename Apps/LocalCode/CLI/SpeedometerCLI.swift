@@ -150,10 +150,15 @@ struct SpeedometerCLI: ParsableCommand {
         thinkingBudget: thinkingBudget, deterministic: deterministic)
     case .glm_5_3_flash:
       speedometer = GLM5_3Speedometer(
+        // Without the drafter beside the checkpoint, decoding runs without DFlash2.
         textGenerator: GLM5_3TextGenerator(
           filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
           weightsStreaming: weightsStreaming.flatMap(
-            DeviceCapability.WeightsStreaming.init(rawValue:))),
+            DeviceCapability.WeightsStreaming.init(rawValue:)),
+          drafterFile: specification.draftFile.map {
+            URL(fileURLWithPath: checkpoint).deletingLastPathComponent().appendingPathComponent($0)
+              .path
+          }),
         contextLengths: contextLengths, graph: graph, streamContext: stream,
         storePath: storePath, libraryURL: libraryURL, thinkingBudget: thinkingBudget,
         deterministic: deterministic)
