@@ -2821,11 +2821,11 @@
 "remove_download_detail" = "%1$@をこのデバイスから削除し、%2$@の空き容量を確保します。いつでも再ダウンロードできます。";
 "remove" = "削除";
 "serve" = "サーバー";
-"responses_api" = "Responses API";
-"responses_api_detail" = "このMac上の他のアプリが、%@ のOpenAI互換Responses APIを通じてローカルモデルを使えるようにします。0.0.0.0を選ぶと、ネットワーク上の他のデバイスからもアクセスできます。";
+"api" = "API";
+"api_detail" = "このMac上の他のアプリが、%@ のOpenAI Responses、Anthropic Messages、OpenAI Chat Completions APIを通じてローカルモデルを使えるようにします。OpenAIのクライアントでは /v1 を付けてください。0.0.0.0を選ぶと、ネットワーク上の他のデバイスからもアクセスできます。";
 "serve_model_detail" = "リクエストに応答するモデルを選択してください。チャットで使っているモデルはチャットとメモリを共有しますが、別のモデルには専用のメモリが必要です。";
 "serve_subtitle_detail" = "このMac上の他のアプリがここからローカルモデルを使えます。";
-"serve_off_detail" = "提供を始めるには、設定でResponses APIをオンにしてください。";
+"serve_off_detail" = "提供を始めるには、設定でAPIをオンにしてください。";
 "status" = "状態";
 "off" = "オフ";
 "listening" = "待機中";

@@ -307,8 +307,9 @@ final class StreamingHTTPConnection {
       completion: .contentProcessed { _ in })
   }
 
-  func sendEvent(name: String, data: Data) {
-    var event = Data("event: \(name)\ndata: ".utf8)
+  func sendEvent(name: String?, data: Data) {
+    var event = Data((name.map { "event: \($0)\n" } ?? "").utf8)
+    event.append(Data("data: ".utf8))
     event.append(data)
     event.append(Data("\n\n".utf8))
     connection.send(content: event, completion: .contentProcessed { _ in })

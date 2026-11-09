@@ -2798,11 +2798,11 @@
 "remove_download_detail" = "%1$@ 將從此裝置中刪除，釋放 %2$@ 空間。可隨時重新下載。";
 "remove" = "移除";
 "serve" = "服務";
-"responses_api" = "Responses API";
-"responses_api_detail" = "讓這台 Mac 上的其他 App 透過 %@ 上與 OpenAI 相容的 Responses API 使用本地模型。選擇 0.0.0.0 後，網路中的其他裝置也可以存取。";
+"api" = "API";
+"api_detail" = "讓這台 Mac 上的其他 App 透過 %@ 上的 OpenAI Responses、Anthropic Messages 和 OpenAI Chat Completions API 使用本地模型。OpenAI 用戶端需加上 /v1。選擇 0.0.0.0 後，網路中的其他裝置也可以存取。";
 "serve_model_detail" = "選擇用於回應請求的模型。與聊天相同的模型會與聊天共用記憶體，其他模型則需要獨立的記憶體。";
 "serve_subtitle_detail" = "這台 Mac 上的其他 App 可以在此使用本地模型。";
-"serve_off_detail" = "在設定中開啟 Responses API 即可開始提供服務。";
+"serve_off_detail" = "在設定中開啟 API 即可開始提供服務。";
 "status" = "狀態";
 "off" = "關閉";
 "listening" = "正在監聽";

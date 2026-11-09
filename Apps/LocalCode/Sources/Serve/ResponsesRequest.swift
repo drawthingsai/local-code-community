@@ -5,7 +5,8 @@ enum ResponsesRequestError: Error, Equatable {
   case unsupported(parameter: String, message: String)
 }
 
-/// A `POST /v1/responses` body, reduced to what the local models can do with it.
+/// A `POST /v1/responses` body, reduced to what the local models can do with it. The other wire
+/// protocols' bodies come down to Responses' input items too, which hold all they can say.
 struct ResponsesRequest {
   struct Tool {
     let name: String
@@ -42,11 +43,11 @@ struct ResponsesRequest {
   var maximumOutputTokens: Int?
   /// `temperature: 0` asks for the most likely token when the model is not thinking.
   var isDeterministic = false
+  /// Chat Completions' `stream_options.include_usage`, as its stream has usage only when asked.
+  var includesStreamUsage = false
 
   init(body: Data) throws {
-    guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
-      throw ResponsesRequestError.invalid("The request body is not a JSON object.")
-    }
+    let object = try Self.object(from: body)
     // The model keeps no response, so a follow-up has to send the whole conversation again.
     if !(object["previous_response_id"] is NSNull), object["previous_response_id"] != nil {
       throw ResponsesRequestError.unsupported(
@@ -63,19 +64,13 @@ struct ResponsesRequest {
       throw ResponsesRequestError.unsupported(
         parameter: "text.format", message: "Structured output is not supported.")
     }
-    isStreaming = object["stream"] as? Bool ?? false
-    if let value = object["max_output_tokens"], !(value is NSNull) {
-      guard let number = value as? NSNumber, let count = Int(exactly: number.doubleValue), count > 0
-      else {
-        throw ResponsesRequestError.invalid("max_output_tokens must be a whole number above 0.")
-      }
-      maximumOutputTokens = count
-    }
-    isDeterministic = (object["temperature"] as? NSNumber)?.doubleValue == 0
-    if object["tool_choice"] as? String != "none", let tools = object["tools"] as? [[String: Any]] {
+    var tools = [Tool]()
+    if object["tool_choice"] as? String != "none",
+      let definitions = object["tools"] as? [[String: Any]]
+    {
       // Hosted and custom tools have no local equivalent. A client that offers them alongside
       // functions should still work with the functions.
-      self.tools = tools.compactMap { tool in
+      tools = definitions.compactMap { tool in
         guard tool["type"] as? String == "function", let name = tool["name"] as? String else {
           return nil
         }
@@ -84,22 +79,52 @@ struct ResponsesRequest {
           parameters: tool["parameters"] as? [String: Any])
       }
     }
-    var systemMessages = [String]()
-    if let instructions = object["instructions"] as? String, !instructions.isEmpty {
-      systemMessages.append(instructions)
-    }
+    let items: [[String: Any]]
     switch object["input"] {
     case let input as String:
-      transcript = [.user(input)]
+      items = [["type": "message", "role": "user", "content": input]]
     case let input as [[String: Any]]:
-      transcript = try Self.transcript(from: input, systemMessages: &systemMessages)
+      items = input
     default:
       throw ResponsesRequestError.invalid("input must be a string or an array of items.")
     }
-    guard !transcript.isEmpty else {
-      throw ResponsesRequestError.invalid("input holds no conversation.")
+    try self.init(
+      object: object, instructions: object["instructions"] as? String, items: items, tools: tools,
+      maximumOutputTokensParameter: "max_output_tokens")
+  }
+
+  /// What every wire protocol's body has in common, once its conversation is in input items.
+  init(
+    object: [String: Any], instructions: String?, items: [[String: Any]], tools: [Tool],
+    maximumOutputTokensParameter: String
+  ) throws {
+    isStreaming = object["stream"] as? Bool ?? false
+    if let value = object[maximumOutputTokensParameter], !(value is NSNull) {
+      guard let number = value as? NSNumber, let count = Int(exactly: number.doubleValue), count > 0
+      else {
+        throw ResponsesRequestError.invalid(
+          "\(maximumOutputTokensParameter) must be a whole number above 0.")
+      }
+      maximumOutputTokens = count
     }
-    instructions = systemMessages.joined(separator: "\n\n")
+    isDeterministic = (object["temperature"] as? NSNumber)?.doubleValue == 0
+    self.tools = tools
+    var systemMessages = [String]()
+    if let instructions, !instructions.isEmpty {
+      systemMessages.append(instructions)
+    }
+    transcript = try Self.transcript(from: items, systemMessages: &systemMessages)
+    guard !transcript.isEmpty else {
+      throw ResponsesRequestError.invalid("The request holds no conversation.")
+    }
+    self.instructions = systemMessages.joined(separator: "\n\n")
+  }
+
+  static func object(from body: Data) throws -> [String: Any] {
+    guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
+      throw ResponsesRequestError.invalid("The request body is not a JSON object.")
+    }
+    return object
   }
 
   /// Decodes a function call's arguments the way its tool's schema describes them.

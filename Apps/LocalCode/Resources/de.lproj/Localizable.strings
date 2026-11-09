@@ -2823,11 +2823,11 @@
 "remove_download_detail" = "%1$@ wird von diesem Gerät gelöscht, wodurch %2$@ frei werden. Sie können das Modell jederzeit erneut herunterladen.";
 "remove" = "Entfernen";
 "serve" = "Bereitstellen";
-"responses_api" = "Responses API";
-"responses_api_detail" = "Andere Apps auf diesem Mac können über eine OpenAI-kompatible Responses API unter %@ ein lokales Modell nutzen. Mit 0.0.0.0 können auch andere Geräte in Ihrem Netzwerk darauf zugreifen.";
+"api" = "API";
+"api_detail" = "Andere Apps auf diesem Mac können unter %@ über die APIs OpenAI Responses, Anthropic Messages und OpenAI Chat Completions ein lokales Modell nutzen. Für OpenAI-Clients /v1 anhängen. Mit 0.0.0.0 können auch andere Geräte in Ihrem Netzwerk darauf zugreifen.";
 "serve_model_detail" = "Wählen Sie, welches Modell Anfragen beantwortet. Das Modell Ihrer Chats teilt seinen Speicher mit ihnen, ein anderes Modell braucht eigenen Speicher.";
 "serve_subtitle_detail" = "Andere Apps auf diesem Mac können hier ein lokales Modell nutzen.";
-"serve_off_detail" = "Aktiviere die Responses API in den Einstellungen, um die Bereitstellung zu starten.";
+"serve_off_detail" = "Aktiviere die API in den Einstellungen, um die Bereitstellung zu starten.";
 "status" = "Status";
 "off" = "Aus";
 "listening" = "Bereit";

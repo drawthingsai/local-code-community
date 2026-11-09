@@ -156,7 +156,7 @@ private final class Probe: ServeControllerDelegate {
       }
     }
     print(
-      "Serving \(modelPath) at \(ServeController.baseURL(port: controller.state.value.port)), pid \(getpid())"
+      "Serving \(modelPath) at \(ServeController.address(port: controller.state.value.port)), pid \(getpid())"
     )
     fflush(stdout)
     signal(SIGUSR1, SIG_IGN)

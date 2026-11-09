@@ -771,7 +771,10 @@ final class ChatWorkflow: Workflow {
       return #imageLiteral(resourceName: "qwen-20")
     case .deepseek_4_1_flash, .deepseek_4_flash:
       return #imageLiteral(resourceName: "deepseek-20")
-    case .glm_5_3_flash, nil:
+    case .glm_5_3_flash:
+      // The Z.ai mark is a flat dark glyph; template rendering keeps it visible in dark mode.
+      return #imageLiteral(resourceName: "zai-20").withRenderingMode(.alwaysTemplate)
+    case nil:
       return #imageLiteral(resourceName: "cube").withRenderingMode(.alwaysTemplate)
     }
   }

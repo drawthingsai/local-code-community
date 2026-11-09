@@ -2824,11 +2824,11 @@
 "remove_download_detail" = "%1$@이(가) 이 기기에서 삭제되어 %2$@의 공간이 확보됩니다. 언제든지 다시 다운로드할 수 있습니다.";
 "remove" = "제거";
 "serve" = "서버";
-"responses_api" = "Responses API";
-"responses_api_detail" = "이 Mac의 다른 앱이 %@의 OpenAI 호환 Responses API를 통해 로컬 모델을 사용할 수 있습니다. 0.0.0.0을 선택하면 네트워크의 다른 기기에서도 접근할 수 있습니다.";
+"api" = "API";
+"api_detail" = "이 Mac의 다른 앱이 %@의 OpenAI Responses, Anthropic Messages, OpenAI Chat Completions API를 통해 로컬 모델을 사용할 수 있습니다. OpenAI 클라이언트에서는 /v1을 붙이세요. 0.0.0.0을 선택하면 네트워크의 다른 기기에서도 접근할 수 있습니다.";
 "serve_model_detail" = "요청에 응답할 모델을 선택하세요. 채팅에서 사용하는 모델은 채팅과 메모리를 공유하지만, 다른 모델은 별도의 메모리가 필요합니다.";
 "serve_subtitle_detail" = "이 Mac의 다른 앱이 여기서 로컬 모델을 사용할 수 있습니다.";
-"serve_off_detail" = "서버를 시작하려면 설정에서 Responses API를 켜세요.";
+"serve_off_detail" = "서버를 시작하려면 설정에서 API를 켜세요.";
 "status" = "상태";
 "off" = "끔";
 "listening" = "수신 대기 중";

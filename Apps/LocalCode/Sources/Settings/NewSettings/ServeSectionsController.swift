@@ -88,10 +88,10 @@ final class ServeSectionsController {
   }
 
   private func makeSections() -> [SettingsSectionItem] {
-    [responsesAPISection(), modelSection()]
+    [apiSection(), modelSection()]
   }
 
-  private func responsesAPISection() -> SettingsSectionItem {
+  private func apiSection() -> SettingsSectionItem {
     // Port and IP as Draw Things offers them for its API server.
     var portItem = SettingsEditableButtonItem(
       value: port, title: LocalizedString.forKey("port"), buttonTitle: "\(port)",
@@ -128,9 +128,8 @@ final class ServeSectionsController {
           }),
         portItem,
         ipItem,
-      ], title: LocalizedString.forKey("responses_api"),
-      detail: LocalizedString.format(
-        key: "responses_api_detail", ServeController.baseURL(port: port)),
+      ], title: LocalizedString.forKey("api"),
+      detail: LocalizedString.format(key: "api_detail", ServeController.address(port: port)),
       lookUpKey: "local_code_responses_api_detail_hidden", workspace: workspace)
   }
 

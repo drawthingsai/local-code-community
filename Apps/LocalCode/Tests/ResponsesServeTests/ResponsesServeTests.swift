@@ -2,21 +2,24 @@ import Foundation
 import Network
 import XCTest
 
-private final class RecordingTransport: ResponsesTransport {
+final class RecordingTransport: ResponsesTransport {
   var isDisconnected = false
   var status: Int?
   var body: Data?
   var didBeginEventStream = false
   var didClose = false
-  var events = [(name: String, object: [String: Any])]()
+  var events = [(name: String?, object: [String: Any])]()
+  /// Every event's data as text, for the ones that aren't JSON.
+  var eventData = [String]()
 
   func respond(status: Int, contentType: String, body: Data) {
     self.status = status
     self.body = body
   }
   func beginEventStream() { didBeginEventStream = true }
-  func sendEvent(name: String, data: Data) {
-    events.append((name, try! JSONSerialization.jsonObject(with: data) as! [String: Any]))
+  func sendEvent(name: String?, data: Data) {
+    eventData.append(String(decoding: data, as: UTF8.self))
+    events.append((name, (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]))
   }
   func sendKeepAlive() {}
   func close() { didClose = true }
@@ -311,7 +314,7 @@ final class ResponsesRequestTests: XCTestCase {
 }
 
 final class ResponsesResponseWriterTests: XCTestCase {
-  private let usage = ResponsesResponseWriter.Usage(
+  private let usage = ResponseUsage(
     inputTokens: 10, cachedInputTokens: 4, outputTokens: 5, reasoningTokens: 2)
 
   func testStreamingEventsComeInOrderWithDeltasThatAddUp() {

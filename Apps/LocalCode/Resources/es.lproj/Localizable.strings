@@ -2783,11 +2783,11 @@
 "remove_download_detail" = "%1$@ se eliminará de este dispositivo y se liberarán %2$@. Puedes volver a descargarlo cuando quieras.";
 "remove" = "Eliminar";
 "serve" = "Servir";
-"responses_api" = "Responses API";
-"responses_api_detail" = "Permite que otras apps de este Mac usen un modelo local mediante una Responses API compatible con OpenAI en %@. Con 0.0.0.0, otros dispositivos de su red también pueden acceder a ella.";
+"api" = "API";
+"api_detail" = "Permite que otras apps de este Mac usen un modelo local en %@ mediante las API OpenAI Responses, Anthropic Messages y OpenAI Chat Completions. Para clientes de OpenAI, añada /v1. Con 0.0.0.0, otros dispositivos de su red también pueden acceder a ella.";
 "serve_model_detail" = "Elija qué modelo responde a las solicitudes. El modelo que usan sus chats comparte su memoria con ellos, mientras que otro modelo necesita memoria propia.";
 "serve_subtitle_detail" = "Otras apps de este Mac pueden usar aquí un modelo local.";
-"serve_off_detail" = "Activa Responses API en los ajustes para empezar a servir.";
+"serve_off_detail" = "Activa la API en los ajustes para empezar a servir.";
 "status" = "Estado";
 "off" = "Desactivado";
 "listening" = "Escuchando";

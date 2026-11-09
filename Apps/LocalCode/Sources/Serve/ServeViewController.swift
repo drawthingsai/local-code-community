@@ -23,7 +23,7 @@ final class ServeViewController: UIViewController {
   private static let bytesPerGigabyte: Double = 1_073_741_824
   private static func curlExample(port: Int) -> String {
     """
-    curl \(ServeController.baseURL(port: port))/responses \\
+    curl \(ServeController.address(port: port))\(WireProtocol.openAIResponses.path) \\
       -H "Content-Type: application/json" \\
       -d '{"input": "Say hello.", "stream": true}'
     """
@@ -121,7 +121,7 @@ final class ServeViewController: UIViewController {
   private lazy var statusValueLabel = makeValueLabel()
   private lazy var addressValueLabel = makeValueLabel(isMonospaced: true)
   private lazy var addressCopyButton = makeCopyButton { [weak self] in
-    ServeController.baseURL(port: self?.state.port ?? ServeController.defaultPort)
+    ServeController.address(port: self?.state.port ?? ServeController.defaultPort)
   }
   private lazy var addressRow = makeRow(
     title: LocalizedString.forKey("address"), valueLabel: addressValueLabel,
@@ -247,7 +247,7 @@ final class ServeViewController: UIViewController {
     }
     addRow(
       makeCard(
-        title: LocalizedString.forKey("responses_api"), titleAccessoryView: nil,
+        title: LocalizedString.forKey("api"), titleAccessoryView: nil,
         rows: [
           makeRow(title: LocalizedString.forKey("status"), valueLabel: statusValueLabel),
           addressRow,
@@ -365,7 +365,7 @@ final class ServeViewController: UIViewController {
     addressRow.isHidden = state.listener != .listening
     // While off, nothing here knows the model; the settings beside the page show it.
     modelRow.isHidden = !state.isEnabled
-    addressValueLabel.text = ServeController.baseURL(port: state.port)
+    addressValueLabel.text = ServeController.address(port: state.port)
     curlLabel.text = Self.curlExample(port: state.port)
     modelValueLabel.text =
       state.model.flatMap { delegate?.serveViewController(self, displayNameForModel: $0) }

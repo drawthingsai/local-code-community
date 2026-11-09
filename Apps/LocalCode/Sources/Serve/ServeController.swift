@@ -52,8 +52,9 @@ final class ServeController {
   /// One above Ollama's 11434, so the two can serve on one Mac.
   static let defaultPort = 11_435
 
-  static func baseURL(port: Int) -> String {
-    "http://127.0.0.1:\(port)/v1"
+  /// OpenAI's clients add `/v1` to it, and Anthropic's add `/v1` themselves.
+  static func address(port: Int) -> String {
+    "http://127.0.0.1:\(port)"
   }
 
   static func port(workspace: SQLiteWorkspace) -> Int {
@@ -95,7 +96,7 @@ final class ServeController {
     let identifier = UUID()
     let request: ResponsesRequest
     let connection: StreamingHTTPConnection
-    let writer: ResponsesResponseWriter
+    let writer: any ResponseWriter
     let arrivalDate: Date
     /// As it was on arrival, since the prompt opens the model's thinking only when it's above 0.
     let thinkingBudget: Int
@@ -344,50 +345,52 @@ final class ServeController {
   }
 
   private func respond(
-    _ connection: StreamingHTTPConnection, status: Int, type: String, code: String, message: String,
-    parameter: String? = nil
+    _ connection: StreamingHTTPConnection, wireProtocol: WireProtocol, status: Int, type: String,
+    code: String, message: String, parameter: String? = nil
   ) {
     connection.respond(
       status: status, contentType: "application/json",
-      body: ResponsesResponseWriter.errorBody(
+      body: wireProtocol.errorBody(
         type: type, code: code, message: message, parameter: parameter))
   }
 
   private func handleModels(on connection: StreamingHTTPConnection) {
-    let models = state.value.model.map {
-      [["id": $0, "object": "model", "created": 0, "owned_by": "local"] as [String: Any]]
-    }
-    let body: [String: Any] = ["object": "list", "data": models ?? []]
+    let body = WireProtocol.modelsObject(model: state.value.model)
     connection.respond(
       status: 200, contentType: "application/json",
       body: (try? JSONSerialization.data(withJSONObject: body)) ?? Data())
   }
 
-  private func handleResponses(
-    _ httpRequest: StreamingHTTPRequest, on connection: StreamingHTTPConnection
+  private func handleRequest(
+    _ httpRequest: StreamingHTTPRequest, in wireProtocol: WireProtocol,
+    on connection: StreamingHTTPConnection
   ) {
     let request: ResponsesRequest
     do {
-      request = try ResponsesRequest(body: httpRequest.body)
+      request = try wireProtocol.request(body: httpRequest.body)
     } catch ResponsesRequestError.unsupported(let parameter, let message) {
       respond(
-        connection, status: 400, type: "invalid_request_error", code: "unsupported_parameter",
+        connection, wireProtocol: wireProtocol, status: 400, type: "invalid_request_error",
+        code: "unsupported_parameter",
         message: message, parameter: parameter)
       return
     } catch ResponsesRequestError.invalid(let message) {
       respond(
-        connection, status: 400, type: "invalid_request_error", code: "invalid_request",
+        connection, wireProtocol: wireProtocol, status: 400, type: "invalid_request_error",
+        code: "invalid_request",
         message: message)
       return
     } catch {
       respond(
-        connection, status: 400, type: "invalid_request_error", code: "invalid_request",
+        connection, wireProtocol: wireProtocol, status: 400, type: "invalid_request_error",
+        code: "invalid_request",
         message: "\(error)")
       return
     }
     guard let model = state.value.model else {
       respond(
-        connection, status: 503, type: "server_error", code: "model_not_available",
+        connection, wireProtocol: wireProtocol, status: 503, type: "server_error",
+        code: "model_not_available",
         message: "No model is selected to serve.")
       return
     }
@@ -395,16 +398,16 @@ final class ServeController {
     pendingRequests.removeAll { $0.connection.isDisconnected }
     guard pendingRequests.count < Self.maximumQueuedRequests else {
       respond(
-        connection, status: 429, type: "rate_limit_error", code: "too_many_requests",
+        connection, wireProtocol: wireProtocol, status: 429, type: "rate_limit_error",
+        code: "too_many_requests",
         message:
           "\(Self.maximumQueuedRequests) requests are already waiting. Try again once they finish."
       )
       return
     }
-    let writer = ResponsesResponseWriter(
-      transport: connection, isStreaming: request.isStreaming, model: model)
+    let writer = wireProtocol.makeWriter(transport: connection, request: request, model: model)
     // A stream's status and first events go out now, so a client can tell it was accepted however
-    // long the queue is. Later errors arrive as response.failed.
+    // long the queue is. Later errors arrive in the stream.
     writer.start()
     let pendingRequest = PendingRequest(
       request: request, connection: connection, writer: writer, arrivalDate: Date(),
@@ -589,19 +592,23 @@ extension ServeController: StreamingHTTPServerDelegate {
     _ server: StreamingHTTPServer, didReceive request: StreamingHTTPRequest,
     on connection: StreamingHTTPConnection
   ) {
-    switch (request.method, request.path) {
-    case ("GET", "/v1/models"):
+    let wireProtocol = WireProtocol(path: request.path)
+    switch (request.method, request.path, wireProtocol) {
+    case ("GET", "/v1/models", _):
       handleModels(on: connection)
-    case ("POST", "/v1/responses"):
-      handleResponses(request, on: connection)
-    case (_, "/v1/models"), (_, "/v1/responses"):
+    case ("POST", _, let wireProtocol?):
+      handleRequest(request, in: wireProtocol, on: connection)
+    case (_, "/v1/models", _), (_, _, .some):
       respond(
-        connection, status: 405, type: "invalid_request_error", code: "method_not_allowed",
+        connection, wireProtocol: wireProtocol ?? WireProtocol(headers: request.headers),
+        status: 405, type: "invalid_request_error", code: "method_not_allowed",
         message: "\(request.method) is not allowed here.")
     default:
+      let paths = (WireProtocol.allCases.map(\.path) + ["/v1/models"]).joined(separator: ", ")
       respond(
-        connection, status: 404, type: "invalid_request_error", code: "not_found",
-        message: "This server only has /v1/responses and /v1/models.")
+        connection, wireProtocol: WireProtocol(headers: request.headers), status: 404,
+        type: "invalid_request_error", code: "not_found",
+        message: "This server only has \(paths).")
     }
   }
 }

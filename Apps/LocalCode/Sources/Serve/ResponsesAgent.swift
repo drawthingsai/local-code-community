@@ -26,7 +26,7 @@ final class ResponsesAgent: CodeAgent {
     let baseTokens: [Int32]
     /// 0 when the model doesn't think.
     let thinkingBudget: Int
-    let writer: ResponsesResponseWriter
+    let writer: any ResponseWriter
     let transport: ResponsesTransport
   }
 
@@ -39,7 +39,7 @@ final class ResponsesAgent: CodeAgent {
   }
 
   struct Summary: Equatable {
-    var usage: ResponsesResponseWriter.Usage
+    var usage: ResponseUsage
     var prefillTokensPerSecond: Float
     var generationTokensPerSecond: Float
     /// "completed", "incomplete", "failed" or "cancelled".
@@ -50,7 +50,7 @@ final class ResponsesAgent: CodeAgent {
 
   private struct Turn {
     let request: ResponsesRequest
-    let writer: ResponsesResponseWriter
+    let writer: any ResponseWriter
     let transport: ResponsesTransport
     let startTokenOffset: Int
     var baseTokens: [Int32]
@@ -181,7 +181,7 @@ final class ResponsesAgent: CodeAgent {
     {
       unloadCaches()
     }
-    request.writer.start()
+    request.writer.startTurn(inputTokens: baseTokens.count, cachedInputTokens: cachedTokenLength)
     DynamicGraph.setSeed(
       ContextCachePrefixHasher.hash(tokens: baseTokens).prefix(4).reduce(UInt32(0)) {
         ($0 << 8) | UInt32($1)
@@ -350,7 +350,7 @@ final class ResponsesAgent: CodeAgent {
       delegate?.responsesAgent(self, didUpdate: .paused)
       return .empty
     }
-    let usage = ResponsesResponseWriter.Usage(
+    let usage = ResponseUsage(
       inputTokens: baseTokenCount,
       cachedInputTokens: max(turn.startTokenOffset, turn.cachedInputTokens),
       outputTokens: turn.outputTokens.count, reasoningTokens: turn.parser.thinkTokenCount)
@@ -424,7 +424,7 @@ final class ResponsesAgent: CodeAgent {
   }
 
   private func finish(
-    usage: ResponsesResponseWriter.Usage, status: String, statistics: CodeAgentStatistics
+    usage: ResponseUsage, status: String, statistics: CodeAgentStatistics
   ) {
     delegate?.responsesAgent(
       self,

@@ -3096,11 +3096,11 @@
 "remove_download" = "Xóa bản tải về";
 "remove_download_detail" = "%1$@ sẽ bị xóa khỏi thiết bị này, giải phóng %2$@. Bạn có thể tải lại bất cứ lúc nào.";
 "serve" = "Phục vụ";
-"responses_api" = "Responses API";
-"responses_api_detail" = "Cho phép các ứng dụng khác trên máy Mac này dùng mô hình cục bộ qua Responses API tương thích OpenAI tại %@. Với 0.0.0.0, các thiết bị khác trong mạng của bạn cũng truy cập được.";
+"api" = "API";
+"api_detail" = "Cho phép các ứng dụng khác trên máy Mac này dùng mô hình cục bộ tại %@ qua các API OpenAI Responses, Anthropic Messages và OpenAI Chat Completions. Với ứng dụng khách OpenAI, hãy thêm /v1. Với 0.0.0.0, các thiết bị khác trong mạng của bạn cũng truy cập được.";
 "serve_model_detail" = "Chọn mô hình trả lời các yêu cầu. Mô hình mà các cuộc trò chuyện của bạn dùng sẽ chia sẻ bộ nhớ với chúng, còn mô hình khác cần bộ nhớ riêng.";
 "serve_subtitle_detail" = "Các ứng dụng khác trên máy Mac này có thể dùng mô hình cục bộ tại đây.";
-"serve_off_detail" = "Bật Responses API trong phần cài đặt để bắt đầu phục vụ.";
+"serve_off_detail" = "Bật API trong phần cài đặt để bắt đầu phục vụ.";
 "status" = "Trạng thái";
 "off" = "Tắt";
 "listening" = "Đang lắng nghe";

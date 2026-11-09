@@ -3096,11 +3096,11 @@
 "remove_download" = "Remove download";
 "remove_download_detail" = "%1$@ will be deleted from this device, freeing %2$@. You can download it again anytime.";
 "serve" = "Serve";
-"responses_api" = "Responses API";
-"responses_api_detail" = "Lets other apps on this Mac use a local model through an OpenAI-compatible Responses API at %@. With 0.0.0.0, other devices on your network can reach it too.";
+"api" = "API";
+"api_detail" = "Lets other apps on this Mac use a local model at %@ through the OpenAI Responses, Anthropic Messages and OpenAI Chat Completions APIs. For OpenAI clients, add /v1. With 0.0.0.0, other devices on your network can reach it too.";
 "serve_model_detail" = "Choose which model answers requests. The model your chats use shares its memory with them, while another model needs memory of its own.";
 "serve_subtitle_detail" = "Other apps on this Mac can use a local model here.";
-"serve_off_detail" = "Turn on Responses API in the settings to start serving.";
+"serve_off_detail" = "Turn on the API in the settings to start serving.";
 "status" = "Status";
 "off" = "Off";
 "listening" = "Listening";

@@ -5,23 +5,41 @@ protocol ResponsesTransport: AnyObject {
   var isDisconnected: Bool { get }
   func respond(status: Int, contentType: String, body: Data)
   func beginEventStream()
-  func sendEvent(name: String, data: Data)
+  /// An event without a name is only its data, as Chat Completions sends them.
+  func sendEvent(name: String?, data: Data)
   func sendKeepAlive()
   func close()
 }
 
 extension StreamingHTTPConnection: ResponsesTransport {}
 
+/// Input tokens include the cached ones, and output tokens the reasoning ones.
+struct ResponseUsage: Equatable {
+  var inputTokens: Int
+  var cachedInputTokens: Int
+  var outputTokens: Int
+  var reasoningTokens: Int
+}
+
+/// Writes one response in a wire protocol's terms, from what the model produces in order.
+protocol ResponseWriter: AnyObject {
+  /// On arrival, so a stream starts however long the queue is. Later errors go in the stream.
+  func start()
+  /// Once the conversation is tokenized and the model is about to take it.
+  func startTurn(inputTokens: Int, cachedInputTokens: Int)
+  func appendReasoning(_ delta: String)
+  func appendText(_ delta: String)
+  func appendFunctionCall(name: String, arguments: String)
+  /// `incompleteReason` is nil when the model got to finish.
+  func finish(usage: ResponseUsage, incompleteReason: String?)
+  func fail(status: Int, type: String, code: String, message: String)
+  /// For a client that left, which is told nothing.
+  func abandon()
+}
+
 /// Builds one response in order: thinking, then text, then function calls. A streaming request
 /// gets each step as its event; any other gets the finished object at the end.
-final class ResponsesResponseWriter {
-  struct Usage: Equatable {
-    var inputTokens: Int
-    var cachedInputTokens: Int
-    var outputTokens: Int
-    var reasoningTokens: Int
-  }
-
+final class ResponsesResponseWriter: ResponseWriter {
   private enum OpenItem {
     case reasoning(id: String, text: String)
     case message(id: String, text: String)
@@ -52,6 +70,10 @@ final class ResponsesResponseWriter {
     transport.beginEventStream()
     emit("response.created", ["response": responseObject(status: "in_progress")])
     emit("response.in_progress", ["response": responseObject(status: "in_progress")])
+  }
+
+  func startTurn(inputTokens: Int, cachedInputTokens: Int) {
+    start()
   }
 
   func appendReasoning(_ delta: String) {
@@ -131,8 +153,7 @@ final class ResponsesResponseWriter {
     emit("response.output_item.done", ["output_index": index, "item": item])
   }
 
-  /// `incompleteReason` is nil when the model got to finish.
-  func finish(usage: Usage, incompleteReason: String?) {
+  func finish(usage: ResponseUsage, incompleteReason: String?) {
     guard !didFinish else { return }
     didFinish = true
     closeOpenItem()
@@ -157,7 +178,7 @@ final class ResponsesResponseWriter {
     }
   }
 
-  func fail(status: Int, type: String, code: String, message: String, parameter: String? = nil) {
+  func fail(status: Int, type: String, code: String, message: String) {
     guard !didFinish else { return }
     didFinish = true
     if isStreaming, didStart {
@@ -168,11 +189,10 @@ final class ResponsesResponseWriter {
     } else {
       transport.respond(
         status: status, contentType: "application/json",
-        body: Self.errorBody(type: type, code: code, message: message, parameter: parameter))
+        body: Self.errorBody(type: type, code: code, message: message))
     }
   }
 
-  /// For a client that left, which is told nothing.
   func abandon() {
     guard !didFinish else { return }
     didFinish = true
@@ -261,11 +281,14 @@ final class ResponsesResponseWriter {
     ]
   }
 
-  private static func data(_ object: [String: Any]) -> Data? {
+}
+
+extension ResponseWriter {
+  static func data(_ object: [String: Any]) -> Data? {
     try? JSONSerialization.data(withJSONObject: object, options: [.withoutEscapingSlashes])
   }
 
-  private static func randomIdentifier() -> String {
+  static func randomIdentifier() -> String {
     UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
   }
 }
