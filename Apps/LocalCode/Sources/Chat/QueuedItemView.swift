@@ -19,6 +19,7 @@ final class QueuedItemView: UIView {
       guard queuedItem != oldValue else { return }
       label.text = (queuedItem.text ?? "").components(separatedBy: .newlines).joined(
         separator: " ")
+      toolTipInteraction.defaultToolTip = queuedItem.text
     }
   }
   /// A steered item waits for the running turn to stop, showing a spinner in place of its buttons.
@@ -43,8 +44,13 @@ final class QueuedItemView: UIView {
     label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     FontMetrics.default.scaleFont(
       .systemFont(ofSize: 15, weight: .regular), bindTo: label)
+    // The label shows one truncated line; hovering shows the full prompt. The tool tip needs the
+    // label to be hit-testable.
+    label.isUserInteractionEnabled = true
+    label.addInteraction(toolTipInteraction)
     return label
   }()
+  private lazy var toolTipInteraction = UIToolTipInteraction()
   private lazy var steerButton: UIButton = {
     let button = UIButton(type: .custom)
     var configuration = UIButton.Configuration.filled()
@@ -124,6 +130,7 @@ final class QueuedItemView: UIView {
     }
     label.text = (queuedItem.text ?? "").components(separatedBy: .newlines).joined(
       separator: " ")
+    toolTipInteraction.defaultToolTip = queuedItem.text
   }
 
   @available(*, unavailable)
