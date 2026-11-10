@@ -303,8 +303,9 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
   private final class Storage {
     var lock = os_unfair_lock()
     let requestedWeightsStreaming: DeviceCapability.WeightsStreaming?
-    // Expert residency is resolved whenever the decoder is built, so each weights load sees
-    // the memory available at that moment.
+    // Expert residency and the checkpoint's expert counts are resolved whenever the decoder is
+    // built, so each weights load sees the memory available at that moment, and a checkpoint
+    // that finished downloading after the generator was made.
     private(set) var configuration: DeepSeek4_1ModelConfiguration
     private(set) var weightsStreaming: DeviceCapability.WeightsStreaming
     var decoderIsLoaded = false
@@ -322,6 +323,7 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     // Whether this load drafts, decided with its tier: the drafter's file has to be there, and the
     // tier left beside it has to be above 16 GiB.
     private(set) var usesDrafter = false
+    let filePath: String
     private var cachedDecoder:
       ModelBuilder<
         (
@@ -339,6 +341,9 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
       >
     {
       if let cachedDecoder { return cachedDecoder }
+      configuration.layerExpertCounts = DeepSeek4_1TextGenerator.prunedExpertCounts(
+        checkpoint: filePath, layers: configuration.layers,
+        routedExperts: configuration.routedExperts, maximum: configuration.expertCount)
       usesDrafter = drafterFile.map { FileManager.default.fileExists(atPath: $0) } ?? false
       weightsStreaming = DeviceCapability.WeightsStreaming.residentTierForDeepSeek4_1(
         requested: requestedWeightsStreaming, draft: usesDrafter)
@@ -408,10 +413,11 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     }
 
     init(
-      configuration: DeepSeek4_1ModelConfiguration,
+      configuration: DeepSeek4_1ModelConfiguration, filePath: String,
       weightsStreaming: DeviceCapability.WeightsStreaming?, drafterFile: String?
     ) {
       self.configuration = configuration
+      self.filePath = filePath
       self.drafterFile = drafterFile
       requestedWeightsStreaming = weightsStreaming
       self.weightsStreaming = weightsStreaming ?? DeviceCapability.weightsStreaming
@@ -489,14 +495,11 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     precondition(compilePrefillHeadroom >= Self.cachePageSize)
     precondition(compilePrefillHeadroom.isMultiple(of: Self.cachePageSize))
     precondition(compilePrefillHeadroom <= Self.maximumContextLength)
-    var configuration = DeepSeek4_1ModelConfiguration.deepSeekV4_1Flash
+    let configuration = DeepSeek4_1ModelConfiguration.deepSeekV4_1Flash
     precondition(
       configuration.layers
         == DeviceCapability.weightsStreaming.expertResidentSlotsForDeepSeek4_1.count)
     precondition(configuration.expertCount == 384)
-    configuration.layerExpertCounts = Self.prunedExpertCounts(
-      checkpoint: filePath, layers: configuration.layers,
-      routedExperts: configuration.routedExperts, maximum: configuration.expertCount)
     self.configuration = configuration
     self.filePath = filePath
     self.engramFilePath = engramFilePath
@@ -507,7 +510,8 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     self.drafterFile = drafterFile
     self.dsparkRows = dsparkRows
     self.storage = Storage(
-      configuration: configuration, weightsStreaming: weightsStreaming, drafterFile: drafterFile)
+      configuration: configuration, filePath: filePath, weightsStreaming: weightsStreaming,
+      drafterFile: drafterFile)
   }
 }
 
@@ -863,11 +867,15 @@ extension DeepSeek4_1TextGenerator {
         if !storage.decoderIsLoaded {
           compilePrefillHeadroom(cacheCapacity: capacity, isEager: false)
           let expertResidentSlots = storage.configuration.expertResidentSlots
+          // The counts the decoder was built with, read from the checkpoint at that point.
+          let expertCounts = (0..<config.layers).map {
+            storage.configuration.expertCount(layer: $0)
+          }
           // Use V4's shared mapping and pinning, bounded to this checkpoint's resident prefix.
           DynamicGraph.setWholeFileMappingSizeLimit(
             Self.residentMappingSize(
               filePath: filePath, expertResidentSlots: expertResidentSlots,
-              expertCounts: (0..<config.layers).map { config.expertCount(layer: $0) }))
+              expertCounts: expertCounts))
           defer { DynamicGraph.setWholeFileMappingSizeLimit(0) }
           do {
             try graph.openStore(filePath, flags: .readOnly) { store in
@@ -886,7 +894,7 @@ extension DeepSeek4_1TextGenerator {
                   .replacingOccurrences(of: ".ffn.experts-0-2]", with: ".ffn.shared_experts-0-0]")
                   .replacingOccurrences(of: ".ffn.experts-0-3]", with: ".ffn.shared_experts-0-1]")
                 if shape.count == 3, let layer = Self.expertLayer(of: name),
-                  expertResidentSlots[layer] < config.expertCount(layer: layer)
+                  expertResidentSlots[layer] < expertCounts[layer]
                 {
                   return .continue(name, codec: [.jit, .externalOnDemand, .i8x])
                 }
