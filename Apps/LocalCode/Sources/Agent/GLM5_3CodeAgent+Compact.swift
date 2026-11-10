@@ -4,9 +4,10 @@ import Tokenizer
 
 extension GLM5_3CodeAgent {
   // Keep the active agent context below the model's full capacity so prefill and
-  // decoding remain acceptably fast.
-  static var maximumContextLength: Int { 256 * 1_024 }
-  static var contextCheckpointCompactionTokenThreshold: Int { 208 * 1_024 }
+  // decoding remain acceptably fast, and under 200K tokens: longer sessions have been
+  // reported to degenerate into repetition.
+  static var maximumContextLength: Int { 192 * 1_024 }
+  static var contextCheckpointCompactionTokenThreshold: Int { 156 * 1_024 }
   static var contextCheckpointCompactionHistoryTokenBudget: Int { 64 * 1_024 }
   static var minimumGenerationReserve: Int { 8_192 }
   static var readResponsePreviewTokenThreshold: Int { 65_536 }

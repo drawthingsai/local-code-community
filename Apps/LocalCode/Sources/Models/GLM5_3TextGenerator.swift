@@ -109,10 +109,10 @@ extension DeviceCapability.WeightsStreaming {
 /// use the same graph and generator while continuing a session.
 public struct GLM5_3TextGenerator: TextGenerator {
   public static let version: LLMVersion = .glm_5_3_flash
-  // About 256K tokens of latent, indexer and pooled rows over 11 attention layers, plus the KDA
+  // About 192K tokens of latent, indexer and pooled rows over 11 attention layers, plus the KDA
   // states.
-  public static let estimatedKVCacheSize: UInt64 = 5 * 1_024 * 1_024 * 1_024
-  static let maximumContextLength = 256 * 1_024
+  public static let estimatedKVCacheSize: UInt64 = 4 * 1_024 * 1_024 * 1_024
+  static let maximumContextLength = 192 * 1_024
 
   static let endOfTextToken: Int32 = 154_820
   static let systemToken: Int32 = 154_826
