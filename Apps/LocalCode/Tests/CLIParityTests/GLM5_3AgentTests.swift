@@ -156,6 +156,26 @@ final class GLM5_3AgentTests: XCTestCase {
     XCTAssertLessThanOrEqual(retained.tokens.count, 3 * round.count + 1)
   }
 
+  func testRetainedConversationKeepsNewestTokensWhenLastMessageExceedsBudget() {
+    let tokenizer = GLM5_3TextGenerator.unsafeTokenizer
+    let task = tokenizer.tokenize(
+      text: "<|user|>Task<|assistant|><think></think><tool_call>datetime</tool_call>",
+      addSpecialTokens: false
+    ).0
+    let result = tokenizer.tokenize(
+      text: "<|observation|><tool_response>" + String(repeating: "Today\n", count: 200)
+        + "</tool_response><|assistant|><think>Reading</think>Still reading",
+      addSpecialTokens: false
+    ).0
+    // The prefix ends with the bare <|user|> a finished turn leaves, as when compaction starts.
+    let tokens = task + result + [154_827]
+    let budget = result.count / 2
+    let retained = GLM5_3CodeAgent.retainedConversationTokens(in: tokens, tokenBudget: budget)
+    // The last message alone exceeds the budget, so the newest tokens within it are kept, not
+    // only the trailing <|user|>.
+    XCTAssertEqual(retained.tokens, Array(tokens.suffix(budget)))
+  }
+
   func testPauseHibernateResumePreservesTurnAndEffort() throws {
     let unsafe = GLM5_3TextGenerator.unsafeTokenizer
     let safe = GLM5_3TextGenerator.safeTokenizer

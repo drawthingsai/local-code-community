@@ -39,7 +39,15 @@ extension GLM5_3CodeAgent {
     in tokens: [Int32], embedSpans: [EmbedSpan] = [], tokenBudget: Int
   ) -> (tokens: [Int32], embedSpans: [EmbedSpan]) {
     guard tokens.count > tokenBudget else { return (tokens, embedSpans) }
-    let segments = messageSegments(in: tokens)
+    var segments = messageSegments(in: tokens)
+    // A finished turn leaves the prefix ending in the next turn's bare <|user|> or
+    // <|observation|>, a one-token segment. Keep it with the message before it: alone it would
+    // count as retained history and skip the fallback to the newest tokens below whenever that
+    // message exceeds the budget.
+    if segments.count > 1, segments[segments.count - 1].count == 1 {
+      let roleTokens = segments.removeLast()
+      segments[segments.count - 1] += roleTokens
+    }
     var retainedSegments = [[Int32]]()
     var retainedTokenCount = 0
     for segment in segments.reversed() {
