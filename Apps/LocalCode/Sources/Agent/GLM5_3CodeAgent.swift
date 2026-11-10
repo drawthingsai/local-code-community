@@ -974,7 +974,8 @@ public final class GLM5_3CodeAgent: CodeAgent {
           let tokenGPU = graph.variable(Tensor<Int32>(inputTokens).toGPU(0))
           let thisOutputTokens = textGenerator.decode(
             graph: graph, tokens: tokenGPU, tokenOffset: tokenOffset,
-            thinkingBudget: thisThinkingBudget, deterministic: deterministic,
+            thinkingBudget: thisThinkingBudget,
+            outputSampling: deterministic ? .deterministic : .creative,
             kvCache: &kvCache, contextTokens: contextTokens, contextCache: contextCache,
             embedSpans: generation.baseContextEmbedSpans ?? [], projectPath: environment.cachePath
           ) { prefillStart, prefillLength, tokens, generatorStatistics in
@@ -1147,7 +1148,8 @@ public final class GLM5_3CodeAgent: CodeAgent {
             let forcedTokenOffset = cachedTokenLength
             _ = textGenerator.decode(
               graph: graph, tokens: forcedTokenGPU, tokenOffset: forcedTokenOffset,
-              thinkingBudget: 0, deterministic: deterministic, kvCache: &kvCache,
+              thinkingBudget: 0, outputSampling: deterministic ? .deterministic : .creative,
+              kvCache: &kvCache,
               contextTokens: generation.baseContextTokens + generation.outputTokens
                 + forcedTerminalTokens,
               contextCache: contextCache,

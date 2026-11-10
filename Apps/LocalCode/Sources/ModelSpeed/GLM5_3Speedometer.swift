@@ -170,8 +170,8 @@ final class GLM5_3Speedometer: Speedometer {
       graph.withNoGrad {
         textGenerator.decode(
           graph: graph, tokens: tokensGPU, tokenOffset: 0, thinkingBudget: thinkingBudget,
-          deterministic: deterministic, kvCache: &kvCache, contextTokens: tokens,
-          contextCache: contextCache
+          outputSampling: deterministic ? .deterministic : .creative, kvCache: &kvCache,
+          contextTokens: tokens, contextCache: contextCache
         ) { prefillStart, _, generatedTokens, _ in
           guard !isStopped.load(ordering: .acquiring) else { return .abort }
           // Stops right after a restore that fell short, before any of the context is prefilled.
@@ -225,8 +225,8 @@ final class GLM5_3Speedometer: Speedometer {
       graph.withNoGrad {
         textGenerator.decode(
           graph: graph, tokens: tokensGPU, tokenOffset: 0, thinkingBudget: thinkingBudget,
-          deterministic: deterministic, kvCache: &kvCache, contextTokens: context,
-          contextCache: contextCache
+          outputSampling: deterministic ? .deterministic : .creative, kvCache: &kvCache,
+          contextTokens: context, contextCache: contextCache
         ) { prefillStart, tokenLength, generatedTokens, _ in
           guard !isStopped.load(ordering: .acquiring) else { return .abort }
           delegate?.speedometer(

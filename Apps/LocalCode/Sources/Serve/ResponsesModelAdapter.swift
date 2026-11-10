@@ -568,10 +568,12 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
     let contextCache = GLM5_3ContextCache(
       projectPath: projectPath, checkpointStride: textGenerator.checkpointStride)
     defer { restoredTokenLength = contextCache.restoredTokenLength }
+    // A request at temperature 0 decodes greedily; others sample as the app's deterministic
+    // work attitude does.
     return textGenerator.decode(
       graph: graph, tokens: tokens, tokenOffset: tokenOffset, thinkingBudget: thinkingBudget,
-      deterministic: deterministic, kvCache: &kvCache, contextTokens: contextTokens,
-      contextCache: contextCache
+      outputSampling: deterministic ? nil : .deterministic, kvCache: &kvCache,
+      contextTokens: contextTokens, contextCache: contextCache
     ) { prefillStart, prefillLength, generatedTokens, statistics in
       GLM5_3TextGenerator.ContinuationState(
         handler(

@@ -135,6 +135,27 @@ public struct GLM5_3TextGenerator: TextGenerator {
     case abort
   }
 
+  /// A temperature and a min-p over the tempered distribution, applied as a window below the
+  /// largest logit.
+  public struct Sampling: Equatable {
+    public let temperature: Float
+    public let minP: Float
+    let window: Float
+
+    public init(temperature: Float, minP: Float) {
+      self.temperature = temperature
+      self.minP = minP
+      window = temperature * log(1 / minP)
+    }
+
+    static let thinking = Sampling(temperature: 1, minP: 0.01)
+    /// Output in the deterministic work attitude. Greedy output falls into enumeration loops in
+    /// long agent contexts that sampling at this temperature avoids.
+    public static let deterministic = Sampling(temperature: 0.7, minP: 0.05)
+    /// Output in the creative work attitude.
+    public static let creative = Sampling(temperature: 0.9, minP: 0.02)
+  }
+
   public struct Statistics: Sendable {
     public var prefillDurationSoFar: Float = 0
     public var prefillTokensSoFar = 0
@@ -474,10 +495,12 @@ public struct GLM5_3TextGenerator: TextGenerator {
   /// token, which is evaluated and returned last. Every returned token is in the cache, except the
   /// one pending prediction a pause returns; an abort returns only evaluated tokens. The handler
   /// gets the prefilled count and length during prefill, then the cached length twice and the
-  /// tokens so far.
+  /// tokens so far. Thinking samples at T = 1 with min-p 0.01; the output after it samples with
+  /// `outputSampling`, or decodes greedily without it.
   public mutating func decode(
     graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
-    thinkingBudget: Int, deterministic: Bool, kvCache: inout KVCache, contextTokens: [Int32],
+    thinkingBudget: Int, outputSampling: Sampling?, kvCache: inout KVCache,
+    contextTokens: [Int32],
     contextCache: GLM5_3ContextCache, embedSpans: [EmbedSpan] = [], projectPath: String? = nil,
     continuationHandler: (Int, Int, [Int32], Statistics) -> ContinuationState
   ) -> [Int32] {
@@ -714,15 +737,12 @@ public struct GLM5_3TextGenerator: TextGenerator {
       }
     }
     func select(_ logits: DynamicGraph.Tensor<Float16>) -> DynamicGraph.Tensor<Int32> {
-      let isThinking = !thinkingEnded
-      guard isThinking || !deterministic else {
+      guard let sampling = thinkingEnded ? outputSampling : Sampling.thinking else {
         return Functional.argmax(logits, axis: 1).reshaped(format: .NHWC, shape: [1])
       }
-      // Thinking samples at T = 1 with min-p 0.01; sampled answers at T = 0.7 with min-p 0.05.
-      let (temperature, window): (Float, Float) = isThinking ? (1, 4.605_170_2) : (0.7, 2.097_012_5)
       let maximum = logits.reduced(.max, axis: [1])
-      logits.fill(-Float.infinity, if: logits < (maximum - window))
-      return Functional.gumbelArgmax(logits, axis: 1, scale: temperature).reshaped(
+      logits.fill(-Float.infinity, if: logits < (maximum - sampling.window))
+      return Functional.gumbelArgmax(logits, axis: 1, scale: sampling.temperature).reshaped(
         format: .NHWC, shape: [1])
     }
     // Out of thinking budget, the next token closes thinking.
@@ -980,13 +1000,12 @@ public struct GLM5_3TextGenerator: TextGenerator {
         var result: [Int32]?
         autoreleasepool {
           let position = kvCache.tokenLength
-          // The fed token decides the sampling mode: greedy answers take none, thinking and sampled
-          // answers their temperature and min-p window.
+          // The fed token decides the sampling mode: thinking samples, and the output after it
+          // samples with `outputSampling` or, without it, decodes greedily.
           let thinking =
             !thinkingEnded && nextToken != Self.thinkEndToken
             && nextToken != Self.toolCallStartToken
-          let sampling: (temperature: Float, window: Float)? =
-            !thinking && deterministic ? nil : thinking ? (1, 4.605_170_2) : (0.7, 2.097_012_5)
+          let sampling = thinking ? Sampling.thinking : outputSampling
           let temperature = sampling?.temperature ?? 0
           // A step never crosses a context-cache checkpoint.
           let nextCheckpoint = (position / checkpointStride + 1) * checkpointStride
