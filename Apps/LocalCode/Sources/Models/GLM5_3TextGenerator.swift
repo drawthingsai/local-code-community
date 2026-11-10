@@ -243,20 +243,28 @@ public struct GLM5_3TextGenerator: TextGenerator {
     var isLoaded = false
     let requestedWeightsStreaming: DeviceCapability.WeightsStreaming?
     let drafterFile: String?
+    let draftRows: Int?
     // Expert residency is resolved whenever the model is built, so each weights load sees the
     // memory available then.
     private(set) var configuration = GLM5_3ModelConfiguration.glm5_3Flash
     // Whether this load drafts, decided with its tier: the drafter's file has to be there, and the
     // tier left beside it has to be above 16 GiB.
     private(set) var usesDrafter = false
+    // The drafter's shape, also decided with the tier. Its block is the most rows a step verifies,
+    // the pending token and its drafts, so it drafts nothing a step could not keep.
+    private(set) var draft = GLM5_3DFlash2Configuration.glm5_3Flash
     private(set) var weightsStreaming = DeviceCapability.WeightsStreaming.disabled
     private var cachedModel: ModelBuilder<(cached: Int, count: Int, logits: Int, targets: Int)>?
     private var cachedDrafter:
       ModelBuilder<(mainRows: Int, temperature: Float, historyOffset: Int)>?
 
-    init(requestedWeightsStreaming: DeviceCapability.WeightsStreaming?, drafterFile: String?) {
+    init(
+      requestedWeightsStreaming: DeviceCapability.WeightsStreaming?, drafterFile: String?,
+      draftRows: Int?
+    ) {
       self.requestedWeightsStreaming = requestedWeightsStreaming
       self.drafterFile = drafterFile
+      self.draftRows = draftRows
     }
 
     /// Whether any layer streams its expert banks.
@@ -278,6 +286,10 @@ public struct GLM5_3TextGenerator: TextGenerator {
       }
       weightsStreaming = tier
       configuration.expertResidentSlots = tier.expertResidentSlotsForGLM5_3
+      // Under weights streaming a step verifies at most 4 rows: every row adds its pool misses, so
+      // rows past that gain little. A block holds at least the pending token and one draft.
+      draft.blockSize = max(
+        2, draftRows ?? (isStreaming ? 4 : GLM5_3DFlash2Configuration.glm5_3Flash.blockSize))
       let configuration = configuration
       let targetLayers = usesDrafter ? GLM5_3DFlash2Configuration.glm5_3Flash.targetLayers : []
       let model = ModelBuilder {
@@ -298,11 +310,12 @@ public struct GLM5_3TextGenerator: TextGenerator {
     var drafter: ModelBuilder<(mainRows: Int, temperature: Float, historyOffset: Int)> {
       if let cachedDrafter { return cachedDrafter }
       let configuration = configuration
+      let draft = draft
       let drafter = ModelBuilder {
         (key: (mainRows: Int, temperature: Float, historyOffset: Int), _) in
         GLM5_3DFlash2(
           Float16.self, mainRows: key.mainRows, temperature: key.temperature,
-          historyOffset: key.historyOffset, configuration: configuration)
+          historyOffset: key.historyOffset, configuration: configuration, draft: draft)
       }
       drafter.maxConcurrency = .limit(4)
       cachedDrafter = drafter
@@ -346,7 +359,7 @@ public struct GLM5_3TextGenerator: TextGenerator {
   /// leaves is above 16 GiB; otherwise it decodes without it.
   public let drafterFile: String?
   /// Verify this many rows every step (1 + drafts). When nil, steps choose their rows, at most 4
-  /// under weights streaming.
+  /// under weights streaming. The drafter fills only as many rows as a step can verify.
   public let draftRows: Int?
   private static let recentStatisticsLimit = 3
   private var recentInteractionStatistics = [Statistics]()
@@ -363,7 +376,8 @@ public struct GLM5_3TextGenerator: TextGenerator {
     self.weightsStreaming = weightsStreaming
     self.drafterFile = drafterFile
     self.draftRows = draftRows
-    storage = Storage(requestedWeightsStreaming: weightsStreaming, drafterFile: drafterFile)
+    storage = Storage(
+      requestedWeightsStreaming: weightsStreaming, drafterFile: drafterFile, draftRows: draftRows)
   }
 
   public var filePaths: [String] { [filePath] + [drafterFile].compactMap { $0 } }
@@ -485,15 +499,15 @@ public struct GLM5_3TextGenerator: TextGenerator {
       kvCache.isEmpty ? tokenOffset == 0 : kvCache.tokenLength == tokenOffset
     else { return [] }
     let configuration = GLM5_3ModelConfiguration.glm5_3Flash
-    // Building the model picks this load's tier, and with it whether the load drafts.
+    // Building the model picks this load's tier, and with it whether the load drafts and the
+    // drafter's block.
     let model = storage.model
     let drafting = storage.usesDrafter
-    let draft = GLM5_3DFlash2Configuration.glm5_3Flash
+    let draft = storage.draft
     // The window of positions a block attends to before its anchor.
     let window = draft.windowRows - 1
-    // A step verifies the pending token and at most the drafted block. Under weights streaming it
-    // verifies at most 4 rows: every row adds its pool misses, so rows past that gain little.
-    let maxDraftRows = draftRows ?? (storage.isStreaming ? 4 : draft.blockSize)
+    // A step verifies the pending token and at most the drafted block.
+    let maxDraftRows = draftRows ?? draft.blockSize
     // Each layer's drafter keys and values, which the drafter binds whole.
     let draftCacheRows = 2 * draft.windowRows + 4_096
     let shouldRestore = kvCache.isEmpty

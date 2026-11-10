@@ -89,6 +89,7 @@ public struct LLMZoo: DownloadZoo {
     ),
     Specification(
       name: "GLM 5.3 Flash (2-bit S)", file: "glm_5.3_flash_i2x.ckpt",
+      draftFile: "glm_5.3_flash_dflash2_i5x.ckpt",
       version: .glm_5_3_flash, huggingFaceLink: "zai-org/GLM-5.3-Flash",
       note: "A coding model with a 256K context window. Text and image input are supported."
     ),
