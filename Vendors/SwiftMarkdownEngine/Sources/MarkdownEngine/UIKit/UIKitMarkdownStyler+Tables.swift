@@ -6,14 +6,28 @@
     static let renderedTableImage = NSAttributedString.Key("RenderedTableImage")
     static let renderedTableBounds = NSAttributedString.Key("RenderedTableBounds")
     static let renderedTableSourceID = NSAttributedString.Key("RenderedTableSourceID")
+    static let renderedTableColumns = NSAttributedString.Key("RenderedTableColumns")
+  }
+
+  /// Each column of a rendered table image as clear text over where the image draws it, one line
+  /// per row, so a cell's text can be selected. A class, so an unchanged table's attributes
+  /// compare equal.
+  final class RenderedTableColumns: NSObject {
+    let columns: [(frame: CGRect, text: NSAttributedString)]
+
+    init(_ columns: [(frame: CGRect, text: NSAttributedString)]) {
+      self.columns = columns
+    }
   }
 
   extension UIKitMarkdownStyler {
     private final class WeakTableImage {
       weak var image: UIImage?
+      let columns: RenderedTableColumns
 
-      init(_ image: UIImage) {
+      init(_ image: UIImage, columns: RenderedTableColumns) {
         self.image = image
+        self.columns = columns
       }
     }
 
@@ -69,7 +83,7 @@
           continue
         }
 
-        let image = tableImage(
+        let (image, columns) = tableImage(
           parsed,
           source: source,
           style: style,
@@ -121,6 +135,7 @@
           [
             .renderedTableImage: image,
             .renderedTableBounds: NSValue(cgRect: imageBounds),
+            .renderedTableColumns: columns,
             .renderedTableSourceID: MarkdownTableParser.stableSourceID(
               for: source, occurrenceIndex: occurrenceIndex),
             .foregroundColor: UIColor.clear,
@@ -193,17 +208,18 @@
       baseFont: UIFont,
       codeBackgroundColor: UIColor,
       configuration: MarkdownEditorConfiguration
-    ) -> UIImage {
+    ) -> (image: UIImage, columns: RenderedTableColumns) {
       // The full descriptor, not the font name and size: font features such as monospaced
       // digits change the table's metrics.
       let key = TableImageKey(fontDescriptor: baseFont.fontDescriptor, style: style, source: source)
       tableImageLock.lock()
-      let cachedImage = tableImages[key]?.image
+      let cachedEntry = tableImages[key]
+      let cachedImage = cachedEntry?.image
       tableImageLock.unlock()
-      if let cachedImage {
-        return cachedImage
+      if let cachedEntry, let cachedImage {
+        return (cachedImage, cachedEntry.columns)
       }
-      let (image, usesExtensionsOrLatex) = renderTable(
+      let (image, columns, usesExtensionsOrLatex) = renderTable(
         table,
         baseFont: baseFont,
         theme: configuration.theme,
@@ -211,16 +227,16 @@
         latex: configuration.services.latex,
         extensions: configuration.extensions
       )
-      guard !usesExtensionsOrLatex else { return image }
+      guard !usesExtensionsOrLatex else { return (image, columns) }
       tableImageLock.lock()
-      tableImages[key] = WeakTableImage(image)
+      tableImages[key] = WeakTableImage(image, columns: columns)
       // Drop entries whose images are gone once they outnumber the live ones.
       if tableImages.count > tableImagePruneCount {
         tableImages = tableImages.filter { $0.value.image != nil }
         tableImagePruneCount = max(64, tableImages.count * 2)
       }
       tableImageLock.unlock()
-      return image
+      return (image, columns)
     }
 
     private static func formattedCellString(
@@ -341,7 +357,7 @@
       codeBackgroundColor: UIColor,
       latex: any LatexRenderer,
       extensions: [any MarkdownExtension]
-    ) -> (image: UIImage, usesExtensionsOrLatex: Bool) {
+    ) -> (image: UIImage, columns: RenderedTableColumns, usesExtensionsOrLatex: Bool) {
       let columnCount = table.alignments.count
       let cellHPadding: CGFloat = 12
       let cellVPadding: CGFloat = 6
@@ -483,7 +499,37 @@
           }
         }
       }
-      return (image, usesExtensionsOrLatex)
+      // Each row is one line where drawCell draws its text, so a selection is as tall as the
+      // text; paragraph spacing makes up the rest of the row and its bottom border. The text is
+      // clear and has no inline code background: the image already draws both.
+      let columns = (0..<columnCount).map { col in
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.setParagraphStyle(paragraphStyles[col])
+        paragraph.minimumLineHeight = lineHeight
+        paragraph.maximumLineHeight = lineHeight
+        paragraph.paragraphSpacing = rowHeight + borderWidth - lineHeight
+        let text = NSMutableAttributedString()
+        for (row, cells) in ([headerCells] + bodyCells).enumerated() {
+          if row > 0 {
+            text.append(NSAttributedString(string: "\n", attributes: [.font: baseFont]))
+          }
+          if col < cells.count {
+            text.append(cells[col])
+          }
+        }
+        let range = NSRange(location: 0, length: text.length)
+        text.addAttributes(
+          [.paragraphStyle: paragraph, .foregroundColor: UIColor.clear], range: range)
+        text.removeAttribute(.backgroundColor, range: range)
+        let frame = CGRect(
+          x: columnLeft[col] + cellHPadding,
+          y: rowTop[0] + cellVPadding,
+          width: columnWidths[col],
+          height: rowTop[rowCount] - rowTop[0] - cellVPadding
+        )
+        return (frame: frame, text: text as NSAttributedString)
+      }
+      return (image, RenderedTableColumns(columns), usesExtensionsOrLatex)
     }
   }
 #endif

@@ -759,8 +759,50 @@
   }
 
   public final class MarkdownTextView: UITextView {
+    /// Clear text over one column of a rendered table, so a cell's text can be selected.
+    private final class RenderedTableColumnTextView: UITextView {
+      // The text is clear; copy it as plain text so it doesn't paste invisible.
+      override func copy(_ sender: Any?) {
+        guard let range = selectedTextRange, let string = text(in: range) else { return }
+        UIPasteboard.general.string = string
+      }
+
+      // Over a cell, the markdown text view's selection gestures would select the hidden table
+      // source; leave the touch to this view, but let the markdown text view still scroll.
+      override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if let markdownTextView = gestureRecognizer.view as? MarkdownTextView,
+          gestureRecognizer !== markdownTextView.panGestureRecognizer
+        {
+          return false
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+      }
+    }
+
+    /// A rendered table's image, with its columns as selectable text over it while read-only.
+    private final class RenderedTableImageView: UIImageView {
+      var columns: RenderedTableColumns? {
+        didSet {
+          guard columns !== oldValue else { return }
+          subviews.forEach { $0.removeFromSuperview() }
+          isUserInteractionEnabled = columns != nil
+          for column in columns?.columns ?? [] {
+            let textView = RenderedTableColumnTextView(frame: column.frame)
+            textView.isEditable = false
+            textView.isSelectable = true
+            textView.isScrollEnabled = false
+            textView.backgroundColor = .clear
+            textView.textContainerInset = .zero
+            textView.textContainer.lineFragmentPadding = 0
+            textView.attributedText = column.text
+            addSubview(textView)
+          }
+        }
+      }
+    }
+
     private final class RenderedTableScrollView: UIScrollView {
-      let imageView = UIImageView(frame: .zero)
+      let imageView = RenderedTableImageView(frame: .zero)
 
       override init(frame: CGRect) {
         super.init(frame: frame)
@@ -814,7 +856,7 @@
     private var codeBlockBackgroundViews: [UIView] = []
     private var thematicBreakViews: [UIView] = []
     private var taskCheckboxButtons: [TaskCheckboxButton] = []
-    private var tableImageViews: [UIImageView] = []
+    private var tableImageViews: [Int: RenderedTableImageView] = [:]
     private var tableScrollViews: [Int: RenderedTableScrollView] = [:]
     private var tableScrollIndicatorControllers: [Int: HorizontalScrollIndicatorController] = [:]
     /// How far each removed wide table was scrolled from its resting position, by source ID.
@@ -1487,10 +1529,8 @@
     }
 
     private func updateTableViews() {
-      tableImageViews.forEach { $0.removeFromSuperview() }
-      tableImageViews.removeAll()
-
       var retainedSourceIDs = Set<Int>()
+      var retainedImageSourceIDs = Set<Int>()
       defer {
         for sourceID in Array(tableScrollViews.keys) where !retainedSourceIDs.contains(sourceID) {
           guard let scrollView = tableScrollViews.removeValue(forKey: sourceID) else { continue }
@@ -1498,6 +1538,11 @@
             scrollView.contentOffset.x + scrollView.contentInset.left
           tableScrollIndicatorControllers.removeValue(forKey: sourceID)?.view.removeFromSuperview()
           scrollView.removeFromSuperview()
+        }
+        // Kept across layouts, like the scroll views, so a selection in a table survives them.
+        for sourceID in Array(tableImageViews.keys) where !retainedImageSourceIDs.contains(sourceID)
+        {
+          tableImageViews.removeValue(forKey: sourceID)?.removeFromSuperview()
         }
       }
       guard let renderedText = attributedText, renderedText.length > 0 else { return }
@@ -1515,6 +1560,12 @@
         let sourceID =
           (renderedText.attribute(.renderedTableSourceID, at: range.location, effectiveRange: nil)
             as? Int) ?? range.location
+        // Editing places the caret in the table on a tap instead.
+        let columns =
+          isEditable
+          ? nil
+          : renderedText.attribute(.renderedTableColumns, at: range.location, effectiveRange: nil)
+            as? RenderedTableColumns
         let usedLineRect = layoutManager.lineFragmentUsedRect(
           forGlyphAt: glyphRange.location, effectiveRange: nil)
         let availableWidth = max(0, textContainer.size.width)
@@ -1545,6 +1596,7 @@
           // scroll view so a scroll in progress survives, and only re-place it when it moved.
           if let existing = tableScrollViews[sourceID] {
             existing.imageView.image = image
+            existing.imageView.columns = columns
             guard
               existing.frame != frame || existing.contentInset != contentInset
                 || existing.contentSize != imageBounds.size
@@ -1554,6 +1606,7 @@
           } else {
             scrollView = RenderedTableScrollView(frame: .zero)
             scrollView.imageView.image = image
+            scrollView.imageView.columns = columns
             addSubview(scrollView)
             tableScrollViews[sourceID] = scrollView
             #if targetEnvironment(macCatalyst)
@@ -1579,19 +1632,25 @@
           scrollIndicatorController?.view.frame = CGRect(
             x: frame.minX, y: frame.maxY - 12, width: frame.width, height: 12)
         } else {
-          let imageView = UIImageView(
-            frame: CGRect(
-              x: x,
-              y: y,
-              width: imageBounds.width,
-              height: imageBounds.height
-            )
+          retainedImageSourceIDs.insert(sourceID)
+          let imageView: RenderedTableImageView
+          if let existing = tableImageViews[sourceID] {
+            imageView = existing
+          } else {
+            imageView = RenderedTableImageView(frame: .zero)
+            imageView.contentMode = .scaleAspectFit
+            imageView.isUserInteractionEnabled = false
+            addSubview(imageView)
+            tableImageViews[sourceID] = imageView
+          }
+          imageView.frame = CGRect(
+            x: x,
+            y: y,
+            width: imageBounds.width,
+            height: imageBounds.height
           )
           imageView.image = image
-          imageView.contentMode = .scaleAspectFit
-          imageView.isUserInteractionEnabled = false
-          addSubview(imageView)
-          tableImageViews.append(imageView)
+          imageView.columns = columns
         }
       }
     }
