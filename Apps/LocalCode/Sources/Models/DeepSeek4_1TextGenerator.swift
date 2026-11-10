@@ -202,19 +202,40 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
       .flatMap(Int.init)
   }
 
+  /// Experts kept per layer by a pruned checkpoint, read from the first dimension of each layer's
+  /// `ffn.gate.bias` in the checkpoint itself: pruning keeps gate rows, bias and expert banks
+  /// under one compact index. Empty when every layer keeps `maximum` or the file can't be read.
+  static func prunedExpertCounts(
+    checkpoint filePath: String, layers: Int, routedExperts: Int, maximum: Int
+  ) -> [Int] {
+    let counts =
+      (try? DynamicGraph().openStore(filePath, flags: .readOnly) { store in
+        (0..<layers).compactMap {
+          store.read(like: "__text_model__[t-layers.\($0).ffn.gate.bias-0-0]")?.shape.first
+        }
+      }.get()) ?? []
+    // A checkpoint without every gate bias (a probe, a partial store) is not pruned.
+    guard counts.count == layers else { return [] }
+    precondition(
+      counts.allSatisfy { (routedExperts...maximum).contains($0) },
+      "\(filePath): expert counts \(counts) do not fit top-\(routedExperts) of \(maximum)")
+    return counts.allSatisfy { $0 == maximum } ? [] : counts
+  }
+
   /// How much of the checkpoint to map: up to the end of the last tensor loaded whole, which is
   /// everything but the expert banks that stream. A tensor past this gets a mapping of its own, and
   /// generation is then far slower, so the end comes from the file: every quantization lays its
   /// tensors out differently. 0 maps the whole checkpoint.
   static func residentMappingSize(
-    filePath: String, expertResidentSlots: [Int], expertCount: Int
+    filePath: String, expertResidentSlots: [Int], expertCounts: [Int]
   ) -> Int {
+    precondition(expertResidentSlots.count == expertCounts.count)
     guard
-      expertResidentSlots.contains(where: { $0 < expertCount })
+      zip(expertResidentSlots, expertCounts).contains(where: { $0 < $1 })
     else { return 0 }
     let end = endOfExternalTensors(inCheckpoint: filePath) { name in
       guard name.hasPrefix("__text_model__[") else { return false }
-      return expertLayer(of: name).map { expertResidentSlots[$0] == expertCount } ?? true
+      return expertLayer(of: name).map { expertResidentSlots[$0] == expertCounts[$0] } ?? true
     }
     guard let end else {
       print("Warning: Cannot read where the tensors of \(filePath) end.")
@@ -326,7 +347,9 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
         weightsStreaming = DeviceCapability.WeightsStreaming.residentTierForDeepSeek4_1(
           requested: requestedWeightsStreaming, draft: false)
       }
+      // A pruned layer holding no more experts than the tier's slots stays fully resident.
       configuration.expertResidentSlots = weightsStreaming.expertResidentSlotsForDeepSeek4_1
+        .enumerated().map { min($0.element, configuration.expertCount(layer: $0.offset)) }
       let config = configuration
       let decoder = ModelBuilder<
         (
@@ -466,11 +489,14 @@ public struct DeepSeek4_1TextGenerator: DeepSeekTextGenerator {
     precondition(compilePrefillHeadroom >= Self.cachePageSize)
     precondition(compilePrefillHeadroom.isMultiple(of: Self.cachePageSize))
     precondition(compilePrefillHeadroom <= Self.maximumContextLength)
-    let configuration = DeepSeek4_1ModelConfiguration.deepSeekV4_1Flash
+    var configuration = DeepSeek4_1ModelConfiguration.deepSeekV4_1Flash
     precondition(
       configuration.layers
         == DeviceCapability.weightsStreaming.expertResidentSlotsForDeepSeek4_1.count)
     precondition(configuration.expertCount == 384)
+    configuration.layerExpertCounts = Self.prunedExpertCounts(
+      checkpoint: filePath, layers: configuration.layers,
+      routedExperts: configuration.routedExperts, maximum: configuration.expertCount)
     self.configuration = configuration
     self.filePath = filePath
     self.engramFilePath = engramFilePath
@@ -841,7 +867,7 @@ extension DeepSeek4_1TextGenerator {
           DynamicGraph.setWholeFileMappingSizeLimit(
             Self.residentMappingSize(
               filePath: filePath, expertResidentSlots: expertResidentSlots,
-              expertCount: config.expertCount))
+              expertCounts: (0..<config.layers).map { config.expertCount(layer: $0) }))
           defer { DynamicGraph.setWholeFileMappingSizeLimit(0) }
           do {
             try graph.openStore(filePath, flags: .readOnly) { store in
@@ -860,7 +886,7 @@ extension DeepSeek4_1TextGenerator {
                   .replacingOccurrences(of: ".ffn.experts-0-2]", with: ".ffn.shared_experts-0-0]")
                   .replacingOccurrences(of: ".ffn.experts-0-3]", with: ".ffn.shared_experts-0-1]")
                 if shape.count == 3, let layer = Self.expertLayer(of: name),
-                  expertResidentSlots[layer] < config.expertCount
+                  expertResidentSlots[layer] < config.expertCount(layer: layer)
                 {
                   return .continue(name, codec: [.jit, .externalOnDemand, .i8x])
                 }

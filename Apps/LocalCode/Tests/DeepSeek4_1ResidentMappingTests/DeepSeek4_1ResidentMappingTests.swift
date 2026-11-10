@@ -1,4 +1,5 @@
 import Foundation
+import NNC
 import SQLite3
 import XCTest
 
@@ -13,6 +14,40 @@ final class DeepSeek4_1ResidentMappingTests: XCTestCase {
 
   override func tearDownWithError() throws {
     try? FileManager.default.removeItem(atPath: checkpointPath)
+  }
+
+  private func prunedCounts(_ counts: [Int?]) -> [Int] {
+    DynamicGraph().openStore(checkpointPath) { store in
+      for (layer, count) in counts.enumerated() {
+        guard let count else { continue }
+        store.write(
+          "__text_model__[t-layers.\(layer).ffn.gate.bias-0-0]",
+          tensor: Tensor<Float>(.CPU, .C(count)))
+      }
+    }
+    return DeepSeek4_1TextGenerator.prunedExpertCounts(
+      checkpoint: checkpointPath, layers: 3, routedExperts: 6, maximum: 384)
+  }
+
+  func testPrunedExpertCountsComeFromGateBiasShapes() throws {
+    XCTAssertEqual(
+      DeepSeek4_1TextGenerator.prunedExpertCounts(
+        checkpoint: checkpointPath + ".missing", layers: 3, routedExperts: 6, maximum: 384), [])
+    XCTAssertEqual(prunedCounts([384, 384, 384]), [])
+  }
+
+  func testPrunedExpertCountsReadEachLayer() throws {
+    XCTAssertEqual(prunedCounts([240, 6, 384]), [240, 6, 384])
+  }
+
+  func testPrunedExpertCountsIgnoreStoresWithoutEveryGateBias() throws {
+    XCTAssertEqual(prunedCounts([228, nil, 228]), [])
+  }
+
+  func testPrunedLayersBelowTheirSlotsMapWhole() throws {
+    XCTAssertEqual(
+      DeepSeek4_1TextGenerator.residentMappingSize(
+        filePath: checkpointPath, expertResidentSlots: [228, 120], expertCounts: [228, 120]), 0)
   }
 
   private func blob(_ words: [UInt64]) -> Data {
@@ -82,7 +117,7 @@ final class DeepSeek4_1ResidentMappingTests: XCTestCase {
     try makeLayeredCheckpoint(trailerOffset: Int32(Self.pageSize))
     XCTAssertEqual(
       DeepSeek4_1TextGenerator.residentMappingSize(
-        filePath: checkpointPath, expertResidentSlots: [100, 100], expertCount: 384),
+        filePath: checkpointPath, expertResidentSlots: [100, 100], expertCounts: [384, 384]),
       3 * Self.pageSize)
   }
 
@@ -90,7 +125,7 @@ final class DeepSeek4_1ResidentMappingTests: XCTestCase {
     try makeLayeredCheckpoint(trailerOffset: Int32(Self.pageSize))
     XCTAssertEqual(
       DeepSeek4_1TextGenerator.residentMappingSize(
-        filePath: checkpointPath, expertResidentSlots: [384, 100], expertCount: 384),
+        filePath: checkpointPath, expertResidentSlots: [384, 100], expertCounts: [384, 384]),
       5 * Self.pageSize)
   }
 
@@ -98,14 +133,14 @@ final class DeepSeek4_1ResidentMappingTests: XCTestCase {
     try makeLayeredCheckpoint(trailerOffset: Int32(Self.pageSize))
     XCTAssertEqual(
       DeepSeek4_1TextGenerator.residentMappingSize(
-        filePath: checkpointPath, expertResidentSlots: [384, 384], expertCount: 384), 0)
+        filePath: checkpointPath, expertResidentSlots: [384, 384], expertCounts: [384, 384]), 0)
   }
 
   func testAStoreWithoutATrailerCountsFromZero() throws {
     try makeLayeredCheckpoint(trailerOffset: 0)
     XCTAssertEqual(
       DeepSeek4_1TextGenerator.residentMappingSize(
-        filePath: checkpointPath, expertResidentSlots: [100, 100], expertCount: 384),
+        filePath: checkpointPath, expertResidentSlots: [100, 100], expertCounts: [384, 384]),
       2 * Self.pageSize)
   }
 
@@ -124,7 +159,7 @@ final class DeepSeek4_1ResidentMappingTests: XCTestCase {
       2 * Self.pageSize + 1)
     XCTAssertEqual(
       DeepSeek4_1TextGenerator.residentMappingSize(
-        filePath: checkpointPath, expertResidentSlots: [100], expertCount: 384),
+        filePath: checkpointPath, expertResidentSlots: [100], expertCounts: [384]),
       3 * Self.pageSize)
   }
 
@@ -143,9 +178,9 @@ final class DeepSeek4_1ResidentMappingTests: XCTestCase {
       tensors: [("__text_model__[t-embed-0-0]", Self.externalType, Data(repeating: 0, count: 8))])
     XCTAssertEqual(
       DeepSeek4_1TextGenerator.residentMappingSize(
-        filePath: checkpointPath, expertResidentSlots: [100], expertCount: 384), 1)
+        filePath: checkpointPath, expertResidentSlots: [100], expertCounts: [384]), 1)
     XCTAssertEqual(
       DeepSeek4_1TextGenerator.residentMappingSize(
-        filePath: checkpointPath + ".missing", expertResidentSlots: [100], expertCount: 384), 1)
+        filePath: checkpointPath + ".missing", expertResidentSlots: [100], expertCounts: [384]), 1)
   }
 }
