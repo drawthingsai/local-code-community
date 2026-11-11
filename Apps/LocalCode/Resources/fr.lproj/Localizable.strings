@@ -98,14 +98,6 @@
 
 "start_a_new_thread" = "Démarrer une nouvelle discussion.";
 
-"switch_thread_during_generation_title" = "Changer de discussion ?";
-
-"switch_thread_during_generation_message" = "Une réponse est encore en cours de génération dans cette discussion. Pour changer, vous devez d’abord arrêter la génération.";
-
-"keep_generating" = "Continuer la génération";
-
-"stop_and_switch" = "Arrêter et changer";
-
 "save" = "Enregistrer";
 
 "downloading" = "Téléchargement";

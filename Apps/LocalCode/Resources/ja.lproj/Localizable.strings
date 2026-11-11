@@ -98,14 +98,6 @@
 
 "start_a_new_thread" = "新しい会話を開始。";
 
-"switch_thread_during_generation_title" = "会話を切り替えますか？";
-
-"switch_thread_during_generation_message" = "この会話ではまだ回答を生成中です。切り替えるには、先に生成を停止する必要があります。";
-
-"keep_generating" = "生成を続ける";
-
-"stop_and_switch" = "停止して切り替える";
-
 "save" = "保存";
 
 "downloading" = "ダウンロード中";

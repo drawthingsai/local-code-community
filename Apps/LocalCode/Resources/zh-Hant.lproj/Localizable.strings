@@ -103,14 +103,6 @@
 
 "start_a_new_thread" = "開始新對話。";
 
-"switch_thread_during_generation_title" = "切換對話？";
-
-"switch_thread_during_generation_message" = "此對話仍在生成回覆。若要切換對話，需要先停止目前的生成。";
-
-"keep_generating" = "繼續生成";
-
-"stop_and_switch" = "停止並切換";
-
 "save" = "保存";
 
 "downloading" = "下載中";

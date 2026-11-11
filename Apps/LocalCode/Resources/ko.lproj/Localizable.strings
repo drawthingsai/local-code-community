@@ -98,14 +98,6 @@
 
 "start_a_new_thread" = "새 대화 시작.";
 
-"switch_thread_during_generation_title" = "대화를 전환할까요?";
-
-"switch_thread_during_generation_message" = "이 대화에서 아직 응답을 생성하고 있습니다. 전환하려면 먼저 생성을 중지해야 합니다.";
-
-"keep_generating" = "계속 생성";
-
-"stop_and_switch" = "중지하고 전환";
-
 "save" = "저장";
 
 "downloading" = "다운로드 중";

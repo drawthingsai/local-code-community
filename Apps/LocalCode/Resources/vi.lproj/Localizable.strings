@@ -98,14 +98,6 @@
 
 "start_a_new_thread" = "Bắt đầu cuộc trò chuyện mới.";
 
-"switch_thread_during_generation_title" = "Chuyển cuộc trò chuyện?";
-
-"switch_thread_during_generation_message" = "Cuộc trò chuyện này vẫn đang tạo phản hồi. Để chuyển, bạn cần dừng nó trước.";
-
-"keep_generating" = "Tiếp tục tạo";
-
-"stop_and_switch" = "Dừng và chuyển";
-
 "stop_generation_question" = "Dừng tạo?";
 
 "stop_generation_confirmation" = "Dừng lúc này sẽ hủy kết quả chưa hoàn tất.";

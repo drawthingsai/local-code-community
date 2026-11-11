@@ -124,6 +124,12 @@ final class ChatWorkflow: Workflow {
   var projectURL: URL?
   var restoredUserNode: (threadId: Int64, datetime: Int64)?
   private var isProjectSecurityScopedResourceAccessing = false
+  /// Projects left while a cloud turn ran there, by resolved path. Each keeps its workspace open,
+  /// and its folder access, until its last cloud turn ends, as a local turn's scheduler keeps its
+  /// project.
+  private var remoteProjectResources = [
+    String: (projectURL: URL, projectWorkspace: SQLiteWorkspace, isAccessing: Bool)
+  ]()
   private var reasoningEffortSubscription: Workspace.Subscription?
   private var botModeSubscription: Workspace.Subscription?
   private var reduceReasoningAnimationSubscription: Workspace.Subscription?
@@ -136,7 +142,6 @@ final class ChatWorkflow: Workflow {
   /// Queued items to send on their own once each thread's running turn stops. They outlive a
   /// thread switch, so a steered thread continues in the background.
   private var steeringQueuedItems = [ProjectThreadIdentifier: [ProjectQueuedItem]]()
-  var didStopHandler: (() -> Void)?
   var modelsDirectoryPickerResponder: ModelsDirectoryPickerResponder?
   var permitDirectoryPickerResponder: PermitDirectoryPickerResponder?
   var modelSelectWorkflow: ItemSelectWorkflow?
@@ -528,6 +533,10 @@ final class ChatWorkflow: Workflow {
     }
     hibernationGroup.wait()
     stopProjectSecurityScopedResourceAccess()
+    // Projects left to their cloud turns finish their writes too.
+    for resources in remoteProjectResources.values {
+      resources.projectWorkspace.shutdown(flags: [])
+    }
   }
 
   func sceneDidBecomeActive() {
@@ -595,15 +604,6 @@ final class ChatWorkflow: Workflow {
       threadNotifications.pendingNotification = nil
       return
     }
-    let currentPath = self.projectURL?.standardizedFileURL.resolvingSymlinksInPath().path
-    // Preserve the existing restriction on leaving a project with active remote conversations.
-    // Retry the pending notification when those conversations complete.
-    guard
-      currentPath == projectURL.path
-        || !remoteChatProviders.values.contains(where: {
-          $0.hasActiveConversations(projectPath: currentPath)
-        })
-    else { return }
     openProject(at: projectURL, threadId: threadId)
     threadNotifications.pendingNotification = nil
     threadNotifications.clear(projectPath: projectPath, threadId: threadId)
@@ -667,6 +667,28 @@ final class ChatWorkflow: Workflow {
 
   private func residentProjectWorkspace(projectPath: String) -> SQLiteWorkspace? {
     agentScheduler.residentProjectWorkspace(projectPath: projectPath)
+      ?? remoteProjectResources[
+        URL(fileURLWithPath: projectPath, isDirectory: true).standardizedFileURL
+          .resolvingSymlinksInPath().path]?.projectWorkspace
+  }
+
+  /// Closes each project left to its cloud turns once none runs there. Called when a cloud turn
+  /// ends, and wherever one is dropped without ending.
+  func closeIdleRemoteProjects() {
+    for (projectPath, resources) in remoteProjectResources
+    where !remoteChatProviders.values.contains(where: {
+      $0.hasActiveConversations(projectPath: projectPath)
+    }) {
+      remoteProjectResources[projectPath] = nil
+      remoteChatProviders.values.forEach { $0.removeIdleConversations(projectPath: projectPath) }
+      // A scheduler that also holds the workspace shuts it down when it retires.
+      if agentScheduler.residentProjectWorkspace(projectPath: projectPath) == nil {
+        resources.projectWorkspace.shutdown(flags: [])
+      }
+      if resources.isAccessing {
+        resources.projectURL.stopAccessingSecurityScopedResource()
+      }
+    }
   }
 
   private func claimRetiringProjectResources(projectPath: String) -> (
@@ -696,6 +718,18 @@ final class ChatWorkflow: Workflow {
         }
         if resources.hadSecurityScopedAccess {
           isProjectSecurityScopedResourceAccessing = true
+        }
+      }
+      // Projects left to their cloud turns stay open past the retired scheduler too.
+      for (projectPath, resources) in remoteProjectResources {
+        guard
+          retiringScheduler.relinquishProjectResources(projectPath: projectPath)
+            .hadSecurityScopedAccess
+        else { continue }
+        if resources.isAccessing {
+          resources.projectURL.stopAccessingSecurityScopedResource()
+        } else {
+          remoteProjectResources[projectPath]?.isAccessing = true
         }
       }
       retiringAgentSchedulers.append(retiringScheduler)
@@ -1488,13 +1522,6 @@ final class ChatWorkflow: Workflow {
     let standardizedPath = url.standardizedFileURL.resolvingSymlinksInPath().path
     let oldPath = projectURL?.standardizedFileURL.resolvingSymlinksInPath().path
     let oldThreadId = projectHistoryManager?.threadId
-    if oldPath != standardizedPath,
-      remoteChatProviders.values.contains(where: {
-        $0.hasActiveConversations(projectPath: oldPath)
-      })
-    {
-      return
-    }
     defer {
       let message: ProjectHistoryItem.ActionableMessage?
       if let projectURL, let threadId = projectHistoryManager?.threadId {
@@ -1513,21 +1540,34 @@ final class ChatWorkflow: Workflow {
     }
     cancelRemoteStatusRequests()
     if oldPath != standardizedPath || projectHistoryManager == nil {
+      // Cloud turns still running in the project left keep it open until they end.
+      if let oldPath, oldPath != standardizedPath, let projectURL, let projectWorkspace,
+        remoteChatProviders.values.contains(where: {
+          $0.hasActiveConversations(projectPath: oldPath)
+        })
+      {
+        remoteProjectResources[oldPath] = (
+          projectURL, projectWorkspace, isProjectSecurityScopedResourceAccessing
+        )
+        isProjectSecurityScopedResourceAccessing = false
+      }
       stopProjectSecurityScopedResourceAccess(refreshVisibleCells: false)
+      let remoteResources = remoteProjectResources.removeValue(forKey: standardizedPath)
       let activeProjectWorkspace = residentProjectWorkspace(projectPath: standardizedPath)
       let retiringResources:
         (
           projectWorkspace: SQLiteWorkspace?, hadSecurityScopedAccess: Bool
         ) =
-          activeProjectWorkspace == nil
+          activeProjectWorkspace == nil && remoteResources == nil
           ? claimRetiringProjectResources(projectPath: standardizedPath) : (nil, false)
       let residentProjectWorkspace =
-        activeProjectWorkspace ?? retiringResources.projectWorkspace
+        activeProjectWorkspace ?? remoteResources?.projectWorkspace
+        ?? retiringResources.projectWorkspace
       let didStartAccessing: Bool
-      if activeProjectWorkspace != nil {
-        didStartAccessing = false
-      } else if retiringResources.hadSecurityScopedAccess {
+      if remoteResources?.isAccessing == true || retiringResources.hadSecurityScopedAccess {
         didStartAccessing = true
+      } else if activeProjectWorkspace != nil {
+        didStartAccessing = false
       } else {
         didStartAccessing = url.startAccessingSecurityScopedResource()
       }
@@ -2121,48 +2161,14 @@ final class ChatWorkflow: Workflow {
 
   private func selectThread(_ thread: ProjectController.Thread) {
     settingsWorkflow.closeServeWorkflow()
-    let openThread: () -> Void = { [weak self] in
-      guard let self else { return }
-      guard thread.threadId != OnboardingState.threadIdentifier else {
-        self.openWelcomeThread(animated: true)
-        return
-      }
-      self.openProject(
-        at: URL(fileURLWithPath: thread.projectPath, isDirectory: true),
-        threadId: thread.threadId)
-    }
-    if codeAgentWrapper != nil {
-      openThread()
+    // A running turn is never stopped to switch. It continues in the background, and its thread
+    // shows its progress when opened again.
+    guard thread.threadId != OnboardingState.threadIdentifier else {
+      openWelcomeThread(animated: true)
       return
     }
-    if chatInputController.sendState == .stopping {
-      didStopHandler = openThread
-      return
-    }
-    guard chatInputController.sendState == .idle else {
-      let alertController = UIAlertController(
-        title: LocalizedString.forKey("switch_thread_during_generation_title"),
-        message: LocalizedString.forKey("switch_thread_during_generation_message"),
-        preferredStyle: .alert)
-      alertController.addAction(
-        UIAlertAction(
-          title: LocalizedString.forKey("stop_and_switch"), style: .destructive
-        ) { [weak self] _ in
-          guard let self else { return }
-          if self.chatInputController.sendState == .idle {
-            openThread()
-            return
-          }
-          self.didStopHandler = openThread
-          self.chatInputControllerDidTapStop(self.chatInputController)
-        })
-      alertController.addAction(
-        UIAlertAction(
-          title: LocalizedString.forKey("keep_generating"), style: .cancel))
-      presentedViewController.present(alertController, animated: true)
-      return
-    }
-    openThread()
+    openProject(
+      at: URL(fileURLWithPath: thread.projectPath, isDirectory: true), threadId: thread.threadId)
   }
 }
 
@@ -2370,6 +2376,16 @@ extension ChatWorkflow: SettingsWorkflowDelegate {
   }
 
   func settingsWorkflowDidRemoveOpenProject(_ workflow: SettingsWorkflow) {
+    // A project with a cloud turn running stays open, so moving it to the Trash asks to stop the
+    // response first.
+    if let projectURL,
+      remoteChatProviders.values.contains(where: {
+        $0.hasActiveConversations(
+          projectPath: projectURL.standardizedFileURL.resolvingSymlinksInPath().path)
+      })
+    {
+      return
+    }
     // Opens right away, so moving the project to the Trash can then check that it closed.
     // Settings stays up to show the project leave the list.
     openProject(at: workflow.workspaceFolderURL, threadId: -1)
@@ -3011,11 +3027,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     // own is still sending.
     let isStopping = chatInputController.sendState == .stopping
     chatInputController.sendState = .idle
-    if let didStopHandler = self.didStopHandler {
-      self.didStopHandler = nil
-      didStopHandler()
-      return
-    }
     guard let projectWorkspace, let projectHistoryManager else { return }
     var queuedItems = Array(
       projectWorkspace.fetch(for: ProjectQueuedItem.self).where(
@@ -3431,10 +3442,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
               // meanwhile.
               self.restoreSelectedThread(appendingDraft: self.chatInputController.text)
               self.chatInputController.sendState = .idle
-              if let didStopHandler = self.didStopHandler {
-                self.didStopHandler = nil
-                didStopHandler()
-              }
             }
           } else if let self, isSteering, self.agentScheduler === scheduler {
             _ = self.continueBackgroundQueuedItems(
@@ -3491,10 +3498,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
           if isDisplayed {
             self.restoreSelectedThread()
             self.chatInputController.sendState = .idle
-            if let didStopHandler = self.didStopHandler {
-              self.didStopHandler = nil
-              didStopHandler()
-            }
           }
           scheduler.markAsCompleted(codeAgent)
           return

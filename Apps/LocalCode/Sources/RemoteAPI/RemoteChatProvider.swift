@@ -290,8 +290,10 @@ final class RemoteChatProvider {
     }
   }
 
-  func removeConversations(projectPath: String) {
-    for id in conversations.keys.filter({ $0.projectPath == projectPath }) {
+  /// Running conversations stay, to finish in the background.
+  func removeIdleConversations(projectPath: String) {
+    for (id, conversation) in conversations
+    where id.projectPath == projectPath && !conversation.isActive {
       remove(id)
     }
   }

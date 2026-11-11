@@ -213,6 +213,7 @@ extension ChatWorkflow {
       select(remoteChatProvider)
     case .removed:
       remoteChatProviders[provider.rawValue]?.unload()
+      closeIdleRemoteProjects()
       guard case .some(.remote(let remoteChatProvider)) = codeAgentWrapper,
         remoteChatProvider.provider == provider
       else { return }
@@ -297,6 +298,7 @@ extension ChatWorkflow {
       localCodeProvider?.statusRequest?.request.cancel()
       localCodeProvider?.statusRequest = nil
       localCodeProvider?.unload()
+      closeIdleRemoteProjects()
     }
     guard case .some(.remote(let remoteChatProvider)) = codeAgentWrapper,
       remoteChatProvider.provider == .localCode
@@ -327,6 +329,7 @@ extension ChatWorkflow {
       projectURL: URL(fileURLWithPath: thread.projectPath, isDirectory: true),
       threadId: thread.threadId)
     remoteChatProviders.values.forEach { $0.remove(conversationID) }
+    closeIdleRemoteProjects()
     browserWorkflows.removeValue(forKey: ProjectThreadIdentifier(thread: thread))?.close()
     // A later thread can reuse this identifier, and must not restore the deleted thread's turn.
     if let storePath = contextCacheStorePath(projectPath: thread.projectPath) {
@@ -488,11 +491,8 @@ extension ChatWorkflow {
           self.restoreDraftIfNeeded(from: &history)
           viewController.setHistory(self.historyMessages(from: history))
           self.chatInputController.sendState = .idle
-          if let didStopHandler = self.didStopHandler {
-            self.didStopHandler = nil
-            didStopHandler()
-          }
         }
+        self.closeIdleRemoteProjects()
         return
       }
       remoteChatProvider.send(
@@ -515,7 +515,11 @@ extension ChatWorkflow {
               self.settingsWorkflow.presentAccountTopUp(from: self.presentedViewController)
             }
           }
-          defer { self.openPendingNotificationThread() }
+          defer {
+            // After the reply is written to a project left while it ran.
+            self.closeIdleRemoteProjects()
+            self.openPendingNotificationThread()
+          }
           let text: String
           let response: String
           switch result {
@@ -724,10 +728,6 @@ extension ChatWorkflow {
             account: account),
           isTransient: false, mode: .none)
         self.chatInputController.sendState = .idle
-        if let didStopHandler = self.didStopHandler {
-          self.didStopHandler = nil
-          didStopHandler()
-        }
       }
     }
     remoteChatProvider.statusRequest = RemoteChatProvider.StatusRequest(
@@ -748,10 +748,6 @@ extension ChatWorkflow {
           account: .failed(RemoteChatError.cancelled.localizedDescription)),
         isTransient: false, mode: .none)
       controller.sendState = .idle
-      if let didStopHandler = self.didStopHandler {
-        self.didStopHandler = nil
-        didStopHandler()
-      }
       return true
     }
     guard let conversationID = remoteConversationID() else { return true }
@@ -770,7 +766,7 @@ extension ChatWorkflow {
       projectURL: projectURL, threadId: -1
     ).projectPath
     remoteChatProviders.values.forEach {
-      $0.removeConversations(projectPath: projectPath)
+      $0.removeIdleConversations(projectPath: projectPath)
     }
   }
 

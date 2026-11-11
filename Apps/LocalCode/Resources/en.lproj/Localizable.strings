@@ -98,14 +98,6 @@
 
 "start_a_new_thread" = "Start a new thread.";
 
-"switch_thread_during_generation_title" = "Switch threads?";
-
-"switch_thread_during_generation_message" = "A response is still being generated in this thread. To switch, you'll need to stop it first.";
-
-"keep_generating" = "Keep Generating";
-
-"stop_and_switch" = "Stop and Switch";
-
 "stop_generation_question" = "Stop generation?";
 
 "stop_generation_confirmation" = "Stopping now will discard the unfinished result.";

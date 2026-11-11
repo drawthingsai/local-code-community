@@ -98,14 +98,6 @@
 
 "start_a_new_thread" = "Neue Unterhaltung starten.";
 
-"switch_thread_during_generation_title" = "Thread wechseln?";
-
-"switch_thread_during_generation_message" = "In diesem Thread wird noch eine Antwort generiert. Um zu wechseln, muss die Generierung zuerst gestoppt werden.";
-
-"keep_generating" = "Weiter generieren";
-
-"stop_and_switch" = "Stoppen und wechseln";
-
 "save" = "Speichern";
 
 "downloading" = "Herunterladen";
