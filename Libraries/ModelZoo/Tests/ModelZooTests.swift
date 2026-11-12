@@ -3,7 +3,7 @@ import XCTest
 
 final class ModelZooTests: XCTestCase {
   func testLLMGLM53FlashCatalogAndEncoding() throws {
-    let specification = try XCTUnwrap(LLMZoo.specificationForModel("glm_5.3_flash_i2x.ckpt"))
+    let specification = try XCTUnwrap(LLMZoo.specificationForModel("glm_5.3_flash_i4x.ckpt"))
     XCTAssertEqual(specification.version.rawValue, "glm_5.3_flash")
     XCTAssertEqual(specification.requiredFiles, [specification.file])
     XCTAssertEqual(specification.draftFile, "glm_5.3_flash_dflash2_i5x.ckpt")

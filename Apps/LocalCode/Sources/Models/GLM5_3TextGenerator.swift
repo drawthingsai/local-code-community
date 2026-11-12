@@ -9,58 +9,63 @@ import Tokenizer
 import os.lock
 
 extension DeviceCapability.WeightsStreaming {
-  // Decode pool slots of sparse layers 3 through 44, calibrated for
-  // glm_5.3_flash_i2x_lgain_trailer.ckpt. See Debug/GLM5_3ResidentSlots.md for the fit and
-  // validation. The other text weights, pinned with the embedding, take 9.79 GiB, so 8 GiB keeps
-  // only the routing width. 72 GiB loads every weight, as it does for DeepSeek V4, so it is
-  // picked only where the whole checkpoint fits.
+  // Decode pool slots of sparse layers 3 through 44, calibrated for glm_5.3_flash_i4x.ckpt (IQ3_XXS
+  // gate / up, Q4_K down: 11.53125 MiB an expert). See Debug/GLM5_3ResidentSlots.md for the fit and
+  // validation. The other text weights, pinned with the embedding, take 9.20 GiB, so 8 GiB keeps
+  // only the routing width.
   var expertResidentSlotsForGLM5_3: [Int] {
     switch self {
     case ._8GiB:
       return Array(repeating: 8, count: 42)
     case ._16GiB:
       return [
-        12, 8, 8, 16, 20, 20, 24, 20, 20, 24, 24, 24, 24, 24,
-        28, 28, 28, 28, 28, 24, 24, 28, 24, 24, 24, 24, 24, 20,
-        20, 24, 24, 24, 20, 24, 24, 24, 24, 24, 24, 24, 24, 24,
+        8, 8, 8, 8, 16, 12, 12, 8, 12, 16, 16, 16, 16, 16,
+        16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 12, 12,
+        16, 12, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 12, 12,
       ]
     case ._24GiB:
       return [
-        52, 44, 44, 52, 52, 52, 52, 52, 52, 44, 52, 44, 52, 52,
-        52, 52, 52, 52, 52, 64, 52, 52, 52, 52, 56, 52, 64, 52,
-        52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 56, 52, 52, 52,
+        20, 20, 20, 24, 28, 28, 32, 28, 32, 32, 32, 32, 32, 32,
+        36, 36, 32, 36, 36, 36, 32, 36, 32, 32, 36, 32, 36, 32,
+        28, 32, 32, 32, 28, 28, 32, 32, 32, 32, 36, 32, 32, 32,
       ]
     case ._32GiB:
       return [
-        132, 132, 124, 112, 92, 92, 92, 104, 84, 64, 72, 64, 72, 72,
-        72, 64, 64, 72, 72, 76, 72, 72, 76, 76, 84, 72, 84, 84,
-        76, 84, 72, 72, 72, 72, 76, 72, 76, 72, 84, 72, 84, 84,
+        40, 36, 40, 44, 44, 44, 44, 52, 52, 44, 44, 44, 44, 52,
+        52, 44, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52,
+        44, 52, 52, 52, 44, 44, 44, 44, 52, 52, 52, 44, 52, 52,
       ]
     case ._40GiB:
       return [
-        172, 172, 164, 164, 124, 132, 124, 132, 116, 92, 92, 92, 92, 96,
-        92, 84, 84, 92, 92, 104, 96, 96, 104, 104, 104, 104, 112, 116,
-        112, 112, 96, 104, 104, 104, 112, 104, 112, 104, 104, 104, 112, 112,
+        92, 84, 72, 92, 72, 72, 72, 72, 64, 52, 52, 52, 52, 64,
+        64, 52, 52, 64, 64, 64, 64, 64, 64, 64, 64, 64, 72, 72,
+        64, 64, 64, 64, 56, 52, 64, 52, 64, 64, 64, 64, 72, 72,
       ]
     case ._48GiB:
       return [
-        204, 204, 204, 192, 152, 164, 160, 164, 144, 116, 124, 116, 120, 124,
-        120, 104, 104, 112, 120, 124, 124, 124, 128, 128, 128, 132, 140, 148,
-        140, 148, 128, 132, 140, 140, 144, 132, 140, 140, 140, 136, 144, 148,
+        132, 132, 112, 124, 92, 92, 92, 104, 84, 64, 72, 64, 72, 72,
+        72, 64, 64, 72, 72, 76, 72, 72, 84, 76, 84, 76, 84, 84,
+        76, 84, 72, 72, 72, 72, 72, 72, 84, 72, 84, 84, 84, 84,
       ]
     case ._56GiB:
       return [
-        228, 240, 240, 220, 180, 188, 188, 200, 176, 152, 152, 144, 148, 156,
-        148, 128, 128, 132, 144, 148, 152, 148, 156, 156, 156, 160, 168, 180,
-        176, 180, 156, 160, 168, 176, 176, 168, 176, 168, 168, 168, 172, 180,
+        152, 152, 152, 144, 112, 112, 112, 124, 104, 76, 84, 84, 84, 92,
+        84, 72, 72, 84, 84, 92, 92, 92, 92, 92, 92, 92, 104, 104,
+        92, 104, 84, 92, 92, 92, 92, 92, 96, 92, 96, 92, 104, 104,
       ]
     case ._64GiB:
       return [
-        268, 276, 276, 260, 208, 220, 220, 228, 204, 180, 180, 176, 180, 180,
-        172, 148, 156, 160, 172, 176, 180, 180, 180, 180, 180, 188, 196, 208,
-        200, 208, 188, 188, 200, 208, 208, 196, 200, 200, 200, 200, 200, 208,
+        172, 172, 172, 164, 124, 132, 132, 144, 124, 92, 92, 92, 96, 104,
+        104, 84, 92, 92, 96, 104, 104, 104, 112, 108, 112, 112, 120, 124,
+        116, 124, 104, 104, 112, 112, 112, 108, 116, 112, 112, 112, 116, 124,
       ]
-    case ._72GiB, .disabled:
+    case ._72GiB:
+      return [
+        192, 196, 192, 184, 144, 152, 152, 156, 136, 112, 112, 112, 112, 120,
+        112, 96, 104, 108, 112, 116, 116, 120, 124, 124, 124, 124, 136, 140,
+        136, 140, 120, 124, 128, 132, 132, 128, 132, 132, 132, 132, 136, 144,
+      ]
+    case .disabled:
       return Array(repeating: 288, count: 42)
     }
   }
@@ -70,12 +75,12 @@ extension DeviceCapability.WeightsStreaming {
     let weightsSize: UInt64
     switch self {
     case ._8GiB:
-      // The other text weights and 8 experts of 6.65625 MiB per layer.
-      weightsSize = 10_511_165_304 + 42 * 8 * 6_979_584
-    case ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB, ._56GiB, ._64GiB:
+      // The other text weights and 8 experts of 11.53125 MiB per layer.
+      weightsSize = 9_877_086_584 + 42 * 8 * 12_091_392
+    case ._16GiB, ._24GiB, ._32GiB, ._40GiB, ._48GiB, ._56GiB, ._64GiB, ._72GiB:
       weightsSize = UInt64(rawValue) * 1_024 * 1_024 * 1_024
-    case ._72GiB, .disabled:
-      weightsSize = 96_066_945_024  // The whole glm_5.3_flash_i2x_lgain_trailer.ckpt, about 89.47 GiB.
+    case .disabled:
+      weightsSize = 157_265_297_408  // The whole glm_5.3_flash_i4x.ckpt, about 146.47 GiB.
     }
     // The drafter loads whole at every tier.
     let drafterSize: UInt64 =
