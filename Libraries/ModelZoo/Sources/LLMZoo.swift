@@ -92,7 +92,7 @@ public struct LLMZoo: DownloadZoo {
       draftFile: "glm_5.3_flash_dflash2_i5x.ckpt",
       version: .glm_5_3_flash, huggingFaceLink: "zai-org/GLM-5.3-Flash",
       note:
-        "A coding-focused model that understands images. Close to frontier models on coding and terminal work."
+        "A coding-focused model that understands images, also known as Ox Alpha. Close to frontier models on coding and terminal tasks, and capable at security testing."
     ),
     Specification(
       name: "GLM 5.3 Flash (2-bit S)", file: "glm_5.3_flash_i2x.ckpt",
