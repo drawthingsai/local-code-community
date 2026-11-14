@@ -120,7 +120,9 @@ final class ServeController {
   private struct ActiveTurn {
     let agent: ResponsesAgent
     let pendingRequest: PendingRequest
-    let didContinueEarlierTurn: Bool
+    /// The request's prompt without the reply opening.
+    let conversation: ResponsesPrompt
+    let didReuseAgent: Bool
     /// The scheduler running the turn.
     var scheduler: AgentScheduler
     var phase = ServeState.ActivePhase.waiting
@@ -523,7 +525,9 @@ final class ServeController {
       // A turn that ends as its time slice runs out only comes back once the scheduler gets round
       // to it again, which a quick follow-up can beat. Its agent holds this conversation, so wait.
       let isFollowingUnreturnedTurn = activeTurns.values.contains {
-        !$0.retainedPrompt.tokens.isEmpty && tokenized.prompt.continues($0.retainedPrompt)
+        !$0.retainedPrompt.tokens.isEmpty
+          && (tokenized.prompt.continues($0.retainedPrompt)
+            || tokenized.prompt.continues($0.conversation))
       }
       guard !isFollowingUnreturnedTurn else { break }
       // A model folder change while it was tokenized can move the model's files. Checking again
@@ -535,7 +539,9 @@ final class ServeController {
           message: "The model selected to serve is not ready. Check that it is fully downloaded.")
         continue
       }
-      let reusedAgent = idleAgentPool.takeAgent(continuing: tokenized.prompt)
+      let reusedAgent =
+        idleAgentPool.takeAgent(continuing: tokenized.prompt)
+        ?? idleAgentPool.takeAgent(supersededBy: tokenized.prompt)
       if reusedAgent == nil {
         // With every agent running it waits for a turn to end. Otherwise a new agent takes the
         // place of an idle one once there are as many as are kept.
@@ -558,9 +564,12 @@ final class ServeController {
         request: pendingRequest.request, prompt: tokenized.prompt,
         thinkingBudget: pendingRequest.thinkingBudget,
         writer: pendingRequest.writer, transport: pendingRequest.connection)
+      let replyOpening = agent.adapter.replyOpening(isThinking: pendingRequest.thinkingBudget > 0)
       activeTurns[ObjectIdentifier(agent)] = ActiveTurn(
-        agent: agent, pendingRequest: pendingRequest, didContinueEarlierTurn: reusedAgent != nil,
-        scheduler: scheduler, timing: ServeRequestTiming(startDate: pendingRequest.arrivalDate))
+        agent: agent, pendingRequest: pendingRequest,
+        conversation: tokenized.prompt.prefix(tokenized.prompt.tokens.count - replyOpening.count),
+        didReuseAgent: reusedAgent != nil, scheduler: scheduler,
+        timing: ServeRequestTiming(startDate: pendingRequest.arrivalDate))
       activeTurnCount.store(activeTurns.count, ordering: .relaxed)
       scheduler.askDetached(agent, threadId: Self.schedulerThreadId) {
         [weak self, weak scheduler, weak agent] _, _ in
@@ -584,7 +593,8 @@ final class ServeController {
       agent.adapter.filePath == tokenizingAdapter?.filePath
     {
       idleAgentPool.add(
-        agent, prompt: activeTurn.retainedPrompt, wasReused: activeTurn.didContinueEarlierTurn)
+        agent, prompt: activeTurn.retainedPrompt, conversation: activeTurn.conversation,
+        wasReused: activeTurn.didReuseAgent)
     } else {
       release([agent])
     }

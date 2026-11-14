@@ -787,7 +787,9 @@ final class ResponsesAgentPoolTests: XCTestCase {
   func testContinuationHasToBeLonger() {
     var pool = ResponsesAgentPool<Agent>()
     let agent = Agent()
-    pool.add(agent, prompt: ResponsesPrompt(tokens: [1, 2, 3]), wasReused: false)
+    pool.add(
+      agent, prompt: ResponsesPrompt(tokens: [1, 2, 3]), conversation: ResponsesPrompt(tokens: [1]),
+      wasReused: false)
     XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 3])))
     XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2])))
     XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 4, 5])))
@@ -799,8 +801,12 @@ final class ResponsesAgentPoolTests: XCTestCase {
     var pool = ResponsesAgentPool<Agent>()
     let short = Agent()
     let long = Agent()
-    pool.add(short, prompt: ResponsesPrompt(tokens: [1, 2]), wasReused: true)
-    pool.add(long, prompt: ResponsesPrompt(tokens: [1, 2, 3]), wasReused: false)
+    pool.add(
+      short, prompt: ResponsesPrompt(tokens: [1, 2]), conversation: ResponsesPrompt(tokens: [1]),
+      wasReused: true)
+    pool.add(
+      long, prompt: ResponsesPrompt(tokens: [1, 2, 3]), conversation: ResponsesPrompt(tokens: [1]),
+      wasReused: false)
     XCTAssertTrue(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 3, 4])) === long)
     XCTAssertTrue(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 3, 4])) === short)
   }
@@ -813,7 +819,9 @@ final class ResponsesAgentPoolTests: XCTestCase {
     }
     var pool = ResponsesAgentPool<Agent>()
     let agent = Agent()
-    pool.add(agent, prompt: prompt([1, 9, 9, 2], image: 1), wasReused: false)
+    pool.add(
+      agent, prompt: prompt([1, 9, 9, 2], image: 1),
+      conversation: prompt([1, 9, 9, 2], image: 1).prefix(3), wasReused: false)
     XCTAssertNil(pool.takeAgent(continuing: prompt([1, 9, 9, 2, 3], image: 2)))
     XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 9, 9, 2, 3])))
     XCTAssertTrue(pool.takeAgent(continuing: prompt([1, 9, 9, 2, 3], image: 1)) === agent)
@@ -840,10 +848,22 @@ final class ResponsesAgentPoolTests: XCTestCase {
     let secondReused = Agent()
     let firstOnce = Agent()
     let secondOnce = Agent()
-    pool.add(firstReused, prompt: ResponsesPrompt(tokens: [1]), wasReused: true)
-    pool.add(firstOnce, prompt: ResponsesPrompt(tokens: [2]), wasReused: false)
-    pool.add(secondReused, prompt: ResponsesPrompt(tokens: [3]), wasReused: true)
-    pool.add(secondOnce, prompt: ResponsesPrompt(tokens: [4]), wasReused: false)
+    pool.add(
+      firstReused, prompt: ResponsesPrompt(tokens: [1, 0]),
+      conversation: ResponsesPrompt(tokens: [1]),
+      wasReused: true)
+    pool.add(
+      firstOnce, prompt: ResponsesPrompt(tokens: [2, 0]),
+      conversation: ResponsesPrompt(tokens: [2]),
+      wasReused: false)
+    pool.add(
+      secondReused, prompt: ResponsesPrompt(tokens: [3, 0]),
+      conversation: ResponsesPrompt(tokens: [3]),
+      wasReused: true)
+    pool.add(
+      secondOnce, prompt: ResponsesPrompt(tokens: [4, 0]),
+      conversation: ResponsesPrompt(tokens: [4]),
+      wasReused: false)
     XCTAssertTrue(pool.expire() === firstOnce)
     XCTAssertTrue(pool.expire() === secondOnce)
     XCTAssertTrue(pool.expire() === firstReused)
@@ -851,12 +871,57 @@ final class ResponsesAgentPoolTests: XCTestCase {
     XCTAssertNil(pool.expire())
   }
 
+  func testSupersededByItsConversationComingBack() {
+    var pool = ResponsesAgentPool<Agent>()
+    let agent = Agent()
+    // The conversation [1, 2], the reply opening [3] and the reply [4].
+    pool.add(
+      agent, prompt: ResponsesPrompt(tokens: [1, 2, 3, 4]),
+      conversation: ResponsesPrompt(tokens: [1, 2]), wasReused: false)
+    // Another conversation with the same instructions, and the conversation without its opening.
+    XCTAssertNil(pool.takeAgent(supersededBy: ResponsesPrompt(tokens: [1, 5, 3])))
+    XCTAssertNil(pool.takeAgent(supersededBy: ResponsesPrompt(tokens: [1, 2])))
+    // The reply replayed with another opening, then a tool result and the next opening.
+    XCTAssertTrue(
+      pool.takeAgent(supersededBy: ResponsesPrompt(tokens: [1, 2, 6, 4, 7, 3])) === agent)
+    XCTAssertEqual(pool.count, 0)
+  }
+
+  func testRetryingTheRequestSupersedesItsReply() {
+    var pool = ResponsesAgentPool<Agent>()
+    let agent = Agent()
+    pool.add(
+      agent, prompt: ResponsesPrompt(tokens: [1, 2, 3, 4]),
+      conversation: ResponsesPrompt(tokens: [1, 2]), wasReused: true)
+    XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 3])))
+    XCTAssertTrue(pool.takeAgent(supersededBy: ResponsesPrompt(tokens: [1, 2, 3])) === agent)
+  }
+
+  func testTakesTheLongestSupersededConversation() {
+    var pool = ResponsesAgentPool<Agent>()
+    let earlier = Agent()
+    let later = Agent()
+    pool.add(
+      earlier, prompt: ResponsesPrompt(tokens: [1, 2, 3]),
+      conversation: ResponsesPrompt(tokens: [1]),
+      wasReused: true)
+    pool.add(
+      later, prompt: ResponsesPrompt(tokens: [1, 2, 3, 4, 5]),
+      conversation: ResponsesPrompt(tokens: [1, 2, 3]), wasReused: false)
+    XCTAssertTrue(pool.takeAgent(supersededBy: ResponsesPrompt(tokens: [1, 2, 3, 9])) === later)
+    XCTAssertTrue(pool.takeAgent(supersededBy: ResponsesPrompt(tokens: [1, 2, 3, 9])) === earlier)
+  }
+
   func testRemovesListedAgents() {
     var pool = ResponsesAgentPool<Agent>()
     let kept = Agent()
     let removed = Agent()
-    pool.add(kept, prompt: ResponsesPrompt(tokens: [1]), wasReused: true)
-    pool.add(removed, prompt: ResponsesPrompt(tokens: [2]), wasReused: false)
+    pool.add(
+      kept, prompt: ResponsesPrompt(tokens: [1, 0]), conversation: ResponsesPrompt(tokens: [1]),
+      wasReused: true)
+    pool.add(
+      removed, prompt: ResponsesPrompt(tokens: [2, 0]), conversation: ResponsesPrompt(tokens: [2]),
+      wasReused: false)
     pool.remove([removed])
     XCTAssertEqual(pool.count, 1)
     XCTAssertTrue(pool.agents.first === kept)

@@ -22,6 +22,8 @@ protocol ResponsesModelAdapter: AnyObject {
   func prompt(
     for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
   ) -> ResponsesPrompt
+  /// The assistant's opening tokens that end every prompt, before the model writes a token.
+  func replyOpening(isThinking: Bool) -> [Int32]
   func makeOutputParser(isThinking: Bool) -> ResponsesOutputParser
   func isTerminal(_ token: Int32) -> Bool
   func decode(
@@ -168,11 +170,6 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
         reasoningEffort: isThinking ? Qwen3_5CodeAgent.ReasoningEffort(reasoningEffort) : .medium),
       unsafeTokenizer: Qwen3_5TextGenerator.unsafeTokenizer,
       safeTokenizer: Qwen3_5TextGenerator.safeTokenizer)
-    let assistantTokens = Qwen3_5TextGenerator.unsafeTokenizer.tokenize(
-      text: isThinking
-        ? "<|im_start|>assistant\n<think>\n" : "<|im_start|>assistant\n<think>\n\n</think>\n\n",
-      truncation: false, maxLength: 0, paddingToken: nil, addSpecialTokens: false
-    ).1
     let store = EmbedsFileStore(projectPath: projectPath)
     let visionConfiguration = textGenerator.visionConfiguration
     var tokens = systemTokens
@@ -196,7 +193,16 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
       }
       tokens += Self.assistantTokens(text: text, thinking: thinking, toolCalls: toolCalls)
     }
-    return ResponsesPrompt(tokens: tokens + assistantTokens, embedSpans: embedSpans)
+    return ResponsesPrompt(
+      tokens: tokens + replyOpening(isThinking: isThinking), embedSpans: embedSpans)
+  }
+
+  func replyOpening(isThinking: Bool) -> [Int32] {
+    Qwen3_5TextGenerator.unsafeTokenizer.tokenize(
+      text: isThinking
+        ? "<|im_start|>assistant\n<think>\n" : "<|im_start|>assistant\n<think>\n\n</think>\n\n",
+      truncation: false, maxLength: 0, paddingToken: nil, addSpecialTokens: false
+    ).1
   }
 
   /// Assistant turns come out the way the model writes them, unlike the agent's transcript
@@ -390,8 +396,12 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
       unsafeTokenizer: Generator.unsafeTokenizer, safeTokenizer: Generator.safeTokenizer)
     let store = EmbedsFileStore(projectPath: projectPath)
     var embedSpans = [EmbedSpan]()
-    let transcriptTokens = DeepSeek4CodeAgent<Generator>.parse(request.transcript) {
-      image, tokenOffset in
+    // When thinking, the model opens its thinking even if it closes it right away, which is what
+    // its KV cache holds. Turns without thinking are written that way too, or the client's replay
+    // of one would drop the KV cache.
+    let transcriptTokens = DeepSeek4CodeAgent<Generator>.parse(
+      request.transcript, isThinking: isThinking
+    ) { image, tokenOffset in
       guard let digest = try? store.insert(data: image.data),
         let count = Generator.imageTokenCount(filePath: store.filePath(for: digest))
       else { return [] }
@@ -402,9 +412,12 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
       return Array(repeating: 129_264, count: count)
     }
     return ResponsesPrompt(
-      tokens: systemTokens + transcriptTokens + [
-        Self.assistantToken, isThinking ? Self.thinkStartToken : Self.thinkEndToken,
-      ], embedSpans: embedSpans)
+      tokens: systemTokens + transcriptTokens + replyOpening(isThinking: isThinking),
+      embedSpans: embedSpans)
+  }
+
+  func replyOpening(isThinking: Bool) -> [Int32] {
+    [Self.assistantToken, isThinking ? Self.thinkStartToken : Self.thinkEndToken]
   }
 
   /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
@@ -534,13 +547,6 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
         reasoningEffort: GLM5_3CodeAgent.ReasoningEffort(reasoningEffort)),
       unsafeTokenizer: GLM5_3TextGenerator.unsafeTokenizer,
       safeTokenizer: GLM5_3TextGenerator.safeTokenizer)
-    let assistantTokens =
-      isThinking
-      ? [GLM5_3TextGenerator.assistantToken, GLM5_3TextGenerator.thinkStartToken]
-      : [
-        GLM5_3TextGenerator.assistantToken, GLM5_3TextGenerator.thinkStartToken,
-        GLM5_3TextGenerator.thinkEndToken,
-      ]
     let store = EmbedsFileStore(projectPath: projectPath)
     var embedSpans = [EmbedSpan]()
     // The agent's renderer keeps each turn's thinking and writes calls the way the model does.
@@ -557,7 +563,17 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
         + [GLM5_3TextGenerator.imageEndToken]
     }
     return ResponsesPrompt(
-      tokens: systemTokens + transcriptTokens + assistantTokens, embedSpans: embedSpans)
+      tokens: systemTokens + transcriptTokens + replyOpening(isThinking: isThinking),
+      embedSpans: embedSpans)
+  }
+
+  func replyOpening(isThinking: Bool) -> [Int32] {
+    isThinking
+      ? [GLM5_3TextGenerator.assistantToken, GLM5_3TextGenerator.thinkStartToken]
+      : [
+        GLM5_3TextGenerator.assistantToken, GLM5_3TextGenerator.thinkStartToken,
+        GLM5_3TextGenerator.thinkEndToken,
+      ]
   }
 
   /// The tools part follows the agent's prompt, without the instructions meant for its own tools.

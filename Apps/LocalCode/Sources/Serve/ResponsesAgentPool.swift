@@ -5,6 +5,7 @@ struct ResponsesAgentPool<Agent: AnyObject> {
   private struct Entry {
     let agent: Agent
     let prompt: ResponsesPrompt
+    let conversation: ResponsesPrompt
   }
 
   private var firstUse = [Entry]()
@@ -16,24 +17,24 @@ struct ResponsesAgentPool<Agent: AnyObject> {
   /// Takes the agent whose prompt `prompt` continues, the longest if there are several. Comparing
   /// the tokens costs far less than the tokenizing it follows, so there's no hash to keep in step.
   mutating func takeAgent(continuing prompt: ResponsesPrompt) -> Agent? {
-    let longestFirstUse = firstUse.indices.filter { prompt.continues(firstUse[$0].prompt) }.max {
-      firstUse[$0].prompt.tokens.count < firstUse[$1].prompt.tokens.count
-    }
-    let longestReused = reused.indices.filter { prompt.continues(reused[$0].prompt) }.max {
-      reused[$0].prompt.tokens.count < reused[$1].prompt.tokens.count
-    }
-    if let longestFirstUse,
-      firstUse[longestFirstUse].prompt.tokens.count
-        > longestReused.map({ reused[$0].prompt.tokens.count }) ?? 0
-    {
-      return firstUse.remove(at: longestFirstUse).agent
-    }
-    return longestReused.map { reused.remove(at: $0).agent }
+    takeLongest { prompt.continues($0.prompt) ? $0.prompt.tokens.count : nil }
   }
 
-  /// `wasReused` says the turn that just ended continued an earlier one.
-  mutating func add(_ agent: Agent, prompt: ResponsesPrompt, wasReused: Bool) {
-    let entry = Entry(agent: agent, prompt: prompt)
+  /// Takes the agent whose last turn replied to a conversation that `prompt` goes on with, the
+  /// longest if there are several. That's the conversation coming back with the reply in another
+  /// form than the model's, or asking again, so nothing will continue the agent's KV cache. The
+  /// conversation starts over in it rather than in a new agent, which would leave this one holding
+  /// a cache of no use until it expires.
+  mutating func takeAgent(supersededBy prompt: ResponsesPrompt) -> Agent? {
+    takeLongest { prompt.continues($0.conversation) ? $0.conversation.tokens.count : nil }
+  }
+
+  /// `conversation` is the prompt of the request the turn answered, without its reply opening.
+  /// `wasReused` says the turn's conversation came back to the agent.
+  mutating func add(
+    _ agent: Agent, prompt: ResponsesPrompt, conversation: ResponsesPrompt, wasReused: Bool
+  ) {
+    let entry = Entry(agent: agent, prompt: prompt, conversation: conversation)
     if wasReused {
       reused.append(entry)
     } else {
@@ -59,5 +60,20 @@ struct ResponsesAgentPool<Agent: AnyObject> {
     let isListed: (Entry) -> Bool = { entry in agents.contains { $0 === entry.agent } }
     firstUse.removeAll(where: isListed)
     reused.removeAll(where: isListed)
+  }
+
+  /// Takes the agent of the longest match, as `length` measures the entries that match and gives
+  /// nil for the rest. A tie goes to the conversation that came back.
+  private mutating func takeLongest(_ length: (Entry) -> Int?) -> Agent? {
+    let firstUseMatch = firstUse.indices.compactMap { index in
+      length(firstUse[index]).map { (index: index, length: $0) }
+    }.max { $0.length < $1.length }
+    let reusedMatch = reused.indices.compactMap { index in
+      length(reused[index]).map { (index: index, length: $0) }
+    }.max { $0.length < $1.length }
+    if let firstUseMatch, firstUseMatch.length > reusedMatch?.length ?? 0 {
+      return firstUse.remove(at: firstUseMatch.index).agent
+    }
+    return reusedMatch.map { reused.remove(at: $0.index).agent }
   }
 }

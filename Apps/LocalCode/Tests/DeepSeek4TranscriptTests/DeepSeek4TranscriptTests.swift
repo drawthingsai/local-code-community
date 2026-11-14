@@ -79,6 +79,20 @@ struct DeepSeek4TranscriptTests {
     #expect(toolCalls.isEmpty)
   }
 
+  @Test func thinkingWritesATurnWithoutThinkingAsTheModelDoes() {
+    let transcript: [AgentTranscriptEntry] = [
+      .user("A"), .assistant(text: "B", thinking: "", toolCalls: []),
+    ]
+    #expect(
+      DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.parse(transcript) == [
+        128_803, 65, 128_804, 128_822, 66, 1,
+      ])
+    let thinking = DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.parse(
+      transcript, isThinking: true)
+    #expect(thinking == [128_803, 65, 128_804, 128_821, 128_822, 66, 1])
+    #expect(DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.parse(thinking) == transcript)
+  }
+
   @Test func appendedProjectContextSystemReminderIsHiddenFromVisiblePrompt() {
     let systemReminder = "\n\n<system-reminder>P</system-reminder>"
     let tokens: [Int32] =

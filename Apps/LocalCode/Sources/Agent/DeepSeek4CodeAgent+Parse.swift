@@ -84,9 +84,11 @@ extension DeepSeek4CodeAgent {
   }
 
   /// `imageTokens` gives the tokens for an image that starts at the given offset in the result.
-  /// Without it the images are left out, as the chat's transcripts have none.
+  /// Without it the images are left out, as the chat's transcripts have none. `isThinking` writes
+  /// an assistant turn without thinking as the thinking model does, opening its thinking and
+  /// closing it right away, instead of as a turn that didn't think.
   static func parse(
-    _ transcript: [AgentTranscriptEntry],
+    _ transcript: [AgentTranscriptEntry], isThinking: Bool = false,
     imageTokens: (AgentTranscriptImage, Int) -> [Int32] = { _, _ in [] }
   ) -> [Int32] {
     let format = toolCallFormat
@@ -116,13 +118,11 @@ extension DeepSeek4CodeAgent {
         appendContent(AgentTranscriptImage.segments(of: text, images: images), images)
       case .assistant(let text, let thinking, let toolCalls):
         tokens.append(transcriptAssistantToken)
-        if thinking.isEmpty {
-          tokens.append(transcriptThinkEndToken)
-        } else {
+        if isThinking || !thinking.isEmpty {
           tokens.append(transcriptThinkStartToken)
           tokens += safeTokens(thinking)
-          tokens.append(transcriptThinkEndToken)
         }
+        tokens.append(transcriptThinkEndToken)
         tokens += safeTokens(text)
         if !toolCalls.isEmpty {
           tokens += safeTokens("\n\n")
