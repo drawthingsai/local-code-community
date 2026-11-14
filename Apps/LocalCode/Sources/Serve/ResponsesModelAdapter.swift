@@ -10,20 +10,23 @@ protocol ResponsesModelAdapter: AnyObject {
   var filePath: String { get }
   var maximumContextLength: Int { get }
   var minimumGenerationReserve: Int { get }
+  /// Whether the model can read the images a request holds.
+  var isImageSupported: Bool { get }
   /// How many tokens the latest decode brought back from the context cache.
   var restoredTokenLength: Int? { get }
   /// How many tokens the KV cache holds after the latest decode.
   var kvCacheTokenLength: Int { get }
   /// The whole conversation up to and including the assistant's opening tokens, with the effort
-  /// where the model's chat template has it.
-  func promptTokens(
+  /// where the model's chat template has it. The request's images go to the project's embeds,
+  /// where the decode finds them. One the model can't read is left out.
+  func prompt(
     for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
-  ) -> [Int32]
+  ) -> ResponsesPrompt
   func makeOutputParser(isThinking: Bool) -> ResponsesOutputParser
   func isTerminal(_ token: Int32) -> Bool
   func decode(
     graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
-    contextTokens: [Int32], thinkingBudget: Int, deterministic: Bool,
+    contextTokens: [Int32], embedSpans: [EmbedSpan], thinkingBudget: Int, deterministic: Bool,
     handler: (Int, Int, [Int32], CodeAgentStatistics) -> ContinuationState
   ) -> [Int32]
   func resetCaches()
@@ -153,10 +156,11 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
   var filePath: String { textGenerator.filePath }
   var maximumContextLength: Int { Qwen3_5CodeAgent.maximumContextLength }
   var minimumGenerationReserve: Int { Qwen3_5CodeAgent.minimumGenerationReserve }
+  var isImageSupported: Bool { true }
 
-  func promptTokens(
+  func prompt(
     for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
-  ) -> [Int32] {
+  ) -> ResponsesPrompt {
     let systemTokens = tokenizeSystemPromptSections(
       Self.systemSections(
         instructions: request.instructions, tools: request.tools,
@@ -169,15 +173,37 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
         ? "<|im_start|>assistant\n<think>\n" : "<|im_start|>assistant\n<think>\n\n</think>\n\n",
       truncation: false, maxLength: 0, paddingToken: nil, addSpecialTokens: false
     ).1
-    return systemTokens + request.transcript.flatMap(Self.transcriptTokens) + assistantTokens
+    let store = EmbedsFileStore(projectPath: projectPath)
+    let visionConfiguration = textGenerator.visionConfiguration
+    var tokens = systemTokens
+    var embedSpans = [EmbedSpan]()
+    for entry in request.transcript {
+      guard case .assistant(let text, let thinking, let toolCalls) = entry else {
+        let entryOffset = tokens.count
+        tokens += Qwen3_5CodeAgent.parse([entry]) { image, tokenOffset in
+          guard let digest = try? store.insert(data: image.data),
+            let grid = Qwen3_5Image.grid(
+              filePath: store.filePath(for: digest), configuration: visionConfiguration)
+          else { return [] }
+          let count = Qwen3_5VisionTokenCount(gridThw: grid, configuration: visionConfiguration)
+          embedSpans.append(
+            EmbedSpan(
+              start: Int64(entryOffset + tokenOffset + 1), length: Int64(count),
+              digest: Array(digest), kind: .image))
+          return [248_053] + Array(repeating: 248_056, count: count) + [248_054]
+        }
+        continue
+      }
+      tokens += Self.assistantTokens(text: text, thinking: thinking, toolCalls: toolCalls)
+    }
+    return ResponsesPrompt(tokens: tokens + assistantTokens, embedSpans: embedSpans)
   }
 
   /// Assistant turns come out the way the model writes them, unlike the agent's transcript
   /// renderer, so that a client replaying a turn continues the KV cache instead of dropping it.
-  private static func transcriptTokens(_ entry: AgentTranscriptEntry) -> [Int32] {
-    guard case .assistant(let text, let thinking, let toolCalls) = entry else {
-      return Qwen3_5CodeAgent.parse([entry])
-    }
+  private static func assistantTokens(
+    text: String, thinking: String, toolCalls: [AgentTranscriptToolCall]
+  ) -> [Int32] {
     func unsafeTokens(_ text: String) -> [Int32] {
       Qwen3_5TextGenerator.unsafeTokenizer.tokenize(
         text: text, truncation: false, maxLength: 0, paddingToken: nil, addSpecialTokens: false
@@ -188,7 +214,7 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
         text: text, truncation: false, maxLength: 0, paddingToken: nil, addSpecialTokens: false
       ).1
     }
-    // Without thinking, the same opening as the one `promptTokens` asked the model to continue.
+    // Without thinking, the same opening as the one `prompt` asked the model to continue.
     var tokens =
       thinking.isEmpty
       ? unsafeTokens("<|im_start|>assistant\n<think>\n\n</think>\n\n")
@@ -280,7 +306,7 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
 
   func decode(
     graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
-    contextTokens: [Int32], thinkingBudget: Int, deterministic: Bool,
+    contextTokens: [Int32], embedSpans: [EmbedSpan], thinkingBudget: Int, deterministic: Bool,
     handler: (Int, Int, [Int32], CodeAgentStatistics) -> ContinuationState
   ) -> [Int32] {
     let contextCache = Qwen3_5ContextCache(
@@ -289,7 +315,8 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
     return textGenerator.decode(
       graph: graph, tokens: tokens, tokenOffset: tokenOffset, thinkingBudget: thinkingBudget,
       deterministic: deterministic, kvCache: &kvCache, draftCache: &draftCache,
-      contextTokens: contextTokens, contextCache: contextCache
+      contextTokens: contextTokens, contextCache: contextCache, embedSpans: embedSpans,
+      projectPath: projectPath
     ) { prefillStart, prefillLength, generatedTokens, statistics in
       Qwen3_5TextGenerator.ContinuationState(
         handler(
@@ -348,10 +375,11 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
   var filePath: String { textGenerator.filePath }
   var maximumContextLength: Int { DeepSeek4CodeAgent<Generator>.maximumContextLength }
   var minimumGenerationReserve: Int { DeepSeek4CodeAgent<Generator>.minimumGenerationReserve }
+  var isImageSupported: Bool { Generator.isImageSupported }
 
-  func promptTokens(
+  func prompt(
     for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
-  ) -> [Int32] {
+  ) -> ResponsesPrompt {
     let systemTokens = tokenizeSystemPromptSections(
       Self.systemSections(
         instructions: request.instructions, tools: request.tools, version: Generator.version,
@@ -360,9 +388,23 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
           ? DeepSeek4CodeAgent<Generator>.ReasoningEffort(reasoningEffort) : .high,
         isThinking: isThinking),
       unsafeTokenizer: Generator.unsafeTokenizer, safeTokenizer: Generator.safeTokenizer)
-    return systemTokens + DeepSeek4CodeAgent<Generator>.parse(request.transcript) + [
-      Self.assistantToken, isThinking ? Self.thinkStartToken : Self.thinkEndToken,
-    ]
+    let store = EmbedsFileStore(projectPath: projectPath)
+    var embedSpans = [EmbedSpan]()
+    let transcriptTokens = DeepSeek4CodeAgent<Generator>.parse(request.transcript) {
+      image, tokenOffset in
+      guard let digest = try? store.insert(data: image.data),
+        let count = Generator.imageTokenCount(filePath: store.filePath(for: digest))
+      else { return [] }
+      embedSpans.append(
+        EmbedSpan(
+          start: Int64(systemTokens.count + tokenOffset), length: Int64(count),
+          digest: Array(digest), kind: .image))
+      return Array(repeating: 129_264, count: count)
+    }
+    return ResponsesPrompt(
+      tokens: systemTokens + transcriptTokens + [
+        Self.assistantToken, isThinking ? Self.thinkStartToken : Self.thinkEndToken,
+      ], embedSpans: embedSpans)
   }
 
   /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
@@ -426,7 +468,7 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
 
   func decode(
     graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
-    contextTokens: [Int32], thinkingBudget: Int, deterministic: Bool,
+    contextTokens: [Int32], embedSpans: [EmbedSpan], thinkingBudget: Int, deterministic: Bool,
     handler: (Int, Int, [Int32], CodeAgentStatistics) -> ContinuationState
   ) -> [Int32] {
     let contextCache = Generator.ContextCache(
@@ -435,7 +477,7 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
     return textGenerator.decode(
       graph: graph, tokens: tokens, tokenOffset: tokenOffset, thinkingBudget: thinkingBudget,
       deterministic: deterministic, kvCache: &kvCache, contextTokens: contextTokens,
-      contextCache: contextCache, embedSpans: [], projectPath: nil
+      contextCache: contextCache, embedSpans: embedSpans, projectPath: projectPath
     ) { prefillStart, prefillLength, generatedTokens, statistics in
       DeepSeekGenerationContinuationState(
         handler(
@@ -481,10 +523,11 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
   var filePath: String { textGenerator.filePath }
   var maximumContextLength: Int { GLM5_3CodeAgent.maximumContextLength }
   var minimumGenerationReserve: Int { GLM5_3CodeAgent.minimumGenerationReserve }
+  var isImageSupported: Bool { true }
 
-  func promptTokens(
+  func prompt(
     for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
-  ) -> [Int32] {
+  ) -> ResponsesPrompt {
     let systemTokens = tokenizeSystemPromptSections(
       Self.systemSections(
         instructions: request.instructions, tools: request.tools,
@@ -498,8 +541,23 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
         GLM5_3TextGenerator.assistantToken, GLM5_3TextGenerator.thinkStartToken,
         GLM5_3TextGenerator.thinkEndToken,
       ]
+    let store = EmbedsFileStore(projectPath: projectPath)
+    var embedSpans = [EmbedSpan]()
     // The agent's renderer keeps each turn's thinking and writes calls the way the model does.
-    return systemTokens + GLM5_3CodeAgent.parse(request.transcript) + assistantTokens
+    let transcriptTokens = GLM5_3CodeAgent.parse(request.transcript) { image, tokenOffset in
+      guard let digest = try? store.insert(data: image.data),
+        let count = GLM5_3TextGenerator.imageTokenCount(filePath: store.filePath(for: digest))
+      else { return [] }
+      embedSpans.append(
+        EmbedSpan(
+          start: Int64(systemTokens.count + tokenOffset + 1), length: Int64(count),
+          digest: Array(digest), kind: .image))
+      return [GLM5_3TextGenerator.imageStartToken]
+        + Array(repeating: GLM5_3TextGenerator.imageToken, count: count)
+        + [GLM5_3TextGenerator.imageEndToken]
+    }
+    return ResponsesPrompt(
+      tokens: systemTokens + transcriptTokens + assistantTokens, embedSpans: embedSpans)
   }
 
   /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
@@ -562,7 +620,7 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
 
   func decode(
     graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
-    contextTokens: [Int32], thinkingBudget: Int, deterministic: Bool,
+    contextTokens: [Int32], embedSpans: [EmbedSpan], thinkingBudget: Int, deterministic: Bool,
     handler: (Int, Int, [Int32], CodeAgentStatistics) -> ContinuationState
   ) -> [Int32] {
     let contextCache = GLM5_3ContextCache(
@@ -573,7 +631,8 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
     return textGenerator.decode(
       graph: graph, tokens: tokens, tokenOffset: tokenOffset, thinkingBudget: thinkingBudget,
       outputSampling: deterministic ? nil : .deterministic, kvCache: &kvCache,
-      contextTokens: contextTokens, contextCache: contextCache
+      contextTokens: contextTokens, contextCache: contextCache, embedSpans: embedSpans,
+      projectPath: projectPath
     ) { prefillStart, prefillLength, generatedTokens, statistics in
       GLM5_3TextGenerator.ContinuationState(
         handler(

@@ -615,6 +615,7 @@ swift_test(
         "Sources/Serve/ChatCompletionsResponseWriter.swift",
         "Sources/Serve/MessagesResponseWriter.swift",
         "Sources/Serve/ResponsesAgentPool.swift",
+        "Sources/Serve/ResponsesPrompt.swift",
         "Sources/Serve/ResponsesRequest.swift",
         "Sources/Serve/ResponsesRequest+ChatCompletions.swift",
         "Sources/Serve/ResponsesRequest+Messages.swift",
@@ -623,7 +624,10 @@ swift_test(
         "Sources/Serve/StreamingHTTPServer.swift",
         "Sources/Serve/WireProtocol.swift",
     ] + glob(["Tests/ResponsesServeTests/**/*.swift"]),
-    deps = ["@swift-atomics//:SwiftAtomics"],
+    deps = [
+        "//Libraries/ProjectHistoryManager",
+        "@swift-atomics//:SwiftAtomics",
+    ],
 )
 
 swift_test(
@@ -1400,6 +1404,7 @@ swift_binary(
         "Sources/Serve/ResponsesAgent.swift",
         "Sources/Serve/ResponsesAgentPool.swift",
         "Sources/Serve/ResponsesModelAdapter.swift",
+        "Sources/Serve/ResponsesPrompt.swift",
         "Sources/Serve/ResponsesRequest.swift",
         "Sources/Serve/ResponsesRequest+ChatCompletions.swift",
         "Sources/Serve/ResponsesRequest+Messages.swift",

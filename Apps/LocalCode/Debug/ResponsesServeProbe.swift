@@ -131,6 +131,9 @@ private final class Probe: ServeControllerDelegate {
     DynamicGraph.queueWatermark =
       DeviceCapability.isUltraPerformance ? 128 : (DeviceCapability.isHighPerformance ? 32 : 8)
     graph.maxConcurrency = .limit(4)
+    // Where the model is has to be where the app would look for it. Otherwise the controller takes
+    // the model folder to have changed on every request, and keeps no agent for a follow-up.
+    LLMZoo.externalUrls = [URL(fileURLWithPath: modelPath).deletingLastPathComponent()]
     serveWorkspace.dictionary["serve_model", String.self] =
       URL(fileURLWithPath: modelPath).lastPathComponent
     if let ip {

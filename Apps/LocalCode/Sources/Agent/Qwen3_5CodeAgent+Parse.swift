@@ -105,13 +105,27 @@ extension Qwen3_5CodeAgent {
     return transcript
   }
 
-  static func parse(_ transcript: [AgentTranscriptEntry]) -> [Int32] {
+  /// `imageTokens` gives the tokens for an image that starts at the given offset in the result.
+  /// Without it the images are left out, as the chat's transcripts have none.
+  static func parse(
+    _ transcript: [AgentTranscriptEntry],
+    imageTokens: (AgentTranscriptImage, Int) -> [Int32] = { _, _ in [] }
+  ) -> [Int32] {
     var tokens = [Int32]()
+    // The template joins a message's text and image blocks without separators.
+    func appendContent(_ text: String, _ images: [AgentTranscriptImage]) {
+      let segments = AgentTranscriptImage.segments(of: text, images: images)
+      for (image, segment) in zip(images, segments) {
+        tokens += safeTokens(segment)
+        tokens += imageTokens(image, tokens.count)
+      }
+      tokens += safeTokens(segments[images.count])
+    }
     for entry in transcript {
       switch entry {
-      case .user(let text):
+      case .user(let text, let images):
         tokens += unsafeTokens("<|im_start|>user\n")
-        tokens += safeTokens(text)
+        appendContent(text, images)
         tokens += unsafeTokens("<|im_end|>\n")
       case .assistant(let text, let thinking, let toolCalls):
         tokens += unsafeTokens("<|im_start|>assistant\n<think>\n")
@@ -140,7 +154,7 @@ extension Qwen3_5CodeAgent {
         tokens += unsafeTokens("<|im_start|>user\n")
         for result in results {
           tokens += unsafeTokens("<tool_response>\n")
-          tokens += safeTokens(result.content)
+          appendContent(result.content, result.images)
           tokens += unsafeTokens("\n</tool_response>\n")
         }
         tokens += unsafeTokens("<|im_end|>\n")

@@ -36,6 +36,62 @@ final class MessagesRequestTests: XCTestCase {
     try WireProtocol.anthropicMessages.request(body: body(object))
   }
 
+  func testImageBlocksInMessagesAndToolResults() throws {
+    let image: [String: Any] = [
+      "type": "image",
+      "source": ["type": "base64", "media_type": "image/png", "data": testImageBase64],
+    ]
+    let request = try request([
+      "max_tokens": 64,
+      "messages": [
+        ["role": "user", "content": [image, ["type": "text", "text": "What is it?"]]],
+        [
+          "role": "assistant",
+          "content": [["type": "tool_use", "id": "c1", "name": "view", "input": [String: Any]()]],
+        ],
+        [
+          "role": "user",
+          "content": [
+            [
+              "type": "tool_result", "tool_use_id": "c1",
+              "content": [["type": "text", "text": "Seen"], image],
+            ]
+          ],
+        ],
+      ],
+    ])
+    XCTAssertEqual(
+      request.transcript,
+      [
+        .user("What is it?", images: [AgentTranscriptImage(offset: 0, data: testImage)]),
+        .assistant(
+          text: "", thinking: "",
+          toolCalls: [AgentTranscriptToolCall(function: "view", parameters: [:])]),
+        .toolResults([
+          AgentTranscriptToolResult(
+            content: "Seen", isError: false,
+            images: [AgentTranscriptImage(offset: 4, data: testImage)])
+        ]),
+      ])
+    XCTAssertThrowsError(
+      try self.request([
+        "max_tokens": 64,
+        "messages": [
+          [
+            "role": "user",
+            "content": [
+              ["type": "image", "source": ["type": "url", "url": "https://example.com/a.png"]]
+            ],
+          ]
+        ],
+      ])
+    ) { error in
+      guard case ResponsesRequestError.unsupported("input", _) = error else {
+        return XCTFail("\(error)")
+      }
+    }
+  }
+
   func testContentBlocksBuildTheSameConversationAsResponses() throws {
     let request = try request([
       "system": [["type": "text", "text": "Be brief.", "cache_control": ["type": "ephemeral"]]],
@@ -287,6 +343,42 @@ final class ChatCompletionsRequestTests: XCTestCase {
       ])
     XCTAssertEqual(request.maximumOutputTokens, 32)
     XCTAssertFalse(request.includesStreamUsage)
+  }
+
+  func testImageParts() throws {
+    let request = try request([
+      "messages": [
+        [
+          "role": "user",
+          "content": [
+            ["type": "text", "text": "Look"],
+            [
+              "type": "image_url",
+              "image_url": ["url": "data:image/png;base64," + testImageBase64, "detail": "low"],
+            ],
+          ],
+        ]
+      ]
+    ])
+    XCTAssertEqual(
+      request.transcript,
+      [.user("Look", images: [AgentTranscriptImage(offset: 4, data: testImage)])])
+    XCTAssertThrowsError(
+      try self.request([
+        "messages": [
+          [
+            "role": "user",
+            "content": [
+              ["type": "image_url", "image_url": ["url": "https://example.com/a.png"]]
+            ],
+          ]
+        ]
+      ])
+    ) { error in
+      guard case ResponsesRequestError.unsupported("input", _) = error else {
+        return XCTFail("\(error)")
+      }
+    }
   }
 
   func testReasoningEffortAndTheProvidersSwitches() throws {

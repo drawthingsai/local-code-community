@@ -1,10 +1,10 @@
-/// Agents between turns, each holding the KV cache of the tokens it last evaluated. Expiring one
+/// Agents between turns, each holding the KV cache of the prompt it last evaluated. Expiring one
 /// follows 2Q: conversations that never came back go first, oldest first, and then the ones that
 /// did, least recently used first. A one-off request can't push out a conversation in use.
 struct ResponsesAgentPool<Agent: AnyObject> {
   private struct Entry {
     let agent: Agent
-    let tokens: [Int32]
+    let prompt: ResponsesPrompt
   }
 
   private var firstUse = [Entry]()
@@ -13,20 +13,18 @@ struct ResponsesAgentPool<Agent: AnyObject> {
   var count: Int { firstUse.count + reused.count }
   var agents: [Agent] { (firstUse + reused).map(\.agent) }
 
-  /// Takes the agent whose tokens `tokens` continues, the longest if there are several. Comparing
+  /// Takes the agent whose prompt `prompt` continues, the longest if there are several. Comparing
   /// the tokens costs far less than the tokenizing it follows, so there's no hash to keep in step.
-  mutating func takeAgent(continuing tokens: [Int32]) -> Agent? {
-    let continues: (Entry) -> Bool = {
-      $0.tokens.count < tokens.count && tokens.starts(with: $0.tokens)
+  mutating func takeAgent(continuing prompt: ResponsesPrompt) -> Agent? {
+    let longestFirstUse = firstUse.indices.filter { prompt.continues(firstUse[$0].prompt) }.max {
+      firstUse[$0].prompt.tokens.count < firstUse[$1].prompt.tokens.count
     }
-    let longestFirstUse = firstUse.indices.filter { continues(firstUse[$0]) }.max {
-      firstUse[$0].tokens.count < firstUse[$1].tokens.count
-    }
-    let longestReused = reused.indices.filter { continues(reused[$0]) }.max {
-      reused[$0].tokens.count < reused[$1].tokens.count
+    let longestReused = reused.indices.filter { prompt.continues(reused[$0].prompt) }.max {
+      reused[$0].prompt.tokens.count < reused[$1].prompt.tokens.count
     }
     if let longestFirstUse,
-      firstUse[longestFirstUse].tokens.count > longestReused.map({ reused[$0].tokens.count }) ?? 0
+      firstUse[longestFirstUse].prompt.tokens.count
+        > longestReused.map({ reused[$0].prompt.tokens.count }) ?? 0
     {
       return firstUse.remove(at: longestFirstUse).agent
     }
@@ -34,8 +32,8 @@ struct ResponsesAgentPool<Agent: AnyObject> {
   }
 
   /// `wasReused` says the turn that just ended continued an earlier one.
-  mutating func add(_ agent: Agent, tokens: [Int32], wasReused: Bool) {
-    let entry = Entry(agent: agent, tokens: tokens)
+  mutating func add(_ agent: Agent, prompt: ResponsesPrompt, wasReused: Bool) {
+    let entry = Entry(agent: agent, prompt: prompt)
     if wasReused {
       reused.append(entry)
     } else {

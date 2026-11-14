@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 
 enum ResponsesRequestError: Error, Equatable {
   case invalid(String)
@@ -56,6 +57,20 @@ struct ResponsesRequest {
   var isDeterministic = false
   /// Chat Completions' `stream_options.include_usage`, as its stream has usage only when asked.
   var includesStreamUsage = false
+
+  /// Not every model can read them, and which one serves isn't known while the body is read.
+  var hasImages: Bool {
+    transcript.contains {
+      switch $0 {
+      case .user(_, let images):
+        return !images.isEmpty
+      case .toolResults(let results):
+        return results.contains { !$0.images.isEmpty }
+      case .assistant:
+        return false
+      }
+    }
+  }
 
   init(body: Data) throws {
     let object = try Self.object(from: body)
@@ -232,10 +247,27 @@ struct ResponsesRequest {
       answeredCallIds = []
       resultCallIndices = []
     }
+    // Joins the user message before it, with its images still where they are in its own text.
+    func appendUserMessage(_ text: String, _ images: [AgentTranscriptImage]) {
+      guard case .user(let previous, let previousImages)? = transcript.last else {
+        transcript.append(.user(text, images: images))
+        return
+      }
+      let offset = previous.utf8.count + 2
+      transcript[transcript.count - 1] = .user(
+        previous + "\n\n" + text,
+        images: previousImages
+          + images.map { AgentTranscriptImage(offset: $0.offset + offset, data: $0.data) })
+    }
     for item in items {
       switch item["type"] as? String ?? "message" {
       case "message":
-        let text = try messageText(item["content"])
+        let (text, images) = try messageContent(item["content"])
+        // The models' templates have images in what the user sends and in what a tool returns.
+        if item["role"] as? String != "user", !images.isEmpty {
+          throw ResponsesRequestError.unsupported(
+            parameter: "input", message: "Images are only supported in user messages.")
+        }
         // A system message with nothing in it, such as a Messages change of effort with empty text
         // for its content, is no part of the conversation, even between a call and its output.
         if ["system", "developer"].contains(item["role"] as? String), text.isEmpty {
@@ -257,17 +289,11 @@ struct ResponsesRequest {
           // prefix of everything before it, and so lose the context cache.
           if transcript.isEmpty {
             systemMessages.append(text)
-          } else if case .user(let previous)? = transcript.last {
-            transcript[transcript.count - 1] = .user(previous + "\n\n" + text)
           } else {
-            transcript.append(.user(text))
+            appendUserMessage(text, [])
           }
         case "user":
-          if case .user(let previous)? = transcript.last {
-            transcript[transcript.count - 1] = .user(previous + "\n\n" + text)
-          } else {
-            transcript.append(.user(text))
-          }
+          appendUserMessage(text, images)
         case "assistant":
           if case .assistant(let previous, let thinking, let toolCalls)? = transcript.last,
             toolCalls.isEmpty, pendingThinking.isEmpty
@@ -318,8 +344,8 @@ struct ResponsesRequest {
             "More than one function_call_output has call_id \(callId).")
         }
         endThinkingOnlyTurn()
-        let result = AgentTranscriptToolResult(
-          content: try outputText(item["output"]), isError: false)
+        let (content, images) = try messageContent(item["output"])
+        let result = AgentTranscriptToolResult(content: content, isError: false, images: images)
         if case .toolResults(var results)? = transcript.last {
           let position = resultCallIndices.firstIndex { $0 > callIndex } ?? results.count
           results.insert(result, at: position)
@@ -339,27 +365,76 @@ struct ResponsesRequest {
     return transcript
   }
 
-  private static func messageText(_ content: Any?) throws -> String {
-    if let text = content as? String { return text }
+  /// A message's or a function call output's parts as one text, with the images among them. Text
+  /// parts that follow one another are a line each. An image is between the parts around it as
+  /// they are, since how an image and text join is up to the model's template.
+  private static func messageContent(_ content: Any?) throws
+    -> (text: String, images: [AgentTranscriptImage])
+  {
+    if let text = content as? String { return (text, []) }
     guard let parts = content as? [[String: Any]] else {
       throw ResponsesRequestError.invalid("A message has no content.")
     }
-    return try parts.map { part in
+    var text = ""
+    var images = [AgentTranscriptImage]()
+    var followsText = false
+    for part in parts {
+      let partText: String
       switch part["type"] as? String {
       case "input_text", "output_text", "text":
-        return part["text"] as? String ?? ""
+        partText = part["text"] as? String ?? ""
       case "refusal":
-        return part["refusal"] as? String ?? ""
+        partText = part["refusal"] as? String ?? ""
+      case "input_image", "image_url", "image":
+        images.append(AgentTranscriptImage(offset: text.utf8.count, data: try imageData(part)))
+        followsText = false
+        continue
       case let type:
         throw ResponsesRequestError.unsupported(
           parameter: "input", message: "Content of type \(type ?? "unknown") is not supported.")
       }
-    }.joined(separator: "\n")
+      text += (followsText ? "\n" : "") + partText
+      followsText = true
+    }
+    return (text, images)
   }
 
-  private static func outputText(_ output: Any?) throws -> String {
-    if let text = output as? String { return text }
-    return try messageText(output)
+  /// The encoded file of an image part, whichever wire protocol the part is in: Responses'
+  /// `input_image`, Chat Completions' `image_url` or Messages' `image`.
+  private static func imageData(_ part: [String: Any]) throws -> Data {
+    var base64: String?
+    var url: String?
+    switch part["image_url"] {
+    case let value as String:
+      url = value
+    case let value as [String: Any]:
+      url = value["url"] as? String
+    default:
+      let source = part["source"] as? [String: Any]
+      base64 = source?["data"] as? String
+      url = source?["url"] as? String
+    }
+    // A data URL holds the same base64 after its comma.
+    if let url, url.hasPrefix("data:"), let comma = url.firstIndex(of: ","),
+      url[..<comma].hasSuffix(";base64")
+    {
+      base64 = String(url[url.index(after: comma)...])
+    }
+    guard let base64 else {
+      // Nothing is downloaded on a client's word, and no files are stored for it to refer to.
+      throw ResponsesRequestError.unsupported(
+        parameter: "input",
+        message:
+          "An image has to be sent as base64 data. Image URLs and file ids are not supported."
+      )
+    }
+    guard let data = Data(base64Encoded: base64, options: .ignoreUnknownCharacters),
+      let source = CGImageSourceCreateWithData(data as CFData, nil),
+      CGImageSourceGetCount(source) > 0
+    else {
+      throw ResponsesRequestError.invalid("An image is not base64 data of an image file.")
+    }
+    return data
   }
 
   /// Reads the thinking back from wherever the client kept it. Replaying it is what lets the

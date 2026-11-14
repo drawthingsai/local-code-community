@@ -100,6 +100,8 @@ final class ServeController {
   /// A turn's thread as the scheduler knows it. Serving has no threads, and no project to clash
   /// with one.
   private static let schedulerThreadId: Int64 = -2
+  private static let imagesNotSupportedMessage =
+    "The model selected to serve does not read images. Send the request without them."
 
   private struct PendingRequest {
     let identifier = UUID()
@@ -111,8 +113,8 @@ final class ServeController {
     let thinkingBudget: Int
     /// As it was on arrival, since the prompt states it.
     let reasoningEffort: ReasoningEffort
-    /// The model `baseTokens` are for. Nil until the tokenizer is done with it.
-    var tokenized: (model: String, baseTokens: [Int32])?
+    /// The model `prompt` is for. Nil until the tokenizer is done with it.
+    var tokenized: (model: String, prompt: ResponsesPrompt)?
   }
 
   private struct ActiveTurn {
@@ -125,7 +127,7 @@ final class ServeController {
     var timing: ServeRequestTiming
     /// What it has generated so far, already added to the metrics.
     var generatedTokens = 0
-    var retainedTokens = [Int32]()
+    var retainedPrompt = ResponsesPrompt()
   }
 
   weak var delegate: ServeControllerDelegate?
@@ -416,6 +418,14 @@ final class ServeController {
         message: "No model is selected to serve.")
       return
     }
+    // Ahead of the stream's opening, so that the client gets it as the status of its request.
+    if request.hasImages, tokenizingAdapter(for: model)?.isImageSupported == false {
+      respond(
+        connection, wireProtocol: wireProtocol, status: 400, type: "invalid_request_error",
+        code: "unsupported_parameter", message: Self.imagesNotSupportedMessage,
+        parameter: "input")
+      return
+    }
     // Those who left while waiting shouldn't keep others out.
     pendingRequests.removeAll { $0.connection.isDisconnected }
     guard pendingRequests.count < Self.maximumQueuedRequests else {
@@ -464,8 +474,18 @@ final class ServeController {
       startNextRequests()
       return
     }
+    // Checked here too, as the model it arrived for may no longer be the one that serves.
+    guard adapter.isImageSupported || !pendingRequest.request.hasImages else {
+      pendingRequests.removeAll { $0.identifier == pendingRequest.identifier }
+      pendingRequest.writer.fail(
+        status: 400, type: "invalid_request_error", code: "unsupported_parameter",
+        message: Self.imagesNotSupportedMessage)
+      updateActiveState()
+      startNextRequests()
+      return
+    }
     tokenizationQueue.async { [weak self] in
-      let baseTokens = adapter.promptTokens(
+      let prompt = adapter.prompt(
         for: pendingRequest.request, reasoningEffort: pendingRequest.reasoningEffort,
         isThinking: pendingRequest.thinkingBudget > 0)
       DispatchQueue.main.async {
@@ -474,7 +494,7 @@ final class ServeController {
             $0.identifier == pendingRequest.identifier
           })
         else { return }
-        self.pendingRequests[index].tokenized = (model, baseTokens)
+        self.pendingRequests[index].tokenized = (model, prompt)
         self.startNextRequests()
       }
     }
@@ -503,8 +523,7 @@ final class ServeController {
       // A turn that ends as its time slice runs out only comes back once the scheduler gets round
       // to it again, which a quick follow-up can beat. Its agent holds this conversation, so wait.
       let isFollowingUnreturnedTurn = activeTurns.values.contains {
-        !$0.retainedTokens.isEmpty && $0.retainedTokens.count < tokenized.baseTokens.count
-          && tokenized.baseTokens.starts(with: $0.retainedTokens)
+        !$0.retainedPrompt.tokens.isEmpty && tokenized.prompt.continues($0.retainedPrompt)
       }
       guard !isFollowingUnreturnedTurn else { break }
       // A model folder change while it was tokenized can move the model's files. Checking again
@@ -516,7 +535,7 @@ final class ServeController {
           message: "The model selected to serve is not ready. Check that it is fully downloaded.")
         continue
       }
-      let reusedAgent = idleAgentPool.takeAgent(continuing: tokenized.baseTokens)
+      let reusedAgent = idleAgentPool.takeAgent(continuing: tokenized.prompt)
       if reusedAgent == nil {
         // With every agent running it waits for a turn to end. Otherwise a new agent takes the
         // place of an idle one once there are as many as are kept.
@@ -536,7 +555,7 @@ final class ServeController {
       }
       pendingRequests.removeFirst()
       agent.nextRequest = ResponsesAgent.Request(
-        request: pendingRequest.request, baseTokens: tokenized.baseTokens,
+        request: pendingRequest.request, prompt: tokenized.prompt,
         thinkingBudget: pendingRequest.thinkingBudget,
         writer: pendingRequest.writer, transport: pendingRequest.connection)
       activeTurns[ObjectIdentifier(agent)] = ActiveTurn(
@@ -561,9 +580,11 @@ final class ServeController {
     guard let activeTurn = activeTurns.removeValue(forKey: ObjectIdentifier(agent)) else { return }
     activeTurnCount.store(activeTurns.count, ordering: .relaxed)
     // A turn on the previous model has nothing to offer the next request.
-    if !activeTurn.retainedTokens.isEmpty, agent.adapter.filePath == tokenizingAdapter?.filePath {
+    if !activeTurn.retainedPrompt.tokens.isEmpty,
+      agent.adapter.filePath == tokenizingAdapter?.filePath
+    {
       idleAgentPool.add(
-        agent, tokens: activeTurn.retainedTokens, wasReused: activeTurn.didContinueEarlierTurn)
+        agent, prompt: activeTurn.retainedPrompt, wasReused: activeTurn.didContinueEarlierTurn)
     } else {
       release([agent])
     }
@@ -686,7 +707,7 @@ extension ServeController: ResponsesAgentDelegate {
       let date = Date()
       // Closes whichever phase it ended in.
       activeTurn.timing.enter(.waiting, at: date)
-      activeTurn.retainedTokens = summary.retainedTokens
+      activeTurn.retainedPrompt = summary.retainedPrompt
       self.activeTurns[identifier] = activeTurn
       self.updateState {
         $0.metrics.addGeneratedTokens(summary.usage.outputTokens - activeTurn.generatedTokens)

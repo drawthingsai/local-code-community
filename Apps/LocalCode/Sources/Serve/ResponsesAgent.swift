@@ -3,6 +3,7 @@ import BashToolContext
 import DataModels
 import Foundation
 import NNC
+import ProjectHistoryManager
 
 protocol ResponsesAgentDelegate: AnyObject {
   /// Arrives on the generation queue, at most a few times a second.
@@ -23,7 +24,7 @@ final class ResponsesAgent: CodeAgent {
   struct Request {
     let request: ResponsesRequest
     /// The whole conversation up to and including the assistant's opening tokens.
-    let baseTokens: [Int32]
+    let prompt: ResponsesPrompt
     /// 0 when the model doesn't think.
     let thinkingBudget: Int
     let writer: any ResponseWriter
@@ -45,7 +46,7 @@ final class ResponsesAgent: CodeAgent {
     /// "completed", "incomplete", "failed" or "cancelled".
     var status: String
     /// What the KV cache holds now, for a later request to continue. Empty if it holds nothing.
-    var retainedTokens: [Int32]
+    var retainedPrompt: ResponsesPrompt
   }
 
   private struct Turn {
@@ -54,6 +55,8 @@ final class ResponsesAgent: CodeAgent {
     let transport: ResponsesTransport
     let startTokenOffset: Int
     var baseTokens: [Int32]
+    /// The images among `baseTokens`.
+    let embedSpans: [EmbedSpan]
     let thinkingBudget: Int
     var outputTokens = [Int32]()
     var parser: ResponsesOutputParser
@@ -78,9 +81,9 @@ final class ResponsesAgent: CodeAgent {
   /// The turns serving has underway, which is what there can be to yield to.
   private let activeTurnCount: ManagedAtomic<Int>
   private var turn: Turn?
-  /// The tokens in the KV cache, from the turn before. A request that continues them skips right
-  /// to its new tokens; any other starts from the context cache on disk.
-  private var cachedTokens = [Int32]()
+  /// What the KV cache holds, from the turn before. A request that continues it skips right to its
+  /// new tokens; any other starts from the context cache on disk.
+  private var cachedPrompt = ResponsesPrompt()
   private var cachedTokenLength = 0
   private var lastProgressTime = Date.distantPast
 
@@ -148,7 +151,7 @@ final class ResponsesAgent: CodeAgent {
   func unloadCaches() {
     streamContext.joined()
     adapter.resetCaches()
-    cachedTokens = []
+    cachedPrompt = ResponsesPrompt()
     cachedTokenLength = 0
   }
 
@@ -157,7 +160,7 @@ final class ResponsesAgent: CodeAgent {
   private func start(_ request: Request) -> Bool {
     delegate?.responsesAgent(self, didUpdate: .preparing)
     let wantedThinkingBudget = request.thinkingBudget
-    let baseTokens = request.baseTokens
+    let baseTokens = request.prompt.tokens
     guard baseTokens.count + adapter.minimumGenerationReserve <= adapter.maximumContextLength else {
       request.writer.fail(
         status: 400, type: "invalid_request_error", code: "context_length_exceeded",
@@ -176,19 +179,17 @@ final class ResponsesAgent: CodeAgent {
         wantedThinkingBudget,
         max(1, adapter.maximumContextLength - baseTokens.count - adapter.minimumGenerationReserve))
       : 0
-    if !(cachedTokenLength > 0 && baseTokens.count > cachedTokenLength
-      && baseTokens.starts(with: cachedTokens))
-    {
+    if !(cachedTokenLength > 0 && request.prompt.continues(cachedPrompt)) {
       unloadCaches()
     }
     request.writer.startTurn(inputTokens: baseTokens.count, cachedInputTokens: cachedTokenLength)
     DynamicGraph.setSeed(
-      ContextCachePrefixHasher.hash(tokens: baseTokens).prefix(4).reduce(UInt32(0)) {
-        ($0 << 8) | UInt32($1)
-      })
+      ContextCachePrefixHasher.hash(tokens: baseTokens, embeddingSpans: request.prompt.embedSpans)
+        .prefix(4).reduce(UInt32(0)) { ($0 << 8) | UInt32($1) })
     turn = Turn(
       request: request.request, writer: request.writer, transport: request.transport,
-      startTokenOffset: cachedTokenLength, baseTokens: baseTokens, thinkingBudget: thinkingBudget,
+      startTokenOffset: cachedTokenLength, baseTokens: baseTokens,
+      embedSpans: request.prompt.embedSpans, thinkingBudget: thinkingBudget,
       parser: adapter.makeOutputParser(isThinking: thinkingBudget > 0))
     return true
   }
@@ -261,7 +262,8 @@ final class ResponsesAgent: CodeAgent {
       graph.withNoGrad {
         adapter.decode(
           graph: graph, tokens: tokensGPU, tokenOffset: tokenOffset, contextTokens: contextTokens,
-          thinkingBudget: thinkingBudget, deterministic: turn.request.isDeterministic
+          embedSpans: turn.embedSpans, thinkingBudget: thinkingBudget,
+          deterministic: turn.request.isDeterministic
         ) { prefillStart, prefillLength, generatedTokens, statistics in
           turn.statistics = statistics
           guard !turn.transport.isDisconnected else {
@@ -362,11 +364,15 @@ final class ResponsesAgent: CodeAgent {
       adapter.isTerminal(lastToken)
     {
       // Ended by itself, with the end gone through the model or, handed back at a pause, not.
-      cachedTokens = Array((turn.baseTokens + turn.outputTokens).prefix(cachedTokenLength))
+      cachedPrompt = ResponsesPrompt(
+        tokens: turn.baseTokens + turn.outputTokens, embedSpans: turn.embedSpans
+      ).prefix(cachedTokenLength)
     } else if canKeepCache, !didStop, turn.incompleteReason == nil, turn.parser.didCompleteToolCalls
     {
       // Stopped by us after its tool calls, so the KV cache holds what it evaluated up to there.
-      cachedTokens = Array((turn.baseTokens + turn.outputTokens).prefix(cachedTokenLength))
+      cachedPrompt = ResponsesPrompt(
+        tokens: turn.baseTokens + turn.outputTokens, embedSpans: turn.embedSpans
+      ).prefix(cachedTokenLength)
     } else {
       unloadCaches()
     }
@@ -431,7 +437,7 @@ final class ResponsesAgent: CodeAgent {
       didFinish: Summary(
         usage: usage, prefillTokensPerSecond: statistics.prefillTokensPerSecond,
         generationTokensPerSecond: statistics.tokenGeneratedPerSecond, status: status,
-        retainedTokens: cachedTokens))
+        retainedPrompt: cachedPrompt))
   }
 
   /// The inference backend settings every agent runs under.

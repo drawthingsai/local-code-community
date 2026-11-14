@@ -1,6 +1,12 @@
 import Foundation
 import Network
+import ProjectHistoryManager
 import XCTest
+
+/// A PNG of one pixel.
+let testImageBase64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+let testImage = Data(base64Encoded: testImageBase64)!
 
 final class RecordingTransport: ResponsesTransport {
   var isDisconnected = false
@@ -236,6 +242,86 @@ final class ResponsesRequestTests: XCTestCase {
       ],
     ])
     XCTAssertEqual(off.thinking, .disabled)
+  }
+
+  func testImagesKeepTheirPlaceInTheText() throws {
+    let image: [String: Any] = [
+      "type": "input_image", "image_url": "data:image/png;base64," + testImageBase64,
+    ]
+    let request = try request([
+      "input": [
+        [
+          "role": "user",
+          "content": [
+            ["type": "input_text", "text": "A"], ["type": "input_text", "text": "B"], image,
+            ["type": "input_text", "text": "C"],
+          ],
+        ],
+        ["role": "user", "content": [image, ["type": "input_text", "text": "Dé"], image]],
+        ["type": "function_call", "call_id": "c1", "name": "view", "arguments": "{}"],
+        [
+          "type": "function_call_output", "call_id": "c1",
+          "output": [["type": "input_text", "text": "Seen"], image],
+        ],
+      ]
+    ])
+    XCTAssertEqual(
+      request.transcript,
+      [
+        .user(
+          "A\nBC\n\nDé",
+          images: [
+            AgentTranscriptImage(offset: 3, data: testImage),
+            AgentTranscriptImage(offset: 6, data: testImage),
+            AgentTranscriptImage(offset: 9, data: testImage),
+          ]),
+        .assistant(
+          text: "", thinking: "",
+          toolCalls: [AgentTranscriptToolCall(function: "view", parameters: [:])]),
+        .toolResults([
+          AgentTranscriptToolResult(
+            content: "Seen", isError: false,
+            images: [AgentTranscriptImage(offset: 4, data: testImage)])
+        ]),
+      ])
+    XCTAssertTrue(request.hasImages)
+    XCTAssertFalse(try self.request(["input": "x"]).hasImages)
+    guard case .user(let text, let images) = request.transcript[0] else { return XCTFail() }
+    XCTAssertEqual(
+      AgentTranscriptImage.segments(of: text, images: images), ["A\nB", "C\n\n", "Dé", ""])
+    XCTAssertEqual(AgentTranscriptImage.segments(of: text, images: []), [text])
+  }
+
+  func testImagesThatCannotBeReadAreRefused() {
+    func content(_ part: [String: Any], role: String = "user") -> [String: Any] {
+      ["input": [["role": role, "content": [part]]]]
+    }
+    let unsupported: [[String: Any]] = [
+      content(["type": "input_image", "image_url": "https://example.com/a.png"]),
+      content(["type": "input_image", "file_id": "file_1"]),
+      content(
+        ["type": "input_image", "image_url": "data:image/png;base64," + testImageBase64],
+        role: "assistant"),
+      content(
+        ["type": "input_image", "image_url": "data:image/png;base64," + testImageBase64],
+        role: "system"),
+    ]
+    for object in unsupported {
+      XCTAssertThrowsError(try request(object)) { error in
+        guard case ResponsesRequestError.unsupported("input", _) = error else {
+          return XCTFail("\(error)")
+        }
+      }
+    }
+    let invalid: [[String: Any]] = [
+      content(["type": "input_image", "image_url": "data:image/png;base64,!!!"]),
+      content(["type": "input_image", "image_url": "data:image/png;base64,bm90IGFuIGltYWdl"]),
+    ]
+    for object in invalid {
+      XCTAssertThrowsError(try request(object)) { error in
+        guard case ResponsesRequestError.invalid = error else { return XCTFail("\(error)") }
+      }
+    }
   }
 
   func testOutputLimitIsAWholeNumberAboveZero() throws {
@@ -701,11 +787,11 @@ final class ResponsesAgentPoolTests: XCTestCase {
   func testContinuationHasToBeLonger() {
     var pool = ResponsesAgentPool<Agent>()
     let agent = Agent()
-    pool.add(agent, tokens: [1, 2, 3], wasReused: false)
-    XCTAssertNil(pool.takeAgent(continuing: [1, 2, 3]))
-    XCTAssertNil(pool.takeAgent(continuing: [1, 2]))
-    XCTAssertNil(pool.takeAgent(continuing: [1, 2, 4, 5]))
-    XCTAssertTrue(pool.takeAgent(continuing: [1, 2, 3, 4]) === agent)
+    pool.add(agent, prompt: ResponsesPrompt(tokens: [1, 2, 3]), wasReused: false)
+    XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 3])))
+    XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2])))
+    XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 4, 5])))
+    XCTAssertTrue(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 3, 4])) === agent)
     XCTAssertEqual(pool.count, 0)
   }
 
@@ -713,10 +799,39 @@ final class ResponsesAgentPoolTests: XCTestCase {
     var pool = ResponsesAgentPool<Agent>()
     let short = Agent()
     let long = Agent()
-    pool.add(short, tokens: [1, 2], wasReused: true)
-    pool.add(long, tokens: [1, 2, 3], wasReused: false)
-    XCTAssertTrue(pool.takeAgent(continuing: [1, 2, 3, 4]) === long)
-    XCTAssertTrue(pool.takeAgent(continuing: [1, 2, 3, 4]) === short)
+    pool.add(short, prompt: ResponsesPrompt(tokens: [1, 2]), wasReused: true)
+    pool.add(long, prompt: ResponsesPrompt(tokens: [1, 2, 3]), wasReused: false)
+    XCTAssertTrue(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 3, 4])) === long)
+    XCTAssertTrue(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 2, 3, 4])) === short)
+  }
+
+  func testSameTokensWithAnotherImageAreAnotherConversation() {
+    func prompt(_ tokens: [Int32], image digest: UInt8) -> ResponsesPrompt {
+      ResponsesPrompt(
+        tokens: tokens,
+        embedSpans: [EmbedSpan(start: 1, length: 2, digest: [digest], kind: .image)])
+    }
+    var pool = ResponsesAgentPool<Agent>()
+    let agent = Agent()
+    pool.add(agent, prompt: prompt([1, 9, 9, 2], image: 1), wasReused: false)
+    XCTAssertNil(pool.takeAgent(continuing: prompt([1, 9, 9, 2, 3], image: 2)))
+    XCTAssertNil(pool.takeAgent(continuing: ResponsesPrompt(tokens: [1, 9, 9, 2, 3])))
+    XCTAssertTrue(pool.takeAgent(continuing: prompt([1, 9, 9, 2, 3], image: 1)) === agent)
+  }
+
+  func testPrefixKeepsTheImagesWholeWithinIt() {
+    let prompt = ResponsesPrompt(
+      tokens: [1, 9, 9, 2, 9, 9, 3],
+      embedSpans: [
+        EmbedSpan(start: 1, length: 2, digest: [1], kind: .image),
+        EmbedSpan(start: 4, length: 2, digest: [2], kind: .image),
+      ])
+    XCTAssertEqual(
+      prompt.prefix(5),
+      ResponsesPrompt(
+        tokens: [1, 9, 9, 2, 9],
+        embedSpans: [EmbedSpan(start: 1, length: 2, digest: [1], kind: .image)]))
+    XCTAssertEqual(prompt.prefix(6).embedSpans.count, 2)
   }
 
   func testExpiresWhatWasNeverReusedFirst() {
@@ -725,10 +840,10 @@ final class ResponsesAgentPoolTests: XCTestCase {
     let secondReused = Agent()
     let firstOnce = Agent()
     let secondOnce = Agent()
-    pool.add(firstReused, tokens: [1], wasReused: true)
-    pool.add(firstOnce, tokens: [2], wasReused: false)
-    pool.add(secondReused, tokens: [3], wasReused: true)
-    pool.add(secondOnce, tokens: [4], wasReused: false)
+    pool.add(firstReused, prompt: ResponsesPrompt(tokens: [1]), wasReused: true)
+    pool.add(firstOnce, prompt: ResponsesPrompt(tokens: [2]), wasReused: false)
+    pool.add(secondReused, prompt: ResponsesPrompt(tokens: [3]), wasReused: true)
+    pool.add(secondOnce, prompt: ResponsesPrompt(tokens: [4]), wasReused: false)
     XCTAssertTrue(pool.expire() === firstOnce)
     XCTAssertTrue(pool.expire() === secondOnce)
     XCTAssertTrue(pool.expire() === firstReused)
@@ -740,8 +855,8 @@ final class ResponsesAgentPoolTests: XCTestCase {
     var pool = ResponsesAgentPool<Agent>()
     let kept = Agent()
     let removed = Agent()
-    pool.add(kept, tokens: [1], wasReused: true)
-    pool.add(removed, tokens: [2], wasReused: false)
+    pool.add(kept, prompt: ResponsesPrompt(tokens: [1]), wasReused: true)
+    pool.add(removed, prompt: ResponsesPrompt(tokens: [2]), wasReused: false)
     pool.remove([removed])
     XCTAssertEqual(pool.count, 1)
     XCTAssertTrue(pool.agents.first === kept)

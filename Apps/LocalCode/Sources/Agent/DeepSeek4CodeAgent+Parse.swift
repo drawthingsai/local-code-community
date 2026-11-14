@@ -83,14 +83,37 @@ extension DeepSeek4CodeAgent {
     return transcript
   }
 
-  static func parse(_ transcript: [AgentTranscriptEntry]) -> [Int32] {
+  /// `imageTokens` gives the tokens for an image that starts at the given offset in the result.
+  /// Without it the images are left out, as the chat's transcripts have none.
+  static func parse(
+    _ transcript: [AgentTranscriptEntry],
+    imageTokens: (AgentTranscriptImage, Int) -> [Int32] = { _, _ in [] }
+  ) -> [Int32] {
     let format = toolCallFormat
     var tokens = [Int32]()
+    // The official encoding joins a message's text and image blocks with "\n\n", which is
+    // tokenized with the text next to it.
+    func appendContent(_ segments: [String], _ images: [AgentTranscriptImage]) {
+      var hasBlock = false
+      for (index, segment) in segments.enumerated() {
+        let isBeforeImage = index < images.count
+        if !segment.isEmpty {
+          tokens += safeTokens((hasBlock ? "\n\n" : "") + segment + (isBeforeImage ? "\n\n" : ""))
+        } else if isBeforeImage, hasBlock {
+          tokens += safeTokens("\n\n")
+        }
+        hasBlock = hasBlock || !segment.isEmpty
+        if isBeforeImage {
+          tokens += imageTokens(images[index], tokens.count)
+          hasBlock = true
+        }
+      }
+    }
     for entry in transcript {
       switch entry {
-      case .user(let text):
+      case .user(let text, let images):
         tokens.append(transcriptUserToken)
-        tokens += safeTokens(text)
+        appendContent(AgentTranscriptImage.segments(of: text, images: images), images)
       case .assistant(let text, let thinking, let toolCalls):
         tokens.append(transcriptAssistantToken)
         if thinking.isEmpty {
@@ -129,9 +152,10 @@ extension DeepSeek4CodeAgent {
             tokens += safeTokens("\n\n")
           }
           tokens += safeTokens("<tool_result>")
-          tokens += safeTokens(
-            result.content.replacingOccurrences(
-              of: "</tool_result>", with: "&lt;/tool_result>"))
+          appendContent(
+            AgentTranscriptImage.segments(of: result.content, images: result.images).map {
+              $0.replacingOccurrences(of: "</tool_result>", with: "&lt;/tool_result>")
+            }, result.images)
           tokens += safeTokens("</tool_result>")
         }
       }

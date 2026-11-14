@@ -85,14 +85,29 @@ extension GLM5_3CodeAgent {
 
   /// Canonical template rendering for imported history. Active generations retain their raw
   /// tokens so that normal continuation never rewrites the recurrent attention prefix.
-  static func parse(_ transcript: [AgentTranscriptEntry]) -> [Int32] {
+  ///
+  /// `imageTokens` gives the tokens for an image that starts at the given offset in the result.
+  /// Without it the images are left out, as the chat's transcripts have none.
+  static func parse(
+    _ transcript: [AgentTranscriptEntry],
+    imageTokens: (AgentTranscriptImage, Int) -> [Int32] = { _, _ in [] }
+  ) -> [Int32] {
     var tokens = [Int32]()
+    // The template joins a message's text and image blocks without separators.
+    func appendContent(_ text: String, _ images: [AgentTranscriptImage]) {
+      let segments = AgentTranscriptImage.segments(of: text, images: images)
+      for (image, segment) in zip(images, segments) {
+        tokens += safeTokens(segment)
+        tokens += imageTokens(image, tokens.count)
+      }
+      tokens += safeTokens(segments[images.count])
+    }
     var previousWasToolResults = false
     for entry in transcript {
       switch entry {
-      case .user(let text):
+      case .user(let text, let images):
         tokens.append(154_827)
-        tokens += safeTokens(text)
+        appendContent(text, images)
         previousWasToolResults = false
       case .assistant(let text, let thinking, let calls):
         tokens += [154_828, 154_841]
@@ -116,7 +131,7 @@ extension GLM5_3CodeAgent {
         if !previousWasToolResults { tokens.append(154_829) }
         for result in results {
           tokens.append(154_845)
-          tokens += safeTokens(result.content)
+          appendContent(result.content, result.images)
           tokens.append(154_846)
         }
         previousWasToolResults = true

@@ -100,7 +100,7 @@ enum RemoteConversationCodec {
     var nextCallIdentifier = 0
     for entry in transcript {
       switch entry {
-      case .user(let text):
+      case .user(let text, _):
         if !pendingCalls.isEmpty {
           appendMissingResults(for: pendingCalls, to: &messages)
           pendingCalls.removeAll(keepingCapacity: true)
