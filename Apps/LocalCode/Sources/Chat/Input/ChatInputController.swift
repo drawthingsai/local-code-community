@@ -169,9 +169,10 @@ final class ChatInputController {
       extensions: [StrikethroughExtension()]
     )
     FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: textView) {
-      $0.baseFont = $1
+      $0.baseFont = MarkdownFonts.default.textFont(replacing: $1)
     }
-    textView.text = placeholderText
+    // A new base font restyles from `string`; text set through `text` would be lost.
+    textView.string = placeholderText
     textView.textColor = .septenaryText
     textView.tintColor = .colorPalette(for: .blue)
     textView.smartQuotesType = .no
@@ -220,7 +221,7 @@ final class ChatInputController {
       extensions: [StrikethroughExtension()]
     )
     FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: textView) {
-      $0.baseFont = $1
+      $0.baseFont = MarkdownFonts.default.textFont(replacing: $1)
     }
     textView.string = placeholderText
     textView.textColor = .primaryText
@@ -276,7 +277,7 @@ final class ChatInputController {
       extensions: [StrikethroughExtension()]
     )
     FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: textView) {
-      $0.baseFont = $1
+      $0.baseFont = MarkdownFonts.default.textFont(replacing: $1)
     }
     textView.textColor = .primaryText
     textView.tintColor = .colorPalette(for: .blue)
@@ -1013,7 +1014,7 @@ final class ChatInputController {
   }
 
   private func updatePlaceholderText() {
-    placeholderView.text = placeholderText
+    placeholderView.string = placeholderText
     if (textView.text ?? "").isEmpty {
       teleportView.string = placeholderText
       updateTextViewScrollIndicator()

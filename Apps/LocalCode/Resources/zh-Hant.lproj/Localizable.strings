@@ -719,6 +719,18 @@
 
 "font_size_settings_detail" = "更改使用者介面的預設字型大小。";
 
+"font" = "字型";
+
+"font_detail" = "更改訊息的字型，包括正在輸入的訊息。";
+
+"code_font" = "程式碼字型";
+
+"code_font_detail" = "更改訊息中程式碼的字型，包括正在輸入的訊息。";
+
+"system" = "系統";
+
+"other_dot" = "其他...";
+
 "extra_small" = "特小";
 
 "small" = "小";

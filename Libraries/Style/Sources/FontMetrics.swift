@@ -97,7 +97,9 @@ public final class FontMetrics {
     views.removeObject(forKey: view)
   }
 
-  private func updateFontMetrics() {
+  /// Calls every binding's handler again with its scaled font. Changing `size` does this; call it
+  /// when something else changes what a handler makes of that font.
+  public func updateFontMetrics() {
     dispatchPrecondition(condition: .onQueue(.main))
     let keyEnumerator = views.keyEnumerator()
     while let view = keyEnumerator.nextObject() as? NSObject {

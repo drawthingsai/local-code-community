@@ -719,6 +719,18 @@
 
 "font_size_settings_detail" = "Cambia el tamaño de fuente predeterminado de la interfaz de usuario.";
 
+"font" = "Fuente";
+
+"font_detail" = "Cambia la fuente de los mensajes, incluido el que estás escribiendo.";
+
+"code_font" = "Fuente del código";
+
+"code_font_detail" = "Cambia la fuente del código en los mensajes, incluido el que estás escribiendo.";
+
+"system" = "Sistema";
+
+"other_dot" = "Otra...";
+
 "extra_small" = "Extra pequeña";
 
 "small" = "Pequeña";

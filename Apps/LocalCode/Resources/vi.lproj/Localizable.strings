@@ -757,6 +757,18 @@
 
 "font_size_settings_detail" = "Thay đổi cỡ chữ mặc định của giao diện người dùng.";
 
+"font" = "Phông chữ";
+
+"font_detail" = "Thay đổi phông chữ của tin nhắn, kể cả tin nhắn bạn đang soạn.";
+
+"code_font" = "Phông chữ mã";
+
+"code_font_detail" = "Thay đổi phông chữ của mã trong tin nhắn, kể cả tin nhắn bạn đang soạn.";
+
+"system" = "Hệ thống";
+
+"other_dot" = "Khác...";
+
 "extra_small" = "Rất nhỏ";
 
 "small" = "Nhỏ";

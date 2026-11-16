@@ -137,6 +137,34 @@ private func makeFontSizeSettingsMenu(
   ])
 }
 
+private func makeFontMenu(
+  _ current: String?, defaultTitle: String, families: [String],
+  handler: @escaping (String?) -> Void, otherHandler: @escaping () -> Void
+) -> UIMenu {
+  // A font chosen with the font picker stays in the menu while it is the current one.
+  var families = families
+  if let current, !families.contains(current) {
+    families.append(current)
+  }
+  return UIMenu(children: [
+    UIMenu(
+      options: .displayInline,
+      children: [
+        UIAction(title: defaultTitle, state: current == nil ? .on : .off) { _ in
+          handler(nil)
+        }
+      ]
+        + families.map { family in
+          UIAction(title: family, state: current == family ? .on : .off) { _ in
+            handler(family)
+          }
+        }),
+    UIAction(title: LocalizedString.forKey("other_dot")) { _ in
+      otherHandler()
+    },
+  ])
+}
+
 private func makeUseAppleNeuralEngineMenu(
   _ current: UseAppleNeuralEngineOption, default: UseAppleNeuralEngineOption,
   handler: @escaping (UseAppleNeuralEngineOption) -> Void
@@ -208,6 +236,10 @@ protocol MachineSettingsViewControllerDelegate: AnyObject {
   func didTapResetToDefault()
   func didSelectLanguage(_: LanguageSettingsOption)
   func didSelectFontSize(_: FontSizeCategory)
+  func didSelectTextFont(_ family: String?)
+  func didTapOtherTextFont(from sourceView: UIView)
+  func didSelectCodeFont(_ family: String?)
+  func didTapOtherCodeFont(from sourceView: UIView)
   func didUseSystemDownloaderUpdated(_: Bool)
   func didBotModeUpdated(_: Bool)
   func didLockdownModeUpdated(_: Bool)
@@ -229,6 +261,8 @@ private enum MachineSettingsSection: Equatable, Hashable {
   case lockdownMode
   case languageSettings
   case fontSize
+  case textFont
+  case codeFont
   case reduceReasoningAnimation
 }
 
@@ -272,6 +306,20 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
   var fontSizeSettings: FontSizeCategory = FontMetrics.systemDefaultFontSizeCategory {
     didSet {
       guard fontSizeSettings != oldValue else { return }
+      updateSettingsSections()
+    }
+  }
+  /// A font family name, or nil for the system font.
+  var textFontFamily: String? {
+    didSet {
+      guard textFontFamily != oldValue else { return }
+      updateSettingsSections()
+    }
+  }
+  /// A font family name, or nil for SF Mono.
+  var codeFontFamily: String? {
+    didSet {
+      guard codeFontFamily != oldValue else { return }
       updateSettingsSections()
     }
   }
@@ -536,6 +584,8 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       .lockdownMode: lockdownModeSection(),
       .languageSettings: languageSettingsSection(),
       .fontSize: fontSizeSection(),
+      .textFont: textFontSection(),
+      .codeFont: codeFontSection(),
       .reduceReasoningAnimation: reduceReasoningAnimationSection(),
       .botMode: botModeSection(),
     ]
@@ -830,6 +880,60 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       ], title: LocalizedString.forKey("font_size_settings"),
       detail: LocalizedString.forKey("font_size_settings_detail"),
       lookUpKey: "font_size_settings_detail_hidden",
+      individualSectionStyle: false,
+      workspace: workspace)
+  }
+
+  private func textFontSection() -> SettingsSectionItem {
+    return SettingsSectionItem(
+      settingsItems: [
+        SettingsButtonItem(
+          value: textFontFamily ?? LocalizedString.forKey("system"),
+          showsMenuAsPrimaryAction: true,
+          // An update runs the first item's closure with the new value, so the title is the value.
+          makeButtonsUI: { [weak self] title, button in
+            guard let self else { return }
+            button?.menu = makeFontMenu(
+              self.textFontFamily, defaultTitle: LocalizedString.forKey("system"),
+              families: MarkdownFonts.default.textFamilies
+            ) { [weak self] family in
+              self?.delegate?.didSelectTextFont(family)
+            } otherHandler: { [weak self, weak button] in
+              guard let button else { return }
+              self?.delegate?.didTapOtherTextFont(from: button)
+            }
+            button?.setTitle(title, for: .normal)
+          })
+      ], title: LocalizedString.forKey("font"),
+      detail: LocalizedString.forKey("font_detail"),
+      lookUpKey: "font_detail_hidden",
+      individualSectionStyle: false,
+      workspace: workspace)
+  }
+
+  private func codeFontSection() -> SettingsSectionItem {
+    return SettingsSectionItem(
+      settingsItems: [
+        SettingsButtonItem(
+          value: codeFontFamily ?? "SF Mono",
+          showsMenuAsPrimaryAction: true,
+          // An update runs the first item's closure with the new value, so the title is the value.
+          makeButtonsUI: { [weak self] title, button in
+            guard let self else { return }
+            button?.menu = makeFontMenu(
+              self.codeFontFamily, defaultTitle: "SF Mono",
+              families: MarkdownFonts.default.codeFamilies
+            ) { [weak self] family in
+              self?.delegate?.didSelectCodeFont(family)
+            } otherHandler: { [weak self, weak button] in
+              guard let button else { return }
+              self?.delegate?.didTapOtherCodeFont(from: button)
+            }
+            button?.setTitle(title, for: .normal)
+          })
+      ], title: LocalizedString.forKey("code_font"),
+      detail: LocalizedString.forKey("code_font_detail"),
+      lookUpKey: "code_font_detail_hidden",
       individualSectionStyle: false,
       workspace: workspace)
   }

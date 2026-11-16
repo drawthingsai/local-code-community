@@ -86,6 +86,19 @@ apple_resource_group(
     structured_resources = glob(["Resources/mathFonts.bundle/**"]),
 )
 
+# Tiempos Text and Elena in Fonts/Licensed are licensed for the app only, so
+# SYNCLIST.local-code-community leaves them out of the public repository. Builds
+# from it bundle JetBrains Mono alone, and the font settings offer only the fonts
+# that are present.
+apple_resource_group(
+    name = "FontsResources",
+    strip_structured_resources_prefixes = ["Resources"],
+    structured_resources = glob(
+        ["Resources/Fonts/**"],
+        exclude = ["**/.DS_Store"],
+    ),
+)
+
 apple_resource_group(
     name = "NodeMobileRuntimeResources",
     strip_structured_resources_prefixes = ["Resources"],
@@ -170,6 +183,7 @@ ios_application(
     resources = glob(
         ["Resources/**"],
         exclude = [
+            "Resources/Fonts/**",
             "Resources/mathFonts.bundle/**",
             "Resources/NodeMobile/Runtime/**",
             "Resources/Skills/**",
@@ -180,6 +194,7 @@ ios_application(
     ) + [
         ":BrowserRuntimeResources",
         ":BuiltInSkillsResources",
+        ":FontsResources",
         ":NodeMobileRuntimeResources",
         ":mathFontsResources",
         "//Vendors/FFmpeg:notices",

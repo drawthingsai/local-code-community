@@ -719,6 +719,18 @@
 
 "font_size_settings_detail" = "更改用户界面的默认字体大小。";
 
+"font" = "字体";
+
+"font_detail" = "更改消息的字体，包括正在输入的消息。";
+
+"code_font" = "代码字体";
+
+"code_font_detail" = "更改消息中代码的字体，包括正在输入的消息。";
+
+"system" = "系统";
+
+"other_dot" = "其他...";
+
 "extra_small" = "特小";
 
 "small" = "小";

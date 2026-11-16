@@ -748,6 +748,18 @@
 
 "font_size_settings_detail" = "Standard-Schriftgröße der Benutzeroberfläche ändern.";
 
+"font" = "Schrift";
+
+"font_detail" = "Ändert die Schrift der Nachrichten, auch der, die Sie gerade schreiben.";
+
+"code_font" = "Code-Schrift";
+
+"code_font_detail" = "Ändert die Schrift für Code in Nachrichten, auch in der, die Sie gerade schreiben.";
+
+"system" = "System";
+
+"other_dot" = "Andere...";
+
 "extra_small" = "Extra klein";
 
 "small" = "Klein";

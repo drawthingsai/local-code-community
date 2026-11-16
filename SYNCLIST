@@ -18,6 +18,7 @@ Apps/HTML2VideoCLI
 Apps/HyperFramesCLI
 Apps/LocalCode
 !Apps/LocalCode/ProvisioningFiles
+!Apps/LocalCode/Resources/Fonts/Licensed
 Libraries/AppleUtilities
 Libraries/AudioConverter
 Libraries/BashToolContext

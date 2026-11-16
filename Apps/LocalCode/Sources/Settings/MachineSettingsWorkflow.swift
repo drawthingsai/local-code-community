@@ -23,6 +23,8 @@ final class MachineSettingsWorkflow: Workflow {
   private var botModeSubscription: Workspace.Subscription?
   private var lockdownModeSubscription: Workspace.Subscription?
   private var reduceReasoningAnimationSubscription: Workspace.Subscription?
+  private var textFontSubscription: Workspace.Subscription?
+  private var codeFontSubscription: Workspace.Subscription?
 
   final class ObjCResponder: NSObject {
     weak var workflow: MachineSettingsWorkflow?
@@ -158,6 +160,33 @@ final class MachineSettingsWorkflow: Workflow {
         self.updateWeightsStreaming(value)
       }
     }
+    // A font that is not available any more shows as the default it falls back to.
+    textFontSubscription = workspace.dictionary.subscribe("text_font", of: String.self) {
+      [weak self] value in
+      guard let self else { return }
+      let family: String?
+      switch value {
+      case .deleted: family = nil
+      case .initial(let value): family = value
+      case .updated(let value): family = value
+      }
+      self.viewController.textFontFamily = family.flatMap {
+        MarkdownFonts.isAvailable($0) ? $0 : nil
+      }
+    }
+    codeFontSubscription = workspace.dictionary.subscribe("code_font", of: String.self) {
+      [weak self] value in
+      guard let self else { return }
+      let family: String?
+      switch value {
+      case .deleted: family = nil
+      case .initial(let value): family = value
+      case .updated(let value): family = value
+      }
+      self.viewController.codeFontFamily = family.flatMap {
+        MarkdownFonts.isAvailable($0) ? $0 : nil
+      }
+    }
 
     if let currentLanguages = UserDefaults.standard.object(forKey: "AppleLanguages") as? [String],
       let currentLanguage = currentLanguages.first
@@ -237,6 +266,12 @@ final class MachineSettingsWorkflow: Workflow {
 extension MachineSettingsWorkflow.ObjCResponder: UIAdaptivePresentationControllerDelegate {
   func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
     workflow?.didDismissView()
+  }
+}
+
+extension MachineSettingsWorkflow.ObjCResponder: UIFontPickerViewControllerDelegate {
+  func fontPickerViewControllerDidPickFont(_ viewController: UIFontPickerViewController) {
+    workflow?.fontPickerViewControllerDidPickFont(viewController)
   }
 }
 
@@ -353,6 +388,8 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
     workspace.dictionary["use_mfa_apple_neural_engine_v2", Int.self] = nil
     workspace.dictionary["use_system_downloader", Bool.self] = nil
     workspace.dictionary["weights_streaming", Int.self] = nil
+    workspace.dictionary["text_font", String.self] = nil
+    workspace.dictionary["code_font", String.self] = nil
 
     viewController.languageSettings = Self.languageSettingsOption(for: nil)
     UserDefaults.standard.removeObject(forKey: "AppleLanguages")
@@ -390,5 +427,53 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
   func didSelectFontSize(_ fontSizeSettings: FontSizeCategory) {
     FontMetrics.default.size = fontSizeSettings
     viewController.fontSizeSettings = fontSizeSettings
+  }
+
+  func didSelectTextFont(_ family: String?) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    workspace.dictionary["text_font", String.self] = family
+  }
+
+  func didTapOtherTextFont(from sourceView: UIView) {
+    presentFontPicker(monospacedOnly: false, from: sourceView)
+  }
+
+  func didSelectCodeFont(_ family: String?) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    workspace.dictionary["code_font", String.self] = family
+  }
+
+  func didTapOtherCodeFont(from sourceView: UIView) {
+    presentFontPicker(monospacedOnly: true, from: sourceView)
+  }
+}
+
+extension MachineSettingsWorkflow {
+  private func presentFontPicker(monospacedOnly: Bool, from sourceView: UIView) {
+    let configuration = UIFontPickerViewController.Configuration()
+    configuration.includeFaces = false
+    if monospacedOnly {
+      configuration.filteredTraits = .traitMonoSpace
+    }
+    let picker = UIFontPickerViewController(configuration: configuration)
+    picker.delegate = objCResponder
+    // On Mac Catalyst the picker is a popover, which needs an anchor. On iPhone and iPad it is a
+    // form sheet and has no popover presentation controller.
+    picker.popoverPresentationController?.sourceView = sourceView
+    picker.popoverPresentationController?.sourceRect = sourceView.bounds
+    viewController.present(picker, animated: true)
+  }
+
+  fileprivate func fontPickerViewControllerDidPickFont(_ picker: UIFontPickerViewController) {
+    picker.dismiss(animated: true)
+    guard let family = picker.selectedFontDescriptor?.object(forKey: .family) as? String,
+      MarkdownFonts.isAvailable(family)
+    else { return }
+    // Only the code font's picker lists monospaced fonts alone.
+    if picker.configuration.filteredTraits.contains(.traitMonoSpace) {
+      didSelectCodeFont(family)
+    } else {
+      didSelectTextFont(family)
+    }
   }
 }

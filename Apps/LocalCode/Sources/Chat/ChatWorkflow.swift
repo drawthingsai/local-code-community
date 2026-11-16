@@ -47,6 +47,8 @@ final class ChatWorkflow: Workflow {
   }
   private var sleepAssertion: SleepPrevention.Assertion?
   private var useAppleNeuralEngineSubscription: Workspace.Subscription?
+  private var textFontSubscription: Workspace.Subscription?
+  private var codeFontSubscription: Workspace.Subscription?
   private var pendingModelWarmups = 0
   let userInterfaceIdiom: UIUserInterfaceIdiom
   private let navigationController: UINavigationController
@@ -395,6 +397,21 @@ final class ChatWorkflow: Workflow {
         rawValue.flatMap(DeviceCapability.AppleNeuralEngineState.init(rawValue:))
           ?? (DeviceCapability.isMFAAppleNeuralEngineFaster ? .appleNeuralEngineAndGPU : .disabled),
         ordering: .releasing)
+    }
+    // Message text views and the chat input read these when they set their fonts.
+    textFontSubscription = workspace.dictionary.subscribe("text_font", of: String.self) { value in
+      switch value {
+      case .deleted: MarkdownFonts.default.textFamily = nil
+      case .initial(let value): MarkdownFonts.default.textFamily = value
+      case .updated(let value): MarkdownFonts.default.textFamily = value
+      }
+    }
+    codeFontSubscription = workspace.dictionary.subscribe("code_font", of: String.self) { value in
+      switch value {
+      case .deleted: MarkdownFonts.default.codeFamily = nil
+      case .initial(let value): MarkdownFonts.default.codeFamily = value
+      case .updated(let value): MarkdownFonts.default.codeFamily = value
+      }
     }
     chatInputController.delegate = self
     projectBarController.delegate = self

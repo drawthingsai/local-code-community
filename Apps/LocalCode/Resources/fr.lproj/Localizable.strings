@@ -748,6 +748,18 @@
 
 "font_size_settings_detail" = "Modifiez la taille de police par défaut de l'interface.";
 
+"font" = "Police";
+
+"font_detail" = "Modifiez la police des messages, y compris celui que vous écrivez.";
+
+"code_font" = "Police du code";
+
+"code_font_detail" = "Modifiez la police du code dans les messages, y compris celui que vous écrivez.";
+
+"system" = "Système";
+
+"other_dot" = "Autre...";
+
 "extra_small" = "Extra petit";
 
 "small" = "Petit";

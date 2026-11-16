@@ -42,8 +42,10 @@ final class QueuedItemView: UIView {
     label.numberOfLines = 1
     label.lineBreakMode = .byTruncatingTail
     label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-    FontMetrics.default.scaleFont(
-      .systemFont(ofSize: 15, weight: .regular), bindTo: label)
+    // A queued message is in the text font chosen for messages.
+    FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: label) {
+      $0.font = MarkdownFonts.default.textFont(replacing: $1)
+    }
     // The label shows one truncated line; hovering shows the full prompt. The tool tip needs the
     // label to be hit-testable.
     label.isUserInteractionEnabled = true

@@ -748,6 +748,18 @@
 
 "font_size_settings_detail" = "사용자 인터페이스의 기본 글꼴 크기를 변경합니다.";
 
+"font" = "글꼴";
+
+"font_detail" = "작성 중인 메시지를 포함해 메시지의 글꼴을 변경합니다.";
+
+"code_font" = "코드 글꼴";
+
+"code_font_detail" = "작성 중인 메시지를 포함해 메시지 속 코드의 글꼴을 변경합니다.";
+
+"system" = "시스템";
+
+"other_dot" = "기타...";
+
 "extra_small" = "아주 작게";
 
 "small" = "작게";

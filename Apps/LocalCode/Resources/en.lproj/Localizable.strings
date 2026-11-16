@@ -757,6 +757,18 @@
 
 "font_size_settings_detail" = "Change the default font size of the user interface.";
 
+"font" = "Font";
+
+"font_detail" = "Change the font of messages, including the one you are typing.";
+
+"code_font" = "Code Font";
+
+"code_font_detail" = "Change the font of code in messages, including the one you are typing.";
+
+"system" = "System";
+
+"other_dot" = "Other...";
+
 "extra_small" = "Extra Small";
 
 "small" = "Small";

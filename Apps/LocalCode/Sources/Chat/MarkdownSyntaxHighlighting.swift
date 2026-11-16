@@ -3,18 +3,15 @@ import Foundation
 import MarkdownEngine
 import MarkdownEngineCodeBlocks
 
-private struct TransientMarkdownSyntaxHighlighter: SyntaxHighlighter {
-  let base: any SyntaxHighlighter
-  private let codeFontCache = NSCache<NSNumber, NSFont>()
+/// HighlighterSwift's colors and code-block background with the code font chosen in Machine
+/// Settings.
+private struct CodeFontSyntaxHighlighter: SyntaxHighlighter {
+  let base: HighlighterSwiftBridge
+  /// Thinking text skips highlighting.
+  let highlightsCode: Bool
 
   func codeFont(size: CGFloat) -> NSFont {
-    let key = NSNumber(value: Double(size))
-    if let font = codeFontCache.object(forKey: key) {
-      return font
-    }
-    let font = base.codeFont(size: size)
-    codeFontCache.setObject(font, forKey: key)
-    return font
+    MarkdownFonts.default.codeFont(size: size) ?? base.codeFont(size: size)
   }
 
   func backgroundColor() -> NSColor {
@@ -22,7 +19,7 @@ private struct TransientMarkdownSyntaxHighlighter: SyntaxHighlighter {
   }
 
   func highlight(code: String, language: String?) -> NSAttributedString? {
-    nil
+    highlightsCode ? base.highlight(code: code, language: language) : nil
   }
 
   var appearanceDidChangeNotification: Notification.Name? {
@@ -31,6 +28,9 @@ private struct TransientMarkdownSyntaxHighlighter: SyntaxHighlighter {
 }
 
 enum MarkdownSyntaxHighlighter {
-  static let shared = HighlighterSwiftBridge()
-  static let transient: any SyntaxHighlighter = TransientMarkdownSyntaxHighlighter(base: shared)
+  private static let bridge = HighlighterSwiftBridge()
+  static let shared: any SyntaxHighlighter = CodeFontSyntaxHighlighter(
+    base: bridge, highlightsCode: true)
+  static let transient: any SyntaxHighlighter = CodeFontSyntaxHighlighter(
+    base: bridge, highlightsCode: false)
 }
