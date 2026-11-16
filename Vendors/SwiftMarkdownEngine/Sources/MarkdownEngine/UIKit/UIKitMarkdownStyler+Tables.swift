@@ -33,6 +33,7 @@
 
     private struct TableImageKey: Hashable {
       let fontDescriptor: UIFontDescriptor
+      let codeFontDescriptor: UIFontDescriptor
       let style: String
       let source: String
     }
@@ -209,9 +210,14 @@
       codeBackgroundColor: UIColor,
       configuration: MarkdownEditorConfiguration
     ) -> (image: UIImage, columns: RenderedTableColumns) {
-      // The full descriptor, not the font name and size: font features such as monospaced
+      // Inline code in a cell takes the code font and size of inline code outside tables.
+      let codeFont = configuration.services.syntaxHighlighter.codeFont(
+        size: round(baseFont.pointSize * configuration.inlineCode.fontSizeScale))
+      // The full descriptors, not the font names and sizes: font features such as monospaced
       // digits change the table's metrics.
-      let key = TableImageKey(fontDescriptor: baseFont.fontDescriptor, style: style, source: source)
+      let key = TableImageKey(
+        fontDescriptor: baseFont.fontDescriptor, codeFontDescriptor: codeFont.fontDescriptor,
+        style: style, source: source)
       tableImageLock.lock()
       let cachedEntry = tableImages[key]
       let cachedImage = cachedEntry?.image
@@ -222,6 +228,7 @@
       let (image, columns, usesExtensionsOrLatex) = renderTable(
         table,
         baseFont: baseFont,
+        codeFont: codeFont,
         theme: configuration.theme,
         codeBackgroundColor: codeBackgroundColor,
         latex: configuration.services.latex,
@@ -242,6 +249,7 @@
     private static func formattedCellString(
       _ raw: String,
       baseFont: UIFont,
+      codeFont: UIFont,
       header: Bool,
       paragraphStyle: NSParagraphStyle,
       theme: MarkdownEditorTheme,
@@ -251,7 +259,6 @@
       usesExtensionsOrLatex: inout Bool
     ) -> NSAttributedString {
       let pointSize = baseFont.pointSize
-      let codeFont = UIFont.monospacedSystemFont(ofSize: pointSize, weight: .regular)
       let headerTraits: UIFontDescriptor.SymbolicTraits = header ? .traitBold : []
       let startFont =
         baseFont.fontDescriptor.withSymbolicTraits(headerTraits).map {
@@ -353,6 +360,7 @@
     private static func renderTable(
       _ table: MarkdownTable,
       baseFont: UIFont,
+      codeFont: UIFont,
       theme: MarkdownEditorTheme,
       codeBackgroundColor: UIColor,
       latex: any LatexRenderer,
@@ -381,7 +389,8 @@
       var usesExtensionsOrLatex = false
       let headerCells = table.header.prefix(columnCount).enumerated().map { col, raw in
         formattedCellString(
-          raw, baseFont: baseFont, header: true, paragraphStyle: paragraphStyles[col],
+          raw, baseFont: baseFont, codeFont: codeFont, header: true,
+          paragraphStyle: paragraphStyles[col],
           theme: theme, codeBackgroundColor: codeBackgroundColor, latex: latex,
           extensions: extensions, usesExtensionsOrLatex: &usesExtensionsOrLatex
         )
@@ -389,7 +398,8 @@
       let bodyCells = table.rows.map { row in
         row.prefix(columnCount).enumerated().map { col, raw in
           formattedCellString(
-            raw, baseFont: baseFont, header: false, paragraphStyle: paragraphStyles[col],
+            raw, baseFont: baseFont, codeFont: codeFont, header: false,
+            paragraphStyle: paragraphStyles[col],
             theme: theme, codeBackgroundColor: codeBackgroundColor, latex: latex,
             extensions: extensions, usesExtensionsOrLatex: &usesExtensionsOrLatex
           )

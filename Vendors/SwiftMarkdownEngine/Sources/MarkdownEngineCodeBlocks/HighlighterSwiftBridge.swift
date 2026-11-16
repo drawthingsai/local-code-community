@@ -24,7 +24,7 @@ extension Notification.Name {
 /// Drop-in ``SyntaxHighlighter`` backed by HighlighterSwift.
 ///
 /// Defaults match the Nodes app's look: opaque light/dark code-block
-/// backgrounds and an `SF Mono → Menlo → system monospace` font chain.
+/// backgrounds and the system monospace font (SF Mono).
 /// Override the init params if you'd rather adopt HighlighterSwift's
 /// CSS-theme-driven background/font directly.
 ///
@@ -61,14 +61,16 @@ public final class HighlighterSwiftBridge: SyntaxHighlighter, @unchecked Sendabl
   ///   - darkBackground: Code-block background in dark mode. Pass `nil`
   ///     to use HighlighterSwift's CSS-theme background instead.
   ///   - preferredFontNames: PostScript font names tried in order before
-  ///     falling back to the system monospace font.
+  ///     falling back to the system monospace font. SF Mono is a system
+  ///     font, which no name looks up, so it is the fallback rather than
+  ///     an entry here.
   public init(
     lightTheme: String = "atom-one-light",
     darkTheme: String = "atom-one-dark",
     autoSwitchAppearance: Bool = true,
     lightBackground: NSColor? = NSColor(white: 0.95, alpha: 1.0),
     darkBackground: NSColor? = NSColor(white: 0.13, alpha: 1.0),
-    preferredFontNames: [String] = ["SF Mono", "Menlo"]
+    preferredFontNames: [String] = []
   ) {
     self.highlighter = Highlighter()
     self.lightTheme = lightTheme
