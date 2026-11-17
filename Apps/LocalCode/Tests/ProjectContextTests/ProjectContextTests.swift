@@ -90,7 +90,7 @@ struct ProjectContextTests {
   @Test func remoteSystemPromptEmitsProjectInstructionsAtTheEnd() {
     let context = ProjectContext(content: "Remote instructions.", fileName: "CLAUDE.MD")
     let prompt = remoteSystemPrompt(
-      runtime: .mac, projectContext: context, now: Date(timeIntervalSince1970: 0),
+      projectContext: context, now: Date(timeIntervalSince1970: 0),
       timeZone: TimeZone(secondsFromGMT: 0)!)
 
     #expect(!prompt.contains(ProjectContext.instructionsPlaceholder))
@@ -110,19 +110,18 @@ struct ProjectContextTests {
       {{UNKNOWN_PLACEHOLDER}}
       """
     let prompt = remoteSystemPrompt(
-      template: template, runtime: .mac, projectContext: context,
+      template: template, projectContext: context,
       now: Date(timeIntervalSince1970: 0), timeZone: TimeZone(secondsFromGMT: 0)!)
 
     #expect(prompt.hasPrefix("1970-01-01 / 1970-01-01 / 1970 / GMT"))
-    #expect(prompt.contains("## Runtime environment: Mac"))
+    #expect(prompt.contains("## Runtime environment\n"))
     #expect(prompt.contains("Keep {{CURRENT_DATE}} literal here."))
     #expect(prompt.contains("{{UNKNOWN_PLACEHOLDER}}"))
   }
 
   @Test func defaultRemoteTemplateRendersAllPlaceholders() {
     let prompt = remoteSystemPrompt(
-      runtime: .iosSystem, now: Date(timeIntervalSince1970: 0),
-      timeZone: TimeZone(secondsFromGMT: 0)!)
+      now: Date(timeIntervalSince1970: 0), timeZone: TimeZone(secondsFromGMT: 0)!)
 
     for placeholder in [
       "{{CURRENT_DATE}}", "{{CURRENT_YEAR}}", "{{TIME_ZONE}}",
@@ -134,7 +133,7 @@ struct ProjectContextTests {
     }
     #expect(prompt.contains("The authoritative current date is 1970-01-01 in GMT."))
     #expect(prompt.contains("For a latest-information request made on 1970-01-01, search 1970"))
-    #expect(prompt.contains("## Runtime environment: iOS system"))
+    #expect(prompt.components(separatedBy: "## Runtime environment\n").count == 2)
   }
 
   @Test func remotePromptIncludesEveryLocalContextSectionExactlyOnce() {
@@ -153,7 +152,7 @@ struct ProjectContextTests {
     let memory = MemoryContext(
       user: "Prefers concise answers.", memory: "Parcel manifest lives in outputs/manifest.xlsx.")
     let prompt = remoteSystemPrompt(
-      runtime: .mac, skillCatalog: catalog, projectContext: project,
+      skillCatalog: catalog, projectContext: project,
       environmentContext: environment, memoryContext: memory)
 
     // Compare against the local renderers so additions to any context remain covered.

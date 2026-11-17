@@ -285,7 +285,7 @@ if args.stage == 'remote':
                extra=['--reasoning-effort', effort],
                check=lambda p,r,t: require('437' in r['finalText'], 'Arithmetic incorrect'))
     remote('runtime-ios-system', 'Call bash to run python3 -c \'print("RUNTIME_42")\'. Report its output, then BENCH_OK.',
-           names=['bash'], extra=['--runtime','ios-system'],
+           names=['bash'],
            check=lambda p,r,t: require('RUNTIME_42' in r['finalText'], 'Runtime output missing'))
 
     def skills(p):

@@ -284,8 +284,8 @@ Local Code updates through the Mac App Store, or through Sparkle for the direct 
     - `BashJobRegistry` allocates job ids across both backends.
     - If Computer disconnects, its jobs end with the stop reason "Local Code Computer disconnected."
 - **Prompt:** switching must not change the prompt, so the KV prefix survives.
-    - The Mac runtime section describes both backends: zsh, the user's toolchains, the tiers, and how to request escalation.
-    - Each `bash` result names the backend that ran it. `remoteMacSystemPrompt` in `Sources/RemoteAPI/RemoteSystemPrompt.swift` already allows for a tool that reports a different backend.
+    - On the Mac, the prompt describes both backends: zsh, the user's toolchains, the tiers, and how to request escalation. The remote runtime section is shared by every platform, so the Mac part has to come from somewhere platform-specific, such as the environment section.
+    - Each `bash` result names the backend that ran it. `remoteRuntimeInstructions` in `Sources/RemoteAPI/RemoteSystemPrompt.swift` already allows for a tool that reports a different backend.
     - The local tool schema is in `Sources/Agent/SystemPrompt.swift`.
 - **Schema:** on the Mac, `bash` always has `escalation` (a list of `"gpu"`, `"network"`, and `"unsandboxed"`) and `justification`, so the schema never changes on a switch. The in-process backend reports them as unsupported.
 - **Filesystem:** Bash and the file tools must see the same files ([TerminalBench compatibility](../TerminalBenchCompatibilityHandoff.md), "One task filesystem for every tool"). On the same Mac they do, because Computer opens the project path directly. Folders granted through `permit` become extra writable roots for that project, after the user confirms each one in Computer when it is outside Local Code's container.

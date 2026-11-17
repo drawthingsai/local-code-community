@@ -19,19 +19,17 @@ final class RemoteContextBudgetTests: XCTestCase {
       contextWindowTokens: limits.contextWindowTokens,
       reservedOutputTokens: RemoteModelLimits.openAICompatibleOutputTokens(
         contextWindowTokens: limits.contextWindowTokens, fallback: limits.maximumOutputTokens))
-    for runtime in [RemoteRuntime.mac, .iosSystem] {
-      let state = RemoteAgentState(transcript: [
-        .user("Inspect this project and summarize the files.")
-      ])
-      let prepared = RemoteContext.preparedContext(
-        state: state, systemPrompt: remoteSystemPrompt(runtime: runtime, skillCatalog: catalog),
-        tools: RemoteToolSchema.tools, configuration: configuration)
-      let reserve = RemoteContext.compactionReserveTokens(
-        contextWindowTokens: limits.contextWindowTokens, configuration: configuration)
-      // Leave room for a small prompt or tool result beyond the fixed instructions.
-      XCTAssertTrue(
-        prepared.estimatedTokens + configuration.reservedOutputTokens + reserve + 1_024
-          < limits.contextWindowTokens)
-    }
+    let state = RemoteAgentState(transcript: [
+      .user("Inspect this project and summarize the files.")
+    ])
+    let prepared = RemoteContext.preparedContext(
+      state: state, systemPrompt: remoteSystemPrompt(skillCatalog: catalog),
+      tools: RemoteToolSchema.tools, configuration: configuration)
+    let reserve = RemoteContext.compactionReserveTokens(
+      contextWindowTokens: limits.contextWindowTokens, configuration: configuration)
+    // Leave room for a small prompt or tool result beyond the fixed instructions.
+    XCTAssertTrue(
+      prepared.estimatedTokens + configuration.reservedOutputTokens + reserve + 1_024
+        < limits.contextWindowTokens)
   }
 }

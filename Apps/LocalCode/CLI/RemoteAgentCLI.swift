@@ -5,7 +5,6 @@ import RemoteAPI
 import WebSearch
 
 extension RemoteProvider: @retroactive ExpressibleByArgument {}
-extension RemoteRuntime: ExpressibleByArgument {}
 extension RemoteReasoningEffort: @retroactive ExpressibleByArgument {}
 
 struct RemoteAgentCLI: AsyncParsableCommand {
@@ -56,9 +55,6 @@ struct RemoteAgentCLI: AsyncParsableCommand {
 
   @Option(help: "Target fraction of the remote model context used after compaction.")
   var compactionTarget = RemoteAgentConfiguration.defaultCompactionTarget
-
-  @Option(help: "Optional runtime description appended to the system prompt: mac or ios-system.")
-  var runtime: RemoteRuntime = .mac
 
   mutating func validate() throws {
     guard maximumRounds > 0 else {
@@ -180,7 +176,7 @@ struct RemoteAgentCLI: AsyncParsableCommand {
     let agent = RemoteAgent(
       provider: measuredProvider,
       systemPrompt: remoteSystemPrompt(
-        template: template, runtime: runtime, skillCatalog: catalog,
+        template: template, skillCatalog: catalog,
         projectContext: ProjectContext.load(projectURL: projectURL), environmentContext: context),
       tools: bridge.tools, configuration: configuration,
       state: restored?.state.agentState ?? RemoteAgentState()

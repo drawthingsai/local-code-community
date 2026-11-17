@@ -112,7 +112,6 @@ final class RemoteChatProvider {
       workspacePath: URL(fileURLWithPath: workspacePath).standardizedFileURL.path,
       webSearchProvider: webSearchProvider, isMemoryEnabled: isMemoryEnabled,
       systemPromptContext: RemoteSystemPromptContext(
-        runtime: .currentApp,
         skillCatalog: SkillCatalog.find(
           roots: SkillCatalog.roots(
             builtInSkillsURL: Resources.resourceURL?.appendingPathComponent("Skills"),
