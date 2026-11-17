@@ -15,9 +15,10 @@ final class MarkdownFonts {
   /// The code fonts offered besides SF Mono, in menu order. Menlo comes with the system.
   let codeFamilies: [String]
 
-  // Elena's lowercase letters are about 12% shorter than SF's at the same point size, so it is
-  // drawn larger to look the size the font size setting asks for.
-  private static let textScales: [String: CGFloat] = ["Elena": 1.14]
+  // At the same point size, Elena's lowercase letters are about 12% shorter than SF's while its tall
+  // letters are as tall. At 1.1x its lowercase is within 3% of SF's, its capitals are 3% taller, and
+  // a line of text runs about the same width.
+  private static let textScales: [String: CGFloat] = ["Elena": 1.1]
 
   private struct State {
     var textFamily: String?
