@@ -2895,7 +2895,7 @@
 "new_reply" = "Neue Antwort";
 "bot_token_rejected_detail" = "Das Bot-Token wurde abgelehnt. Legen Sie ein neues fest.";
 "discord_intents_refused_detail" = "Discord hat die Gateway-Intents des Bots abgelehnt. Prüfen Sie den Bot im Discord Developer Portal.";
-"messages_automation_detail" = "Local Code kann nicht in Nachrichten senden. Erlauben Sie es unter Systemeinstellungen › Datenschutz & Sicherheit › Automation und verbinden Sie dann erneut.";
+"messages_automation_detail" = "Local Code kann nicht in Nachrichten senden. Erlauben Sie es unter Systemeinstellungen › Datenschutz & Sicherheit › Automation.";
 "no_model_selected_detail" = "Wählen Sie zuerst ein Modell in Local Code.";
 "thread_gone_detail" = "Dieser Thread ist nicht mehr in Local Code.";
 "send_failed_detail" = "Local Code konnte die Nachricht nicht senden.";
@@ -2908,7 +2908,6 @@
 "needs_a_bot_token" = "Bot-Token erforderlich";
 "needs_messages_permission" = "Berechtigung für Nachrichten erforderlich";
 "message_yourself_to_start" = "Schreiben Sie sich selbst, um zu beginnen";
-"reconnect" = "Erneut verbinden";
 "imessage_detail" = "Schreiben Sie sich selbst in Nachrichten, von diesem Mac oder Ihren anderen Geräten, um mit den Threads von Local Code zu arbeiten, solange es geöffnet ist. Es liest den Chat mit der Berechtigung für Nachrichten oben und antwortet dort. Senden Sie /help für die Befehle.";
 "telegram_detail" = "Schreiben Sie Ihrem eigenen Telegram-Bot, um mit den Threads von Local Code zu arbeiten, solange es geöffnet ist. Erstellen Sie einen Bot mit @BotFather, legen Sie hier sein Token fest und senden Sie dem Bot den Kopplungscode. Senden Sie /help für die Befehle.";
 "discord_detail" = "Schreiben Sie Ihrem eigenen Discord-Bot, um mit den Threads von Local Code zu arbeiten, solange es geöffnet ist. Erstellen Sie im Discord Developer Portal eine Anwendung mit einem Bot, legen Sie hier das Token des Bots fest und senden Sie dem Bot den Kopplungscode in einer Direktnachricht oder indem Sie ihn erwähnen. Senden Sie /help für die Befehle.";

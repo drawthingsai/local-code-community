@@ -194,6 +194,8 @@ public enum SettingsViewFactory {
     incompatibleLabel.snp.makeConstraints { make in
       make.leading.equalTo(incompatibleIcon.snp.trailing).offset(6)
       make.centerY.equalToSuperview()
+      // A long warning truncates at the margin rather than run past the row.
+      make.trailing.lessThanOrEqualToSuperview().offset(-Theme.current.sectionContentMargin)
     }
     return incompatibleView
   }

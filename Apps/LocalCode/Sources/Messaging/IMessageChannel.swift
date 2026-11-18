@@ -30,6 +30,10 @@
     private var lastMessageID: Int64 = 0
     private var sentAnswers = [(text: String, date: Date)]()
     private var receivedNotes = [(text: String, fromMe: Bool, date: Date)]()
+    /// Why the last answer couldn't go out. It shows until an answer does.
+    private var sendFailure: String?
+    /// What Kit shows, so polling reports only a change.
+    private var reportedConnection: MessagingConnection?
 
     /// `directoryURL` is the Messages folder with its security scope started; stopping ends it.
     init(directoryURL: URL) {
@@ -49,6 +53,7 @@
           self.report(.failed(error.localizedDescription))
           return
         }
+        self.reportStatus()
         let timer = DispatchSource.makeTimerSource(queue: self.queue)
         timer.schedule(deadline: .now() + Self.pollInterval, repeating: Self.pollInterval)
         timer.setEventHandler { [weak self] in self?.poll() }
@@ -75,11 +80,14 @@
         do {
           try AppleScript.run(
             Self.sendScript(answer, chatID: conversationID, identifier: identifier))
+          // It went out, so Messages lets this app send again.
+          self.sendFailure = nil
         } catch AppleScript.Error.notAuthorized {
-          self.report(.failed(LocalizedString.forKey("messages_automation_detail")))
+          self.sendFailure = LocalizedString.forKey("messages_automation_detail")
         } catch {
           print("Unable to send an iMessage: \(error)")
         }
+        self.reportStatus()
       }
     }
 
@@ -107,6 +115,8 @@
             self.delegate?.messagingChannel(self, didReceive: incoming)
           }
         }
+        // A poll that works again clears the error of one that didn't.
+        reportStatus()
       } catch {
         report(.failed(error.localizedDescription))
       }
@@ -141,11 +151,21 @@
       else { return }
       selfChatsDate = Date()
       selfChats = try database.selfChats()
-      // Kit asks for a note to self while there's none.
-      report(.connected(selfChats.map(\.identifier).joined(separator: ", ")))
+    }
+
+    /// Connected as the account's addresses, unless an answer couldn't go out. Reports only a change,
+    /// so an error stays until what caused it is fixed.
+    private func reportStatus() {
+      // With no note to self yet, the addresses are empty, and Kit asks for one.
+      let connection =
+        sendFailure.map(MessagingConnection.failed)
+        ?? .connected(selfChats.map(\.identifier).joined(separator: ", "))
+      guard connection != reportedConnection else { return }
+      report(connection)
     }
 
     private func report(_ connection: MessagingConnection) {
+      reportedConnection = connection
       DispatchQueue.main.async { [weak self] in
         guard let self else { return }
         self.delegate?.messagingChannel(self, didChange: connection)

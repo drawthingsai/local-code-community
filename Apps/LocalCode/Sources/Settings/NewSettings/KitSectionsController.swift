@@ -57,16 +57,13 @@ protocol KitSectionsControllerDelegate: AnyObject {
     _ controller: KitSectionsController, didSelectPermission permission: PermissionState,
     for resource: ProtectedResource)
   func kitSectionsController(_ controller: KitSectionsController, didSetIMessageEnabled value: Bool)
-  func kitSectionsControllerDidSelectReconnectIMessage(_ controller: KitSectionsController)
   func kitSectionsController(_ controller: KitSectionsController, didSetTelegramEnabled value: Bool)
   func kitSectionsController(
     _ controller: KitSectionsController, didChangeTelegramBotToken token: String)
-  func kitSectionsControllerDidSelectReconnectTelegram(_ controller: KitSectionsController)
   func kitSectionsControllerDidForgetTelegramPairedAccounts(_ controller: KitSectionsController)
   func kitSectionsController(_ controller: KitSectionsController, didSetDiscordEnabled value: Bool)
   func kitSectionsController(
     _ controller: KitSectionsController, didChangeDiscordBotToken token: String)
-  func kitSectionsControllerDidSelectReconnectDiscord(_ controller: KitSectionsController)
   func kitSectionsControllerDidForgetDiscordPairedAccounts(_ controller: KitSectionsController)
 }
 
@@ -243,40 +240,27 @@ final class KitSectionsController {
   }
 
   private func iMessageSection() -> SettingsSectionItem {
-    let (status, warning) = Self.status(
-      of: messagingStatus.iMessage,
+    let (status, statusText, warning) = Self.status(
+      isEnabled: isIMessageEnabled, of: messagingStatus.iMessage,
       notStarted: LocalizedString.forKey("needs_messages_permission"),
       // Nothing to answer until the account writes to itself.
       connectedWithoutName: LocalizedString.forKey("message_yourself_to_start"))
-    // While iMessage is off, the section shows only its switch.
-    var statusItem = SettingsButtonItem(
-      value: status, title: LocalizedString.forKey("status"), warning: warning,
-      showsMenuAsPrimaryAction: true,
-      makeButtonsUI: { [weak self] status, button in
-        button?.menu = UIMenu(children: [
-          UIAction(title: LocalizedString.forKey("reconnect")) { [weak self] _ in
-            guard let self else { return }
-            self.delegate?.kitSectionsControllerDidSelectReconnectIMessage(self)
-          }
-        ])
-        button?.setTitle(status, for: .normal)
-      })
-    statusItem.isHidden = !isIMessageEnabled
     return SettingsSectionItem(
       settingsItems: [
-        SettingsSwitchItem(value: isIMessageEnabled, title: LocalizedString.forKey("enable")) {
-          [weak self] value in
+        SettingsStatusSwitchItem(
+          value: isIMessageEnabled, status: status, statusText: statusText, warning: warning
+        ) { [weak self] value in
           guard let self else { return }
           self.delegate?.kitSectionsController(self, didSetIMessageEnabled: value)
-        },
-        statusItem,
+        }
       ], title: "iMessage", detail: LocalizedString.forKey("imessage_detail"),
       lookUpKey: "local_code_imessage_detail_hidden", workspace: workspace)
   }
 
   private func telegramSection() -> SettingsSectionItem {
-    let (status, warning) = Self.status(
-      of: messagingStatus.telegram, notStarted: LocalizedString.forKey("needs_a_bot_token"),
+    let (status, statusText, warning) = Self.status(
+      isEnabled: telegramSettings.isEnabled, of: messagingStatus.telegram,
+      notStarted: LocalizedString.forKey("needs_a_bot_token"),
       connectedWithoutName: LocalizedString.forKey("connected"))
     // While Telegram is off, the section shows only its switch.
     let isOff = !telegramSettings.isEnabled
@@ -291,19 +275,6 @@ final class KitSectionsController {
         self.delegate?.kitSectionsController(self, didChangeTelegramBotToken: text)
       })
     botToken.isHidden = isOff
-    var statusItem = SettingsButtonItem(
-      value: status, title: LocalizedString.forKey("status"), warning: warning,
-      showsMenuAsPrimaryAction: true,
-      makeButtonsUI: { [weak self] status, button in
-        button?.menu = UIMenu(children: [
-          UIAction(title: LocalizedString.forKey("reconnect")) { [weak self] _ in
-            guard let self else { return }
-            self.delegate?.kitSectionsControllerDidSelectReconnectTelegram(self)
-          }
-        ])
-        button?.setTitle(status, for: .normal)
-      })
-    statusItem.isHidden = isOff
     // The code is for the bot once it's connected.
     var pairingCode = SettingsPlainTextItem(
       leadingText: LocalizedString.forKey("pairing_code"),
@@ -329,15 +300,15 @@ final class KitSectionsController {
     pairedAccounts.isHidden = isOff || telegramSettings.pairedAccountCount == 0
     return SettingsSectionItem(
       settingsItems: [
-        SettingsSwitchItem(
-          value: telegramSettings.isEnabled, title: LocalizedString.forKey("enable")
+        SettingsStatusSwitchItem(
+          value: telegramSettings.isEnabled, status: status, statusText: statusText,
+          warning: warning
         ) { [weak self] value in
           guard let self else { return }
           self.delegate?.kitSectionsController(self, didSetTelegramEnabled: value)
         },
         botTokenTitle,
         botToken,
-        statusItem,
         pairingCode,
         pairedAccounts,
       ], title: "Telegram", detail: LocalizedString.forKey("telegram_detail"),
@@ -345,8 +316,9 @@ final class KitSectionsController {
   }
 
   private func discordSection() -> SettingsSectionItem {
-    let (status, warning) = Self.status(
-      of: messagingStatus.discord, notStarted: LocalizedString.forKey("needs_a_bot_token"),
+    let (status, statusText, warning) = Self.status(
+      isEnabled: discordSettings.isEnabled, of: messagingStatus.discord,
+      notStarted: LocalizedString.forKey("needs_a_bot_token"),
       connectedWithoutName: LocalizedString.forKey("connected"))
     // While Discord is off, the section shows only its switch.
     let isOff = !discordSettings.isEnabled
@@ -361,19 +333,6 @@ final class KitSectionsController {
         self.delegate?.kitSectionsController(self, didChangeDiscordBotToken: text)
       })
     botToken.isHidden = isOff
-    var statusItem = SettingsButtonItem(
-      value: status, title: LocalizedString.forKey("status"), warning: warning,
-      showsMenuAsPrimaryAction: true,
-      makeButtonsUI: { [weak self] status, button in
-        button?.menu = UIMenu(children: [
-          UIAction(title: LocalizedString.forKey("reconnect")) { [weak self] _ in
-            guard let self else { return }
-            self.delegate?.kitSectionsControllerDidSelectReconnectDiscord(self)
-          }
-        ])
-        button?.setTitle(status, for: .normal)
-      })
-    statusItem.isHidden = isOff
     // The code is for the bot once it's connected.
     var pairingCode = SettingsPlainTextItem(
       leadingText: LocalizedString.forKey("pairing_code"),
@@ -399,38 +358,41 @@ final class KitSectionsController {
     pairedAccounts.isHidden = isOff || discordSettings.pairedAccountCount == 0
     return SettingsSectionItem(
       settingsItems: [
-        SettingsSwitchItem(
-          value: discordSettings.isEnabled, title: LocalizedString.forKey("enable")
+        SettingsStatusSwitchItem(
+          value: discordSettings.isEnabled, status: status, statusText: statusText, warning: warning
         ) { [weak self] value in
           guard let self else { return }
           self.delegate?.kitSectionsController(self, didSetDiscordEnabled: value)
         },
         botTokenTitle,
         botToken,
-        statusItem,
         pairingCode,
         pairedAccounts,
       ], title: "Discord", detail: LocalizedString.forKey("discord_detail"),
       lookUpKey: "local_code_discord_detail_hidden", workspace: workspace)
   }
 
-  /// The Status row's text for a chat app's connection, and the error to show under it.
+  /// How the Enable switch shows a chat app's connection, and the error to show under it.
   private static func status(
-    of connection: MessagingConnection?, notStarted: String, connectedWithoutName: String
-  ) -> (String, SettingsWarning?) {
+    isEnabled: Bool, of connection: MessagingConnection?, notStarted: String,
+    connectedWithoutName: String
+  ) -> (SettingsStatusSwitchItem.Status, String, SettingsWarning?) {
+    guard isEnabled else { return (.off, "", nil) }
     switch connection {
     case nil:
-      return (notStarted, nil)
+      return (.pending, notStarted, nil)
     case .connecting:
-      return (LocalizedString.forKey("connecting"), nil)
+      return (.pending, LocalizedString.forKey("connecting"), nil)
     case .connected(let name):
       return (
+        .connected,
         name.isEmpty ? connectedWithoutName : LocalizedString.format(key: "connected_as", name),
         nil
       )
     case .failed(let reason):
       return (
-        LocalizedString.forKey("not_connected"), SettingsWarning(text: reason, severity: .error)
+        .failed, LocalizedString.forKey("not_connected"),
+        SettingsWarning(text: reason, severity: .error)
       )
     }
   }

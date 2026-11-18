@@ -3167,7 +3167,7 @@
 "new_reply" = "Trả lời mới";
 "bot_token_rejected_detail" = "Mã thông báo bot bị từ chối. Hãy đặt mã mới.";
 "discord_intents_refused_detail" = "Discord đã từ chối các gateway intent của bot. Hãy kiểm tra bot trong Discord Developer Portal.";
-"messages_automation_detail" = "Local Code không thể gửi trong Tin nhắn. Hãy cho phép trong Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Tự động hóa, rồi kết nối lại.";
+"messages_automation_detail" = "Local Code không thể gửi trong Tin nhắn. Hãy cho phép trong Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Tự động hóa.";
 "no_model_selected_detail" = "Hãy chọn một mô hình trong Local Code trước.";
 "thread_gone_detail" = "Cuộc trò chuyện đó không còn trong Local Code.";
 "send_failed_detail" = "Local Code không thể gửi tin nhắn.";
@@ -3180,7 +3180,6 @@
 "needs_a_bot_token" = "Cần mã thông báo bot";
 "needs_messages_permission" = "Cần quyền truy cập Tin nhắn";
 "message_yourself_to_start" = "Nhắn cho chính bạn để bắt đầu";
-"reconnect" = "Kết nối lại";
 "imessage_detail" = "Nhắn cho chính bạn trong Tin nhắn, từ máy Mac này hoặc các thiết bị khác, để làm việc với các cuộc trò chuyện của Local Code khi ứng dụng đang mở. Ứng dụng đọc đoạn chat bằng quyền truy cập Tin nhắn ở trên và trả lời ở đó. Gửi /help để xem các lệnh.";
 "telegram_detail" = "Nhắn cho bot Telegram của riêng bạn để làm việc với các cuộc trò chuyện của Local Code khi ứng dụng đang mở. Tạo bot bằng @BotFather, đặt mã thông báo của bot ở đây và gửi cho bot mã ghép nối. Gửi /help để xem các lệnh.";
 "discord_detail" = "Nhắn cho bot Discord của riêng bạn để làm việc với các cuộc trò chuyện của Local Code khi ứng dụng đang mở. Tạo một ứng dụng có bot trong Discord Developer Portal, đặt mã thông báo của bot ở đây và gửi cho bot mã ghép nối trong tin nhắn trực tiếp hoặc bằng cách nhắc đến bot. Gửi /help để xem các lệnh.";

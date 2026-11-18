@@ -2528,11 +2528,6 @@ extension SettingsWorkflow: KitSectionsControllerDelegate {
     }
   }
 
-  func kitSectionsControllerDidSelectReconnectIMessage(_ controller: KitSectionsController) {
-    workspace.dictionary["messaging_imessage_revision", Int.self] =
-      (workspace.dictionary["messaging_imessage_revision", Int.self] ?? 0) + 1
-  }
-
   func kitSectionsController(_ controller: KitSectionsController, didSetTelegramEnabled value: Bool)
   {
     workspace.dictionary["messaging_telegram_enabled", Bool.self] = value
@@ -2545,11 +2540,6 @@ extension SettingsWorkflow: KitSectionsControllerDelegate {
     if workspace.dictionary["messaging_telegram_bot_token", String.self] != token {
       workspace.dictionary["messaging_telegram_bot_token", String.self] = token
     }
-  }
-
-  func kitSectionsControllerDidSelectReconnectTelegram(_ controller: KitSectionsController) {
-    workspace.dictionary["messaging_telegram_revision", Int.self] =
-      (workspace.dictionary["messaging_telegram_revision", Int.self] ?? 0) + 1
   }
 
   func kitSectionsControllerDidForgetTelegramPairedAccounts(_ controller: KitSectionsController) {
@@ -2568,11 +2558,6 @@ extension SettingsWorkflow: KitSectionsControllerDelegate {
     if workspace.dictionary["messaging_discord_bot_token", String.self] != token {
       workspace.dictionary["messaging_discord_bot_token", String.self] = token
     }
-  }
-
-  func kitSectionsControllerDidSelectReconnectDiscord(_ controller: KitSectionsController) {
-    workspace.dictionary["messaging_discord_revision", Int.self] =
-      (workspace.dictionary["messaging_discord_revision", Int.self] ?? 0) + 1
   }
 
   func kitSectionsControllerDidForgetDiscordPairedAccounts(_ controller: KitSectionsController) {

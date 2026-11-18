@@ -3167,7 +3167,7 @@
 "new_reply" = "New reply";
 "bot_token_rejected_detail" = "The bot token was rejected. Set a new one.";
 "discord_intents_refused_detail" = "Discord refused the bot’s gateway intents. Check the bot in the Discord Developer Portal.";
-"messages_automation_detail" = "Local Code can’t send in Messages. Allow it in System Settings › Privacy & Security › Automation, then reconnect.";
+"messages_automation_detail" = "Local Code can’t send in Messages. Allow it in System Settings › Privacy & Security › Automation.";
 "no_model_selected_detail" = "Choose a model in Local Code first.";
 "thread_gone_detail" = "That thread is no longer in Local Code.";
 "send_failed_detail" = "Local Code couldn’t send the message.";
@@ -3180,7 +3180,6 @@
 "needs_a_bot_token" = "Needs a bot token";
 "needs_messages_permission" = "Needs Messages permission";
 "message_yourself_to_start" = "Message yourself to start";
-"reconnect" = "Reconnect";
 "imessage_detail" = "Message yourself in Messages, from this Mac or your other devices, to work with Local Code’s threads while it’s open. It reads the chat with the Messages permission above and answers there. Send /help for commands.";
 "telegram_detail" = "Message your own Telegram bot to work with Local Code’s threads while it’s open. Create a bot with @BotFather, set its token here, and send the bot the pairing code. Send /help for commands.";
 "discord_detail" = "Message your own Discord bot to work with Local Code’s threads while it’s open. Create an application with a bot in the Discord Developer Portal, set the bot’s token here, and send the bot the pairing code in a direct message or by mentioning it. Send /help for commands.";

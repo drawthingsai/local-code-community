@@ -2895,7 +2895,7 @@
 "new_reply" = "Nouvelle réponse";
 "bot_token_rejected_detail" = "Le jeton du bot a été refusé. Définissez-en un nouveau.";
 "discord_intents_refused_detail" = "Discord a refusé les intents de passerelle du bot. Vérifiez le bot dans le Discord Developer Portal.";
-"messages_automation_detail" = "Local Code ne peut pas envoyer dans Messages. Autorisez-le dans Réglages Système › Confidentialité et sécurité › Automatisation, puis reconnectez.";
+"messages_automation_detail" = "Local Code ne peut pas envoyer dans Messages. Autorisez-le dans Réglages Système › Confidentialité et sécurité › Automatisation.";
 "no_model_selected_detail" = "Choisissez d’abord un modèle dans Local Code.";
 "thread_gone_detail" = "Ce fil n’est plus dans Local Code.";
 "send_failed_detail" = "Local Code n’a pas pu envoyer le message.";
@@ -2908,7 +2908,6 @@
 "needs_a_bot_token" = "Jeton du bot requis";
 "needs_messages_permission" = "Autorisation Messages requise";
 "message_yourself_to_start" = "Écrivez-vous un message pour commencer";
-"reconnect" = "Reconnecter";
 "imessage_detail" = "Écrivez-vous dans Messages, depuis ce Mac ou vos autres appareils, pour travailler avec les fils de Local Code tant qu’il est ouvert. Il lit la conversation grâce à l’autorisation Messages ci-dessus et y répond. Envoyez /help pour les commandes.";
 "telegram_detail" = "Écrivez à votre propre bot Telegram pour travailler avec les fils de Local Code tant qu’il est ouvert. Créez un bot avec @BotFather, définissez son jeton ici et envoyez au bot le code d’association. Envoyez /help pour les commandes.";
 "discord_detail" = "Écrivez à votre propre bot Discord pour travailler avec les fils de Local Code tant qu’il est ouvert. Créez une application avec un bot dans le Discord Developer Portal, définissez ici le jeton du bot et envoyez au bot le code d’association en message privé ou en le mentionnant. Envoyez /help pour les commandes.";

@@ -2855,7 +2855,7 @@
 "new_reply" = "Respuesta nueva";
 "bot_token_rejected_detail" = "Se rechazó el token del bot. Establece uno nuevo.";
 "discord_intents_refused_detail" = "Discord rechazó los intents de gateway del bot. Revisa el bot en el Discord Developer Portal.";
-"messages_automation_detail" = "Local Code no puede enviar en Mensajes. Permítelo en Ajustes del Sistema › Privacidad y seguridad › Automatización y vuelve a conectar.";
+"messages_automation_detail" = "Local Code no puede enviar en Mensajes. Permítelo en Ajustes del Sistema › Privacidad y seguridad › Automatización.";
 "no_model_selected_detail" = "Elige primero un modelo en Local Code.";
 "thread_gone_detail" = "Ese hilo ya no está en Local Code.";
 "send_failed_detail" = "Local Code no pudo enviar el mensaje.";
@@ -2868,7 +2868,6 @@
 "needs_a_bot_token" = "Necesita un token del bot";
 "needs_messages_permission" = "Necesita el permiso de Mensajes";
 "message_yourself_to_start" = "Escríbete a ti mismo para empezar";
-"reconnect" = "Volver a conectar";
 "imessage_detail" = "Escríbete a ti mismo en Mensajes, desde este Mac o tus otros dispositivos, para trabajar con los hilos de Local Code mientras esté abierto. Lee el chat con el permiso de Mensajes de arriba y responde allí. Envía /help para ver los comandos.";
 "telegram_detail" = "Escribe a tu propio bot de Telegram para trabajar con los hilos de Local Code mientras esté abierto. Crea un bot con @BotFather, establece aquí su token y envía al bot el código de vinculación. Envía /help para ver los comandos.";
 "discord_detail" = "Escribe a tu propio bot de Discord para trabajar con los hilos de Local Code mientras esté abierto. Crea una aplicación con un bot en el Discord Developer Portal, establece aquí el token del bot y envía al bot el código de vinculación en un mensaje directo o mencionándolo. Envía /help para ver los comandos.";

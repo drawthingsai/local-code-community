@@ -117,16 +117,10 @@ final class MessagingBridge {
       workspace.dictionary.subscribe("messaging_telegram_enabled", of: Bool.self) { _ in
         update(.telegram)
       },
-      workspace.dictionary.subscribe("messaging_telegram_revision", of: Int.self) { _ in
-        update(.telegram)
-      },
       workspace.dictionary.subscribe("messaging_telegram_bot_token", of: String.self) { _ in
         update(.telegram)
       },
       workspace.dictionary.subscribe("messaging_discord_enabled", of: Bool.self) { _ in
-        update(.discord)
-      },
-      workspace.dictionary.subscribe("messaging_discord_revision", of: Int.self) { _ in
         update(.discord)
       },
       workspace.dictionary.subscribe("messaging_discord_bot_token", of: String.self) { _ in
@@ -141,9 +135,6 @@ final class MessagingBridge {
         workspace.dictionary.subscribe("messaging_imessage_enabled", of: Bool.self) { _ in
           update(.iMessage)
         },
-        workspace.dictionary.subscribe("messaging_imessage_revision", of: Int.self) { _ in
-          update(.iMessage)
-        },
         workspace.dictionary.subscribe(AppDataDirectory.messages.bookmarkKey, of: Data.self) {
           _ in update(.iMessage)
         },
@@ -154,26 +145,22 @@ final class MessagingBridge {
 
   private func updateChannel(_ platform: MessagingPlatform) {
     let isEnabled: Bool
-    let revision: Int
     // What the channel is made from: the bot's token, or the Messages folder's grant.
     let source: String
     switch platform {
     case .iMessage:
       isEnabled = workspace.dictionary["messaging_imessage_enabled", Bool.self] == true
-      revision = workspace.dictionary["messaging_imessage_revision", Int.self] ?? 0
       source =
         workspace.dictionary[AppDataDirectory.messages.bookmarkKey, Data.self]?
         .base64EncodedString() ?? ""
     case .telegram:
       isEnabled = workspace.dictionary["messaging_telegram_enabled", Bool.self] == true
-      revision = workspace.dictionary["messaging_telegram_revision", Int.self] ?? 0
       source = workspace.dictionary["messaging_telegram_bot_token", String.self] ?? ""
     case .discord:
       isEnabled = workspace.dictionary["messaging_discord_enabled", Bool.self] == true
-      revision = workspace.dictionary["messaging_discord_revision", Int.self] ?? 0
       source = workspace.dictionary["messaging_discord_bot_token", String.self] ?? ""
     }
-    let configuration = "\(isEnabled) \(revision) \(source)"
+    let configuration = "\(isEnabled) \(source)"
     guard channelConfigurations[platform] != configuration else { return }
     channelConfigurations[platform] = configuration
     guard isEnabled, !source.isEmpty else {
