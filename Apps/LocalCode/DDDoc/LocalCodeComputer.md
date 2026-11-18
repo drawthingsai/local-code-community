@@ -228,7 +228,11 @@ The menu does not list finished jobs or the reviewer's approvals.
 
 Quitting Computer stops its jobs, so Quit asks first when jobs are running.
 
-Keep this Mac awake runs `caffeinate -i` for System only and `caffeinate -di` for System and display, with `-w` and Computer's pid so it ends with Computer. Allow sleep stops it. Local Code's own setting holds the same assertions only while agents work or models download; this one holds them while the Mac is idle too. Computer remembers the choice and, since it starts at login, keeps the Mac awake again after a restart. Neither assertion stops sleep when the lid closes.
+Computer keeps the Mac from sleeping when idle while its jobs run or processes they left are still running, so background jobs and development servers keep going after the agent's turn ends. The display can still sleep. Local Code's own setting covers agent turns and model downloads.
+
+Keep this Mac awake does the same all the time: System only, or System and display to keep the display on too. Allow sleep goes back to only while jobs run. Computer remembers the choice and, since it starts at login, keeps the Mac awake again after a restart.
+
+Both are `ProcessInfo` activities, `.idleSystemSleepDisabled` with `.idleDisplaySleepDisabled` for the display, which hold the same assertions as `caffeinate -i` and `-di` and end with Computer even if it crashes. Neither stops sleep when the lid closes.
 
 ## Connection and launch
 
