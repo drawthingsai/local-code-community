@@ -25,6 +25,8 @@ exports_files([
     "Sources/Models/GLM5_3ContextCache.swift",
     "Sources/Models/GLM5_3Image.swift",
     "Sources/Models/GLM5_3TextGenerator.swift",
+    "Sources/Models/Inkling2SmallImage.swift",
+    "Sources/Models/Inkling2SmallTextGenerator.swift",
 ])
 
 xcodeproj(
