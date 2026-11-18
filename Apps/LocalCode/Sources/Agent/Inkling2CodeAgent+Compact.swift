@@ -3,10 +3,11 @@ import ProjectHistoryManager
 import Tokenizer
 
 extension Inkling2CodeAgent {
-  // Inkling 2 Small takes up to 1M tokens. Keep the agent context where GLM 5.3's is, so prefill
-  // and decoding stay acceptably fast and the full-attention caches stay small.
-  static var maximumContextLength: Int { 192 * 1_024 }
-  static var contextCheckpointCompactionTokenThreshold: Int { 156 * 1_024 }
+  // Inkling 2 Small takes up to 1M tokens. Its 8 full-attention layers keep 32 KiB a token, so
+  // 256K holds 8 GiB of them, and prefill and decoding stay acceptably fast. Compaction starts at
+  // the same share of the window as GLM 5.3's and DeepSeek 4's.
+  static var maximumContextLength: Int { 256 * 1_024 }
+  static var contextCheckpointCompactionTokenThreshold: Int { 208 * 1_024 }
   static var contextCheckpointCompactionHistoryTokenBudget: Int { 64 * 1_024 }
   static var minimumGenerationReserve: Int { 8_192 }
   static var readResponsePreviewTokenThreshold: Int { 65_536 }
