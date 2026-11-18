@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Local Code sends its answers to the chat you message it from in Messages.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>Local Code reads and manages your calendar events when you use the calendar command.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

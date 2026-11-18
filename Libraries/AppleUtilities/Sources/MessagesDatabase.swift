@@ -122,6 +122,78 @@ public final class MessagesDatabase {
     return MessagePage(messages: messages, nextBeforeID: hasMore ? messages.last?.id : nil)
   }
 
+  /// A one-to-one chat with one of this account's own addresses, where people message themselves.
+  public struct SelfChat: Equatable {
+    public var id: Int64
+    /// What Messages' scripting calls the chat's id.
+    public var guid: String
+    public var identifier: String
+  }
+
+  /// The chats with this account's own addresses: those it sent from, and those it signs in with.
+  /// Not compiled at init, so the imessage command keeps working on schemas without these
+  /// columns.
+  public func selfChats() throws -> [SelfChat] {
+    let statement = try database.prepare(
+      """
+      SELECT c.ROWID, c.guid, c.chat_identifier FROM chat c
+      WHERE c.style = 45 AND lower(c.chat_identifier) IN (
+        SELECT lower(substr(account, 3)) FROM message
+          WHERE is_from_me = 1 AND account LIKE '_:%'
+        UNION SELECT lower(substr(account_login, 3)) FROM chat WHERE account_login LIKE '_:%')
+      ORDER BY c.ROWID
+      """)
+    defer { sqlite3_finalize(statement) }
+    var chats = [SelfChat]()
+    while try database.step(statement) {
+      chats.append(
+        SelfChat(
+          id: sqlite3_column_int64(statement, 0), guid: columnText(statement, 1) ?? "",
+          identifier: columnText(statement, 2) ?? ""))
+    }
+    return chats
+  }
+
+  /// The newest message's ID, or 0 for none; only later messages are new.
+  public func latestMessageID() throws -> Int64 {
+    let statement = try database.prepare("SELECT IFNULL(MAX(ROWID), 0) FROM message")
+    defer { sqlite3_finalize(statement) }
+    guard try database.step(statement) else { return 0 }
+    return sqlite3_column_int64(statement, 0)
+  }
+
+  /// Messages in `chatIDs` after `afterID`, oldest first.
+  public func messages(afterID: Int64, chatIDs: [Int64], limit: Int) throws -> [Message] {
+    guard !chatIDs.isEmpty else { return [] }
+    let statement = try database.prepare(
+      """
+      SELECT m.ROWID, m.text, m.attributedBody, \(Self.date), m.is_from_me, h.id, j.chat_id
+      FROM message m JOIN chat_message_join j ON j.message_id = m.ROWID
+      LEFT JOIN handle h ON h.ROWID = m.handle_id
+      WHERE m.ROWID > ?1 AND j.chat_id IN (\(chatIDs.map { _ in "?" }.joined(separator: ", ")))
+      ORDER BY m.ROWID ASC LIMIT \(max(limit, 1))
+      """)
+    defer { sqlite3_finalize(statement) }
+    sqlite3_bind_int64(statement, 1, afterID)
+    for (index, chatID) in chatIDs.enumerated() {
+      sqlite3_bind_int64(statement, Int32(index + 2), chatID)
+    }
+    var messages = [Message]()
+    while try database.step(statement) {
+      var body = columnText(statement, 1)
+      if body == nil, let bytes = sqlite3_column_blob(statement, 2) {
+        body = Self.decodeBody(Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 2))))
+      }
+      let fromMe = sqlite3_column_int(statement, 4) != 0
+      messages.append(
+        Message(
+          id: sqlite3_column_int64(statement, 0), chatID: sqlite3_column_int64(statement, 6),
+          date: Date(timeIntervalSinceReferenceDate: sqlite3_column_double(statement, 3)),
+          fromMe: fromMe, sender: fromMe ? nil : columnText(statement, 5), text: body))
+    }
+    return messages
+  }
+
   /// Reads the first NSString in an attributed string archive. Unlike Madrid's `stringValue`,
   /// this keeps emoji-only text and text containing "NS", and skips attribute metadata.
   static func decodeBody(_ data: Data) -> String? {

@@ -26,6 +26,10 @@
     <array>
         <string>applinks:drawthings.ai</string>
     </array>
+    <key>com.apple.security.temporary-exception.apple-events</key>
+    <array>
+        <string>com.apple.MobileSMS</string>
+    </array>
     <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
     <array>
         <string>com.liuliu.local-code-spks</string>

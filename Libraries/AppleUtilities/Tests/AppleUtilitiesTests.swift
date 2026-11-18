@@ -350,6 +350,61 @@ final class AppleUtilitiesTests: XCTestCase {
     XCTAssertEqual(ISO8601DateFormatter().date(from: date), Date(timeIntervalSinceReferenceDate: 0))
   }
 
+  func testMessagesFindsSelfChatsAndReadsNewMessages() throws {
+    let directory = try temporaryDirectory()
+    var writer: OpaquePointer?
+    XCTAssertEqual(
+      sqlite3_open(directory.appendingPathComponent("chat.db").path, &writer), SQLITE_OK)
+    defer { sqlite3_close(writer) }
+    func sql(_ value: String) {
+      XCTAssertEqual(sqlite3_exec(writer, value, nil, nil, nil), SQLITE_OK, value)
+    }
+    sql(
+      """
+      PRAGMA journal_mode=WAL;
+      CREATE TABLE chat (guid TEXT, display_name TEXT, chat_identifier TEXT, style INTEGER, account_login TEXT);
+      CREATE TABLE handle (id TEXT);
+      CREATE TABLE chat_handle_join (chat_id INTEGER, handle_id INTEGER);
+      CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
+      CREATE TABLE message (guid TEXT, text TEXT, attributedBody BLOB, date INTEGER, is_from_me INTEGER, handle_id INTEGER, account TEXT);
+      INSERT INTO chat VALUES
+        ('any;-;me@example.com', '', 'Me@Example.com', 45, 'E:me@example.com'),
+        ('any;-;+15550001', '', '+15550001', 45, 'E:me@example.com'),
+        ('any;+;chat9', 'Group', 'chat9', 43, 'E:me@example.com'),
+        ('any;-;+15550002', '', '+15550002', 45, 'P:+15550002');
+      INSERT INTO handle VALUES ('+15550001'), ('me@example.com');
+      INSERT INTO message VALUES ('a', 'old note', NULL, 810000000000000000, 1, 0, 'E:me@example.com');
+      INSERT INTO chat_message_join VALUES (1, 1);
+      INSERT INTO message VALUES ('b', 'from a friend', NULL, 810000001000000000, 0, 1, 'E:me@example.com');
+      INSERT INTO chat_message_join VALUES (2, 2);
+      """)
+    let database = try MessagesDatabase(directory: directory)
+    // The address it signs in with and the phone number it sent from; not a friend's chat or a
+    // group.
+    XCTAssertEqual(try database.selfChats().map(\.id), [1, 4])
+    XCTAssertEqual(try database.selfChats().first?.guid, "any;-;me@example.com")
+    XCTAssertEqual(try database.latestMessageID(), 2)
+
+    sql(
+      """
+      INSERT INTO message VALUES ('c', 'threads', NULL, 810000002000000000, 1, 0, 'E:me@example.com');
+      INSERT INTO chat_message_join VALUES (1, 3);
+      INSERT INTO message VALUES ('d', 'not for me', NULL, 810000003000000000, 0, 1, 'E:me@example.com');
+      INSERT INTO chat_message_join VALUES (2, 4);
+      INSERT INTO message VALUES ('e', NULL, NULL, 810000004000000000, 0, 2, 'P:+15550002');
+      INSERT INTO chat_message_join VALUES (4, 5);
+      """)
+    let new = try database.messages(afterID: 2, chatIDs: [1, 4], limit: 10)
+    XCTAssertEqual(new.map(\.id), [3, 5])
+    XCTAssertEqual(new.map(\.text), ["threads", nil])
+    XCTAssertEqual(new.map(\.fromMe), [true, false])
+    XCTAssertEqual(new.map(\.chatID), [1, 4])
+    XCTAssertEqual(try database.messages(afterID: 2, chatIDs: [1, 4], limit: 1).map(\.id), [3])
+    XCTAssertEqual(try database.messages(afterID: 5, chatIDs: [1, 4], limit: 10), [])
+    XCTAssertEqual(try database.messages(afterID: 0, chatIDs: [], limit: 10), [])
+    XCTAssertEqual(try database.latestMessageID(), 5)
+  }
+
   func testMessagesOpenFailuresDoNotCreateDatabase() throws {
     let missing = try temporaryDirectory()
     XCTAssertThrowsError(try MessagesDatabase(directory: missing)) { error in

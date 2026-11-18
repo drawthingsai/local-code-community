@@ -448,6 +448,17 @@ swift_test(
 )
 
 swift_test(
+    name = "MessagingBridgeTests",
+    srcs = glob(["Sources/Messaging/*.swift"]) + [
+        "Sources/PermittedDirectories.swift",
+    ] + glob(["Tests/MessagingBridgeTests/**/*.swift"]),
+    deps = [
+        "//Libraries/Localization",
+        "@dflat//:SQLiteDflat",
+    ],
+)
+
+swift_test(
     name = "PermittedDirectoriesTests",
     srcs = ["Sources/PermittedDirectories.swift"] + glob(["Tests/PermittedDirectoriesTests/**/*.swift"]),
     deps = ["@dflat//:SQLiteDflat"],

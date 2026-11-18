@@ -1,4 +1,5 @@
 import FBShimmer
+import ImageIO
 import Localization
 import SnapKit
 import Style
@@ -41,7 +42,14 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
         button.isHidden = true
         button.menu = nil
       } else {
-        if item.status == .new {
+        if let messagingPlatform = item.messagingPlatform {
+          // A chat app's thread shows the app, with its status as a dot.
+          switch messagingPlatform {
+          case .iMessage: image = Self.iMessageImage
+          case .telegram: image = #imageLiteral(resourceName: "telegram-24")
+          case .discord: image = #imageLiteral(resourceName: "discord-24")
+          }
+        } else if item.status == .new {
           image = #imageLiteral(resourceName: "chat-badge-blue-24")
         } else if item.status == .incomplete {
           image = #imageLiteral(resourceName: "chat-badge-orange-24")
@@ -121,10 +129,47 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
       }
       imageView.image = image
       highlightImageView.image = image
+      switch (item.messagingPlatform, item.status) {
+      case (.some, .new):
+        dotView.image = #imageLiteral(resourceName: "dot-blue-10")
+        dotView.isHidden = false
+      case (.some, .incomplete):
+        dotView.image = #imageLiteral(resourceName: "dot-orange-10")
+        dotView.isHidden = false
+      default:
+        dotView.isHidden = true
+      }
       updateShimmering()
       setNeedsUpdateConfiguration()
     }
   }
+
+  /// Messages' own icon, read from the app on the Mac, since apps can't ship Apple's icons.
+  /// Elsewhere, or if it can't be read, a bubble drawn in Messages' colors.
+  private static let iMessageImage: UIImage = {
+    #if targetEnvironment(macCatalyst)
+      if let bundle = Bundle(path: "/System/Applications/Messages.app"),
+        let iconFile = bundle.object(forInfoDictionaryKey: "CFBundleIconFile") as? String,
+        let url = bundle.url(
+          forResource: (iconFile as NSString).deletingPathExtension, withExtension: "icns"),
+        let source = CGImageSourceCreateWithURL(url as CFURL, nil)
+      {
+        let widths = (0..<CGImageSourceGetCount(source)).compactMap { index -> (Int, Int)? in
+          let properties =
+            CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+          return (properties?[kCGImagePropertyPixelWidth] as? Int).map { (index, $0) }
+        }
+        // The smallest size that stays sharp at 24pt on a Retina screen.
+        if let (index, width) = widths.filter({ $0.1 >= 64 }).min(by: { $0.1 < $1.1 })
+          ?? widths.max(by: { $0.1 < $1.1 }),
+          let cgImage = CGImageSourceCreateImageAtIndex(source, index, nil)
+        {
+          return UIImage(cgImage: cgImage, scale: CGFloat(width) / 24, orientation: .up)
+        }
+      }
+    #endif
+    return #imageLiteral(resourceName: "imessage-24")
+  }()
 
   private lazy var imageView: UIImageView = {
     let imageView = UIImageView(frame: .zero)
@@ -134,6 +179,16 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
   private lazy var highlightImageView: UIImageView = {
     let imageView = UIImageView(frame: .zero)
     imageView.contentMode = .scaleAspectFit
+    return imageView
+  }()
+  // As on Recents rows: the 10pt dot is centered in a 14pt circle filled with the cell background,
+  // which gives the 2pt border that reads as a cutout on the icon's corner.
+  private lazy var dotView: UIImageView = {
+    let imageView = UIImageView(frame: .zero)
+    imageView.contentMode = .center
+    imageView.layer.cornerRadius = 7
+    imageView.clipsToBounds = true
+    imageView.isHidden = true
     return imageView
   }()
   private lazy var highlightView: UIView = {
@@ -176,6 +231,7 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
     contentView.addSubview(imageView)
     contentView.addSubview(shimmerView)
     highlightView.addSubview(highlightImageView)
+    contentView.addSubview(dotView)
     contentView.addSubview(titleLabel)
     contentView.addSubview(button)
     imageView.snp.makeConstraints { make in
@@ -188,6 +244,11 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
     }
     highlightImageView.snp.makeConstraints { make in
       make.edges.equalToSuperview()
+    }
+    dotView.snp.makeConstraints { make in
+      make.top.equalTo(imageView).offset(-4)
+      make.trailing.equalTo(imageView).offset(4)
+      make.size.equalTo(14)
     }
     titleLabel.snp.makeConstraints { make in
       make.leading.equalTo(imageView.snp.trailing).offset(6)
@@ -209,6 +270,7 @@ final class ProjectThreadCollectionViewCell: UICollectionViewCell {
       cell.contentView.backgroundColor =
         state.isSelected
         ? (isPhone ? .senaryFill : .quinaryBackground) : .secondaryBackground
+      cell.dotView.backgroundColor = cell.contentView.backgroundColor
       if cell.item?.status != .new && cell.item?.status != .incomplete {
         cell.imageView.tintColor = contentColor
         cell.highlightImageView.tintColor = contentColor

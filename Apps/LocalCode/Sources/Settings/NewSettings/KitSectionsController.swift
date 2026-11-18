@@ -5,7 +5,7 @@ import SnapKit
 import Style
 import UIKit
 
-private enum KitSection: CaseIterable, Hashable {
+private enum KitSection: Hashable {
   case drawThings
   case permittedDirectories
   case messagesPermission
@@ -13,6 +13,13 @@ private enum KitSection: CaseIterable, Hashable {
   case photosPermission
   case calendarPermission
   case notesPermission
+  case messaging(MessagingPlatform)
+}
+
+/// A chat app's settings, as Kit shows them.
+struct MessagingSettings: Equatable {
+  var isEnabled = false
+  var pairedAccountCount = 0
 }
 
 enum PermissionState: Equatable {
@@ -46,6 +53,14 @@ protocol KitSectionsControllerDelegate: AnyObject {
   func kitSectionsController(
     _ controller: KitSectionsController, didSelectPermission permission: PermissionState,
     for resource: ProtectedResource)
+  func kitSectionsController(
+    _ controller: KitSectionsController, didSetEnabled value: Bool, for platform: MessagingPlatform)
+  func kitSectionsController(
+    _ controller: KitSectionsController, didSelectSetBotTokenFor platform: MessagingPlatform)
+  func kitSectionsController(
+    _ controller: KitSectionsController, didSelectReconnect platform: MessagingPlatform)
+  func kitSectionsController(
+    _ controller: KitSectionsController, didForgetPairedAccountsFor platform: MessagingPlatform)
 }
 
 final class KitSectionsController {
@@ -54,10 +69,12 @@ final class KitSectionsController {
   private let workspace: SQLiteWorkspace
   private var isViewLoaded = false
   private var verticalScrollIndicatorController: VerticalScrollIndicatorController? = nil
-  private let sections: [KitSection] = [
-    .drawThings, .permittedDirectories, .messagesPermission, .mailPermission, .photosPermission,
-    .calendarPermission, .notesPermission,
-  ]
+  private let sections: [KitSection] =
+    [
+      .drawThings, .permittedDirectories, .messagesPermission, .mailPermission, .photosPermission,
+      .calendarPermission, .notesPermission,
+    ]
+    + MessagingPlatform.allCases.filter(MessagingBridge.isAvailable).map { .messaging($0) }
   private var displayingSections: [KitSection: any SettingsViewObservable] = [:]
   private var sectionViewModifiers: [KitSection: any SettingsViewModifying] = [:]
   var drawThingsModelsFolder: String? {
@@ -95,6 +112,19 @@ final class KitSectionsController {
   var protectedResourcePermissions = [ProtectedResource: PermissionState]() {
     didSet {
       guard protectedResourcePermissions != oldValue else { return }
+      updateKitSections()
+    }
+  }
+  /// Missing platforms are off.
+  var messagingSettings = [MessagingPlatform: MessagingSettings]() {
+    didSet {
+      guard messagingSettings != oldValue else { return }
+      updateKitSections()
+    }
+  }
+  var messagingStatus = MessagingBridge.Status(pairingCode: "") {
+    didSet {
+      guard messagingStatus != oldValue else { return }
       updateKitSections()
     }
   }
@@ -180,7 +210,107 @@ final class KitSectionsController {
       return protectedResourcePermissionSection(.calendar)
     case .notesPermission:
       return appDataPermissionSection(.notes)
+    case .messaging(let platform):
+      return messagingSection(platform)
     }
+  }
+
+  private func messagingSection(_ platform: MessagingPlatform) -> SettingsSectionItem {
+    let detail: String
+    let lookUpKey: String
+    switch platform {
+    case .iMessage:
+      detail = LocalizedString.forKey("imessage_detail")
+      lookUpKey = "local_code_imessage_detail_hidden"
+    case .telegram:
+      detail = LocalizedString.forKey("telegram_detail")
+      lookUpKey = "local_code_telegram_detail_hidden"
+    case .discord:
+      detail = LocalizedString.forKey("discord_detail")
+      lookUpKey = "local_code_discord_detail_hidden"
+    }
+    let settings = messagingSettings[platform] ?? MessagingSettings()
+    let status: String
+    var warning: SettingsWarning?
+    var pairingCode = SettingsPlainTextItem(
+      leadingText: LocalizedString.forKey("pairing_code"),
+      trailingText: messagingStatus.pairingCode)
+    pairingCode.isHidden = true
+    switch messagingStatus.connections[platform] {
+    case nil:
+      if !settings.isEnabled {
+        status = LocalizedString.forKey("off")
+      } else if platform == .iMessage {
+        status = LocalizedString.forKey("needs_messages_permission")
+      } else {
+        status = LocalizedString.forKey("needs_a_bot_token")
+      }
+    case .connecting:
+      status = LocalizedString.forKey("connecting")
+    case .connected(let name):
+      if !name.isEmpty {
+        status = LocalizedString.format(key: "connected_as", name)
+      } else if platform == .iMessage {
+        // Nothing to answer until the account writes to itself.
+        status = LocalizedString.forKey("message_yourself_to_start")
+      } else {
+        status = LocalizedString.forKey("connected")
+      }
+      pairingCode.isHidden = !platform.needsPairing
+    case .failed(let reason):
+      status = LocalizedString.forKey("not_connected")
+      warning = SettingsWarning(text: reason, severity: .error)
+    }
+    // Setting a token replaces the one before, so this is a plain button rather than a menu.
+    var botToken = SettingsButtonItem(
+      value: platform,
+      buttonImage: UIImage(systemName: "key")?.withRenderingMode(.alwaysTemplate),
+      buttonAction: { [weak self] _, platform in
+        guard let self else { return }
+        self.delegate?.kitSectionsController(self, didSelectSetBotTokenFor: platform)
+      },
+      makeButtonsUI: { _, button in
+        button?.setTitle(LocalizedString.forKey("set_bot_token_dot"), for: .normal)
+      })
+    botToken.isHidden = !platform.needsPairing
+    var pairedAccounts = SettingsButtonItem(
+      value: settings.pairedAccountCount, title: LocalizedString.forKey("paired_accounts"),
+      showsMenuAsPrimaryAction: true,
+      makeButtonsUI: { [weak self] count, button in
+        button?.menu = UIMenu(children: [
+          UIAction(
+            title: LocalizedString.forKey("forget_paired_accounts"), attributes: .destructive
+          ) { [weak self] _ in
+            guard let self else { return }
+            self.delegate?.kitSectionsController(self, didForgetPairedAccountsFor: platform)
+          }
+        ])
+        button?.setTitle(String(count), for: .normal)
+      })
+    pairedAccounts.isHidden = !platform.needsPairing || settings.pairedAccountCount == 0
+    return SettingsSectionItem(
+      settingsItems: [
+        SettingsSwitchItem(value: settings.isEnabled, title: LocalizedString.forKey("enable")) {
+          [weak self] value in
+          guard let self else { return }
+          self.delegate?.kitSectionsController(self, didSetEnabled: value, for: platform)
+        },
+        botToken,
+        SettingsButtonItem(
+          value: status, title: LocalizedString.forKey("status"), warning: warning,
+          showsMenuAsPrimaryAction: true,
+          makeButtonsUI: { [weak self] status, button in
+            button?.menu = UIMenu(children: [
+              UIAction(title: LocalizedString.forKey("reconnect")) { [weak self] _ in
+                guard let self else { return }
+                self.delegate?.kitSectionsController(self, didSelectReconnect: platform)
+              }
+            ])
+            button?.setTitle(status, for: .normal)
+          }),
+        pairingCode,
+        pairedAccounts,
+      ], title: platform.title, detail: detail, lookUpKey: lookUpKey, workspace: workspace)
   }
 
   private func permittedDirectoriesSection() -> SettingsSectionItem {

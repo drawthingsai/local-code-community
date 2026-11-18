@@ -60,11 +60,15 @@ struct ProjectItem: Hashable {
   var status: ProjectController.Thread.Status
   // Recent items render with a different cell, so they must not share identity with project items.
   var isRecent: Bool
+  /// The chat app whose chat this thread is, if any.
+  var messagingPlatform: MessagingPlatform?
   var newThread: Bool {
     return threadId == -1
   }
 
-  init(thread: ProjectController.Thread, isRecent: Bool) {
+  init(
+    thread: ProjectController.Thread, isRecent: Bool, messagingPlatform: MessagingPlatform? = nil
+  ) {
     projectPath = thread.projectPath
     threadId = thread.threadId
     title = thread.title
@@ -75,6 +79,7 @@ struct ProjectItem: Hashable {
     hasIncompleteResponse = thread.hasIncompleteResponse
     status = thread.status
     self.isRecent = isRecent
+    self.messagingPlatform = messagingPlatform
   }
 
   var thread: ProjectController.Thread {
@@ -134,6 +139,13 @@ final class ProjectController {
   private var verticalScrollIndicatorController: VerticalScrollIndicatorController? = nil
   private var displayingSections: [ProjectSection] = []
   private(set) var threads = [Thread]()
+  /// The chat app each chat's thread belongs to; its row shows the app in place of the bubble.
+  var messagingPlatforms = [ProjectThreadIdentifier: MessagingPlatform]() {
+    didSet {
+      guard messagingPlatforms != oldValue else { return }
+      applyThreadsSnapshot(animated: false)
+    }
+  }
   var projects: [(path: String, title: String)] {
     orderedProjectPaths().map {
       (
@@ -472,7 +484,10 @@ final class ProjectController {
           }
           return isMoreRecent($0, $1)
         }.map {
-          ProjectItem(thread: $0, isRecent: false)
+          ProjectItem(
+            thread: $0, isRecent: false,
+            messagingPlatform: messagingPlatforms.isEmpty
+              ? nil : messagingPlatforms[ProjectThreadIdentifier(thread: $0)])
         }
         snapshot.appendItems(
           threadItems + [
