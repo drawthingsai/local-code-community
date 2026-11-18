@@ -2876,7 +2876,7 @@
 "thread_gone_detail" = "该对话已不在 Local Code 中。";
 "send_failed_detail" = "Local Code 无法发送此消息。";
 "bot_token" = "机器人令牌";
-"set_bot_token_dot" = "设置机器人令牌...";
+"enter_your_bot_token" = "请输入您的机器人令牌。";
 "pairing_code" = "配对码";
 "paired_accounts" = "已配对的账户";
 "forget_paired_accounts" = "忘记已配对的账户";
@@ -2888,4 +2888,3 @@
 "imessage_detail" = "在“信息”中从这台 Mac 或您的其他设备给自己发信息，即可在 Local Code 打开时使用它的对话。它通过上方的“信息”权限读取该聊天，并在其中回答。发送 /help 查看命令。";
 "telegram_detail" = "给您自己的 Telegram 机器人发消息，即可在 Local Code 打开时使用它的对话。用 @BotFather 创建机器人，在此设置其令牌，然后将配对码发送给机器人。发送 /help 查看命令。";
 "discord_detail" = "给您自己的 Discord 机器人发消息，即可在 Local Code 打开时使用它的对话。在 Discord Developer Portal 中创建带机器人的应用，在此设置机器人的令牌，然后通过私信或提及机器人将配对码发送给它。发送 /help 查看命令。";
-"bot_token_detail" = "Local Code 将令牌保存在此设备的钥匙串中。";

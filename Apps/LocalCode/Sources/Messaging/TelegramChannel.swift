@@ -2,7 +2,7 @@ import Foundation
 import Localization
 
 /// A Telegram bot, reached through the Bot API with long polling, so nothing needs to reach this
-/// device from outside.
+/// device from outside. Main queue only: its session calls back there.
 final class TelegramChannel: MessagingChannel {
   enum Error: Swift.Error, Equatable {
     case unauthorized
@@ -36,9 +36,6 @@ final class TelegramChannel: MessagingChannel {
     let description: String?
   }
 
-  private struct Empty: Decodable {}
-
-  let platform = MessagingPlatform.telegram
   weak var delegate: (any MessagingChannelDelegate)?
 
   private static let maximumMessageLength = 4096
@@ -46,91 +43,145 @@ final class TelegramChannel: MessagingChannel {
 
   private let token: String
   private let session: URLSession
-  private var pollTask: Task<Void, Never>?
-  /// Each send waits for the one before, so long replies arrive in order.
-  private var lastSend: Task<Void, Never>?
+  /// Changes on every start and stop, so the callbacks of a run that ended do nothing.
+  private var run = 0
+  private var retryDelay: TimeInterval = 1
+  /// The next update to ask for. Nil until the updates sent before starting are skipped.
+  private var offset: Int?
+  private var pollTask: URLSessionDataTask?
+  /// Replies go out one piece at a time, so a long one arrives in order.
+  private var outgoing = [(conversationID: String, chunks: [String])]()
+  private var isSending = false
 
-  init(token: String, session: URLSession = URLSession(configuration: .ephemeral)) {
+  init(
+    token: String,
+    session: URLSession = URLSession(configuration: .ephemeral, delegate: nil, delegateQueue: .main)
+  ) {
     self.token = token
     self.session = session
   }
 
   func start() {
-    pollTask?.cancel()
-    pollTask = Task { [weak self] in await self?.poll() }
+    stop()
+    offset = nil
+    retryDelay = 1
+    connect()
   }
 
   func stop() {
+    run += 1
     pollTask?.cancel()
     pollTask = nil
   }
 
   func send(_ text: String, to conversationID: String) {
-    let previous = lastSend
-    lastSend = Task { [weak self] in
-      await previous?.value
-      for chunk in Self.chunks(of: text, limit: Self.maximumMessageLength) {
-        guard let self else { return }
-        do {
-          let _: Update.Message = try await self.call(
-            "sendMessage", ["chat_id": conversationID, "text": chunk])
-        } catch {
-          print("Unable to send a Telegram message: \(error)")
-          return
-        }
-      }
-    }
+    outgoing.append((conversationID, Self.chunks(of: text, limit: Self.maximumMessageLength)))
+    sendNext()
   }
 
   func showTyping(in conversationID: String) {
-    Task { [weak self] in
-      let _: Bool? = try? await self?.call(
-        "sendChatAction", ["chat_id": conversationID, "action": "typing"])
+    call("sendChatAction", ["chat_id": conversationID, "action": "typing"]) {
+      (_: Result<Bool, Swift.Error>) in
     }
   }
 
-  private func poll() async {
-    var retryDelay: UInt64 = 1
-    var offset: Int?
-    while !Task.isCancelled {
-      do {
-        let bot: User = try await call("getMe", [:])
-        await report(.connected(bot.username.map { "@\($0)" } ?? String(bot.id)))
-        if offset == nil {
-          // Messages sent while this wasn't listening are skipped: a stale command shouldn't run
-          // when the app opens.
-          let pending: [Update] = try await call("getUpdates", ["offset": -1, "timeout": 0])
-          offset = pending.last.map { $0.updateId + 1 } ?? 0
+  /// Checks the token, then polls.
+  private func connect() {
+    let run = self.run
+    call("getMe", [:]) { [weak self] (result: Result<User, Swift.Error>) in
+      guard let self, self.run == run else { return }
+      switch result {
+      case .success(let bot):
+        self.report(.connected(bot.username.map { "@\($0)" } ?? String(bot.id)))
+        guard self.offset == nil else {
+          self.poll()
+          return
         }
-        while !Task.isCancelled, let current = offset {
-          let updates: [Update] = try await call(
-            "getUpdates",
-            [
-              "offset": current, "timeout": Self.pollTimeout, "allowed_updates": ["message"],
-            ], timeout: TimeInterval(Self.pollTimeout + 15))
-          for update in updates {
-            offset = update.updateId + 1
-            guard let message = Self.incomingMessage(from: update) else { continue }
-            await MainActor.run { [weak self] in
-              guard let self else { return }
-              self.delegate?.messagingChannel(self, didReceive: message)
-            }
+        // Messages sent while this wasn't listening are skipped: a stale command shouldn't run when
+        // the app opens.
+        self.call("getUpdates", ["offset": -1, "timeout": 0]) {
+          [weak self] (result: Result<[Update], Swift.Error>) in
+          guard let self, self.run == run else { return }
+          switch result {
+          case .success(let pending):
+            self.offset = pending.last.map { $0.updateId + 1 } ?? 0
+            self.poll()
+          case .failure(let error):
+            self.retry(after: error)
           }
-          retryDelay = 1
         }
-      } catch Error.unauthorized {
-        await report(.failed(LocalizedString.forKey("bot_token_rejected_detail")))
-        return
-      } catch {
-        guard !Task.isCancelled else { return }
-        if case Error.api(let description) = error {
-          await report(.failed(description))
-        } else {
-          await report(.connecting)
-        }
-        try? await Task.sleep(nanoseconds: retryDelay * 1_000_000_000)
-        retryDelay = min(retryDelay * 2, 60)
+      case .failure(let error):
+        self.retry(after: error)
       }
+    }
+  }
+
+  /// Waits for the next updates, hands their messages over, and waits again.
+  private func poll() {
+    guard let offset else { return }
+    let run = self.run
+    pollTask = call(
+      "getUpdates",
+      ["offset": offset, "timeout": Self.pollTimeout, "allowed_updates": ["message"]],
+      timeout: TimeInterval(Self.pollTimeout + 15)
+    ) { [weak self] (result: Result<[Update], Swift.Error>) in
+      guard let self, self.run == run else { return }
+      switch result {
+      case .success(let updates):
+        self.retryDelay = 1
+        for update in updates {
+          self.offset = update.updateId + 1
+          guard let message = Self.incomingMessage(from: update) else { continue }
+          self.delegate?.messagingChannel(self, didReceive: message)
+        }
+        // The delegate can stop this.
+        guard self.run == run else { return }
+        self.poll()
+      case .failure(let error):
+        self.retry(after: error)
+      }
+    }
+  }
+
+  /// A rejected token stops the bot until Kit sets another. Anything else tries again after a wait
+  /// that doubles up to a minute.
+  private func retry(after error: Swift.Error) {
+    switch error {
+    case Error.unauthorized:
+      report(.failed(LocalizedString.forKey("bot_token_rejected_detail")))
+      return
+    case Error.api(let description):
+      report(.failed(description))
+    default:
+      report(.connecting)
+    }
+    let run = self.run
+    DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
+      guard let self, self.run == run else { return }
+      self.connect()
+    }
+    retryDelay = min(retryDelay * 2, 60)
+  }
+
+  private func sendNext() {
+    guard !isSending, let reply = outgoing.first, let chunk = reply.chunks.first else { return }
+    isSending = true
+    call("sendMessage", ["chat_id": reply.conversationID, "text": chunk]) {
+      [weak self] (result: Result<Update.Message, Swift.Error>) in
+      guard let self else { return }
+      self.isSending = false
+      switch result {
+      case .success:
+        self.outgoing[0].chunks.removeFirst()
+        if self.outgoing[0].chunks.isEmpty {
+          self.outgoing.removeFirst()
+        }
+      case .failure(let error):
+        print("Unable to send a Telegram message: \(error)")
+        // The rest of the reply would make no sense alone.
+        self.outgoing.removeFirst()
+      }
+      self.sendNext()
     }
   }
 
@@ -140,27 +191,39 @@ final class TelegramChannel: MessagingChannel {
       !from.isBot
     else { return nil }
     return MessagingIncomingMessage(
-      platform: .telegram, conversationID: String(message.chat.id), senderID: String(from.id),
-      text: text, isFromOwner: false)
+      conversationID: String(message.chat.id), senderID: String(from.id), text: text)
   }
 
-  @MainActor
   private func report(_ connection: MessagingConnection) {
     delegate?.messagingChannel(self, didChange: connection)
   }
 
-  private func call<Result: Decodable>(
-    _ method: String, _ parameters: [String: Any], timeout: TimeInterval = 30
-  ) async throws -> Result {
+  @discardableResult
+  private func call<Value: Decodable>(
+    _ method: String, _ parameters: [String: Any], timeout: TimeInterval = 30,
+    completion: @escaping (Result<Value, Swift.Error>) -> Void
+  ) -> URLSessionDataTask? {
     guard let url = URL(string: "https://api.telegram.org/bot\(token)/\(method)") else {
-      throw Error.unauthorized
+      completion(.failure(Error.unauthorized))
+      return nil
+    }
+    guard let body = try? JSONSerialization.data(withJSONObject: parameters) else {
+      completion(.failure(Error.invalidResponse))
+      return nil
     }
     var request = URLRequest(url: url, timeoutInterval: timeout)
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try JSONSerialization.data(withJSONObject: parameters)
-    let (data, _) = try await session.data(for: request)
-    return try Self.decode(data)
+    request.httpBody = body
+    let task = session.dataTask(with: request) { data, _, error in
+      if let error {
+        completion(.failure(error))
+        return
+      }
+      completion(Result { try Self.decode(data ?? Data()) })
+    }
+    task.resume()
+    return task
   }
 
   static func decode<Result: Decodable>(_ data: Data) throws -> Result {

@@ -3172,7 +3172,7 @@
 "thread_gone_detail" = "That thread is no longer in Local Code.";
 "send_failed_detail" = "Local Code couldn’t send the message.";
 "bot_token" = "Bot token";
-"set_bot_token_dot" = "Set bot token...";
+"enter_your_bot_token" = "Enter your bot token.";
 "pairing_code" = "Pairing code";
 "paired_accounts" = "Paired accounts";
 "forget_paired_accounts" = "Forget paired accounts";
@@ -3184,4 +3184,3 @@
 "imessage_detail" = "Message yourself in Messages, from this Mac or your other devices, to work with Local Code’s threads while it’s open. It reads the chat with the Messages permission above and answers there. Send /help for commands.";
 "telegram_detail" = "Message your own Telegram bot to work with Local Code’s threads while it’s open. Create a bot with @BotFather, set its token here, and send the bot the pairing code. Send /help for commands.";
 "discord_detail" = "Message your own Discord bot to work with Local Code’s threads while it’s open. Create an application with a bot in the Discord Developer Portal, set the bot’s token here, and send the bot the pairing code in a direct message or by mentioning it. Send /help for commands.";
-"bot_token_detail" = "Local Code keeps the token in this device’s keychain.";

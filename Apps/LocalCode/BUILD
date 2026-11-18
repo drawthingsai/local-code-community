@@ -451,6 +451,7 @@ swift_test(
     name = "MessagingBridgeTests",
     srcs = glob(["Sources/Messaging/*.swift"]) + [
         "Sources/PermittedDirectories.swift",
+        "Sources/ProjectThreadIdentifier.swift",
     ] + glob(["Tests/MessagingBridgeTests/**/*.swift"]),
     deps = [
         "//Libraries/Localization",

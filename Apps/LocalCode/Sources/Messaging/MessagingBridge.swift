@@ -13,24 +13,18 @@ struct MessagingThread: Equatable {
     case newReply
   }
 
-  let reference: MessagingThreadReference
+  let identifier: ProjectThreadIdentifier
   let projectTitle: String
   let title: String
   let status: Status
   let lastMessage: String?
 }
 
-struct MessagingThreadReference: Hashable {
-  /// Standardized, with symlinks resolved.
-  let projectPath: String
-  let threadId: Int64
-}
-
 enum MessagingSendResult: Equatable {
   /// A turn started with the message.
-  case started(MessagingThreadReference, title: String)
+  case started(ProjectThreadIdentifier, title: String)
   /// The message waits behind the thread's running turn.
-  case queued(MessagingThreadReference, title: String)
+  case queued(ProjectThreadIdentifier, title: String)
   /// Why it didn't go out.
   case failed(String)
 }
@@ -41,7 +35,7 @@ protocol MessagingBridgeDelegate: AnyObject {
   /// The workspace's base folder, where a chat's thread starts, whatever is open on the Mac.
   func messagingBridgeWorkspaceFolder(_ bridge: MessagingBridge) -> String
   func messagingBridge(
-    _ bridge: MessagingBridge, send text: String, to thread: MessagingThreadReference
+    _ bridge: MessagingBridge, send text: String, to thread: ProjectThreadIdentifier
   ) -> MessagingSendResult
   /// Starts a thread named `title` with the message.
   func messagingBridge(
@@ -49,7 +43,7 @@ protocol MessagingBridgeDelegate: AnyObject {
     inProject projectPath: String
   ) -> MessagingSendResult
   /// Whether a turn was running to stop.
-  func messagingBridge(_ bridge: MessagingBridge, stop thread: MessagingThreadReference) -> Bool
+  func messagingBridge(_ bridge: MessagingBridge, stop thread: ProjectThreadIdentifier) -> Bool
 }
 
 /// Lets chat apps work with the app's threads. Each chat is one thread, which its first message
@@ -57,7 +51,10 @@ protocol MessagingBridgeDelegate: AnyObject {
 /// list the threads and their status, send to one, and stop one. Main queue only.
 final class MessagingBridge {
   struct Status: Equatable {
-    var connections = [MessagingPlatform: MessagingConnection]()
+    /// Each chat app's connection, nil while it's off or can't start.
+    var iMessage: MessagingConnection?
+    var telegram: MessagingConnection?
+    var discord: MessagingConnection?
     /// The code a new sender messages a bot to pair; it changes once someone uses it.
     var pairingCode: String
   }
@@ -65,38 +62,34 @@ final class MessagingBridge {
   private struct ConversationKey: Hashable {
     let platform: MessagingPlatform
     let id: String
-
-    /// As kept in the workspace.
-    var storageKey: String { "\(platform.rawValue):\(id)" }
   }
 
   private struct Conversation {
-    var thread: MessagingThreadReference?
+    var thread: ProjectThreadIdentifier?
     /// The numbers its last list gave.
-    var threads = [MessagingThreadReference]()
+    var threads = [ProjectThreadIdentifier]()
   }
 
   /// Sent whole on every change.
   let status: CurrentValueSubject<Status, Never>
   weak var delegate: (any MessagingBridgeDelegate)?
 
-  private static let bindingsKey = "messaging_conversation_threads"
   private static let listedThreads = 20
   private static let typingInterval: TimeInterval = 8
 
   private let workspace: SQLiteWorkspace
   private let permittedDirectories: PermittedDirectories
   private var subscriptions = [Workspace.Subscription]()
-  /// What each platform's channel was made from, so only a change in Kit makes a new one.
+  /// What each chat app's channel was made from, so only a change in Kit makes a new one.
   private var channelConfigurations = [MessagingPlatform: String]()
   private var channels = [MessagingPlatform: any MessagingChannel]()
   private var conversations = [ConversationKey: Conversation]()
   /// The chats waiting for each thread's turn to end.
-  private var waiting = [MessagingThreadReference: Set<ConversationKey>]()
+  private var waiting = [ProjectThreadIdentifier: Set<ConversationKey>]()
   /// Senders already told how to pair, so a stranger gets one answer.
   private var toldToPair = Set<ConversationKey>()
   /// Waited-on threads that had no turn running at the last typing tick.
-  private var idleWaitingThreads = Set<MessagingThreadReference>()
+  private var idleWaitingThreads = Set<ProjectThreadIdentifier>()
   private var typingTimer: Timer?
 
   init(workspace: SQLiteWorkspace, permittedDirectories: PermittedDirectories) {
@@ -104,72 +97,94 @@ final class MessagingBridge {
     self.permittedDirectories = permittedDirectories
     status = CurrentValueSubject(Status(pairingCode: Self.makePairingCode()))
     // Chats keep their threads when the app quits.
-    for (key, value) in workspace.dictionary[Self.bindingsKey, [String: String].self] ?? [:] {
-      let parts = key.split(separator: ":", maxSplits: 1).map(String.init)
-      let thread = value.split(separator: "\n", maxSplits: 1).map(String.init)
-      guard parts.count == 2, let platform = MessagingPlatform(rawValue: parts[0]),
-        thread.count == 2, let threadId = Int64(thread[1])
-      else { continue }
-      conversations[ConversationKey(platform: platform, id: parts[1])] = Conversation(
-        thread: MessagingThreadReference(projectPath: thread[0], threadId: threadId))
+    for (platform, key) in [
+      (MessagingPlatform.iMessage, "messaging_imessage_chat_threads"),
+      (.telegram, "messaging_telegram_chat_threads"), (.discord, "messaging_discord_chat_threads"),
+    ] {
+      for (id, thread) in workspace.dictionary[key, [String: ProjectThreadIdentifier].self] ?? [:] {
+        conversations[ConversationKey(platform: platform, id: id)] = Conversation(thread: thread)
+      }
     }
-    updateBindings()
   }
 
-  /// Whether this device can offer the platform: Messages' database and scripting are only on a Mac.
-  static func isAvailable(_ platform: MessagingPlatform) -> Bool {
+  /// Connects the chat apps that are on in Kit, and follows Kit's changes to them.
+  func start() {
+    dispatchPrecondition(condition: .onQueue(.main))
+    let update = { [weak self] (platform: MessagingPlatform) in
+      DispatchQueue.main.async { self?.updateChannel(platform) }
+    }
+    subscriptions = [
+      workspace.dictionary.subscribe("messaging_telegram_enabled", of: Bool.self) { _ in
+        update(.telegram)
+      },
+      workspace.dictionary.subscribe("messaging_telegram_revision", of: Int.self) { _ in
+        update(.telegram)
+      },
+      workspace.dictionary.subscribe("messaging_telegram_bot_token", of: String.self) { _ in
+        update(.telegram)
+      },
+      workspace.dictionary.subscribe("messaging_discord_enabled", of: Bool.self) { _ in
+        update(.discord)
+      },
+      workspace.dictionary.subscribe("messaging_discord_revision", of: Int.self) { _ in
+        update(.discord)
+      },
+      workspace.dictionary.subscribe("messaging_discord_bot_token", of: String.self) { _ in
+        update(.discord)
+      },
+    ]
+    updateChannel(.telegram)
+    updateChannel(.discord)
+    // Messages' database and scripting are only on a Mac.
     #if targetEnvironment(macCatalyst)
-      return true
-    #else
-      return platform != .iMessage
+      subscriptions += [
+        workspace.dictionary.subscribe("messaging_imessage_enabled", of: Bool.self) { _ in
+          update(.iMessage)
+        },
+        workspace.dictionary.subscribe("messaging_imessage_revision", of: Int.self) { _ in
+          update(.iMessage)
+        },
+        workspace.dictionary.subscribe(AppDataDirectory.messages.bookmarkKey, of: Data.self) {
+          _ in update(.iMessage)
+        },
+      ]
+      updateChannel(.iMessage)
     #endif
   }
 
-  /// Connects the platforms that are on in Kit, and follows Kit's changes to them.
-  func start() {
-    dispatchPrecondition(condition: .onQueue(.main))
-    for platform in MessagingPlatform.allCases where Self.isAvailable(platform) {
-      let update = { [weak self] in
-        DispatchQueue.main.async { self?.updateChannel(platform) }
-      }
-      subscriptions.append(
-        workspace.dictionary.subscribe(platform.enabledKey, of: Bool.self) { _ in update() })
-      subscriptions.append(
-        workspace.dictionary.subscribe(platform.revisionKey, of: Int.self) { _ in update() })
-      if platform == .iMessage {
-        subscriptions.append(
-          workspace.dictionary.subscribe(AppDataDirectory.messages.bookmarkKey, of: Data.self) {
-            _ in update()
-          })
-      }
-      updateChannel(platform)
-    }
-  }
-
   private func updateChannel(_ platform: MessagingPlatform) {
-    let isEnabled = workspace.dictionary[platform.enabledKey, Bool.self] == true
-    let revision = workspace.dictionary[platform.revisionKey, Int.self] ?? 0
-    let bookmark =
-      platform == .iMessage
-      ? workspace.dictionary[AppDataDirectory.messages.bookmarkKey, Data.self]?
-        .base64EncodedString()
-      : nil
-    let configuration = "\(isEnabled) \(revision) \(bookmark ?? "")"
+    let isEnabled: Bool
+    let revision: Int
+    // What the channel is made from: the bot's token, or the Messages folder's grant.
+    let source: String
+    switch platform {
+    case .iMessage:
+      isEnabled = workspace.dictionary["messaging_imessage_enabled", Bool.self] == true
+      revision = workspace.dictionary["messaging_imessage_revision", Int.self] ?? 0
+      source =
+        workspace.dictionary[AppDataDirectory.messages.bookmarkKey, Data.self]?
+        .base64EncodedString() ?? ""
+    case .telegram:
+      isEnabled = workspace.dictionary["messaging_telegram_enabled", Bool.self] == true
+      revision = workspace.dictionary["messaging_telegram_revision", Int.self] ?? 0
+      source = workspace.dictionary["messaging_telegram_bot_token", String.self] ?? ""
+    case .discord:
+      isEnabled = workspace.dictionary["messaging_discord_enabled", Bool.self] == true
+      revision = workspace.dictionary["messaging_discord_revision", Int.self] ?? 0
+      source = workspace.dictionary["messaging_discord_bot_token", String.self] ?? ""
+    }
+    let configuration = "\(isEnabled) \(revision) \(source)"
     guard channelConfigurations[platform] != configuration else { return }
     channelConfigurations[platform] = configuration
-    guard isEnabled else {
+    guard isEnabled, !source.isEmpty else {
       setChannel(nil, for: platform)
       return
     }
     switch platform {
-    case .telegram, .discord:
-      guard let token = MessagingTokenStore.token(for: platform), !token.isEmpty else {
-        setChannel(nil, for: platform)
-        return
-      }
-      setChannel(
-        platform == .telegram ? TelegramChannel(token: token) : DiscordChannel(token: token),
-        for: platform)
+    case .telegram:
+      setChannel(TelegramChannel(token: source), for: platform)
+    case .discord:
+      setChannel(DiscordChannel(token: source), for: platform)
     case .iMessage:
       #if targetEnvironment(macCatalyst)
         guard let url = permittedDirectories.access(.messages) else {
@@ -181,23 +196,31 @@ final class MessagingBridge {
     }
   }
 
-  /// Replaces the platform's channel, stopping the old one; nil turns the platform off.
+  /// Replaces the chat app's channel, stopping the old one; nil turns the app off.
   func setChannel(_ channel: (any MessagingChannel)?, for platform: MessagingPlatform) {
     dispatchPrecondition(condition: .onQueue(.main))
     if let old = channels.removeValue(forKey: platform) {
       old.delegate = nil
       old.stop()
     }
-    status.value.connections[platform] = nil
+    setConnection(nil, for: platform)
     guard let channel else { return }
     channels[platform] = channel
     channel.delegate = self
-    status.value.connections[platform] = .connecting
+    setConnection(.connecting, for: platform)
     channel.start()
   }
 
+  private func setConnection(_ connection: MessagingConnection?, for platform: MessagingPlatform) {
+    switch platform {
+    case .iMessage: status.value.iMessage = connection
+    case .telegram: status.value.telegram = connection
+    case .discord: status.value.discord = connection
+    }
+  }
+
   /// A turn in the thread ended. The chats that sent to it get its answer.
-  func threadDidFinishTurn(_ thread: MessagingThreadReference, title: String, response: String?) {
+  func threadDidFinishTurn(_ thread: ProjectThreadIdentifier, title: String, response: String?) {
     dispatchPrecondition(condition: .onQueue(.main))
     idleWaitingThreads.remove(thread)
     guard let keys = waiting.removeValue(forKey: thread) else { return }
@@ -212,7 +235,7 @@ final class MessagingBridge {
 
   /// The thread was deleted, or moved to another project. A later thread can get its identifier,
   /// so the chats in it forget it now, and their next message starts a new one.
-  func threadWasRemoved(_ thread: MessagingThreadReference) {
+  func threadWasRemoved(_ thread: ProjectThreadIdentifier) {
     dispatchPrecondition(condition: .onQueue(.main))
     for (key, conversation) in conversations where conversation.thread == thread {
       conversations[key]?.thread = nil
@@ -226,28 +249,37 @@ final class MessagingBridge {
 
   // MARK: - Messages
 
-  private func handle(_ message: MessagingIncomingMessage) {
-    let key = ConversationKey(platform: message.platform, id: message.conversationID)
+  private func handle(_ message: MessagingIncomingMessage, on platform: MessagingPlatform) {
+    let key = ConversationKey(platform: platform, id: message.conversationID)
     let command = MessagingCommand(message.text)
-    guard message.isFromOwner || isPaired(message) else {
-      let code: String
-      switch command {
-      case .pair(let argument): code = argument
-      case .message(let text): code = text
-      default: code = ""
+    // Anyone can message a bot, so it answers only the senders paired with Kit's code. iMessage
+    // reads only the account's notes to itself, which need no pairing.
+    let pairedSendersKey: String?
+    switch platform {
+    case .iMessage: pairedSendersKey = nil
+    case .telegram: pairedSendersKey = "messaging_telegram_paired_senders"
+    case .discord: pairedSendersKey = "messaging_discord_paired_senders"
+    }
+    if let pairedSendersKey {
+      var senders = workspace.dictionary[pairedSendersKey, [String].self] ?? []
+      guard senders.contains(message.senderID) else {
+        let code: String
+        switch command {
+        case .pair(let argument): code = argument
+        case .message(let text): code = text
+        default: code = ""
+        }
+        if code == status.value.pairingCode {
+          senders.append(message.senderID)
+          workspace.dictionary[pairedSendersKey, [String].self] = senders
+          status.value.pairingCode = Self.makePairingCode()
+          reply(LocalizedString.forKey("paired_with_local_code_detail"), to: key)
+        } else if toldToPair.insert(key).inserted {
+          reply(
+            LocalizedString.format(key: "send_pairing_code_detail", platform.title), to: key)
+        }
+        return
       }
-      if code == status.value.pairingCode {
-        var senders = workspace.dictionary[message.platform.pairedSendersKey, [String].self] ?? []
-        senders.append(message.senderID)
-        workspace.dictionary[message.platform.pairedSendersKey, [String].self] = senders
-        status.value.pairingCode = Self.makePairingCode()
-        reply(LocalizedString.forKey("paired_with_local_code_detail"), to: key)
-      } else if toldToPair.insert(key).inserted {
-        reply(
-          LocalizedString.format(
-            key: "send_pairing_code_detail", message.platform.title), to: key)
-      }
-      return
     }
     guard let delegate else { return }
     var conversation = conversations[key] ?? Conversation()
@@ -262,7 +294,7 @@ final class MessagingBridge {
       reply(LocalizedString.forKey("paired_with_local_code_detail"), to: key)
     case .threads, .status(nil):
       let threads = Array(delegate.messagingBridgeThreads(self).prefix(Self.listedThreads))
-      conversation.threads = threads.map(\.reference)
+      conversation.threads = threads.map(\.identifier)
       guard !threads.isEmpty else {
         reply(LocalizedString.forKey("no_threads_yet_detail"), to: key)
         return
@@ -276,7 +308,7 @@ final class MessagingBridge {
             key: "thread_status_summary_detail", threads.count, working, newReplies))
       }
       for (index, thread) in threads.enumerated() {
-        let marker = thread.reference == conversation.thread ? " ←" : ""
+        let marker = thread.identifier == conversation.thread ? " ←" : ""
         lines.append(
           "\(index + 1). \(Self.displayTitle(thread.title)) · \(thread.projectTitle) · "
             + "\(Self.statusTitle(thread.status))\(marker)")
@@ -301,25 +333,25 @@ final class MessagingBridge {
         reply(LocalizedString.format(key: "no_thread_numbered_detail", number), to: key)
         return
       }
-      handle(delegate.messagingBridge(self, send: text, to: thread.reference), key: key)
+      handle(delegate.messagingBridge(self, send: text, to: thread.identifier), key: key)
     case .stop(let number):
-      let reference: MessagingThreadReference
+      let identifier: ProjectThreadIdentifier
       if let number {
         guard let thread = self.thread(numbered: number, in: &conversation) else {
           reply(LocalizedString.format(key: "no_thread_numbered_detail", number), to: key)
           return
         }
-        reference = thread.reference
+        identifier = thread.identifier
       } else if let thread = conversation.thread {
-        reference = thread
+        identifier = thread
       } else {
         reply(LocalizedString.forKey("nothing_running_detail"), to: key)
         return
       }
       let title =
-        delegate.messagingBridgeThreads(self).first(where: { $0.reference == reference })?.title
+        delegate.messagingBridgeThreads(self).first(where: { $0.identifier == identifier })?.title
         ?? ""
-      if delegate.messagingBridge(self, stop: reference) {
+      if delegate.messagingBridge(self, stop: identifier) {
         reply(
           LocalizedString.format(key: "stopped_thread_detail", Self.displayTitle(title)), to: key)
       } else {
@@ -327,7 +359,7 @@ final class MessagingBridge {
       }
     case .message(let text):
       guard !text.isEmpty else { return }
-      let threads = delegate.messagingBridgeThreads(self).map(\.reference)
+      let threads = delegate.messagingBridgeThreads(self).map(\.identifier)
       if let thread = conversation.thread, threads.contains(thread) {
         handle(delegate.messagingBridge(self, send: text, to: thread), key: key)
         return
@@ -388,34 +420,33 @@ final class MessagingBridge {
     guard let delegate else { return nil }
     let threads = delegate.messagingBridgeThreads(self)
     if conversation.threads.isEmpty {
-      conversation.threads = threads.prefix(Self.listedThreads).map(\.reference)
+      conversation.threads = threads.prefix(Self.listedThreads).map(\.identifier)
     }
     guard number >= 1, number <= conversation.threads.count else { return nil }
-    let reference = conversation.threads[number - 1]
-    return threads.first { $0.reference == reference }
-  }
-
-  private func isPaired(_ message: MessagingIncomingMessage) -> Bool {
-    guard message.platform.needsPairing else { return false }
-    return (workspace.dictionary[message.platform.pairedSendersKey, [String].self] ?? []).contains(
-      message.senderID)
+    let identifier = conversation.threads[number - 1]
+    return threads.first { $0.identifier == identifier }
   }
 
   private func reply(_ text: String, to key: ConversationKey) {
     channels[key.platform]?.send(text, to: key.id)
   }
 
-  /// Saves which thread each chat is in.
+  /// Saves which thread each chat is in, under its chat app's key.
   private func updateBindings() {
-    var bindings = [String: String]()
+    var bindings = [MessagingPlatform: [String: ProjectThreadIdentifier]]()
     for (key, conversation) in conversations {
       guard let thread = conversation.thread else { continue }
-      bindings[key.storageKey] = "\(thread.projectPath)\n\(thread.threadId)"
+      bindings[key.platform, default: [:]][key.id] = thread
     }
-    guard bindings != workspace.dictionary[Self.bindingsKey, [String: String].self] ?? [:] else {
-      return
+    for (platform, key) in [
+      (MessagingPlatform.iMessage, "messaging_imessage_chat_threads"),
+      (.telegram, "messaging_telegram_chat_threads"), (.discord, "messaging_discord_chat_threads"),
+    ] {
+      let threads = bindings[platform] ?? [:]
+      guard threads != workspace.dictionary[key, [String: ProjectThreadIdentifier].self] ?? [:]
+      else { continue }
+      workspace.dictionary[key, [String: ProjectThreadIdentifier].self] = threads
     }
-    workspace.dictionary[Self.bindingsKey, [String: String].self] = bindings
   }
 
   /// Keeps the typing indicator up in chats that wait for an answer.
@@ -438,16 +469,16 @@ final class MessagingBridge {
     // thread seen idle at two ticks in a row ended so; one tick isn't enough, since a turn that
     // just started can take a moment to show as running.
     let threads = delegate?.messagingBridgeThreads(self) ?? []
-    for reference in Array(waiting.keys) {
-      guard let thread = threads.first(where: { $0.reference == reference }),
+    for identifier in Array(waiting.keys) {
+      guard let thread = threads.first(where: { $0.identifier == identifier }),
         thread.status == .idle || thread.status == .newReply
       else {
-        idleWaitingThreads.remove(reference)
+        idleWaitingThreads.remove(identifier)
         continue
       }
-      guard !idleWaitingThreads.insert(reference).inserted else { continue }
-      idleWaitingThreads.remove(reference)
-      for key in waiting.removeValue(forKey: reference) ?? [] {
+      guard !idleWaitingThreads.insert(identifier).inserted else { continue }
+      idleWaitingThreads.remove(identifier)
+      for key in waiting.removeValue(forKey: identifier) ?? [] {
         reply(
           LocalizedString.format(key: "stopped_thread_detail", Self.displayTitle(thread.title)),
           to: key)
@@ -486,14 +517,15 @@ extension MessagingBridge: MessagingChannelDelegate {
     _ channel: any MessagingChannel, didReceive message: MessagingIncomingMessage
   ) {
     dispatchPrecondition(condition: .onQueue(.main))
-    guard channels[message.platform] === channel else { return }
-    handle(message)
+    // The channel tells which chat app the message came from; a replaced one's is dropped.
+    guard let platform = channels.first(where: { $0.value === channel })?.key else { return }
+    handle(message, on: platform)
   }
 
   func messagingChannel(_ channel: any MessagingChannel, didChange connection: MessagingConnection)
   {
     dispatchPrecondition(condition: .onQueue(.main))
-    guard channels[channel.platform] === channel else { return }
-    status.value.connections[channel.platform] = connection
+    guard let platform = channels.first(where: { $0.value === channel })?.key else { return }
+    setConnection(connection, for: platform)
   }
 }

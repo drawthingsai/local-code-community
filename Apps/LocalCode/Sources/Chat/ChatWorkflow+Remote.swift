@@ -336,9 +336,7 @@ extension ChatWorkflow {
       removeContextCacheSuspension(storePath: storePath, threadId: thread.threadId)
     }
     // Nor take over its chats.
-    messagingBridge.threadWasRemoved(
-      MessagingThreadReference(
-        projectPath: conversationID.projectPath, threadId: conversationID.threadId))
+    messagingBridge.threadWasRemoved(conversationID)
   }
 
   func settingsWorkflow(
@@ -602,9 +600,7 @@ extension ChatWorkflow {
           {
             // Chats that sent to the thread get its error as the answer.
             self.messagingBridge.threadDidFinishTurn(
-              MessagingThreadReference(
-                projectPath: projectURL.standardizedFileURL.resolvingSymlinksInPath().path,
-                threadId: threadId),
+              ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId),
               title: projectHistoryManager.thread(id: threadId)?.title ?? "", response: response)
           }
         })

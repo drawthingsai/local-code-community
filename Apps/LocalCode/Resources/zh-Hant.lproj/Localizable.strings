@@ -2875,7 +2875,7 @@
 "thread_gone_detail" = "該對話已不在 Local Code 中。";
 "send_failed_detail" = "Local Code 無法傳送此訊息。";
 "bot_token" = "機器人權杖";
-"set_bot_token_dot" = "設定機器人權杖...";
+"enter_your_bot_token" = "請輸入您的機器人權杖。";
 "pairing_code" = "配對碼";
 "paired_accounts" = "已配對的帳號";
 "forget_paired_accounts" = "忘記已配對的帳號";
@@ -2887,4 +2887,3 @@
 "imessage_detail" = "在「訊息」中從這部 Mac 或您的其他裝置傳訊息給自己，即可在 Local Code 開啟時使用它的對話。它透過上方的「訊息」權限讀取該聊天，並在其中回答。傳送 /help 查看指令。";
 "telegram_detail" = "傳訊息給您自己的 Telegram 機器人，即可在 Local Code 開啟時使用它的對話。用 @BotFather 建立機器人，在此設定其權杖，然後將配對碼傳送給機器人。傳送 /help 查看指令。";
 "discord_detail" = "傳訊息給您自己的 Discord 機器人，即可在 Local Code 開啟時使用它的對話。在 Discord Developer Portal 中建立帶有機器人的應用程式，在此設定機器人的權杖，然後透過私訊或提及機器人將配對碼傳送給它。傳送 /help 查看指令。";
-"bot_token_detail" = "Local Code 將權杖保存在此裝置的鑰匙圈中。";

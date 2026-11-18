@@ -8,7 +8,6 @@
   /// the same chat through Messages' scripting. Only the account's owner can write there, so it
   /// needs no pairing.
   final class IMessageChannel: MessagingChannel {
-    let platform = MessagingPlatform.iMessage
     weak var delegate: (any MessagingChannelDelegate)?
 
     private static let pollInterval: DispatchTimeInterval = .seconds(2)
@@ -133,9 +132,7 @@
         return nil
       }
       receivedNotes.append((text, fromMe, Date()))
-      return MessagingIncomingMessage(
-        platform: .iMessage, conversationID: conversationID, senderID: "", text: text,
-        isFromOwner: true)
+      return MessagingIncomingMessage(conversationID: conversationID, senderID: "", text: text)
     }
 
     private func refreshSelfChats(force: Bool) throws {

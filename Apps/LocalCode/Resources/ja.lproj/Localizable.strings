@@ -2898,7 +2898,7 @@
 "thread_gone_detail" = "そのスレッドはもう Local Code にありません。";
 "send_failed_detail" = "Local Code はメッセージを送信できませんでした。";
 "bot_token" = "ボットトークン";
-"set_bot_token_dot" = "ボットトークンを設定...";
+"enter_your_bot_token" = "ボットトークンを入力してください。";
 "pairing_code" = "ペアリングコード";
 "paired_accounts" = "ペアリング済みアカウント";
 "forget_paired_accounts" = "ペアリング済みアカウントを削除";
@@ -2910,4 +2910,3 @@
 "imessage_detail" = "この Mac やほかのデバイスからメッセージで自分宛てに送ると、Local Code が開いている間そのスレッドで作業できます。上のメッセージの権限でチャットを読み取り、同じチャットで回答します。/help を送るとコマンドを確認できます。";
 "telegram_detail" = "自分の Telegram ボットにメッセージを送ると、Local Code が開いている間そのスレッドで作業できます。@BotFather でボットを作成し、ここでトークンを設定して、ボットにペアリングコードを送信してください。/help を送るとコマンドを確認できます。";
 "discord_detail" = "自分の Discord ボットにメッセージを送ると、Local Code が開いている間そのスレッドで作業できます。Discord Developer Portal でボット付きのアプリケーションを作成し、ここでボットのトークンを設定して、ダイレクトメッセージかメンションでボットにペアリングコードを送信してください。/help を送るとコマンドを確認できます。";
-"bot_token_detail" = "Local Code はトークンをこのデバイスのキーチェーンに保管します。";

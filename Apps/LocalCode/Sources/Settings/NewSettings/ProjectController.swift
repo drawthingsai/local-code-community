@@ -866,3 +866,11 @@ extension ProjectController: RecentThreadCollectionViewCellDelegate {
     delegate?.projectController(self, didSelectExportModelContextFor: item.thread)
   }
 }
+
+extension ProjectThreadIdentifier {
+  init(thread: ProjectController.Thread) {
+    self.init(
+      projectURL: URL(fileURLWithPath: thread.projectPath, isDirectory: true),
+      threadId: thread.threadId)
+  }
+}

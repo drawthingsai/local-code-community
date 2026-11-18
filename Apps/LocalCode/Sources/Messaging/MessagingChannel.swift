@@ -1,8 +1,8 @@
 import Foundation
 
 /// A chat app that people can message this app's threads from.
-enum MessagingPlatform: String, CaseIterable, Hashable {
-  case iMessage = "imessage"
+enum MessagingPlatform {
+  case iMessage
   case telegram
   case discord
 
@@ -14,29 +14,15 @@ enum MessagingPlatform: String, CaseIterable, Hashable {
     case .discord: return "Discord"
     }
   }
-
-  /// The workspace key that is true while the platform is on in Kit.
-  var enabledKey: String { "messaging_\(rawValue)_enabled" }
-  /// The workspace key that Kit changes to have the platform connect again: when it saves a bot
-  /// token, which is kept in the keychain, or when asked to reconnect.
-  var revisionKey: String { "messaging_\(rawValue)_revision" }
-  /// The workspace key of the paired senders' IDs. iMessage has none: it only answers the account's
-  /// own messages to itself.
-  var pairedSendersKey: String { "messaging_\(rawValue)_paired_senders" }
-  var needsPairing: Bool { self != .iMessage }
 }
 
 /// A message from a chat app, as its channel received it.
 struct MessagingIncomingMessage: Equatable {
-  let platform: MessagingPlatform
   /// Where replies go: a Telegram chat, a Discord channel, or a Messages chat.
   let conversationID: String
-  /// Who sent it, as the platform identifies them.
+  /// Who sent it, as the chat app identifies them.
   let senderID: String
   let text: String
-  /// Only the account's owner can write there, as in an iMessage note to self, so it needs no
-  /// pairing.
-  let isFromOwner: Bool
 }
 
 enum MessagingConnection: Equatable {
@@ -56,13 +42,12 @@ protocol MessagingChannelDelegate: AnyObject {
 /// One chat app's connection. It calls its delegate on the main queue, and its methods are called
 /// there.
 protocol MessagingChannel: AnyObject {
-  var platform: MessagingPlatform { get }
   var delegate: (any MessagingChannelDelegate)? { get set }
   func start()
   func stop()
-  /// Splits text longer than the platform takes into several messages.
+  /// Splits text longer than the chat app takes into several messages.
   func send(_ text: String, to conversationID: String)
-  /// Shows that a reply is being written, where the platform can.
+  /// Shows that a reply is being written, where the chat app can.
   func showTyping(in conversationID: String)
 }
 

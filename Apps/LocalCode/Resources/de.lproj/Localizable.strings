@@ -2900,7 +2900,7 @@
 "thread_gone_detail" = "Dieser Thread ist nicht mehr in Local Code.";
 "send_failed_detail" = "Local Code konnte die Nachricht nicht senden.";
 "bot_token" = "Bot-Token";
-"set_bot_token_dot" = "Bot-Token festlegen...";
+"enter_your_bot_token" = "Gib dein Bot-Token ein.";
 "pairing_code" = "Kopplungscode";
 "paired_accounts" = "Gekoppelte Konten";
 "forget_paired_accounts" = "Gekoppelte Konten vergessen";
@@ -2912,4 +2912,3 @@
 "imessage_detail" = "Schreiben Sie sich selbst in Nachrichten, von diesem Mac oder Ihren anderen Geräten, um mit den Threads von Local Code zu arbeiten, solange es geöffnet ist. Es liest den Chat mit der Berechtigung für Nachrichten oben und antwortet dort. Senden Sie /help für die Befehle.";
 "telegram_detail" = "Schreiben Sie Ihrem eigenen Telegram-Bot, um mit den Threads von Local Code zu arbeiten, solange es geöffnet ist. Erstellen Sie einen Bot mit @BotFather, legen Sie hier sein Token fest und senden Sie dem Bot den Kopplungscode. Senden Sie /help für die Befehle.";
 "discord_detail" = "Schreiben Sie Ihrem eigenen Discord-Bot, um mit den Threads von Local Code zu arbeiten, solange es geöffnet ist. Erstellen Sie im Discord Developer Portal eine Anwendung mit einem Bot, legen Sie hier das Token des Bots fest und senden Sie dem Bot den Kopplungscode in einer Direktnachricht oder indem Sie ihn erwähnen. Senden Sie /help für die Befehle.";
-"bot_token_detail" = "Local Code bewahrt das Token im Schlüsselbund dieses Geräts auf.";

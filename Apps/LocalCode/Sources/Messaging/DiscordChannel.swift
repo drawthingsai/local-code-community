@@ -3,7 +3,8 @@ import Localization
 
 /// A Discord bot: it receives messages over the Gateway's WebSocket and answers through the REST
 /// API. It takes direct messages, and messages that mention it in a server. Both carry their text
-/// without the privileged Message Content intent, so the bot needs no extra setup in Discord.
+/// without the privileged Message Content intent, so the bot needs no extra setup in Discord. Main
+/// queue only: its session calls back there.
 final class DiscordChannel: MessagingChannel {
   enum Error: Swift.Error, Equatable {
     case unauthorized
@@ -17,186 +18,231 @@ final class DiscordChannel: MessagingChannel {
   /// GUILD_MESSAGES and DIRECT_MESSAGES.
   static let intents = (1 << 9) | (1 << 12)
 
-  let platform = MessagingPlatform.discord
   weak var delegate: (any MessagingChannelDelegate)?
 
   private static let apiURL = "https://discord.com/api/v10"
   private static let maximumMessageLength = 2000
 
-  /// What the heartbeat and the receive loop share during one connection.
-  private actor Connection {
-    var sequence: Int?
-    var isAcknowledged = true
-
-    func received(sequence: Int?) {
-      if let sequence { self.sequence = sequence }
-    }
-
-    func acknowledge() { isAcknowledged = true }
-
-    /// The sequence to send, or nil when the last heartbeat went unanswered.
-    func beat() -> Int?? {
-      guard isAcknowledged else { return nil }
-      isAcknowledged = false
-      return .some(sequence)
-    }
-  }
-
   private let token: String
   private let session: URLSession
-  private var runTask: Task<Void, Never>?
-  private var lastSend: Task<Void, Never>?
+  /// Changes on every start, stop and dropped connection, so the callbacks of a connection that
+  /// ended do nothing.
+  private var connection = 0
+  private var retryDelay: TimeInterval = 1
+  private var socket: URLSessionWebSocketTask?
+  private var heartbeatTimer: DispatchSourceTimer?
+  /// The last sequence number the Gateway sent, which heartbeats carry.
+  private var sequence: Int?
+  /// Whether the Gateway answered the last heartbeat.
+  private var isAcknowledged = true
+  private var botID = ""
+  /// Replies go out one piece at a time, so a long one arrives in order.
+  private var outgoing = [(conversationID: String, chunks: [String])]()
+  private var isSending = false
 
-  init(token: String, session: URLSession = URLSession(configuration: .ephemeral)) {
+  init(
+    token: String,
+    session: URLSession = URLSession(configuration: .ephemeral, delegate: nil, delegateQueue: .main)
+  ) {
     self.token = token
     self.session = session
   }
 
   func start() {
-    runTask?.cancel()
-    runTask = Task { [weak self] in await self?.run() }
+    close()
+    retryDelay = 1
+    connect()
   }
 
   func stop() {
-    runTask?.cancel()
-    runTask = nil
+    close()
   }
 
   func send(_ text: String, to conversationID: String) {
-    let previous = lastSend
-    lastSend = Task { [weak self] in
-      await previous?.value
-      for chunk in Self.chunks(of: text, limit: Self.maximumMessageLength) {
-        guard let self else { return }
-        do {
-          // Nobody gets pinged by what a thread wrote.
-          _ = try await self.rest(
-            "POST", "/channels/\(conversationID)/messages",
-            body: ["content": chunk, "allowed_mentions": ["parse": [String]()]])
-        } catch {
-          print("Unable to send a Discord message: \(error)")
-          return
-        }
-      }
-    }
+    outgoing.append((conversationID, Self.chunks(of: text, limit: Self.maximumMessageLength)))
+    sendNext()
   }
 
   func showTyping(in conversationID: String) {
-    Task { [weak self] in
-      _ = try? await self?.rest("POST", "/channels/\(conversationID)/typing", body: nil)
-    }
+    rest("POST", "/channels/\(conversationID)/typing", body: nil) { _ in }
   }
 
-  private func run() async {
-    var retryDelay: UInt64 = 1
-    while !Task.isCancelled {
-      do {
-        guard
-          let gateway = try await rest("GET", "/gateway/bot", body: nil)["url"] as? String,
+  /// Asks for the Gateway's address, then connects to it.
+  private func connect() {
+    let connection = self.connection
+    rest("GET", "/gateway/bot", body: nil) { [weak self] result in
+      guard let self, self.connection == connection else { return }
+      switch result {
+      case .success(let object):
+        guard let gateway = object["url"] as? String,
           let url = URL(string: "\(gateway)/?v=10&encoding=json")
-        else { throw Error.invalidResponse }
-        try await connect(to: url)
-        retryDelay = 1
-      } catch Error.unauthorized {
-        await report(.failed(LocalizedString.forKey("bot_token_rejected_detail")))
-        return
-      } catch Error.disallowedIntents {
-        await report(.failed(LocalizedString.forKey("discord_intents_refused_detail")))
-        return
-      } catch Error.reconnect {
-        // Discord asks for a short wait before identifying again.
-        try? await Task.sleep(nanoseconds: UInt64.random(in: 1...5) * 1_000_000_000)
-      } catch {
-        guard !Task.isCancelled else { return }
-        await report(.connecting)
-        try? await Task.sleep(nanoseconds: retryDelay * 1_000_000_000)
-        retryDelay = min(retryDelay * 2, 60)
+        else {
+          self.retry(after: Error.invalidResponse)
+          return
+        }
+        let socket = self.session.webSocketTask(with: url)
+        socket.maximumMessageSize = 16 * 1024 * 1024
+        self.socket = socket
+        self.sequence = nil
+        self.isAcknowledged = true
+        self.botID = ""
+        socket.resume()
+        self.receive()
+      case .failure(let error):
+        self.retry(after: error)
       }
     }
   }
 
-  /// One Gateway connection, until it closes.
-  private func connect(to url: URL) async throws {
-    let socket = session.webSocketTask(with: url)
-    socket.maximumMessageSize = 16 * 1024 * 1024
-    socket.resume()
-    let connection = Connection()
-    var heartbeat: Task<Void, Never>?
-    defer {
-      heartbeat?.cancel()
-      socket.cancel(with: .goingAway, reason: nil)
-    }
-    var botID = ""
-    while !Task.isCancelled {
-      let payload: [String: Any]
-      do {
-        // Stopping cancels the socket, which ends a receive that would otherwise wait.
-        payload = try await withTaskCancellationHandler {
-          try await Self.receive(socket)
-        } onCancel: {
-          socket.cancel(with: .goingAway, reason: nil)
+  /// Takes the Gateway's next event, and waits for the one after.
+  private func receive() {
+    guard let socket else { return }
+    let connection = self.connection
+    socket.receive { [weak self] result in
+      guard let self, self.connection == connection else { return }
+      switch result {
+      case .success(let message):
+        do {
+          try self.handle(Self.payload(from: message))
+        } catch {
+          self.retry(after: error)
+          return
         }
-      } catch {
+        // The delegate can stop this.
+        guard self.connection == connection else { return }
+        self.receive()
+      case .failure(let error):
+        // Discord's close code says why it closed.
         switch socket.closeCode.rawValue {
-        case 4004: throw Error.unauthorized
-        case 4013, 4014: throw Error.disallowedIntents
-        default: throw error
+        case 4004: self.retry(after: Error.unauthorized)
+        case 4013, 4014: self.retry(after: Error.disallowedIntents)
+        default: self.retry(after: error)
         }
       }
-      await connection.received(sequence: payload["s"] as? Int)
-      switch payload["op"] as? Int {
-      case 10:  // Hello
-        guard let data = payload["d"] as? [String: Any],
-          let interval = data["heartbeat_interval"] as? Double
-        else { throw Error.invalidResponse }
-        heartbeat = Task {
-          // The first beat comes after a random part of the interval, as Discord asks.
-          var delay = interval * Double.random(in: 0..<1)
-          while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000))
-            guard !Task.isCancelled else { return }
-            guard let sequence = await connection.beat() else {
-              // A zombie connection: close it, and the receive loop reconnects.
-              socket.cancel(with: .abnormalClosure, reason: nil)
-              return
-            }
-            try? await Self.send(Self.heartbeat(sequence), on: socket)
-            delay = interval
-          }
-        }
-        try await Self.send(
-          [
-            "op": 2,
-            "d": [
-              "token": token, "intents": Self.intents,
-              "properties": ["os": "macos", "browser": "Local Code", "device": "Local Code"],
-            ],
-          ], on: socket)
-      case 11:  // Heartbeat ACK
-        await connection.acknowledge()
-      case 1:  // Heartbeat request
-        try await Self.send(Self.heartbeat(await connection.sequence), on: socket)
-      case 7, 9:  // Reconnect, Invalid Session
-        throw Error.reconnect
-      case 0:  // Dispatch
-        let data = payload["d"] as? [String: Any] ?? [:]
-        switch payload["t"] as? String {
-        case "READY":
-          let user = data["user"] as? [String: Any] ?? [:]
-          botID = user["id"] as? String ?? ""
-          await report(.connected(user["username"] as? String ?? botID))
-        case "MESSAGE_CREATE":
-          guard let message = Self.incomingMessage(from: data, botID: botID) else { continue }
-          await MainActor.run { [weak self] in
-            guard let self else { return }
-            self.delegate?.messagingChannel(self, didReceive: message)
-          }
-        default:
-          break
-        }
+    }
+  }
+
+  /// Throws to drop the connection.
+  private func handle(_ payload: [String: Any]) throws {
+    if let sequence = payload["s"] as? Int {
+      self.sequence = sequence
+    }
+    switch payload["op"] as? Int {
+    case 10:  // Hello
+      guard let data = payload["d"] as? [String: Any],
+        let interval = data["heartbeat_interval"] as? Double
+      else { throw Error.invalidResponse }
+      startHeartbeat(every: interval / 1_000)
+      sendPayload([
+        "op": 2,
+        "d": [
+          "token": token, "intents": Self.intents,
+          "properties": ["os": "macos", "browser": "Local Code", "device": "Local Code"],
+        ],
+      ])
+    case 11:  // Heartbeat ACK
+      isAcknowledged = true
+    case 1:  // Heartbeat request
+      sendPayload(Self.heartbeat(sequence))
+    case 7, 9:  // Reconnect, Invalid Session
+      throw Error.reconnect
+    case 0:  // Dispatch
+      let data = payload["d"] as? [String: Any] ?? [:]
+      switch payload["t"] as? String {
+      case "READY":
+        let user = data["user"] as? [String: Any] ?? [:]
+        botID = user["id"] as? String ?? ""
+        retryDelay = 1
+        report(.connected(user["username"] as? String ?? botID))
+      case "MESSAGE_CREATE":
+        guard let message = Self.incomingMessage(from: data, botID: botID) else { return }
+        delegate?.messagingChannel(self, didReceive: message)
       default:
         break
       }
+    default:
+      break
+    }
+  }
+
+  private func startHeartbeat(every interval: TimeInterval) {
+    heartbeatTimer?.cancel()
+    let connection = self.connection
+    let timer = DispatchSource.makeTimerSource(queue: .main)
+    // The first beat comes after a random part of the interval, as Discord asks.
+    timer.schedule(deadline: .now() + interval * Double.random(in: 0..<1), repeating: interval)
+    timer.setEventHandler { [weak self] in
+      guard let self, self.connection == connection, let socket = self.socket else { return }
+      guard self.isAcknowledged else {
+        // A zombie connection: close it, and receiving fails and connects again.
+        socket.cancel(with: .abnormalClosure, reason: nil)
+        return
+      }
+      self.isAcknowledged = false
+      self.sendPayload(Self.heartbeat(self.sequence))
+    }
+    timer.resume()
+    heartbeatTimer = timer
+  }
+
+  /// Drops the connection. A rejected token or refused intents stop the bot until Kit changes it.
+  /// A Gateway that asks for a new connection gets one after a short wait. Anything else tries again
+  /// after a wait that doubles up to a minute.
+  private func retry(after error: Swift.Error) {
+    close()
+    let delay: TimeInterval
+    switch error {
+    case Error.unauthorized:
+      report(.failed(LocalizedString.forKey("bot_token_rejected_detail")))
+      return
+    case Error.disallowedIntents:
+      report(.failed(LocalizedString.forKey("discord_intents_refused_detail")))
+      return
+    case Error.reconnect:
+      // Discord asks for a short wait before identifying again.
+      delay = TimeInterval(Int.random(in: 1...5))
+    default:
+      report(.connecting)
+      delay = retryDelay
+      retryDelay = min(retryDelay * 2, 60)
+    }
+    let connection = self.connection
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+      guard let self, self.connection == connection else { return }
+      self.connect()
+    }
+  }
+
+  private func close() {
+    connection += 1
+    heartbeatTimer?.cancel()
+    heartbeatTimer = nil
+    socket?.cancel(with: .goingAway, reason: nil)
+    socket = nil
+  }
+
+  private func sendNext() {
+    guard !isSending, let reply = outgoing.first, let chunk = reply.chunks.first else { return }
+    isSending = true
+    // Nobody gets pinged by what a thread wrote.
+    rest(
+      "POST", "/channels/\(reply.conversationID)/messages",
+      body: ["content": chunk, "allowed_mentions": ["parse": [String]()]]
+    ) { [weak self] result in
+      guard let self else { return }
+      self.isSending = false
+      switch result {
+      case .success:
+        self.outgoing[0].chunks.removeFirst()
+        if self.outgoing[0].chunks.isEmpty {
+          self.outgoing.removeFirst()
+        }
+      case .failure(let error):
+        print("Unable to send a Discord message: \(error)")
+        // The rest of the reply would make no sense alone.
+        self.outgoing.removeFirst()
+      }
+      self.sendNext()
     }
   }
 
@@ -216,12 +262,9 @@ final class DiscordChannel: MessagingChannel {
     }
     text = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !text.isEmpty else { return nil }
-    return MessagingIncomingMessage(
-      platform: .discord, conversationID: channelID, senderID: authorID, text: text,
-      isFromOwner: false)
+    return MessagingIncomingMessage(conversationID: channelID, senderID: authorID, text: text)
   }
 
-  @MainActor
   private func report(_ connection: MessagingConnection) {
     delegate?.messagingChannel(self, didChange: connection)
   }
@@ -230,9 +273,10 @@ final class DiscordChannel: MessagingChannel {
     ["op": 1, "d": sequence.map { $0 as Any } ?? NSNull()]
   }
 
-  private static func receive(_ socket: URLSessionWebSocketTask) async throws -> [String: Any] {
+  private static func payload(from message: URLSessionWebSocketTask.Message) throws -> [String: Any]
+  {
     let data: Data
-    switch try await socket.receive() {
+    switch message {
     case .string(let text): data = Data(text.utf8)
     case .data(let bytes): data = bytes
     @unknown default: throw Error.invalidResponse
@@ -243,43 +287,57 @@ final class DiscordChannel: MessagingChannel {
     return payload
   }
 
-  private static func send(_ payload: [String: Any], on socket: URLSessionWebSocketTask)
-    async throws
-  {
-    let data = try JSONSerialization.data(withJSONObject: payload)
-    try await socket.send(.string(String(decoding: data, as: UTF8.self)))
+  /// A send that fails means the connection is going, which receiving notices.
+  private func sendPayload(_ payload: [String: Any]) {
+    guard let socket, let data = try? JSONSerialization.data(withJSONObject: payload) else {
+      return
+    }
+    socket.send(.string(String(decoding: data, as: UTF8.self))) { _ in }
   }
 
   /// Retries once after a rate limit.
-  @discardableResult
-  private func rest(_ method: String, _ path: String, body: [String: Any]?) async throws
-    -> [String: Any]
-  {
-    guard let url = URL(string: Self.apiURL + path) else { throw Error.invalidResponse }
+  private func rest(
+    _ method: String, _ path: String, body: [String: Any]?, isRetry: Bool = false,
+    completion: @escaping (Result<[String: Any], Swift.Error>) -> Void
+  ) {
+    guard let url = URL(string: Self.apiURL + path) else {
+      completion(.failure(Error.invalidResponse))
+      return
+    }
     var request = URLRequest(url: url, timeoutInterval: 30)
     request.httpMethod = method
     request.setValue("Bot \(token)", forHTTPHeaderField: "Authorization")
     request.setValue("DiscordBot (https://getlocalcode.app, 1)", forHTTPHeaderField: "User-Agent")
     if let body {
+      guard let data = try? JSONSerialization.data(withJSONObject: body) else {
+        completion(.failure(Error.invalidResponse))
+        return
+      }
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.httpBody = try JSONSerialization.data(withJSONObject: body)
+      request.httpBody = data
     }
-    for attempt in 0..<2 {
-      let (data, response) = try await session.data(for: request)
+    session.dataTask(with: request) { [weak self] data, response, error in
+      if let error {
+        completion(.failure(error))
+        return
+      }
       let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-      let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+      let object =
+        data.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any] ?? [:]
       switch statusCode {
       case 200..<300:
-        return object
+        completion(.success(object))
       case 401:
-        throw Error.unauthorized
-      case 429 where attempt == 0:
+        completion(.failure(Error.unauthorized))
+      case 429 where !isRetry:
         let retryAfter = object["retry_after"] as? Double ?? 1
-        try await Task.sleep(nanoseconds: UInt64(min(retryAfter, 30) * 1_000_000_000))
+        DispatchQueue.main.asyncAfter(deadline: .now() + min(retryAfter, 30)) {
+          guard let self else { return }
+          self.rest(method, path, body: body, isRetry: true, completion: completion)
+        }
       default:
-        throw Error.http(statusCode)
+        completion(.failure(Error.http(statusCode)))
       }
-    }
-    throw Error.http(429)
+    }.resume()
   }
 }

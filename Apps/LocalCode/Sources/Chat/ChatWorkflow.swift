@@ -651,7 +651,7 @@ final class ChatWorkflow: Workflow {
     guard let thread = projectHistoryManager.thread(id: threadId) else { return }
     // Chats that sent to the thread get its answer, even while the Mac shows it.
     messagingBridge.threadDidFinishTurn(
-      MessagingThreadReference(projectPath: projectPath, threadId: threadId),
+      ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId),
       title: thread.title ?? "", response: thread.lastMessage)
     guard !isViewingThread(projectPath: projectPath, threadId: threadId) else { return }
     if projectHistoryManager.setThreadHasUnreadResponse(id: threadId, hasUnreadResponse: true) {
@@ -3143,7 +3143,21 @@ extension ChatWorkflow: ChatInputControllerDelegate {
       }
     }
     if !isRestoringUserNode, !isRestoringQueue {
-      if sendKeepingDraft(prompts.joined(separator: "\n\n"), imagePaths: imagePaths, draft: draft) {
+      let prompt = prompts.joined(separator: "\n\n")
+      if textHistoryManager.currentPositiveText != prompt {
+        textHistoryManager.pushChange(
+          range: NSRange(
+            location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
+          replacementText: prompt, textType: .positiveText)
+      }
+      if didTapSend(prompt, imagePaths: imagePaths) {
+        if textHistoryManager.currentPositiveText != draft {
+          textHistoryManager.pushChange(
+            range: NSRange(
+              location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
+            replacementText: draft, textType: .positiveText)
+          updateTextHistoryPointers()
+        }
         return
       }
       // A queue that didn't go out, such as one waiting on a model download, goes back to the
@@ -3169,26 +3183,6 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         projectFiles: paths.map { projectURL.appendingPathComponent($0) })
     }
     updateTextHistoryPointers()
-  }
-
-  /// Sends `prompt` as typed into the input, then puts `draft` back there. On failure the input's
-  /// history keeps `prompt` as its latest text, for the caller to restore.
-  private func sendKeepingDraft(_ prompt: String, imagePaths: [String], draft: String) -> Bool {
-    if textHistoryManager.currentPositiveText != prompt {
-      textHistoryManager.pushChange(
-        range: NSRange(
-          location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
-        replacementText: prompt, textType: .positiveText)
-    }
-    guard didTapSend(prompt, imagePaths: imagePaths) else { return false }
-    if textHistoryManager.currentPositiveText != draft {
-      textHistoryManager.pushChange(
-        range: NSRange(
-          location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
-        replacementText: draft, textType: .positiveText)
-      updateTextHistoryPointers()
-    }
-    return true
   }
 
   func chatInputController(
@@ -4187,19 +4181,15 @@ extension ChatWorkflow: BrowserWorkflowDelegate {
 /// Chat apps work with threads the way the drawer and the input do: a message opens its thread on
 /// screen and goes out as if typed there, waiting in the thread's queue while a turn runs.
 extension ChatWorkflow: MessagingBridgeDelegate {
-  private static func canonicalPath(_ path: String) -> String {
-    URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL.resolvingSymlinksInPath()
-      .path
-  }
-
   func messagingBridgeThreads(_ bridge: MessagingBridge) -> [MessagingThread] {
+    // The drawer's projects and threads spell each project's path the same way.
     let titles = Dictionary(
-      settingsWorkflow.projects.map { (Self.canonicalPath($0.path), $0.title) },
+      settingsWorkflow.projects.map { ($0.path, $0.title) },
       uniquingKeysWith: { first, _ in first })
     return settingsWorkflow.projectThreads.filter { $0.threadId >= 0 }.sorted {
       $0.updatedAt > $1.updatedAt
     }.map { thread in
-      let projectPath = Self.canonicalPath(thread.projectPath)
+      let identifier = ProjectThreadIdentifier(thread: thread)
       let status: MessagingThread.Status
       switch thread.status {
       case .idle: status = .idle
@@ -4208,36 +4198,48 @@ extension ChatWorkflow: MessagingBridgeDelegate {
       case .new: status = .newReply
       }
       return MessagingThread(
-        reference: MessagingThreadReference(projectPath: projectPath, threadId: thread.threadId),
-        projectTitle: titles[projectPath] ?? URL(fileURLWithPath: projectPath).lastPathComponent,
+        identifier: identifier,
+        projectTitle: titles[thread.projectPath]
+          ?? URL(fileURLWithPath: thread.projectPath).lastPathComponent,
         title: thread.title ?? "", status: status, lastMessage: thread.lastMessage)
     }
   }
 
   func messagingBridgeWorkspaceFolder(_ bridge: MessagingBridge) -> String {
-    Self.canonicalPath(settingsWorkflow.workspaceFolderURL.path)
+    settingsWorkflow.workspaceFolderURL.standardizedFileURL.resolvingSymlinksInPath().path
   }
 
   func messagingBridge(
-    _ bridge: MessagingBridge, send text: String, to thread: MessagingThreadReference
+    _ bridge: MessagingBridge, send text: String, to thread: ProjectThreadIdentifier
   ) -> MessagingSendResult {
     guard codeAgentWrapper != nil else {
       return .failed(LocalizedString.forKey("no_model_selected_detail"))
     }
     openForMessaging(
       ProjectController.Thread(projectPath: thread.projectPath, threadId: thread.threadId))
-    guard let projectURL, Self.canonicalPath(projectURL.path) == thread.projectPath,
-      let projectHistoryManager, projectHistoryManager.threadId == thread.threadId,
+    guard let projectURL, let projectHistoryManager,
+      ProjectThreadIdentifier(projectURL: projectURL, threadId: projectHistoryManager.threadId)
+        == thread,
       let projectThread = projectHistoryManager.thread(id: thread.threadId)
     else { return .failed(LocalizedString.forKey("thread_gone_detail")) }
     // As on the input, a message to a thread with a turn running, or paused, waits behind it.
     let isQueued =
       chatInputController.sendState != .idle || projectThread.hasIncompleteResponse
+    // It goes out as if typed into the input, which gets its draft back whether or not it went.
     let draft = chatInputController.text
-    guard sendKeepingDraft(text, imagePaths: [], draft: draft) else {
-      restoreDraft(draft)
-      return .failed(LocalizedString.forKey("send_failed_detail"))
+    if textHistoryManager.currentPositiveText != text {
+      textHistoryManager.pushChange(
+        range: NSRange(location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
+        replacementText: text, textType: .positiveText)
     }
+    let didSend = didTapSend(text, imagePaths: [])
+    if textHistoryManager.currentPositiveText != draft {
+      textHistoryManager.pushChange(
+        range: NSRange(location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
+        replacementText: draft, textType: .positiveText)
+      updateTextHistoryPointers()
+    }
+    guard didSend else { return .failed(LocalizedString.forKey("send_failed_detail")) }
     let title = projectThread.title ?? ""
     return isQueued ? .queued(thread, title: title) : .started(thread, title: title)
   }
@@ -4250,27 +4252,39 @@ extension ChatWorkflow: MessagingBridgeDelegate {
       return .failed(LocalizedString.forKey("no_model_selected_detail"))
     }
     openForMessaging(ProjectController.Thread(projectPath: projectPath, threadId: -1))
-    guard let projectURL, Self.canonicalPath(projectURL.path) == projectPath,
+    guard let projectURL,
+      projectURL.standardizedFileURL.resolvingSymlinksInPath().path == projectPath,
       projectHistoryManager?.threadId == -1
     else { return .failed(LocalizedString.forKey("send_failed_detail")) }
+    // It goes out as if typed into the input, which gets its draft back whether or not it went.
     let draft = chatInputController.text
-    guard sendKeepingDraft(text, imagePaths: [], draft: draft),
-      let projectHistoryManager, projectHistoryManager.threadId >= 0
-    else {
-      restoreDraft(draft)
+    if textHistoryManager.currentPositiveText != text {
+      textHistoryManager.pushChange(
+        range: NSRange(location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
+        replacementText: text, textType: .positiveText)
+    }
+    let didSend = didTapSend(text, imagePaths: [])
+    if textHistoryManager.currentPositiveText != draft {
+      textHistoryManager.pushChange(
+        range: NSRange(location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
+        replacementText: draft, textType: .positiveText)
+      updateTextHistoryPointers()
+    }
+    guard didSend, let projectHistoryManager, projectHistoryManager.threadId >= 0 else {
       return .failed(LocalizedString.forKey("send_failed_detail"))
     }
     let threadId = projectHistoryManager.threadId
     projectHistoryManager.renameThread(id: threadId, title: title)
     return .started(
-      MessagingThreadReference(projectPath: projectPath, threadId: threadId), title: title)
+      ProjectThreadIdentifier(projectURL: projectURL, threadId: threadId), title: title)
   }
 
-  func messagingBridge(_ bridge: MessagingBridge, stop thread: MessagingThreadReference) -> Bool {
+  func messagingBridge(_ bridge: MessagingBridge, stop thread: ProjectThreadIdentifier) -> Bool {
     openForMessaging(
       ProjectController.Thread(projectPath: thread.projectPath, threadId: thread.threadId))
-    guard let projectURL, Self.canonicalPath(projectURL.path) == thread.projectPath,
-      projectHistoryManager?.threadId == thread.threadId,
+    guard let projectURL, let projectHistoryManager,
+      ProjectThreadIdentifier(projectURL: projectURL, threadId: projectHistoryManager.threadId)
+        == thread,
       chatInputController.sendState == .sending
     else { return false }
     chatInputControllerDidTapStop(chatInputController)
@@ -4279,24 +4293,14 @@ extension ChatWorkflow: MessagingBridgeDelegate {
 
   /// As picking the thread in the drawer does, unless it's already on screen.
   private func openForMessaging(_ thread: ProjectController.Thread) {
-    if let projectURL,
-      Self.canonicalPath(projectURL.path) == Self.canonicalPath(thread.projectPath),
-      projectHistoryManager?.threadId == thread.threadId, onboardingWorkflow == nil,
-      modelSpeedWorkflow == nil
+    if let projectURL, let projectHistoryManager,
+      ProjectThreadIdentifier(projectURL: projectURL, threadId: projectHistoryManager.threadId)
+        == ProjectThreadIdentifier(thread: thread),
+      onboardingWorkflow == nil, modelSpeedWorkflow == nil
     {
       return
     }
     selectThread(thread)
     dismissSettings()
-  }
-
-  /// Puts back what the input held before a send that didn't go out.
-  private func restoreDraft(_ draft: String) {
-    guard textHistoryManager.currentPositiveText != draft else { return }
-    textHistoryManager.pushChange(
-      range: NSRange(location: 0, length: textHistoryManager.currentPositiveText.utf16.count),
-      replacementText: draft, textType: .positiveText)
-    chatInputController.setText(textHistoryManager.currentPositiveText)
-    updateTextHistoryPointers()
   }
 }

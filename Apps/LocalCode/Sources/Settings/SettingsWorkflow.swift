@@ -283,35 +283,86 @@ final class SettingsWorkflow: Workflow {
       [weak self] status in
       self?.kitSectionsController.messagingStatus = status
     }
-    for platform in MessagingPlatform.allCases where MessagingBridge.isAvailable(platform) {
-      messagingSubscriptions.append(
-        workspace.dictionary.subscribe(platform.enabledKey, of: Bool.self) { [weak self] value in
-          let isEnabled: Bool
-          switch value {
-          case .deleted: isEnabled = false
-          case .initial(let value): isEnabled = value ?? false
-          case .updated(let value): isEnabled = value
-          }
-          DispatchQueue.main.async {
-            self?.kitSectionsController.messagingSettings[platform, default: MessagingSettings()]
-              .isEnabled = isEnabled
-          }
-        })
-      messagingSubscriptions.append(
-        workspace.dictionary.subscribe(platform.pairedSendersKey, of: [String].self) {
-          [weak self] value in
-          let senders: [String]
-          switch value {
-          case .deleted: senders = []
-          case .initial(let value): senders = value ?? []
-          case .updated(let value): senders = value
-          }
-          DispatchQueue.main.async {
-            self?.kitSectionsController.messagingSettings[platform, default: MessagingSettings()]
-              .pairedAccountCount = senders.count
-          }
-        })
-    }
+    messagingSubscriptions = [
+      workspace.dictionary.subscribe("messaging_imessage_enabled", of: Bool.self) {
+        [weak self] value in
+        let isEnabled: Bool
+        switch value {
+        case .deleted: isEnabled = false
+        case .initial(let value): isEnabled = value ?? false
+        case .updated(let value): isEnabled = value
+        }
+        DispatchQueue.main.async { self?.kitSectionsController.isIMessageEnabled = isEnabled }
+      },
+      workspace.dictionary.subscribe("messaging_telegram_enabled", of: Bool.self) {
+        [weak self] value in
+        let isEnabled: Bool
+        switch value {
+        case .deleted: isEnabled = false
+        case .initial(let value): isEnabled = value ?? false
+        case .updated(let value): isEnabled = value
+        }
+        DispatchQueue.main.async {
+          self?.kitSectionsController.telegramSettings.isEnabled = isEnabled
+        }
+      },
+      workspace.dictionary.subscribe("messaging_telegram_bot_token", of: String.self) {
+        [weak self] value in
+        let token: String
+        switch value {
+        case .deleted: token = ""
+        case .initial(let value): token = value ?? ""
+        case .updated(let value): token = value
+        }
+        DispatchQueue.main.async { self?.kitSectionsController.telegramSettings.botToken = token }
+      },
+      workspace.dictionary.subscribe("messaging_telegram_paired_senders", of: [String].self) {
+        [weak self] value in
+        let senders: [String]
+        switch value {
+        case .deleted: senders = []
+        case .initial(let value): senders = value ?? []
+        case .updated(let value): senders = value
+        }
+        DispatchQueue.main.async {
+          self?.kitSectionsController.telegramSettings.pairedAccountCount = senders.count
+        }
+      },
+      workspace.dictionary.subscribe("messaging_discord_enabled", of: Bool.self) {
+        [weak self] value in
+        let isEnabled: Bool
+        switch value {
+        case .deleted: isEnabled = false
+        case .initial(let value): isEnabled = value ?? false
+        case .updated(let value): isEnabled = value
+        }
+        DispatchQueue.main.async {
+          self?.kitSectionsController.discordSettings.isEnabled = isEnabled
+        }
+      },
+      workspace.dictionary.subscribe("messaging_discord_bot_token", of: String.self) {
+        [weak self] value in
+        let token: String
+        switch value {
+        case .deleted: token = ""
+        case .initial(let value): token = value ?? ""
+        case .updated(let value): token = value
+        }
+        DispatchQueue.main.async { self?.kitSectionsController.discordSettings.botToken = token }
+      },
+      workspace.dictionary.subscribe("messaging_discord_paired_senders", of: [String].self) {
+        [weak self] value in
+        let senders: [String]
+        switch value {
+        case .deleted: senders = []
+        case .initial(let value): senders = value ?? []
+        case .updated(let value): senders = value
+        }
+        DispatchQueue.main.async {
+          self?.kitSectionsController.discordSettings.pairedAccountCount = senders.count
+        }
+      },
+    ]
     botModeSubscription = workspace.dictionary.subscribe("bot_mode", of: Bool.self) {
       [weak self] value in
       guard let self else { return }
@@ -2468,67 +2519,64 @@ extension SettingsWorkflow: KitSectionsControllerDelegate {
     }
   }
 
-  func kitSectionsController(
-    _ controller: KitSectionsController, didSetEnabled value: Bool, for platform: MessagingPlatform
-  ) {
-    workspace.dictionary[platform.enabledKey, Bool.self] = value
+  func kitSectionsController(_ controller: KitSectionsController, didSetIMessageEnabled value: Bool)
+  {
+    workspace.dictionary["messaging_imessage_enabled", Bool.self] = value
     // iMessage reads the Messages folder, which takes Local Code's own grant.
-    if value, platform == .iMessage, controller.appDataPermissions[.messages] != .authorized {
+    if value, controller.appDataPermissions[.messages] != .authorized {
       kitSectionsController(controller, didSelectPermission: .authorized, for: .messages)
     }
   }
 
+  func kitSectionsControllerDidSelectReconnectIMessage(_ controller: KitSectionsController) {
+    workspace.dictionary["messaging_imessage_revision", Int.self] =
+      (workspace.dictionary["messaging_imessage_revision", Int.self] ?? 0) + 1
+  }
+
+  func kitSectionsController(_ controller: KitSectionsController, didSetTelegramEnabled value: Bool)
+  {
+    workspace.dictionary["messaging_telegram_enabled", Bool.self] = value
+  }
+
   func kitSectionsController(
-    _ controller: KitSectionsController, didSelectSetBotTokenFor platform: MessagingPlatform
+    _ controller: KitSectionsController, didChangeTelegramBotToken token: String
   ) {
-    let alertController = UIAlertController(
-      title: platform.title, message: LocalizedString.forKey("bot_token_detail"),
-      preferredStyle: .alert)
-    alertController.addTextField { textField in
-      textField.placeholder = LocalizedString.forKey("bot_token")
-      textField.isSecureTextEntry = true
-      // Not a password: without this, the Mac's Passwords AutoFill opens over the Save button.
-      textField.textContentType = .oneTimeCode
-      textField.autocorrectionType = .no
-      textField.autocapitalizationType = .none
+    let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
+    if workspace.dictionary["messaging_telegram_bot_token", String.self] != token {
+      workspace.dictionary["messaging_telegram_bot_token", String.self] = token
     }
-    alertController.addAction(
-      UIAlertAction(title: LocalizedString.forKey("cancel"), style: .cancel))
-    let saveAction =
-      UIAlertAction(title: LocalizedString.forKey("save"), style: .default) {
-        [weak self, weak alertController] _ in
-        guard let self,
-          let token = alertController?.textFields?.first?.text?.trimmingCharacters(
-            in: .whitespacesAndNewlines), !token.isEmpty
-        else { return }
-        do {
-          try MessagingTokenStore.setToken(token, for: platform)
-        } catch {
-          print("Unable to save the \(platform.title) bot token: \(error)")
-          return
-        }
-        // A token is set to be used.
-        self.workspace.dictionary[platform.enabledKey, Bool.self] = true
-        self.workspace.dictionary[platform.revisionKey, Int.self] =
-          (self.workspace.dictionary[platform.revisionKey, Int.self] ?? 0) + 1
-      }
-    alertController.addAction(saveAction)
-    // Return saves.
-    alertController.preferredAction = saveAction
-    viewController.present(alertController, animated: true)
+  }
+
+  func kitSectionsControllerDidSelectReconnectTelegram(_ controller: KitSectionsController) {
+    workspace.dictionary["messaging_telegram_revision", Int.self] =
+      (workspace.dictionary["messaging_telegram_revision", Int.self] ?? 0) + 1
+  }
+
+  func kitSectionsControllerDidForgetTelegramPairedAccounts(_ controller: KitSectionsController) {
+    workspace.dictionary["messaging_telegram_paired_senders", [String].self] = []
+  }
+
+  func kitSectionsController(_ controller: KitSectionsController, didSetDiscordEnabled value: Bool)
+  {
+    workspace.dictionary["messaging_discord_enabled", Bool.self] = value
   }
 
   func kitSectionsController(
-    _ controller: KitSectionsController, didSelectReconnect platform: MessagingPlatform
+    _ controller: KitSectionsController, didChangeDiscordBotToken token: String
   ) {
-    workspace.dictionary[platform.revisionKey, Int.self] =
-      (workspace.dictionary[platform.revisionKey, Int.self] ?? 0) + 1
+    let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
+    if workspace.dictionary["messaging_discord_bot_token", String.self] != token {
+      workspace.dictionary["messaging_discord_bot_token", String.self] = token
+    }
   }
 
-  func kitSectionsController(
-    _ controller: KitSectionsController, didForgetPairedAccountsFor platform: MessagingPlatform
-  ) {
-    workspace.dictionary[platform.pairedSendersKey, [String].self] = []
+  func kitSectionsControllerDidSelectReconnectDiscord(_ controller: KitSectionsController) {
+    workspace.dictionary["messaging_discord_revision", Int.self] =
+      (workspace.dictionary["messaging_discord_revision", Int.self] ?? 0) + 1
+  }
+
+  func kitSectionsControllerDidForgetDiscordPairedAccounts(_ controller: KitSectionsController) {
+    workspace.dictionary["messaging_discord_paired_senders", [String].self] = []
   }
 
   func kitSectionsControllerDidSelectDrawThingsModelsInApp(_ controller: KitSectionsController) {
