@@ -16,6 +16,9 @@ protocol ResponsesModelAdapter: AnyObject {
   var restoredTokenLength: Int? { get }
   /// How many tokens the KV cache holds after the latest decode.
   var kvCacheTokenLength: Int { get }
+  /// Whether decode reads from the context how much of the thinking budget the turn has used,
+  /// rather than counting it from the start of each decode.
+  var countsThinkingFromContext: Bool { get }
   /// The whole conversation up to and including the assistant's opening tokens, with the effort
   /// where the model's chat template has it. The request's images go to the project's embeds,
   /// where the decode finds them. One the model can't read is left out.
@@ -159,6 +162,7 @@ final class Qwen3_5ResponsesModelAdapter: ResponsesModelAdapter {
   var maximumContextLength: Int { Qwen3_5CodeAgent.maximumContextLength }
   var minimumGenerationReserve: Int { Qwen3_5CodeAgent.minimumGenerationReserve }
   var isImageSupported: Bool { true }
+  var countsThinkingFromContext: Bool { false }
 
   func prompt(
     for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
@@ -382,6 +386,7 @@ final class DeepSeekResponsesModelAdapter<Generator: DeepSeekTextGenerator>: Res
   var maximumContextLength: Int { DeepSeek4CodeAgent<Generator>.maximumContextLength }
   var minimumGenerationReserve: Int { DeepSeek4CodeAgent<Generator>.minimumGenerationReserve }
   var isImageSupported: Bool { Generator.isImageSupported }
+  var countsThinkingFromContext: Bool { false }
 
   func prompt(
     for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
@@ -537,6 +542,8 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
   var maximumContextLength: Int { GLM5_3CodeAgent.maximumContextLength }
   var minimumGenerationReserve: Int { GLM5_3CodeAgent.minimumGenerationReserve }
   var isImageSupported: Bool { true }
+  // The generator reads the open thinking and its length from the assistant turn.
+  var countsThinkingFromContext: Bool { true }
 
   func prompt(
     for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool

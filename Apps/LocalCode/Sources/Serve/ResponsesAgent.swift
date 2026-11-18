@@ -253,11 +253,14 @@ final class ResponsesAgent: CodeAgent {
       return progress(.timeSliceEnded, turn.statistics) == .pause
     }
     let tokensGPU = graph.variable(Tensor<Int32>(inputTokens).toGPU(0))
-    // The generators count the budget from the start of each decode, and only see the thinking end
+    // Most generators count the budget from the start of each decode, and only see the thinking end
     // within it. So a resume gets what's left of it, or none once the thinking is over. At 0 they
     // take the model to be answering, so a budget used up is 1, which ends the thinking right away.
+    // One that counts from the context takes the whole budget, and finds the rest there.
     let thinkingBudget =
-      turn.parser.isThinkingOpen ? max(1, turn.thinkingBudget - turn.parser.thinkTokenCount) : 0
+      adapter.countsThinkingFromContext
+      ? turn.thinkingBudget
+      : turn.parser.isThinkingOpen ? max(1, turn.thinkingBudget - turn.parser.thinkTokenCount) : 0
     let generated = graph.withStream(streamContext) {
       graph.withNoGrad {
         adapter.decode(
