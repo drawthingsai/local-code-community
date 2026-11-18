@@ -32,6 +32,8 @@ struct ProjectRemoteConversation {
         parseLogTokens = DeepSeek4CodeAgent<DeepSeek4_1TextGenerator>.parse
       case .glm_5_3_flash:
         parseLogTokens = GLM5_3CodeAgent.parse
+      case .inkling_2_small:
+        parseLogTokens = Inkling2CodeAgent.parse
       }
     } else {
       parseLogTokens = nil

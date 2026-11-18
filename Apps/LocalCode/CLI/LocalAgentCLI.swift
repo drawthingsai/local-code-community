@@ -71,9 +71,10 @@ struct LocalAgentCLI: ParsableCommand {
     }
     let specification = try specification()
     if weightsStreaming != nil, specification.version != .deepseek_4_flash,
-      specification.version != .deepseek_4_1_flash, specification.version != .glm_5_3_flash
+      specification.version != .deepseek_4_1_flash, specification.version != .glm_5_3_flash,
+      specification.version != .inkling_2_small
     {
-      throw ValidationError("--weights-streaming applies only to DeepSeek and GLM models.")
+      throw ValidationError("--weights-streaming applies only to DeepSeek, GLM and Inkling models.")
     }
   }
 
@@ -119,6 +120,8 @@ struct LocalAgentCLI: ParsableCommand {
       switch specification.version {
       case .glm_5_3_flash:
         vocabularySize = GLM5_3ModelConfiguration.glm5_3Flash.vocabularySize
+      case .inkling_2_small:
+        vocabularySize = Inkling2SmallConfiguration.inkling2Small.vocabularySize
       case .deepseek_4_flash:
         vocabularySize = DeepSeek4ModelConfiguration.deepSeekV4Flash.vocabularySize
       case .deepseek_4_1_flash:
@@ -203,6 +206,20 @@ struct LocalAgentCLI: ParsableCommand {
         safeTokenizer: GLM5_3TextGenerator.safeTokenizer,
         systemPromptTemplate: SystemPromptTemplate.load(
           projectURL: directories.project, model: templateModel, template: systemPromptForGLM5_3),
+        reasoningEffort: .init(reasoningEffort), skillCatalog: catalog,
+        projectContext: projectContext, environmentContext: environment, prefixTokens: prefixTokens,
+        prefixEmbedSpans: prefixEmbedSpans)
+    case .inkling_2_small:
+      let generator = Inkling2SmallTextGenerator(
+        filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
+        weightsStreaming: weightsStreaming.flatMap(
+          DeviceCapability.WeightsStreaming.init(rawValue:)))
+      agent = Inkling2CodeAgent(
+        textGenerator: generator, graph: graph, streamContext: stream,
+        unsafeTokenizer: Inkling2SmallTextGenerator.unsafeTokenizer,
+        safeTokenizer: Inkling2SmallTextGenerator.safeTokenizer,
+        systemPromptTemplate: SystemPromptTemplate.load(
+          projectURL: directories.project, model: templateModel, template: systemPromptForInkling2),
         reasoningEffort: .init(reasoningEffort), skillCatalog: catalog,
         projectContext: projectContext, environmentContext: environment, prefixTokens: prefixTokens,
         prefixEmbedSpans: prefixEmbedSpans)
@@ -385,12 +402,13 @@ private final class LocalAgentTrace {
         phase = "prefill"
         reportedRestoredTokenLength = 0
       }
-      if let glm = agent as? GLM5_3CodeAgent,
-        glm.restoredTokenLength > reportedRestoredTokenLength
-      {
+      let restoredTokenLength =
+        (agent as? GLM5_3CodeAgent)?.restoredTokenLength
+        ?? (agent as? Inkling2CodeAgent)?.restoredTokenLength ?? 0
+      if restoredTokenLength > reportedRestoredTokenLength {
         FileHandle.standardError.write(
-          Data("[cache] restoredTokenLength=\(glm.restoredTokenLength)\n".utf8))
-        reportedRestoredTokenLength = glm.restoredTokenLength
+          Data("[cache] restoredTokenLength=\(restoredTokenLength)\n".utf8))
+        reportedRestoredTokenLength = restoredTokenLength
       }
       return
     case .compact:

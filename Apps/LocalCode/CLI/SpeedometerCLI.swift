@@ -162,6 +162,8 @@ struct SpeedometerCLI: ParsableCommand {
         contextLengths: contextLengths, graph: graph, streamContext: stream,
         storePath: storePath, libraryURL: libraryURL, thinkingBudget: thinkingBudget,
         deterministic: deterministic)
+    case .inkling_2_small:
+      throw ValidationError("Model Speed is not available for Inkling 2 Small yet.")
     case .deepseek_4_flash:
       speedometer = DeepSeek4Speedometer(
         textGenerator: DeepSeek4TextGenerator(

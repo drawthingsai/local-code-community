@@ -289,6 +289,10 @@ final class ChatWorkflow: Workflow {
           filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
           chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming,
           drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
+      case .inkling_2_small:
+        textGenerator = Inkling2SmallTextGenerator(
+          filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
+          chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming)
       case .deepseek_4_1_flash:
         guard let engram = specification.engram else {
           preconditionFailure("DeepSeek 4.1 requires an Engram companion")
@@ -672,6 +676,8 @@ final class ChatWorkflow: Workflow {
       codeAgent.reasoningEffort = .init(reasoningEffort)
     case let codeAgent as GLM5_3CodeAgent:
       codeAgent.reasoningEffort = .init(reasoningEffort)
+    case let codeAgent as Inkling2CodeAgent:
+      codeAgent.reasoningEffort = .init(reasoningEffort)
     default:
       preconditionFailure("Unsupported code agent")
     }
@@ -826,7 +832,7 @@ final class ChatWorkflow: Workflow {
     case .glm_5_3_flash:
       // The Z.ai mark is a flat dark glyph; template rendering keeps it visible in dark mode.
       return #imageLiteral(resourceName: "zai-20").withRenderingMode(.alwaysTemplate)
-    case nil:
+    case .inkling_2_small, nil:
       return #imageLiteral(resourceName: "cube").withRenderingMode(.alwaysTemplate)
     }
   }
@@ -1054,6 +1060,10 @@ final class ChatWorkflow: Workflow {
         filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength,
         weightsStreaming: weightsStreaming,
         drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
+    case .inkling_2_small:
+      return Inkling2SmallTextGenerator(
+        filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength,
+        weightsStreaming: weightsStreaming)
     case .deepseek_4_1_flash:
       guard let engram = specification.engram else { return nil }
       return DeepSeek4_1TextGenerator(
@@ -1910,6 +1920,11 @@ final class ChatWorkflow: Workflow {
         GLM5_3ContextCache(
           projectPath: projectURL.path, checkpointStride: textGenerator.checkpointStride
         ).loadSuspension(threadId: threadId) != nil
+    case let textGenerator as Inkling2SmallTextGenerator:
+      hasPersistedSuspension =
+        Inkling2SmallContextCache(
+          projectPath: projectURL.path, checkpointStride: textGenerator.checkpointStride
+        ).loadSuspension(threadId: threadId) != nil
     default:
       preconditionFailure("Unsupported text generator")
     }
@@ -2018,6 +2033,8 @@ final class ChatWorkflow: Workflow {
         safeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
       case .glm_5_3_flash:
         safeTokenizer = GLM5_3TextGenerator.safeTokenizer
+      case .inkling_2_small:
+        safeTokenizer = Inkling2SmallTextGenerator.safeTokenizer
       case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
         safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
       }
@@ -2095,6 +2112,9 @@ final class ChatWorkflow: Workflow {
         toolCallSpecialTokens = DeepSeek4ToolCallParser.toolCallSpecialTokens
       } else if textGenerator is GLM5_3TextGenerator {
         toolCallSpecialTokens = GLM5_3ToolCallParser.toolCallSpecialTokens
+      } else if textGenerator is Inkling2SmallTextGenerator {
+        // Inkling 2 keeps only the visible text in a node's tokens.
+        toolCallSpecialTokens = [:]
       } else {
         toolCallSpecialTokens = Qwen3_5ToolCallParser.toolCallSpecialTokens
       }
@@ -2112,6 +2132,9 @@ final class ChatWorkflow: Workflow {
       case .glm_5_3_flash:
         safeTokenizer = GLM5_3TextGenerator.safeTokenizer
         toolCallSpecialTokens = GLM5_3ToolCallParser.toolCallSpecialTokens
+      case .inkling_2_small:
+        safeTokenizer = Inkling2SmallTextGenerator.safeTokenizer
+        toolCallSpecialTokens = [:]
       case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
         safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
         toolCallSpecialTokens = Qwen3_5ToolCallParser.toolCallSpecialTokens

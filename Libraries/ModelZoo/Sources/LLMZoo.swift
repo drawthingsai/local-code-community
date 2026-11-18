@@ -95,6 +95,12 @@ public struct LLMZoo: DownloadZoo {
         "A coding-focused model that understands images, also known as Ox Alpha. Close to frontier models on coding and terminal tasks, and capable at security testing."
     ),
     Specification(
+      name: "Inkling 2 Small (2-bit S)", file: "inkling_2_small_i2x.ckpt",
+      version: .inkling_2_small, huggingFaceLink: "thinkingmachines/Inkling-2-Small",
+      note:
+        "A general-purpose model that understands images. Built for agentic coding and tool use."
+    ),
+    Specification(
       name: "GLM 5.3 Flash (2-bit S)", file: "glm_5.3_flash_i2x.ckpt",
       version: .glm_5_3_flash, deprecated: true),
     Specification(
@@ -223,6 +229,8 @@ public struct LLMZoo: DownloadZoo {
       return "DeepSeek AI"
     case .glm_5_3_flash:
       return "Z.ai"
+    case .inkling_2_small:
+      return "Thinking Machines Lab"
     }
   }
 
