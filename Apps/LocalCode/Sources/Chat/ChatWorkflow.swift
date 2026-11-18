@@ -254,8 +254,7 @@ final class ChatWorkflow: Workflow {
     let settingsWorkflow = SettingsWorkflow(
       workspace: workspace, userInterfaceIdiom: userInterfaceIdiom, queue: queue,
       accountManager: accountManager, accountClient: accountClient,
-      permittedDirectories: permittedDirectories, messagingStatus: messagingBridge.status,
-      messagingChatThreads: messagingBridge.chatThreads)
+      permittedDirectories: permittedDirectories, messagingStatus: messagingBridge.status)
     self.settingsWorkflow = settingsWorkflow
     let skillCatalog = SkillCatalog.find(
       roots: SkillCatalog.roots(

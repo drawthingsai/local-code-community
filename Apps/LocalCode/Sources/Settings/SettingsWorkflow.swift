@@ -158,7 +158,6 @@ final class SettingsWorkflow: Workflow {
   private var appDataDirectorySubscriptions = [Workspace.Subscription]()
   private var messagingSubscriptions = [Workspace.Subscription]()
   private var messagingStatusSubscription: AnyCancellable?
-  private var messagingChatThreadsSubscription: AnyCancellable?
   private weak var drawThingsModelsFolderPicker: UnifiedDocumentPickerController?
   private weak var modelsFolderPicker: UnifiedDocumentPickerController?
   private weak var appDataDirectoryPicker: UnifiedDocumentPickerController?
@@ -191,10 +190,7 @@ final class SettingsWorkflow: Workflow {
     queue: DispatchQueue,
     accountManager: AccountManager,
     accountClient: AccountClient?, permittedDirectories: PermittedDirectories,
-    messagingStatus: CurrentValueSubject<MessagingBridge.Status, Never>,
-    messagingChatThreads: CurrentValueSubject<
-      [MessagingThreadReference: MessagingPlatform], Never
-    >
+    messagingStatus: CurrentValueSubject<MessagingBridge.Status, Never>
   ) {
     self.workspace = workspace
     self.permittedDirectories = permittedDirectories
@@ -286,17 +282,6 @@ final class SettingsWorkflow: Workflow {
     messagingStatusSubscription = messagingStatus.receive(on: DispatchQueue.main).sink {
       [weak self] status in
       self?.kitSectionsController.messagingStatus = status
-    }
-    messagingChatThreadsSubscription = messagingChatThreads.receive(on: DispatchQueue.main).sink {
-      [weak self] chatThreads in
-      self?.projectsController.messagingPlatforms = Dictionary(
-        chatThreads.map {
-          (
-            ProjectThreadIdentifier(
-              projectURL: URL(fileURLWithPath: $0.key.projectPath, isDirectory: true),
-              threadId: $0.key.threadId), $0.value
-          )
-        }, uniquingKeysWith: { first, _ in first })
     }
     for platform in MessagingPlatform.allCases where MessagingBridge.isAvailable(platform) {
       messagingSubscriptions.append(

@@ -98,6 +98,11 @@ final class MessagingBridgeTests: XCTestCase {
     }
   }
 
+  /// The thread each chat is in, as the bridge saves it for the next launch.
+  private func savedBindings() -> [String: String] {
+    workspace.dictionary["messaging_conversation_threads", [String: String].self] ?? [:]
+  }
+
   private func thread(_ id: Int64, _ title: String, status: MessagingThread.Status = .idle)
     -> MessagingThread
   {
@@ -274,7 +279,7 @@ final class MessagingBridgeTests: XCTestCase {
       XCTAssertEqual(delegate.starts.map(\.title), ["x_conversations"])
       XCTAssertEqual(channel.takeSent(), ["started_thread_detail"])
       let started = MessagingThreadReference(projectPath: "/p", threadId: 100)
-      XCTAssertEqual(bridge.chatThreads.value, [started: .telegram])
+      XCTAssertEqual(savedBindings(), ["telegram:chat": "/p\n100"])
 
       // The next message goes on in that thread.
       channel.receive("and a license")
@@ -312,7 +317,7 @@ final class MessagingBridgeTests: XCTestCase {
       // even when a later thread got the deleted one's identifier.
       delegate.threads.removeAll { $0.reference == started }
       bridge.threadWasRemoved(started)
-      XCTAssertTrue(bridge.chatThreads.value.isEmpty)
+      XCTAssertEqual(savedBindings(), [:])
       delegate.threads.append(
         MessagingThread(
           reference: started, projectTitle: "./", title: "Someone else's", status: .idle,
@@ -320,9 +325,7 @@ final class MessagingBridgeTests: XCTestCase {
       channel.receive("start over")
       XCTAssertEqual(delegate.starts.map(\.projectPath), ["/p", "/p"])
       XCTAssertEqual(channel.takeSent(), ["started_thread_detail"])
-      XCTAssertEqual(
-        bridge.chatThreads.value,
-        [MessagingThreadReference(projectPath: "/p", threadId: 101): .telegram])
+      XCTAssertEqual(savedBindings(), ["telegram:chat": "/p\n101"])
       channel.receive("/bogus")
       XCTAssertEqual(channel.takeSent(), ["unknown_command_detail"])
     }
@@ -344,10 +347,6 @@ final class MessagingBridgeTests: XCTestCase {
       let bridge = MessagingBridge(
         workspace: workspace, permittedDirectories: PermittedDirectories(workspace: workspace))
       bridge.delegate = delegate
-      // Its saved thread is published before the chat says anything.
-      XCTAssertEqual(
-        bridge.chatThreads.value,
-        [MessagingThreadReference(projectPath: "/p", threadId: 100): .telegram])
       let channel = FakeChannel(platform: .telegram)
       bridge.setChannel(channel, for: .telegram)
       channel.receive("hello again")
@@ -360,9 +359,7 @@ final class MessagingBridgeTests: XCTestCase {
       delegate.nextThreadId = 100
       channel.receive("hi", in: "other chat")
       XCTAssertEqual(delegate.starts.count, 2)
-      XCTAssertEqual(
-        bridge.chatThreads.value,
-        [MessagingThreadReference(projectPath: "/p", threadId: 100): .telegram])
+      XCTAssertEqual(savedBindings(), ["telegram:other chat": "/p\n100"])
       channel.receive("still there?")
       XCTAssertEqual(delegate.starts.count, 3)
     }

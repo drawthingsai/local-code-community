@@ -78,8 +78,6 @@ final class MessagingBridge {
 
   /// Sent whole on every change.
   let status: CurrentValueSubject<Status, Never>
-  /// The thread each chat is in, with its chat app. Sent whole on every change.
-  let chatThreads = CurrentValueSubject<[MessagingThreadReference: MessagingPlatform], Never>([:])
   weak var delegate: (any MessagingBridgeDelegate)?
 
   private static let bindingsKey = "messaging_conversation_threads"
@@ -407,21 +405,12 @@ final class MessagingBridge {
     channels[key.platform]?.send(text, to: key.id)
   }
 
-  /// Publishes which thread each chat is in, and saves it.
+  /// Saves which thread each chat is in.
   private func updateBindings() {
     var bindings = [String: String]()
-    var chatThreads = [MessagingThreadReference: MessagingPlatform]()
-    // Sorted, so a thread two chats share (as before each chat kept one thread) always shows the
-    // same app.
-    for (key, conversation) in conversations.sorted(by: { $0.key.storageKey < $1.key.storageKey }) {
+    for (key, conversation) in conversations {
       guard let thread = conversation.thread else { continue }
       bindings[key.storageKey] = "\(thread.projectPath)\n\(thread.threadId)"
-      if chatThreads[thread] == nil {
-        chatThreads[thread] = key.platform
-      }
-    }
-    if chatThreads != self.chatThreads.value {
-      self.chatThreads.send(chatThreads)
     }
     guard bindings != workspace.dictionary[Self.bindingsKey, [String: String].self] ?? [:] else {
       return
