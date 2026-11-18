@@ -484,9 +484,10 @@ public struct GLM5_3TextGenerator: TextGenerator {
     if !storage.isVisionLoaded {
       vision.compile(image.grid, inputs: inputs)
       let result = try? graph.openStore(filePath, flags: .readOnly) { store in
+        // Read, not mapped: while experts stream, the text model maps only its resident prefix, and
+        // a whole-file read would map the complete file for the tower.
         try store.read(
-          "vision_model", model: vision, strict: true,
-          codec: [.jit, .i8x, .ezm7, .externalData(.wholeFile)])
+          "vision_model", model: vision, strict: true, codec: [.jit, .i8x, .ezm7, .externalData])
       }
       guard let result, (try? result.get()) != nil else { return nil }
       storage.isVisionLoaded = true

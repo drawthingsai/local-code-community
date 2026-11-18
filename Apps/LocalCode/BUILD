@@ -25,6 +25,7 @@ exports_files([
     "Sources/Models/GLM5_3ContextCache.swift",
     "Sources/Models/GLM5_3Image.swift",
     "Sources/Models/GLM5_3TextGenerator.swift",
+    "Sources/Models/Inkling2SmallContextCache.swift",
     "Sources/Models/Inkling2SmallImage.swift",
     "Sources/Models/Inkling2SmallTextGenerator.swift",
 ])
@@ -717,6 +718,26 @@ swift_test(
         "//Libraries/DataModels",
         "//Libraries/ProjectHistoryManager",
         "//Libraries/SwiftDiffusion",
+        "//Libraries/SwiftLLM",
+        "//Libraries/Tokenizer",
+        "@s4nnc//nnc",
+    ],
+)
+
+swift_test(
+    name = "Inkling2SmallContextCacheTests",
+    srcs = [
+        "Sources/Agent/DeepSeekTextGenerator.swift",
+        "Sources/Agent/TextGenerator.swift",
+        "Sources/Models/ContextCache.swift",
+        "Sources/Models/Inkling2SmallContextCache.swift",
+        "Sources/Models/Inkling2SmallImage.swift",
+        "Sources/Models/Inkling2SmallTextGenerator.swift",
+    ] + glob(["Tests/Inkling2SmallContextCacheTests/**/*.swift"]),
+    deps = [
+        "//Libraries/BinaryResources",
+        "//Libraries/DataModels",
+        "//Libraries/ProjectHistoryManager",
         "//Libraries/SwiftLLM",
         "//Libraries/Tokenizer",
         "@s4nnc//nnc",

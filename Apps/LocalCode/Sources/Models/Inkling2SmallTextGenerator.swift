@@ -118,6 +118,9 @@ public struct Inkling2SmallTextGenerator {
     // Rows of the sliding-window caches, which move their window back to the start when full.
     var slidingTokenLength = 0
     var layers = [Layer]()
+    /// An image that could not load left its placeholder rows here, so checkpoints would store rows
+    /// that do not match the image their hash names.
+    var hasPaddedImages = false
 
     public init() {}
 
@@ -299,6 +302,12 @@ extension Inkling2SmallTextGenerator {
     (weightsStreaming ?? DeviceCapability.weightsStreaming).residentSizeForInkling2Small
   }
 
+  /// Checkpoints land on whole prefill chunks: the chunk length rounded down to a multiple of
+  /// 4,096 tokens, and at least 4,096, so they share the context cache's fixed slices.
+  public var checkpointStride: Int {
+    max(Inkling2SmallContextCache.checkpointStorageStride, chunkedPrefillMaxLength / 4_096 * 4_096)
+  }
+
   /// Rows a sliding-window cache holds: its window and a page of rows, so the window moves back
   /// to the start only once a page.
   private var slidingCacheCapacity: Int {
@@ -329,9 +338,10 @@ extension Inkling2SmallTextGenerator {
     if !storage.isVisionLoaded {
       vision.compile(image.grid, inputs: inputs)
       let result = try? graph.openStore(filePath, flags: .readOnly) { store in
+        // Read, not mapped: while experts stream, the text model maps only its resident prefix, and
+        // a whole-file read would map the complete file for the tower.
         try store.read(
-          "vision_model", model: vision, strict: true,
-          codec: [.jit, .i8x, .ezm7, .externalData(.wholeFile)])
+          "vision_model", model: vision, strict: true, codec: [.jit, .i8x, .ezm7, .externalData])
       }
       guard let result, (try? result.get()) != nil else { return nil }
       storage.isVisionLoaded = true
@@ -344,11 +354,13 @@ extension Inkling2SmallTextGenerator {
   /// Pause retains one pending prediction; abort returns only evaluated tokens. A context that ends
   /// in end of sentence, such as a pending one a pause returned, is evaluated and generates nothing.
   /// `embedSpans` place images, files in `projectPath`'s EmbedsFileStore, over their placeholder
-  /// rows of `contextTokens`; an image that cannot load keeps its placeholder rows.
+  /// rows of `contextTokens`; an image that cannot load keeps its placeholder rows. An empty
+  /// `kvCache` restores what `contextCache` holds of the context, and checkpoints save to it.
   public mutating func decode(
     graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
     thinkingBudget: Int, deterministic: Bool = true, kvCache: inout KVCache,
-    contextTokens: [Int32], embedSpans: [EmbedSpan] = [], projectPath: String? = nil,
+    contextTokens: [Int32], contextCache: Inkling2SmallContextCache,
+    embedSpans: [EmbedSpan] = [], projectPath: String? = nil,
     continuationHandler: (Int, Int, [Int32], DeepSeekGenerationStatistics) ->
       DeepSeekGenerationContinuationState
   ) -> [Int32] {
@@ -374,6 +386,7 @@ extension Inkling2SmallTextGenerator {
     } else if kvCache.tokenLength != tokenOffset {
       return []
     }
+    let shouldRestore = kvCache.layers.isEmpty
     let window = configuration.slidingWindow - 1
     let slidingCapacity = slidingCacheCapacity
     let initialCacheTokenLength = min(totalPrefillLength + 1, Self.maximumContextLength)
@@ -384,6 +397,24 @@ extension Inkling2SmallTextGenerator {
     Self.resizeCaches(
       graph: graph, kvCache: &kvCache, cacheCapacity: cacheCapacity,
       slidingCapacity: slidingCapacity, configuration: configuration)
+    var hasher = ContextCachePrefixHasher(modelFilePath: filePath)
+    let restoredTokenLength =
+      shouldRestore
+      ? contextCache.restore(
+        graph: graph, tokens: contextTokens, configuration: configuration, kvCache: &kvCache,
+        hasher: &hasher, embeddingSpans: embedSpans) : 0
+    let checkpointStride = contextCache.checkpointStride
+    // Saves the snapshot when the cache reaches a checkpoint. During decode, the context so far is
+    // `contextTokens` and `generated`, once the fed token is appended to it.
+    func saveCheckpoint(generated: [Int32] = []) {
+      guard !kvCache.hasPaddedImages, kvCache.tokenLength.isMultiple(of: checkpointStride),
+        contextTokens.count + generated.count >= kvCache.tokenLength
+      else { return }
+      contextCache.save(
+        graph: graph, tokens: contextTokens + generated, checkpointLength: kvCache.tokenLength,
+        configuration: configuration, kvCache: kvCache, hasher: &hasher,
+        embeddingSpans: embedSpans)
+    }
     let emptyTokens = graph.variable(.GPU(0), format: .NHWC, shape: [0], of: Int32.self)
     let emptyInjected = graph.variable(.GPU(0), format: .NHWC, shape: [0], of: Float16.self)
 
@@ -564,14 +595,18 @@ extension Inkling2SmallTextGenerator {
     var shouldCompilePrefillHeadroom = false
 
     var prefillTokenCPU: DynamicGraph.Tensor<Int32>?
-    var prefillChunkStart = 0
+    // A restore needs an empty cache, so the context starts at 0 and one token stays to prefill.
+    var prefillChunkStart = restoredTokenLength
     let initialPrefillDurationSoFar =
       recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar
     let prefillStartTime = CACurrentMediaTime()
     while prefillChunkStart < tokenLength {
       let start = prefillChunkStart
       let position = tokenOffset + start
-      var end = position + min(chunkedPrefillMaxLength, tokenLength - start)
+      // A chunk never crosses a checkpoint.
+      let nextCheckpoint = (position / checkpointStride + 1) * checkpointStride
+      var end =
+        position + min(chunkedPrefillMaxLength, tokenLength - start, nextCheckpoint - position)
       encodeImages(overlapping: position..<end)
       // A chunk holds at most one image, with text rows before and after it, the order
       // Inkling2SmallCausalLM takes, so it ends where the next image starts. Unavailable images
@@ -580,6 +615,11 @@ extension Inkling2SmallTextGenerator {
         Int($0.start) < end && Int($0.end) > position && encodedImages[$0.digest] != nil
       }.sorted { $0.start < $1.start }
       if images.count > 1 { end = Int(images[1].start) }
+      if embedSpans.contains(where: {
+        Int($0.start) < end && Int($0.end) > position && unavailableImages.contains($0.digest)
+      }) {
+        kvCache.hasPaddedImages = true
+      }
       var textEnd = end
       var postStart = end
       var injected = emptyInjected
@@ -625,6 +665,7 @@ extension Inkling2SmallTextGenerator {
         shouldCompilePrefillHeadroom = true
       }
       advance(by: length)
+      saveCheckpoint()
       if start + length == tokenLength {
         prefillTokenCPU = sample(
           prefillOutputs[0].as(of: Float16.self), thinking: thinkingBudget > 0
@@ -715,12 +756,15 @@ extension Inkling2SmallTextGenerator {
           ).copied()))
       let logits = decodeOutputs[0].as(of: Float16.self)
       advance(by: 1)
+      // The first step feeds the token prefill picked, which `generated` already holds.
+      saveCheckpoint(generated: generated)
       recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
         Float(CACurrentMediaTime() - tokenGenerationStartTime)
         + initialTokenGenerationDurationSoFar
       if decodeIndex > 0 {
         let decodedToken = oldDecodedTokenCPU[0]
         generated.append(decodedToken)
+        saveCheckpoint(generated: generated)
         recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
         if decodedToken == Self.endThinkToken {
           thinkingEnded = true
@@ -764,7 +808,7 @@ extension Inkling2SmallTextGenerator {
 
   /// Full-attention caches hold `cacheCapacity` rows and grow by copying; sliding-window caches and
   /// convolution rows keep their size.
-  private static func resizeCaches(
+  static func resizeCaches(
     graph: DynamicGraph, kvCache: inout KVCache, cacheCapacity: Int, slidingCapacity: Int,
     configuration: Inkling2SmallConfiguration
   ) {
