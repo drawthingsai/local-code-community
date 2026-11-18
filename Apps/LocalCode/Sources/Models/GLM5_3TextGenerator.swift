@@ -818,6 +818,12 @@ public struct GLM5_3TextGenerator: TextGenerator {
     // A drafting load gives the drafter the target rows of the window before the pending token.
     let firstTarget = max(0, totalLength - window)
     var pendingToken: DynamicGraph.Tensor<Int32>?
+    // A chunk with image rows does not fit the tensor arena compilePrefill reserved, so ccv plans
+    // one for that chunk alone, which a text chunk or decode at a longer cache then outgrows and
+    // plans again (1.6 s at decode, then 0.7 s at the next turn's prefill). Restore the
+    // reservation once, at the first text-only chunk after image chunks or at the end of
+    // prefill, after the queued reads of the old arena finish.
+    var shouldCompilePrefill = false
     var chunkStart = prefillStart
     let prefillStartTime = CACurrentMediaTime()
     let initialPrefillDuration = recentInteractionStatistics[statisticsIndex].prefillDurationSoFar
@@ -848,6 +854,11 @@ public struct GLM5_3TextGenerator: TextGenerator {
       }) {
         kvCache.hasPaddedImages = true
       }
+      if images.isEmpty && shouldCompilePrefill {
+        graph.joined()
+        compilePrefill(isEager: true)
+        shouldCompilePrefill = false
+      }
       let length = end - position
       let flags = DynamicGraph.flags
       // Partial chunks would otherwise specialize every GEMM on a new M.
@@ -872,6 +883,9 @@ public struct GLM5_3TextGenerator: TextGenerator {
         inputs: textTokens,
         [injected, postTokens] + Self.cacheInputs(kvCache, cached: position, count: length))
       DynamicGraph.flags = flags
+      if !images.isEmpty {
+        shouldCompilePrefill = true
+      }
       Self.keepStates(&kvCache)
       if targetRows > 0 {
         extendDraftData(
@@ -881,6 +895,11 @@ public struct GLM5_3TextGenerator: TextGenerator {
       chunkStart += length
       if chunkStart == tokenLength {
         pendingToken = forcingThinkingEnd(select(outputs[0].as(of: Float16.self)))
+        if shouldCompilePrefill {
+          graph.joined()
+          compilePrefill(isEager: true)
+          shouldCompilePrefill = false
+        }
       }
       if !kvCache.hasPaddedImages, kvCache.tokenLength.isMultiple(of: checkpointStride) {
         contextCache.save(
