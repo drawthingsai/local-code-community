@@ -180,8 +180,9 @@ final class KitSectionsController {
     configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
     configuration.baseForegroundColor = Theme.current.primaryContentColor
     configuration.background.cornerRadius = Theme.current.itemCornerRadius
-    configuration.image = #imageLiteral(resourceName: "plus-large").withTintColor(
-      Theme.current.primaryContentColor)
+    // A template image follows the foreground color, so UIKit grays it out while disabled.
+    configuration.image = #imageLiteral(resourceName: "plus-large").withRenderingMode(
+      .alwaysTemplate)
     button.configuration = configuration
     button.accessibilityLabel = LocalizedString.forKey("add_a_folder")
     button.isEnabled = isPermitEnabled

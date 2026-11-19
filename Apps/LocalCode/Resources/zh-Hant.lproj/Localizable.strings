@@ -2540,6 +2540,11 @@
 "use_local_code_storage" = "儲存在 Local Code 內";
 "choose_a_folder_on_disk_dot" = "選擇磁碟上的資料夾…";
 
+"permit_folder_access" = "允許存取資料夾";
+"grant" = "授權";
+"permitted_folders" = "已允許的資料夾";
+"permitted_folders_detail" = "列出您已允許存取的項目外資料夾。可用加號按鈕加入，或在 permit 指令請求存取時選擇。選擇「禁用」可暫停某個資料夾，或用減號按鈕將其移除。關閉「啟用」會暫停所有資料夾並阻擋新請求；清單會保留。";
+
 // Idle model unloading
 "unload_models_when_idle" = "閒置時卸載模型";
 "unload_models_when_idle_detail" = "在一段時間未使用後，卸載本機模型及其對話快取以釋放記憶體。模型在整個進行中的回合期間保持載入，包括等待工具執行或權限確認時。需要時會自動重新載入模型，下一次回應可能需要更長時間才能開始。";

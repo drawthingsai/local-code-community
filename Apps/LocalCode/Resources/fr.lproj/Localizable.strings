@@ -2565,6 +2565,11 @@
 "use_local_code_storage" = "Stocker dans Local Code";
 "choose_a_folder_on_disk_dot" = "Choisir un dossier sur le disque…";
 
+"permit_folder_access" = "Autoriser l’accès au dossier";
+"grant" = "Autoriser";
+"permitted_folders" = "Dossiers autorisés";
+"permitted_folders_detail" = "Répertorie les dossiers hors de votre projet auxquels vous avez autorisé l’accès. Ajoutez-en un avec le bouton plus, ou choisissez-le lorsque la commande permit demande l’accès. Choisissez « Désactivé » pour mettre un dossier en pause, ou utilisez le bouton moins pour le supprimer. Désactivez « Activer » pour tous les mettre en pause et bloquer les nouvelles demandes ; la liste est conservée.";
+
 // Idle model unloading
 "unload_models_when_idle" = "Décharger les modèles en cas d’inactivité";
 "unload_models_when_idle_detail" = "Libérez de la mémoire en déchargeant les modèles locaux et leurs caches de conversation après une période d’inactivité. Les modèles restent chargés pendant les tours actifs, y compris lors de l’attente d’outils ou d’autorisations. Ils sont rechargés automatiquement au besoin. La réponse suivante peut mettre plus de temps à démarrer.";

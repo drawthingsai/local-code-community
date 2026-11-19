@@ -2541,6 +2541,11 @@
 "use_local_code_storage" = "存储在 Local Code 内";
 "choose_a_folder_on_disk_dot" = "选择磁盘上的文件夹…";
 
+"permit_folder_access" = "允许访问文件夹";
+"grant" = "授权";
+"permitted_folders" = "已允许的文件夹";
+"permitted_folders_detail" = "列出您已允许访问的项目外文件夹。可用加号按钮添加，或在 permit 命令请求访问时选择。选择“禁用”可暂停某个文件夹，或用减号按钮将其移除。关闭“启用”会暂停所有文件夹并阻止新请求；列表会保留。";
+
 // Idle model unloading
 "unload_models_when_idle" = "空闲时卸载模型";
 "unload_models_when_idle_detail" = "在一段时间未使用后，卸载本地模型及其对话缓存以释放内存。模型在整个活动轮次期间保持加载，包括等待工具执行或权限确认时。需要时会自动重新加载模型，下一次响应可能需要更长时间才能开始。";

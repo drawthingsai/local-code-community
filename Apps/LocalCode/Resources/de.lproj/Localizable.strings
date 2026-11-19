@@ -2565,6 +2565,11 @@
 "use_local_code_storage" = "In Local Code speichern";
 "choose_a_folder_on_disk_dot" = "Ordner auf dem Datenträger wählen…";
 
+"permit_folder_access" = "Ordnerzugriff erlauben";
+"grant" = "Erlauben";
+"permitted_folders" = "Erlaubte Ordner";
+"permitted_folders_detail" = "Listet die Ordner außerhalb Ihres Projekts auf, auf die Sie den Zugriff erlaubt haben. Fügen Sie einen mit der Plustaste hinzu oder wählen Sie ihn aus, wenn der Befehl permit nach Zugriff fragt. Wählen Sie „Deaktiviert“, um einen Ordner zu pausieren, oder entfernen Sie ihn mit der Minustaste. Schalten Sie „Aktivieren“ aus, um alle zu pausieren und neue Anfragen zu blockieren; die Liste bleibt erhalten.";
+
 // Idle model unloading
 "unload_models_when_idle" = "Modelle bei Inaktivität entladen";
 "unload_models_when_idle_detail" = "Geben Sie Arbeitsspeicher frei, indem lokale Modelle und ihre Gesprächscaches nach einer Zeit der Inaktivität entladen werden. Während aktiver Anfragen bleiben Modelle geladen, auch beim Warten auf Werkzeuge oder Berechtigungen. Bei Bedarf werden Modelle automatisch erneut geladen. Die nächste Antwort kann länger auf sich warten lassen.";

@@ -2525,6 +2525,11 @@
 "use_local_code_storage" = "Guardar en Local Code";
 "choose_a_folder_on_disk_dot" = "Elegir una carpeta del disco…";
 
+"permit_folder_access" = "Permitir acceso a la carpeta";
+"grant" = "Autorizar";
+"permitted_folders" = "Carpetas permitidas";
+"permitted_folders_detail" = "Muestra las carpetas fuera de tu proyecto a las que has permitido el acceso. Añade una con el botón de más, o elígela cuando el comando permit pida acceso. Elige «Desactivado» para pausar una carpeta, o usa el botón de menos para quitarla. Desactiva «Habilitar» para pausarlas todas y bloquear nuevas solicitudes; la lista se conserva.";
+
 // Idle model unloading
 "unload_models_when_idle" = "Descargar modelos de la memoria al estar inactivos";
 "unload_models_when_idle_detail" = "Libera memoria descargando los modelos locales y sus cachés de conversación tras un período de inactividad. Los modelos permanecen cargados durante los turnos activos, incluso al esperar herramientas o permisos. Se vuelven a cargar automáticamente cuando se necesitan. La siguiente respuesta puede tardar más en comenzar.";

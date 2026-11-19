@@ -30,6 +30,9 @@ public final class UnifiedDocumentPickerController {
     get { picker.allowsMultipleSelection }
     set { picker.allowsMultipleSelection = newValue }
   }
+  /// The title of the AppKit folder panel's default button, in place of Open. UIKit's picker has
+  /// no such setting, so it keeps Open.
+  public var prompt: String?
 
   private let picker: UIDocumentPickerViewController
   private let responder = ObjCResponder()
@@ -137,7 +140,8 @@ public final class UnifiedDocumentPickerController {
           let beginSelector = NSSelectorFromString("beginWithCompletionHandler:")
           let selectors = [
             "setDirectoryURL:", "setCanChooseDirectories:", "setCanChooseFiles:",
-            "setCanCreateDirectories:", "setAllowsMultipleSelection:", "setTitle:", "URLs", "close",
+            "setCanCreateDirectories:", "setAllowsMultipleSelection:", "setTitle:", "setPrompt:",
+            "URLs", "close",
           ]
           guard panel.responds(to: beginSelector),
             selectors.allSatisfy({ panel.responds(to: NSSelectorFromString($0)) })
@@ -148,6 +152,7 @@ public final class UnifiedDocumentPickerController {
           panel.setValue(true, forKey: "canCreateDirectories")
           panel.setValue(allowsMultipleSelection, forKey: "allowsMultipleSelection")
           if let title { panel.setValue(title, forKey: "title") }
+          if let prompt { panel.setValue(prompt, forKey: "prompt") }
           if let directoryURL { panel.setValue(directoryURL, forKey: "directoryURL") }
           nativePanel = panel
           typealias Completion = @convention(block) (Int) -> Void

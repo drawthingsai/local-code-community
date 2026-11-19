@@ -183,6 +183,7 @@ extension ChatWorkflow {
     let request = interaction.begin(isUserInteraction: true)
     let picker = UnifiedDocumentPickerController(forOpeningContentTypes: [.folder])
     picker.title = title
+    picker.prompt = LocalizedString.forKey("grant")
     picker.directoryURL = directory
     picker.allowsMultipleSelection = false
     let responder = PermitDirectoryPickerResponder { [weak self] url in

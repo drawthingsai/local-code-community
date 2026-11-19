@@ -2839,6 +2839,7 @@
 "choose_a_folder_on_disk_dot" = "Choose a Folder on Disk…";
 
 "permit_folder_access" = "Allow Folder Access";
+"grant" = "Grant";
 "permitted_folders" = "Permitted Folders";
 "permitted_folders_detail" = "Lists the folders outside your project that you've allowed access to. Add one with the plus button, or choose it when the permit command asks for access. Choose Disabled to pause a folder, or use the minus button to remove it. Turn off Enable to pause them all and block new requests; the list is kept.";
 

@@ -2839,6 +2839,7 @@
 "choose_a_folder_on_disk_dot" = "Chọn thư mục trên ổ đĩa…";
 
 "permit_folder_access" = "Cho phép truy cập thư mục";
+"grant" = "Cấp quyền";
 "permitted_folders" = "Thư mục được cho phép";
 "permitted_folders_detail" = "Liệt kê các thư mục bên ngoài dự án mà bạn đã cho phép truy cập. Thêm thư mục bằng nút dấu cộng, hoặc chọn thư mục khi lệnh permit yêu cầu quyền truy cập. Chọn “Đã tắt” để tạm dừng một thư mục, hoặc dùng nút dấu trừ để gỡ bỏ thư mục đó. Tắt “Bật” để tạm dừng tất cả và chặn các yêu cầu mới; danh sách vẫn được giữ lại.";
 
