@@ -45,6 +45,12 @@ protocol ResponsesToolCallScanner {
   mutating func append(_ text: String)
   /// `output` with its tool calls, and any start of one still being written, taken out.
   func visibleText(in output: String) -> String
+  /// The output is over: what was held back as the possible start of a call is settled.
+  mutating func finish()
+}
+
+extension ResponsesToolCallScanner {
+  mutating func finish() {}
 }
 
 /// Splits generated tokens into thinking, text and tool calls as they arrive, holding back bytes
@@ -110,6 +116,7 @@ struct ResponsesOutputParser {
     think += thinkStreamer.finish()
     output += outputStreamer.finish()
     scanner.append(toolCallStreamer.finish())
+    scanner.finish()
   }
 }
 
@@ -125,6 +132,8 @@ func responsesModelAdapter(for textGenerator: any TextGenerator, projectPath: St
     return DeepSeekResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
   case let textGenerator as GLM5_3TextGenerator:
     return GLM5_3ResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
+  case let textGenerator as Inkling2SmallTextGenerator:
+    return Inkling2ResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
   default:
     return nil
   }
@@ -672,5 +681,161 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
 
   func resetCaches() {
     kvCache = GLM5_3TextGenerator.KVCache()
+  }
+}
+
+final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
+  private struct Scanner: ResponsesToolCallScanner {
+    var parser = Inkling2ToolCallParser()
+    /// After the opening of a reply without thinking, the model's message is already open.
+    init(isMessageOpen: Bool) {
+      if isMessageOpen {
+        parser.append(Inkling2ToolCallParser.modelMessageStart)
+      }
+    }
+    var toolCalls: [ToolCall] { parser.toolCalls }
+    // The model ends its turn after the calls it wants.
+    var didCompleteToolCalls: Bool { false }
+    mutating func append(_ text: String) { parser.append(text) }
+    // The parser reads the same output with its message markers, and keeps the text messages apart
+    // from the calls.
+    func visibleText(in output: String) -> String { parser.text }
+    // Text held back as the possible start of a marker turns out to be text.
+    mutating func finish() { parser.finish() }
+  }
+
+  private var textGenerator: Inkling2SmallTextGenerator
+  private let projectPath: String
+  private var kvCache = Inkling2SmallTextGenerator.KVCache()
+  var kvCacheTokenLength: Int { kvCache.tokenLength }
+  private(set) var restoredTokenLength: Int?
+
+  init(textGenerator: Inkling2SmallTextGenerator, projectPath: String) {
+    self.textGenerator = textGenerator
+    self.projectPath = projectPath
+  }
+
+  var filePath: String { textGenerator.filePath }
+  var maximumContextLength: Int { Inkling2CodeAgent.maximumContextLength }
+  var minimumGenerationReserve: Int { Inkling2CodeAgent.minimumGenerationReserve }
+  var isImageSupported: Bool { true }
+  // The generator reads the open thinking and its length from the generation.
+  var countsThinkingFromContext: Bool { true }
+
+  func prompt(
+    for request: ResponsesRequest, reasoningEffort: CodeAgentReasoningEffort, isThinking: Bool
+  ) -> ResponsesPrompt {
+    let systemTokens = tokenizeSystemPromptSections(
+      Self.systemSections(
+        instructions: request.instructions, tools: request.tools,
+        // As the agent does, which turns thinking off with an effort of 0.
+        reasoningEffort: isThinking ? Inkling2CodeAgent.ReasoningEffort(reasoningEffort) : .none),
+      unsafeTokenizer: Inkling2SmallTextGenerator.unsafeTokenizer,
+      safeTokenizer: Inkling2SmallTextGenerator.safeTokenizer)
+    let store = EmbedsFileStore(projectPath: projectPath)
+    var embedSpans = [EmbedSpan]()
+    // The agent's renderer keeps each turn's thinking and writes calls the way the model does.
+    let transcriptTokens = Inkling2CodeAgent.parse(request.transcript) { image, tokenOffset in
+      guard let digest = try? store.insert(data: image.data),
+        let count = Inkling2SmallTextGenerator.imageTokenCount(
+          filePath: store.filePath(for: digest))
+      else { return [] }
+      embedSpans.append(
+        EmbedSpan(
+          start: Int64(systemTokens.count + tokenOffset), length: Int64(count),
+          digest: Array(digest), kind: .image))
+      return Array(repeating: Inkling2CodeAgent.imageToken, count: count)
+    }
+    return ResponsesPrompt(
+      tokens: systemTokens + transcriptTokens + replyOpening(isThinking: isThinking),
+      embedSpans: embedSpans)
+  }
+
+  /// The template has no generation prompt, so the reply opens the model's message, as the other
+  /// models' openings do: its thinking message, or without thinking one the generator keeps from
+  /// thinking. Either way the prompt doesn't end on the end of an assistant turn it was given.
+  func replyOpening(isThinking: Bool) -> [Int32] {
+    isThinking
+      ? [Inkling2CodeAgent.modelMessageToken, Inkling2CodeAgent.thinkingContentToken]
+      : [Inkling2CodeAgent.modelMessageToken]
+  }
+
+  /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
+  /// The template declares the tools, then the system message, then states the effort.
+  static func systemSections(
+    instructions: String, tools: [ResponsesRequest.Tool],
+    reasoningEffort: Inkling2CodeAgent.ReasoningEffort
+  ) -> [SystemPromptSection] {
+    var sections = [SystemPromptSection]()
+    if !tools.isEmpty {
+      // As the template fills in each tool and writes the list with `tojson`.
+      let specs = tools.map {
+        [
+          "description": $0.description ?? "", "name": $0.name,
+          "parameters": $0.parameters ?? [:], "type": "function",
+        ] as [String: Any]
+      }
+      sections.append(("<|message_system|>tool_declare<|content_xml|>", true))
+      sections.append((Inkling2ToolCallParser.json(specs), false))
+      sections.append(("<|end_message|>", true))
+    }
+    if !instructions.isEmpty {
+      sections.append(("<|message_system|><|content_text|>", true))
+      sections.append((instructions, false))
+      sections.append(("<|end_message|>", true))
+    }
+    // Only the effort's own section has the placeholder, so that the client's text can't be taken
+    // for it.
+    return sections
+      + reasoningEffort.emitSections([
+        (
+          "<|message_system|><|content_text|>Thinking effort level: {{REASONING_EFFORT}}<|end_message|>",
+          true
+        )
+      ])
+  }
+
+  func makeOutputParser(isThinking: Bool) -> ResponsesOutputParser {
+    ResponsesOutputParser(
+      isThinking: isThinking, thinkEndToken: Inkling2CodeAgent.endMessageToken,
+      isTerminal: { [self] in
+        isTerminal($0)
+      }, safeTokenizer: Inkling2SmallTextGenerator.safeTokenizer,
+      unsafeTokenizer: Inkling2SmallTextGenerator.unsafeTokenizer, toolCallSpecialTokens: [:],
+      scanner: Scanner(isMessageOpen: !isThinking))
+  }
+
+  func isTerminal(_ token: Int32) -> Bool {
+    Inkling2CodeAgent.stopTokens.contains(token)
+  }
+
+  func decode(
+    graph: DynamicGraph, tokens: DynamicGraph.Tensor<Int32>, tokenOffset: Int,
+    contextTokens: [Int32], embedSpans: [EmbedSpan], thinkingBudget: Int, deterministic: Bool,
+    handler: (Int, Int, [Int32], CodeAgentStatistics) -> ContinuationState
+  ) -> [Int32] {
+    let contextCache = Inkling2SmallContextCache(
+      projectPath: projectPath, checkpointStride: textGenerator.checkpointStride)
+    defer { restoredTokenLength = contextCache.restoredTokenLength }
+    return textGenerator.decode(
+      graph: graph, tokens: tokens, tokenOffset: tokenOffset, thinkingBudget: thinkingBudget,
+      deterministic: deterministic, kvCache: &kvCache, contextTokens: contextTokens,
+      contextCache: contextCache, embedSpans: embedSpans, projectPath: projectPath
+    ) { prefillStart, prefillLength, generatedTokens, statistics in
+      DeepSeekGenerationContinuationState(
+        handler(
+          prefillStart, prefillLength, generatedTokens,
+          CodeAgentStatistics(
+            prefillDurationSoFar: statistics.prefillDurationSoFar,
+            prefillTokensSoFar: statistics.prefillTokensSoFar,
+            tokenGenerationDurationSoFar: statistics.tokenGenerationDurationSoFar,
+            tokenGeneratedSoFar: statistics.tokenGeneratedSoFar,
+            contextUsedTokens: contextTokens.count + generatedTokens.count,
+            contextWindowTokens: Inkling2CodeAgent.maximumContextLength)))
+    }
+  }
+
+  func resetCaches() {
+    kvCache = Inkling2SmallTextGenerator.KVCache()
   }
 }

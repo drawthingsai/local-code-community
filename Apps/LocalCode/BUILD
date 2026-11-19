@@ -1001,6 +1001,7 @@ swift_library(
         "Sources/LocalPathResolver.swift",
         "Sources/ModelSpeed/DeepSeek4Speedometer.swift",
         "Sources/ModelSpeed/GLM5_3Speedometer.swift",
+        "Sources/ModelSpeed/Inkling2Speedometer.swift",
         "Sources/ModelSpeed/Qwen3_5Speedometer.swift",
         "Sources/ModelSpeed/Speedometer.swift",
         "Sources/Models/ContextCache.swift",

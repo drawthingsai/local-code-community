@@ -227,7 +227,12 @@ final class Inkling2AgentTests: XCTestCase {
       phase.append(end)
       XCTAssertTrue(phase.isEnded)
       XCTAssertFalse(phase.shouldEndThinking)
-      // Resumed in an answer after thinking, or in one without it, it stays ended.
+      // Out of budget, the next message it opens can't be thinking.
+      XCTAssertFalse(phase.excludesThinking)
+      phase.append(model)
+      XCTAssertTrue(phase.excludesThinking)
+      // Resumed in an answer after thinking, or in one without it, it stays ended, and no message
+      // it opens next can think either.
       for answer in [
         [model, thinking, 106, end, model, Inkling2CodeAgent.textContentToken, 109],
         [model, Inkling2CodeAgent.textContentToken, 109],
@@ -235,13 +240,24 @@ final class Inkling2AgentTests: XCTestCase {
       ] {
         phase = Phase(budget: 3, contextTokens: context + answer)
         XCTAssertTrue(phase.isEnded)
+        XCTAssertFalse(phase.excludesThinking)
+        phase.append(end)
+        phase.append(model)
+        XCTAssertTrue(phase.excludesThinking)
         phase.append(thinking)
         XCTAssertFalse(phase.isThinking)
       }
+      // The first message a generation opens can think.
+      phase = Phase(budget: 3, contextTokens: context + [model])
+      XCTAssertFalse(phase.excludesThinking)
     }
-    // Without a budget nothing is thinking.
-    let phase = Phase(budget: 0, contextTokens: user + [model, thinking, 106])
+    // Without a budget nothing is thinking, and no message can be.
+    var phase = Phase(budget: 0, contextTokens: user)
     XCTAssertTrue(phase.isEnded)
+    XCTAssertFalse(phase.excludesThinking)
+    phase.append(model)
+    XCTAssertTrue(phase.excludesThinking)
+    phase = Phase(budget: 0, contextTokens: user + [model, thinking, 106])
     XCTAssertFalse(phase.shouldEndThinking)
   }
 

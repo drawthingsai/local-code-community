@@ -13,6 +13,9 @@ public final class Inkling2SmallContextCache: ContextCache {
   /// How often the generator saves a snapshot, a multiple of `checkpointStorageStride`.
   public let checkpointStride: Int
   private let storePath: String?
+  // Model Speed restores without saving, so checkpoint writes stay out of its timings.
+  private let isReadOnly: Bool
+  private let maximumRestoredTokenLength: Int
   /// How many tokens the latest restore brought back, or nil before any restore.
   public private(set) var restoredTokenLength: Int?
 
@@ -21,6 +24,19 @@ public final class Inkling2SmallContextCache: ContextCache {
       checkpointStride > 0 && checkpointStride.isMultiple(of: Self.checkpointStorageStride))
     self.checkpointStride = checkpointStride
     storePath = contextCacheStorePath(projectPath: projectPath)
+    isReadOnly = false
+    maximumRestoredTokenLength = .max
+  }
+
+  public init(
+    storePath: String, checkpointStride: Int, isReadOnly: Bool, maximumRestoredTokenLength: Int
+  ) {
+    precondition(
+      checkpointStride > 0 && checkpointStride.isMultiple(of: Self.checkpointStorageStride))
+    self.checkpointStride = checkpointStride
+    self.storePath = storePath
+    self.isReadOnly = isReadOnly
+    self.maximumRestoredTokenLength = maximumRestoredTokenLength
   }
 
   func saveSuspension(_ data: Data, threadId: Int64) {
@@ -71,7 +87,7 @@ public final class Inkling2SmallContextCache: ContextCache {
     else { return 0 }
     let result = graph.openStore(storePath, flags: .readOnly) { store -> Int in
       // At least one token stays to prefill, for the logits of the next.
-      let lastSegmentEnd = (tokens.count - 1) / stride * stride
+      let lastSegmentEnd = min(tokens.count - 1, maximumRestoredTokenLength) / stride * stride
       var segmentHasher = hasher
       var snapshot: (end: Int, key: String, hasher: ContextCachePrefixHasher)?
       for segmentEnd in Swift.stride(from: stride, through: lastSegmentEnd, by: stride) {
@@ -173,7 +189,7 @@ public final class Inkling2SmallContextCache: ContextCache {
   ) {
     let stride = Self.checkpointStorageStride
     let window = configuration.slidingWindow - 1
-    guard let storePath, checkpointLength > 0, checkpointLength.isMultiple(of: stride),
+    guard !isReadOnly, let storePath, checkpointLength > 0, checkpointLength.isMultiple(of: stride),
       checkpointLength <= tokens.count, checkpointLength == kvCache.tokenLength,
       kvCache.slidingTokenLength >= window, kvCache.layers.count == configuration.layers,
       hasher.hashedTokenCount.isMultiple(of: stride),

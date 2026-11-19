@@ -126,6 +126,45 @@ final class Inkling2SmallContextCacheTests: XCTestCase {
     XCTAssertEqual(cache.slidingTokenLength, 20)
   }
 
+  func testSpeedStoreRestoresUpToItsLimitAndSavesOnlyWhenWritable() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let storePath = directory.appendingPathComponent("speed_context_cache.sqlite3").path
+    let graph = DynamicGraph()
+    let tokens = (0..<12_289).map(Int32.init)
+    func save(_ length: Int, isReadOnly: Bool) {
+      var hasher = ContextCachePrefixHasher(modelFilePath: modelPath)
+      Inkling2SmallContextCache(
+        storePath: storePath, checkpointStride: 4096, isReadOnly: isReadOnly,
+        maximumRestoredTokenLength: .max
+      ).save(
+        graph: graph, tokens: tokens, checkpointLength: length, configuration: configuration,
+        kvCache: makeCache(graph, length: length, value: 1), hasher: &hasher)
+    }
+    func restore(limit: Int) -> Int {
+      var cache = makeCache(graph, length: 0, value: -5)
+      var hasher = ContextCachePrefixHasher(modelFilePath: modelPath)
+      return Inkling2SmallContextCache(
+        storePath: storePath, checkpointStride: 4096, isReadOnly: true,
+        maximumRestoredTokenLength: limit
+      ).restore(
+        graph: graph, tokens: tokens, configuration: configuration, kvCache: &cache,
+        hasher: &hasher)
+    }
+    // A read-only cache saves nothing.
+    save(4096, isReadOnly: true)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: storePath))
+    for length in [4096, 8192, 12_288] {
+      save(length, isReadOnly: false)
+    }
+    // Restoring stops at the latest checkpoint within the limit.
+    XCTAssertEqual(restore(limit: .max), 12_288)
+    XCTAssertEqual(restore(limit: 8192), 8192)
+    XCTAssertEqual(restore(limit: 8191), 4096)
+    XCTAssertEqual(restore(limit: 0), 0)
+  }
+
   func testSaveNeedsTheCheckpointAndAFullWindow() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }

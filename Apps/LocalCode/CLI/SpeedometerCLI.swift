@@ -63,9 +63,10 @@ struct SpeedometerCLI: ParsableCommand {
     }
     let specification = try specification()
     if weightsStreaming != nil, specification.version != .deepseek_4_flash,
-      specification.version != .deepseek_4_1_flash, specification.version != .glm_5_3_flash
+      specification.version != .deepseek_4_1_flash, specification.version != .glm_5_3_flash,
+      specification.version != .inkling_2_small
     {
-      throw ValidationError("--weights-streaming applies only to DeepSeek and GLM models.")
+      throw ValidationError("--weights-streaming applies only to DeepSeek, GLM and Inkling models.")
     }
   }
 
@@ -163,7 +164,14 @@ struct SpeedometerCLI: ParsableCommand {
         storePath: storePath, libraryURL: libraryURL, thinkingBudget: thinkingBudget,
         deterministic: deterministic)
     case .inkling_2_small:
-      throw ValidationError("Model Speed is not available for Inkling 2 Small yet.")
+      speedometer = Inkling2Speedometer(
+        textGenerator: Inkling2SmallTextGenerator(
+          filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
+          weightsStreaming: weightsStreaming.flatMap(
+            DeviceCapability.WeightsStreaming.init(rawValue:))),
+        contextLengths: contextLengths, graph: graph, streamContext: stream,
+        storePath: storePath, libraryURL: libraryURL, thinkingBudget: thinkingBudget,
+        deterministic: deterministic)
     case .deepseek_4_flash:
       speedometer = DeepSeek4Speedometer(
         textGenerator: DeepSeek4TextGenerator(
