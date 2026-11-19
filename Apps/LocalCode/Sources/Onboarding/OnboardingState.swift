@@ -6,7 +6,8 @@ struct OnboardingState {
   static let threadIdentifier: Int64 = -2
 
   /// The local models offered in onboarding: both DeepSeek variants and the one Qwen variant
-  /// that suits this much memory. The first is preselected.
+  /// that suits this much memory, then Inkling 2 Small. The first is preselected, which Inkling
+  /// never is.
   static func offeredLocalModels(physicalMemory: UInt64) -> [String] {
     let gibibyte: UInt64 = 1_024 * 1_024 * 1_024
     let deepSeek41 = "deepseek_4.1_flash_1017_i2x.ckpt"
@@ -15,12 +16,13 @@ struct OnboardingState {
     // 8-bit variant is never offered here; it is only in the model list.
     let qwen =
       physicalMemory >= 32 * gibibyte ? "qwen_3.8_27b_i4x.ckpt" : "qwen_3.8_27b_i2x.ckpt"
+    let inkling = "inkling_2_small_i2x.ckpt"
     if physicalMemory >= 96 * gibibyte {
-      return [deepSeek41, deepSeek4, qwen]
+      return [deepSeek41, deepSeek4, qwen, inkling]
     } else if physicalMemory >= 64 * gibibyte {
-      return [deepSeek4, deepSeek41, qwen]
+      return [deepSeek4, deepSeek41, qwen, inkling]
     }
-    return [qwen, deepSeek41, deepSeek4]
+    return [qwen, deepSeek41, deepSeek4, inkling]
   }
 
   enum Step: Int, CaseIterable {

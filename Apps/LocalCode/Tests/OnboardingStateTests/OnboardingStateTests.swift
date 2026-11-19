@@ -8,26 +8,28 @@ final class OnboardingStateTests: XCTestCase {
     let qwen4 = "qwen_3.8_27b_i4x.ckpt"
     let deepSeek4 = "deepseek_4_flash_0731_i2x.ckpt"
     let deepSeek41 = "deepseek_4.1_flash_1017_i2x.ckpt"
-    // Both DeepSeek variants are always offered; only the preselected first entry changes.
+    let inkling = "inkling_2_small_i2x.ckpt"
+    // Both DeepSeek variants are always offered, and Inkling last, never preselected; only the
+    // preselected first entry changes.
     for memory in [8, 16, 18, 24] {
       XCTAssertEqual(
         OnboardingState.offeredLocalModels(physicalMemory: UInt64(memory) * gibibyte),
-        [qwen2, deepSeek41, deepSeek4])
+        [qwen2, deepSeek41, deepSeek4, inkling])
     }
     for memory in [32, 36, 48] {
       XCTAssertEqual(
         OnboardingState.offeredLocalModels(physicalMemory: UInt64(memory) * gibibyte),
-        [qwen4, deepSeek41, deepSeek4])
+        [qwen4, deepSeek41, deepSeek4, inkling])
     }
     for memory in [64, 72] {
       XCTAssertEqual(
         OnboardingState.offeredLocalModels(physicalMemory: UInt64(memory) * gibibyte),
-        [deepSeek4, deepSeek41, qwen4])
+        [deepSeek4, deepSeek41, qwen4, inkling])
     }
     for memory in [96, 128, 256] {
       XCTAssertEqual(
         OnboardingState.offeredLocalModels(physicalMemory: UInt64(memory) * gibibyte),
-        [deepSeek41, deepSeek4, qwen4])
+        [deepSeek41, deepSeek4, qwen4, inkling])
     }
     XCTAssertEqual(
       OnboardingState.offeredLocalModels(physicalMemory: 32 * gibibyte - 1).first, qwen2)

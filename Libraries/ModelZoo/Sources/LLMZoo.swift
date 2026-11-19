@@ -98,7 +98,7 @@ public struct LLMZoo: DownloadZoo {
       name: "Inkling 2 Small (2-bit S)", file: "inkling_2_small_i2x.ckpt",
       version: .inkling_2_small, huggingFaceLink: "thinkingmachines/Inkling-2-Small",
       note:
-        "A general-purpose model that understands images. Built for agentic coding and tool use."
+        "A new general-purpose model from Thinking Machines Lab, made in the U.S. Excels at understanding images, and strong at search, tool use and knowledge work."
     ),
     Specification(
       name: "GLM 5.3 Flash (2-bit S)", file: "glm_5.3_flash_i2x.ckpt",

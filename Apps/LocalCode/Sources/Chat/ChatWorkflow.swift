@@ -842,7 +842,11 @@ final class ChatWorkflow: Workflow {
     case .glm_5_3_flash:
       // The Z.ai mark is a flat dark glyph; template rendering keeps it visible in dark mode.
       return #imageLiteral(resourceName: "zai-20").withRenderingMode(.alwaysTemplate)
-    case .inkling_2_small, nil:
+    case .inkling_2_small:
+      // Thinking Machines' mark is a flat dark square; template rendering keeps it visible in dark
+      // mode, as for Z.ai's.
+      return #imageLiteral(resourceName: "thinkingmachines-20").withRenderingMode(.alwaysTemplate)
+    case nil:
       return #imageLiteral(resourceName: "cube").withRenderingMode(.alwaysTemplate)
     }
   }
