@@ -1,16 +1,23 @@
 {
-  "images": [
+  "images" : [
     {
-      "filename": "folder-filled-24.svg",
-      "idiom": "universal"
+      "filename" : "folder-filled-24.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "folder-filled-24@2x.png",
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "folder-filled-24@3x.png",
+      "idiom" : "universal",
+      "scale" : "3x"
     }
   ],
-  "info": {
-    "author": "xcode",
-    "version": 1
-  },
-  "properties": {
-    "preserves-vector-representation": true,
-    "template-rendering-intent": "template"
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
   }
 }
