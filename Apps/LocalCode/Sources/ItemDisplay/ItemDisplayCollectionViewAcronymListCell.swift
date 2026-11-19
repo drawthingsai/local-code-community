@@ -8,14 +8,12 @@ protocol ItemDisplayCollectionViewAcronymListCellDelegate: AnyObject {
 
 final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
   weak var delegate: ItemDisplayCollectionViewAcronymListCellDelegate? = nil
-  /// Rows in the glass popover sit closer to their icon, end titles with an ellipsis, and ring
-  /// the selection in a border color.
+  /// Rows in the glass popover sit closer to their icon and end titles with an ellipsis.
   var usesGlass = false {
     didSet {
       guard usesGlass != oldValue else { return }
       titleLabel.lineBreakMode = usesGlass ? .byTruncatingTail : .byTruncatingMiddle
       titleLeadingConstraint?.update(offset: usesGlass ? 10 : 12)
-      setNeedsUpdateConfiguration()
     }
   }
 
@@ -79,6 +77,8 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     return view
   }()
   private var itemIdentifier: ItemViewModel.ItemIdentifier = .empty
+  /// The tile's color when the row is not selected.
+  private var tileBackgroundColor: UIColor = .clear
   private var placeholderTopConstraint: Constraint?
   private var titleLeadingConstraint: Constraint?
   private var imageSizeConstraint: Constraint?
@@ -90,7 +90,6 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     self.backgroundConfiguration = backgroundConfiguration
     let backgroundView = UIView(frame: .zero)
     backgroundView.layer.cornerRadius = 10
-    backgroundView.layer.borderWidth = 2.0
     contentView.addSubview(separatorView)
     contentView.addSubview(backgroundView)
     contentView.addSubview(titleLabel)
@@ -99,7 +98,7 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     detailStack.addArrangedSubview(detailLabel)
     detailStack.addArrangedSubview(captionLabel)
 
-    // The icon and its selection ring keep the compact row's size when details make the row taller.
+    // The icon keeps the compact row's position when details make the row taller.
     acronymImagePlaceholder.snp.makeConstraints { make in
       placeholderTopConstraint = make.top.equalToSuperview().offset(4).constraint
       make.leading.equalToSuperview().offset(4)
@@ -111,20 +110,24 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
       make.leading.trailing.equalToSuperview().inset(12)
       make.height.equalTo(0.5)
     }
+    // The selection fills the row from 4pt around the icon, so its corners stay concentric with
+    // the tile's. A row that starts a group keeps its separator outside the fill.
     backgroundView.snp.makeConstraints { make in
-      make.edges.equalTo(acronymImagePlaceholder).inset(-4)
+      make.top.leading.equalTo(acronymImagePlaceholder).offset(-4)
+      make.trailing.bottom.equalToSuperview()
     }
+    // Text ends 12pt short of the fill's trailing edge.
     titleLabel.snp.makeConstraints { make in
       make.centerY.equalTo(acronymImagePlaceholder.snp.centerY)
       titleLeadingConstraint =
         make.leading.equalTo(acronymImagePlaceholder.snp.trailing).offset(12).constraint
-      make.trailing.lessThanOrEqualToSuperview().offset(-4)
+      make.trailing.lessThanOrEqualToSuperview().offset(-12)
       make.height.equalTo(20)
     }
     detailStack.snp.makeConstraints { make in
       make.top.equalTo(titleLabel.snp.bottom).offset(Self.detailTopSpacing)
       make.leading.equalTo(titleLabel)
-      make.trailing.equalToSuperview().offset(-4)
+      make.trailing.equalToSuperview().offset(-12)
     }
 
     contentView.addSubview(acronymImageView)
@@ -141,13 +144,13 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     trashButton.isHidden = true
 
     self.configurationUpdateHandler = { cell, state in
-      if state.isSelected || state.isHighlighted {
-        let usesGlass = (cell as? ItemDisplayCollectionViewAcronymListCell)?.usesGlass == true
-        backgroundView.layer.borderColor =
-          (usesGlass ? UIColor.quaternaryBorder : UIColor.senaryText).cgColor
-      } else {
-        backgroundView.layer.borderColor = UIColor.clear.cgColor
-      }
+      guard let cell = cell as? ItemDisplayCollectionViewAcronymListCell else { return }
+      let isFilled = state.isSelected || state.isHighlighted
+      backgroundView.backgroundColor = isFilled ? .quinaryBackground : .clear
+      // In dark mode the fill is the same gray as the tiles, so a filled row's tile takes the
+      // field color to stay visible.
+      cell.acronymImagePlaceholder.backgroundColor =
+        isFilled ? .tertiaryBackground : cell.tileBackgroundColor
     }
     acronymImagePlaceholder.layer.cornerRadius = 6
     acronymImagePlaceholder.clipsToBounds = true
@@ -178,7 +181,8 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
     }
     itemIdentifier = viewModel.itemIdentifier
     trashButton.isHidden = !viewModel.canDelete
-    acronymImagePlaceholder.backgroundColor = viewModel.backgroundColor
+    tileBackgroundColor = viewModel.backgroundColor
+    setNeedsUpdateConfiguration()
     acronymImageView.tintColor = viewModel.thumbnailTintColor ?? .senaryText
     imageSizeConstraint?.update(offset: viewModel.thumbnailSize)
     // Rebinding would otherwise add a handler each time the cell is reused.
@@ -233,7 +237,7 @@ final class ItemDisplayCollectionViewAcronymListCell: UICollectionViewCell {
   static func detailedHeight(for viewModel: ItemAcronymViewModel, width: CGFloat) -> CGFloat? {
     guard !viewModel.detail.isEmpty || !viewModel.caption.isEmpty else { return nil }
     // Icon, its leading inset and gap, and the trailing inset, as laid out in init.
-    let textWidth = width - 4 - 24 - 12 - 4
+    let textWidth = width - 4 - 24 - 12 - 12
     let font = UIFont.systemFont(ofSize: 12 * FontMetrics.default.size.rawValue)
     let attributes: [NSAttributedString.Key: Any] = [
       .font: font, .paragraphStyle: detailParagraphStyle(font: font),

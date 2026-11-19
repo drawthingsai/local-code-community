@@ -39,8 +39,9 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
   let searchFieldTopSpacing: CGFloat
   let searchFieldHeight: CGFloat
   let listTopSpacing: CGFloat
-  /// Clears the popover's rounded bottom corners.
-  let bottomInset: CGFloat = 16
+  /// The space below the last row, the same as the list's side insets so a selected last row's
+  /// fill sits evenly in the popover's bottom corners.
+  let bottomInset: CGFloat
   private var items: [ItemDisplaySectionModel] = []
   private var displayingItems: [ItemDisplaySectionModel] = []
   private var isListView: Bool = true
@@ -65,11 +66,13 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
       searchFieldTopSpacing = 12
       searchFieldHeight = 36
       listTopSpacing = 16
+      bottomInset = 12
     } else {
       headerHeight = 39
       searchFieldTopSpacing = 7
       searchFieldHeight = 32
       listTopSpacing = 9
+      bottomInset = 8
     }
     super.init(nibName: nil, bundle: nil)
   }
@@ -510,7 +513,7 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     view.addSubview(collectionView)
     collectionView.snp.makeConstraints { make in
       make.top.equalTo(searchFieldBackground.snp.bottom).offset(listTopSpacing)
-      // The glass rows' icons sit 16pt in, inside their 4pt selection rings.
+      // The glass rows' icons sit 16pt in, 4pt inside their selection fill.
       make.leading.trailing.equalToSuperview().inset(usesGlass ? 12 : 8)
       make.bottom.equalToSuperview()
     }
