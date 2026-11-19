@@ -161,6 +161,7 @@ final class SettingsWorkflow: Workflow {
   private weak var drawThingsModelsFolderPicker: UnifiedDocumentPickerController?
   private weak var modelsFolderPicker: UnifiedDocumentPickerController?
   private weak var appDataDirectoryPicker: UnifiedDocumentPickerController?
+  private weak var permittedDirectoryPicker: UnifiedDocumentPickerController?
   private var communityTemplateWorkflow: CommunityTemplateWorkflow?
   /// The folder `appDataDirectoryPicker` asks for.
   private var requestedAppDataDirectory = AppDataDirectory.messages
@@ -2469,6 +2470,15 @@ extension SettingsWorkflow: KitSectionsControllerDelegate {
     permittedDirectories.revoke(path)
   }
 
+  func kitSectionsControllerDidSelectAddDirectory(_ controller: KitSectionsController) {
+    let documentPicker = UnifiedDocumentPickerController(forOpeningContentTypes: [.folder])
+    documentPicker.title = LocalizedString.forKey("permit_folder_access")
+    documentPicker.allowsMultipleSelection = true
+    documentPicker.delegate = self
+    permittedDirectoryPicker = documentPicker
+    viewController.present(documentPicker, animated: true)
+  }
+
   func kitSectionsController(
     _ controller: KitSectionsController, didSelectPermission permission: PermissionState,
     for directory: AppDataDirectory
@@ -2625,6 +2635,19 @@ extension SettingsWorkflow: UnifiedDocumentPickerControllerDelegate {
   func documentPicker(_ controller: UnifiedDocumentPickerController, didPickDocumentsAt urls: [URL])
   {
     dispatchPrecondition(condition: .onQueue(.main))
+    if controller === permittedDirectoryPicker {
+      permittedDirectoryPicker = nil
+      for url in urls {
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        // Choosing a folder here is as explicit as re-enabling it, so a saved folder that was
+        // set to Disabled comes back on instead of being refused.
+        permittedDirectories.setEnabled(
+          true, for: url.standardizedFileURL.resolvingSymlinksInPath().path)
+        try? permittedDirectories.add(url)
+      }
+      return
+    }
     guard let url = urls.first else { return }
     guard url.startAccessingSecurityScopedResource() else { return }
     defer { url.stopAccessingSecurityScopedResource() }

@@ -2840,7 +2840,7 @@
 
 "permit_folder_access" = "Allow Folder Access";
 "permitted_folders" = "Permitted Folders";
-"permitted_folders_detail" = "Lists the folders outside your project that you chose when the permit command asked for access. Choose Disabled to pause a folder, or use the minus button to remove it. Turn off Enable to pause them all and block new requests; the list is kept.";
+"permitted_folders_detail" = "Lists the folders outside your project that you've allowed access to. Add one with the plus button, or choose it when the permit command asks for access. Choose Disabled to pause a folder, or use the minus button to remove it. Turn off Enable to pause them all and block new requests; the list is kept.";
 
 // Idle model unloading
 "unload_models_when_idle" = "Unload Models When Idle";
@@ -3077,6 +3077,7 @@
 "reload" = "Reload";
 "no_open_tabs" = "No open tabs.";
 "open_a_tab" = "Open a tab";
+"add_a_folder" = "Add a folder";
 "activities" = "Activities";
 "browser_tabs" = "Browser Tabs";
 "browser_tabs_detail" = "Tabs that agents open with web-browse-cli, this thread's first. Open one to see and use it. The minus button closes it and stops any command still using it.";

@@ -50,6 +50,7 @@ protocol KitSectionsControllerDelegate: AnyObject {
   func kitSectionsController(
     _ controller: KitSectionsController, didSetDirectoryEnabled value: Bool, path: String)
   func kitSectionsController(_ controller: KitSectionsController, didRemoveDirectory path: String)
+  func kitSectionsControllerDidSelectAddDirectory(_ controller: KitSectionsController)
   func kitSectionsController(
     _ controller: KitSectionsController, didSelectPermission permission: PermissionState,
     for directory: AppDataDirectory)
@@ -95,6 +96,7 @@ final class KitSectionsController {
   var isPermitEnabled = true {
     didSet {
       guard isPermitEnabled != oldValue else { return }
+      addDirectoryButton.isEnabled = isPermitEnabled
       updateKitSections()
     }
   }
@@ -169,6 +171,29 @@ final class KitSectionsController {
     stackView.alignment = .fill
     stackView.spacing = Theme.current.individualStackViewItemSpacing
     return stackView
+  }()
+  /// Ends Permitted Folders' title row and asks the user for a folder to permit. While Enable is
+  /// off, permitting is blocked, so the button is too.
+  private lazy var addDirectoryButton: UIButton = {
+    let button = UIButton(type: .custom)
+    var configuration = UIButton.Configuration.filled()
+    configuration.baseBackgroundColor = Theme.current.primaryContentBackgroundColor
+    configuration.baseForegroundColor = Theme.current.primaryContentColor
+    configuration.background.cornerRadius = Theme.current.itemCornerRadius
+    configuration.image = #imageLiteral(resourceName: "plus-large").withTintColor(
+      Theme.current.primaryContentColor)
+    button.configuration = configuration
+    button.accessibilityLabel = LocalizedString.forKey("add_a_folder")
+    button.isEnabled = isPermitEnabled
+    button.addAction(
+      UIAction { [weak self] _ in
+        guard let self else { return }
+        self.delegate?.kitSectionsControllerDidSelectAddDirectory(self)
+      }, for: .touchUpInside)
+    button.snp.makeConstraints { make in
+      make.size.equalTo(Theme.current.buttonHeight)
+    }
+    return button
   }()
 
   init(workspace: SQLiteWorkspace) {
@@ -422,7 +447,8 @@ final class KitSectionsController {
         directories,
       ], title: LocalizedString.forKey("permitted_folders"),
       detail: LocalizedString.forKey("permitted_folders_detail"),
-      lookUpKey: "local_code_permitted_folders_detail_hidden", workspace: workspace)
+      lookUpKey: "local_code_permitted_folders_detail_hidden",
+      titleAccessoryView: addDirectoryButton, workspace: workspace)
   }
 
   private func appDataPermissionSection(_ directory: AppDataDirectory) -> SettingsSectionItem {

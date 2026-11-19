@@ -2840,7 +2840,7 @@
 
 "permit_folder_access" = "Cho phép truy cập thư mục";
 "permitted_folders" = "Thư mục được cho phép";
-"permitted_folders_detail" = "Liệt kê các thư mục bên ngoài dự án mà bạn đã chọn khi lệnh permit yêu cầu quyền truy cập. Chọn “Đã tắt” để tạm dừng một thư mục, hoặc dùng nút dấu trừ để gỡ bỏ thư mục đó. Tắt “Bật” để tạm dừng tất cả và chặn các yêu cầu mới; danh sách vẫn được giữ lại.";
+"permitted_folders_detail" = "Liệt kê các thư mục bên ngoài dự án mà bạn đã cho phép truy cập. Thêm thư mục bằng nút dấu cộng, hoặc chọn thư mục khi lệnh permit yêu cầu quyền truy cập. Chọn “Đã tắt” để tạm dừng một thư mục, hoặc dùng nút dấu trừ để gỡ bỏ thư mục đó. Tắt “Bật” để tạm dừng tất cả và chặn các yêu cầu mới; danh sách vẫn được giữ lại.";
 
 // Idle model unloading
 "unload_models_when_idle" = "Giải phóng mô hình khi nhàn rỗi";
@@ -3077,6 +3077,7 @@
 "reload" = "Tải lại";
 "no_open_tabs" = "Không có tab nào đang mở.";
 "open_a_tab" = "Mở một tab";
+"add_a_folder" = "Thêm một thư mục";
 "activities" = "Hoạt động";
 "browser_tabs" = "Tab trình duyệt";
 "browser_tabs_detail" = "Các tab mà tác tử mở bằng web-browse-cli, tab của cuộc trò chuyện này được xếp trước. Mở một tab để xem và sử dụng. Nút dấu trừ sẽ đóng tab và dừng mọi lệnh vẫn đang dùng tab đó.";

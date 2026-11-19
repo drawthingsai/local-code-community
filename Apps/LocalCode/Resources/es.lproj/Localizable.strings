@@ -2763,6 +2763,7 @@
 "reload" = "Volver a cargar";
 "no_open_tabs" = "No hay pestañas abiertas.";
 "open_a_tab" = "Abrir una pestaña";
+"add_a_folder" = "Añadir una carpeta";
 "activities" = "Actividades";
 "browser_tabs" = "Pestañas del navegador";
 "browser_tabs_detail" = "Pestañas que los agentes abren con web-browse-cli, primero las de este hilo. Abre una para verla y usarla. El botón de menos la cierra y detiene cualquier comando que aún la esté usando.";

@@ -2803,6 +2803,7 @@
 "reload" = "Recharger";
 "no_open_tabs" = "Aucun onglet ouvert.";
 "open_a_tab" = "Ouvrir un onglet";
+"add_a_folder" = "Ajouter un dossier";
 "activities" = "Activités";
 "browser_tabs" = "Onglets du navigateur";
 "browser_tabs_detail" = "Onglets que les agents ouvrent avec web-browse-cli, ceux de ce fil d’abord. Ouvrez-en un pour le voir et l’utiliser. Le bouton moins le ferme et arrête toute commande qui l’utilise encore.";
