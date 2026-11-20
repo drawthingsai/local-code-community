@@ -1156,11 +1156,25 @@ extension Inkling2SmallTextGenerator {
     // draft before it was. Counts decay so the estimate follows the text.
     var binKept = [Double](repeating: 0, count: 10)
     var binSeen = [Double](repeating: 0, count: 10)
+    // Drafting parks while it falls behind serial steps: once drafted rounds, on decaying averages,
+    // take longer per token than a parked step, the next parkedStretch steps run serial, still
+    // writing the drafter's context, and the last hands its pick to a drafted round that probes
+    // whether drafting has recovered. The averages start in drafting's favor, so the slow first
+    // rounds that build graphs don't park a reply. Parking reads only the rounds before, so whether a
+    // draft is verified still never depends on its value.
+    let parkedStretch = 32
+    var roundTokens = 6.0
+    var roundMilliseconds = 36.0
+    // A parked step's wall milliseconds, from the last stretch; the prior is a resident step's.
+    var parkedMilliseconds = 18.0
+    var parkedSteps = 0
+    var parkedSince = 0.0
     // The pending token when a step knows it on the CPU: the first one, a forced end of thinking,
-    // and each pick of a step that drafted.
+    // each pick of a step that drafted and did not park, and a parked stretch's last.
     var pendingCPU: Int32? = firstToken
     lastDraftAcceptance = (rounds: 0, kept: 0)
     while decodeIndex < decodeTokenCapacity {
+      let stepStart = CACurrentMediaTime()
       // The pending token follows every token the phase has read; the first is already read.
       if decodeIndex > 0, thinkingPhase.shouldEndThinking {
         nextTokenGPU = endThinkingTokenCPU.toGPU(0)
@@ -1577,11 +1591,26 @@ extension Inkling2SmallTextGenerator {
       decodeIndex += commitCount
       guard shouldAppendPendingToken else { break }
       if drafted != nil {
-        // The next draft starts from this step's last pick, on the CPU.
-        pendingCPU = picks[commitCount - 1]
         nextTokenGPU = upload(
           Tensor<Int32>([picks[commitCount - 1]], kind: .CPU, format: .NHWC, shape: [1]))
+        roundTokens = 0.875 * roundTokens + 0.125 * Double(commitCount)
+        roundMilliseconds =
+          0.875 * roundMilliseconds + 0.125 * 1000 * (CACurrentMediaTime() - stepStart)
+        if roundTokens * parkedMilliseconds < roundMilliseconds {
+          // Park: serial steps take the pick from the GPU.
+          pendingCPU = nil
+          parkedSteps = 0
+          parkedSince = CACurrentMediaTime()
+        } else {
+          // The next draft starts from this step's last pick, on the CPU.
+          pendingCPU = picks[commitCount - 1]
+        }
+      } else if isDrafting, parkedSteps == parkedStretch - 1 {
+        // The stretch's last step reads its pick, so the next step probes with a draft.
+        pendingCPU = nextTokenGPU.toCPU()[0]
+        parkedMilliseconds = 1000 * (CACurrentMediaTime() - parkedSince) / Double(parkedStretch)
       } else {
+        parkedSteps += 1
         pendingCPU = nil
       }
       if shouldStopAfterSampling {
