@@ -958,14 +958,9 @@ public struct GLM5_3TextGenerator: TextGenerator {
       // drafter's history start every step opens a new first row, so only the rest are kept.
       var draftMasks = [[Int]: DynamicGraph.Tensor<Float16>]()
       let maskTokens = Array(repeating: draft.maskTokenID, count: draft.proposals)
-      // Tensor.toGPU waits for the GPU; these copies run on the stream instead, and their CPU
-      // sources live until the next join.
-      var uploads = [DynamicGraph.AnyTensor]()
-      func upload<E: TensorNumeric>(_ tensor: Tensor<E>) -> DynamicGraph.Tensor<E> {
-        let source = graph.variable(tensor)
-        uploads.append(source)
-        return source.toGPU(0)
-      }
+      // Tensor.toGPU waits for the GPU, so copies to it run on the stream instead, from CPU
+      // tensors kept here until the join after them.
+      var tensorsToGPU = [DynamicGraph.AnyTensor]()
       // The drafter's rotary rows, built when a draft would run past them.
       var rotaryStart = 0
       var rotary: DynamicGraph.Tensor<Float16>?
@@ -973,9 +968,11 @@ public struct GLM5_3TextGenerator: TextGenerator {
         if rotary.map({ first < rotaryStart || first + count > rotaryStart + $0.shape[0] }) ?? true
         {
           rotaryStart = first
-          rotary = upload(
+          let rotarySource = graph.variable(
             GLM5_3DFlash2RotaryEmbedding(
               rows: max(8_192, count), firstPosition: first, draft: draft, of: Float16.self))
+          tensorsToGPU.append(rotarySource)
+          rotary = rotarySource.toGPU(0)
         }
         return rotary![(first - rotaryStart)..<(first - rotaryStart + count), 0..<draft.headDim]
           .copied()
@@ -1064,16 +1061,19 @@ public struct GLM5_3TextGenerator: TextGenerator {
                   values[row * viewRows + column] = -Float16.greatestFiniteMagnitude
                 }
               }
-              mask = upload(
+              let maskSource = graph.variable(
                 Tensor(values, kind: .CPU, format: .NHWC, shape: [1, 1, block, viewRows]))
+              tensorsToGPU.append(maskSource)
+              mask = maskSource.toGPU(0)
               if open == draftData.rows { draftMasks[maskKey] = mask }
             }
+            let blockTokens = graph.variable(
+              Tensor<Int32>([nextToken] + maskTokens, kind: .CPU, format: .NHWC, shape: [block]))
+            tensorsToGPU.append(blockTokens)
             let draftInputs: [DynamicGraph.AnyTensor] =
               [
                 draftData.targets, rotaryRows(first: draftData.first, count: mainRows),
-                upload(
-                  Tensor<Int32>([nextToken] + maskTokens, kind: .CPU, format: .NHWC, shape: [block])
-                ), rotaryRows(first: position, count: block), mask,
+                blockTokens.toGPU(0), rotaryRows(first: position, count: block), mask,
               ] + Self.draftCacheInputs(kvCache)
             // The last verify built the graph for this draft, unless it is the first.
             if drafterKey.map({ $0 != (mainRows, temperature, base) }) ?? true {
@@ -1114,8 +1114,8 @@ public struct GLM5_3TextGenerator: TextGenerator {
                 draftOutputs[3].as(of: Int32.self).toCPU()
               )
             }
-            confidence.joined()
-            uploads = []
+            withExtendedLifetime(tensorsToGPU) { confidence.joined() }
+            tensorsToGPU = []
             draftMilliseconds =
               0.8 * draftMilliseconds
               + 0.2
@@ -1180,8 +1180,10 @@ public struct GLM5_3TextGenerator: TextGenerator {
             prepared = nil
           }
           let ids = [nextToken] + draftTokens.prefix(rows - 1)
-          let tokenTensor = upload(
+          let tokenSource = graph.variable(
             Tensor<Int32>(ids, kind: .CPU, format: .NHWC, shape: [rows]))
+          tensorsToGPU.append(tokenSource)
+          let tokenTensor = tokenSource.toGPU(0)
           let verifyKey = (cached: position, count: rows, logits: rows, targets: rows)
           let verifyInputs = Self.cacheInputs(kvCache, cached: position, count: rows, logits: rows)
           if prepared != rows {
@@ -1250,18 +1252,20 @@ public struct GLM5_3TextGenerator: TextGenerator {
                 DynamicGraph.Tensor<Float>(from: logits).reshaped(
                   .WC(drafts, vocabularySize), offset: [0, 0], strides: [vocabularySize, 1])
                   * (1 / sampling.temperature))
-              let index = upload(
+              let indexSource = graph.variable(
                 Tensor<Int32>(
                   (0..<drafts).map { Int32($0 * vocabularySize) + draftTokens[$0] }, kind: .CPU,
                   format: .NHWC, shape: [drafts]))
+              let probabilitySource = graph.variable(
+                Tensor<Float>(
+                  candidateProbabilities, kind: .CPU, format: .NHWC, shape: [drafts * count, 1]))
+              let candidateSource = graph.variable(
+                Tensor<Int32>(candidateIndices, kind: .CPU, format: .NHWC, shape: [drafts * count]))
+              tensorsToGPU += [indexSource, probabilitySource, candidateSource]
+              let index = indexSource.toGPU(0)
               let q = Functional.scatterAdd(
-                count: drafts * vocabularySize,
-                input: upload(
-                  Tensor<Float>(
-                    candidateProbabilities, kind: .CPU, format: .NHWC, shape: [drafts * count, 1])),
-                index: upload(
-                  Tensor<Int32>(
-                    candidateIndices, kind: .CPU, format: .NHWC, shape: [drafts * count]))
+                count: drafts * vocabularySize, input: probabilitySource.toGPU(0),
+                index: candidateSource.toGPU(0)
               ).reshaped(.WC(drafts, vocabularySize))
               let uniform = graph.variable(.GPU(0), format: .NHWC, shape: [drafts], of: Float.self)
               uniform.rand(0...1)
@@ -1280,8 +1284,8 @@ public struct GLM5_3TextGenerator: TextGenerator {
                 .WC(1, vocabularySize), offset: [rows - 1, 0], strides: [vocabularySize, 1]),
               axis: 1, scale: sampling.temperature
             ).reshaped(format: .NHWC, shape: [1]).toCPU()
-            bonus.joined()
-            uploads = []
+            withExtendedLifetime(tensorsToGPU) { bonus.joined() }
+            tensorsToGPU = []
             if let acceptance {
               // Picks reproduce the kept drafts, then the corrected or bonus token after them.
               for index in draftTokens.indices {
@@ -1304,8 +1308,8 @@ public struct GLM5_3TextGenerator: TextGenerator {
             let selected = Functional.argmax(logits, axis: 1).reshaped(
               format: .NHWC, shape: [rows]
             ).toCPU()
-            selected.joined()
-            uploads = []
+            withExtendedLifetime(tensorsToGPU) { selected.joined() }
+            tensorsToGPU = []
             picks = (0..<rows).map { selected[$0] }
           }
           // Up to the picks, so the caller's time below stays out of the estimate.

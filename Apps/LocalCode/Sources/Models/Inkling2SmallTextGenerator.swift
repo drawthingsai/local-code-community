@@ -619,14 +619,9 @@ extension Inkling2SmallTextGenerator {
       kvCache.draftMainFeatures = nil
       kvCache.draftOpenPrefix = nil
     }
-    // Tensor.toGPU waits for the GPU; these copies run on the stream instead, and their CPU sources
-    // live until the next join.
-    var uploads = [DynamicGraph.AnyTensor]()
-    func upload<E: TensorNumeric>(_ tensor: Tensor<E>) -> DynamicGraph.Tensor<E> {
-      let source = graph.variable(tensor)
-      uploads.append(source)
-      return source.toGPU(0)
-    }
+    // Tensor.toGPU waits for the GPU, so copies to it run on the stream instead, from CPU tensors
+    // kept here until the join after them.
+    var tensorsToGPU = [DynamicGraph.AnyTensor]()
     // The drafter's rotary rows, built when a draft would run past them.
     var rotaryStart = 0
     var rotary: DynamicGraph.Tensor<Float16>?
@@ -635,9 +630,11 @@ extension Inkling2SmallTextGenerator {
         firstPosition < rotaryStart || firstPosition + rows > rotaryStart + $0.shape[0]
       }) ?? true {
         rotaryStart = firstPosition
-        rotary = upload(
+        let rotarySource = graph.variable(
           Inkling2SmallDSparkRotaryEmbedding(
             rows: max(8_192, rows), firstPosition: firstPosition, of: Float16.self))
+        tensorsToGPU.append(rotarySource)
+        rotary = rotarySource.toGPU(0)
       }
       return rotary![
         (firstPosition - rotaryStart)..<(firstPosition - rotaryStart + rows), 0..<draft.headDim
@@ -1248,7 +1245,10 @@ extension Inkling2SmallTextGenerator {
               values[row * viewRows + column] = -Float16.infinity
             }
           }
-          mask = upload(Tensor(values, kind: .CPU, format: .NHWC, shape: [1, 1, block, viewRows]))
+          let maskSource = graph.variable(
+            Tensor(values, kind: .CPU, format: .NHWC, shape: [1, 1, block, viewRows]))
+          tensorsToGPU.append(maskSource)
+          mask = maskSource.toGPU(0)
           if closed == mainKept { draftMasks[maskKey] = mask }
         }
         let draftInputs: [DynamicGraph.AnyTensor] =
@@ -1303,8 +1303,8 @@ extension Inkling2SmallTextGenerator {
                 verifyRows: lastVerifyRows))
           preparedRows = lastVerifyRows
         }
-        partitions.joined()
-        uploads = []
+        withExtendedLifetime(tensorsToGPU) { partitions.joined() }
+        tensorsToGPU = []
         draftMilliseconds =
           0.8 * draftMilliseconds
           + 0.2 * min(1000 * (CACurrentMediaTime() - draftStart), 2 * draftMilliseconds)
@@ -1442,13 +1442,15 @@ extension Inkling2SmallTextGenerator {
       }
       if phase.excludesThinking {
         // A model message the pending token opens can't be the thinking one.
-        let exclusion =
-          thinkingExclusion
-          ?? upload(Tensor<Float16>([-Float16.infinity], kind: .CPU, format: .NHWC, shape: [1, 1]))
-        thinkingExclusion = exclusion
+        if thinkingExclusion == nil {
+          let exclusionSource = graph.variable(
+            Tensor<Float16>([-Float16.infinity], kind: .CPU, format: .NHWC, shape: [1, 1]))
+          tensorsToGPU.append(exclusionSource)
+          thinkingExclusion = exclusionSource.toGPU(0)
+        }
         let token = Int(Self.thinkingContentToken)
         var excluded = logits
-        excluded[0..<1, token..<(token + 1)] = exclusion
+        excluded[0..<1, token..<(token + 1)] = thinkingExclusion!
       }
       // The target's pick at each row: greedily every row's; or sampled, the verified drafts by
       // speculative sampling through the first rejected one, then, when they all stay and the last
@@ -1481,10 +1483,12 @@ extension Inkling2SmallTextGenerator {
           biased.fill(
             -Float.infinity, if: biased < (biased.reduced(.max, axis: [1]) - sampling.window))
           let q = probabilities(biased)
-          let index = upload(
+          let indexSource = graph.variable(
             Tensor<Int32>(
               (0..<verified).map { Int32($0 * vocabulary) + drafted.cpu[$0] }, kind: .CPU,
               format: .NHWC, shape: [verified]))
+          tensorsToGPU.append(indexSource)
+          let index = indexSource.toGPU(0)
           let pDraft = Functional.indexSelect(
             input: p.reshaped(.WC(verified * vocabulary, 1)), index: index
           ).toCPU()
@@ -1515,13 +1519,13 @@ extension Inkling2SmallTextGenerator {
       var kept = 0
       if let drafted {
         let selectedCPU = selected.toCPU()
-        selectedCPU.joined()
+        withExtendedLifetime(tensorsToGPU) { selectedCPU.joined() }
+        tensorsToGPU = []
         if sampling == nil {
           picks = (0..<rows).map { selectedCPU[$0, 0] }
         } else if !isRejected && drafted.verified == drafts {
           picks.append(selectedCPU[0, 0])
         }
-        uploads = []
         // Samples are capped so a spike cannot price a length out for good.
         verifyMilliseconds[rows] =
           0.8 * verifyMilliseconds[rows]
@@ -1591,8 +1595,10 @@ extension Inkling2SmallTextGenerator {
       decodeIndex += commitCount
       guard shouldAppendPendingToken else { break }
       if drafted != nil {
-        nextTokenGPU = upload(
+        let tokenSource = graph.variable(
           Tensor<Int32>([picks[commitCount - 1]], kind: .CPU, format: .NHWC, shape: [1]))
+        tensorsToGPU.append(tokenSource)
+        nextTokenGPU = tokenSource.toGPU(0)
         roundTokens = 0.875 * roundTokens + 0.125 * Double(commitCount)
         roundMilliseconds =
           0.875 * roundMilliseconds + 0.125 * 1000 * (CACurrentMediaTime() - stepStart)
