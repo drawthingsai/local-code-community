@@ -165,10 +165,15 @@ struct SpeedometerCLI: ParsableCommand {
         deterministic: deterministic)
     case .inkling_2_small:
       speedometer = Inkling2Speedometer(
+        // Without the drafter beside the checkpoint, decoding runs without DSpark.
         textGenerator: Inkling2SmallTextGenerator(
           filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
           weightsStreaming: weightsStreaming.flatMap(
-            DeviceCapability.WeightsStreaming.init(rawValue:))),
+            DeviceCapability.WeightsStreaming.init(rawValue:)),
+          drafterFile: specification.draftFile.map {
+            URL(fileURLWithPath: checkpoint).deletingLastPathComponent().appendingPathComponent($0)
+              .path
+          }),
         contextLengths: contextLengths, graph: graph, streamContext: stream,
         storePath: storePath, libraryURL: libraryURL, thinkingBudget: thinkingBudget,
         deterministic: deterministic)

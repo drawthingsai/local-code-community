@@ -297,7 +297,8 @@ final class ChatWorkflow: Workflow {
       case .inkling_2_small:
         textGenerator = Inkling2SmallTextGenerator(
           filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
-          chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming)
+          chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming,
+          drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
       case .deepseek_4_1_flash:
         guard let engram = specification.engram else {
           preconditionFailure("DeepSeek 4.1 requires an Engram companion")
@@ -1077,7 +1078,8 @@ final class ChatWorkflow: Workflow {
     case .inkling_2_small:
       return Inkling2SmallTextGenerator(
         filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength,
-        weightsStreaming: weightsStreaming)
+        weightsStreaming: weightsStreaming,
+        drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
     case .deepseek_4_1_flash:
       guard let engram = specification.engram else { return nil }
       return DeepSeek4_1TextGenerator(

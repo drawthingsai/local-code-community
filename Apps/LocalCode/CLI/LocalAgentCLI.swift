@@ -210,10 +210,15 @@ struct LocalAgentCLI: ParsableCommand {
         projectContext: projectContext, environmentContext: environment, prefixTokens: prefixTokens,
         prefixEmbedSpans: prefixEmbedSpans)
     case .inkling_2_small:
+      // Without the drafter beside the checkpoint, decoding runs without DSpark.
       let generator = Inkling2SmallTextGenerator(
         filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
         weightsStreaming: weightsStreaming.flatMap(
-          DeviceCapability.WeightsStreaming.init(rawValue:)))
+          DeviceCapability.WeightsStreaming.init(rawValue:)),
+        drafterFile: specification.draftFile.map {
+          URL(fileURLWithPath: checkpoint).deletingLastPathComponent().appendingPathComponent($0)
+            .path
+        })
       agent = Inkling2CodeAgent(
         textGenerator: generator, graph: graph, streamContext: stream,
         unsafeTokenizer: Inkling2SmallTextGenerator.unsafeTokenizer,

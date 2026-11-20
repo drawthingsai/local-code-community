@@ -169,6 +169,7 @@ public final class Inkling2SmallContextCache: ContextCache {
       }
       kvCache.tokenLength = snapshot.end
       kvCache.slidingTokenLength = window
+      kvCache.convolutionOffset = 0
       hasher = snapshot.hasher
       return snapshot.end
     }
@@ -238,12 +239,20 @@ public final class Inkling2SmallContextCache: ContextCache {
               store.write("\(key)/window/\(name)/\(layerIndex)", tensor: rows.rawValue)
             }
           }
-          // The current rows lead; the buffers their next values go to follow.
+          // The current rows lead; the buffers their next values go to follow. After a verify they
+          // start `convolutionOffset` rows into their buffers.
+          let convolutionRows = configuration.convolutionKernel - 1
           for (index, rows) in layer.convolutionRows.prefix(4).enumerated() {
+            let width = index < 2 ? kvDim : configuration.hiddenSize
+            let shape = TensorShapeFormat.NHWC(1, convolutionRows, 1, width)
+            let offset: TensorShape = [0, kvCache.convolutionOffset, 0, 0]
+            let strides: TensorShape = [rows.shape[1] * width, width, width, 1]
             let stored: AnyTensor =
               index < 2
-              ? rows.as(of: Float16.self).toCPU().rawValue
-              : rows.as(of: Float.self).toCPU().rawValue
+              ? rows.as(of: Float16.self).reshaped(shape, offset: offset, strides: strides).copied()
+                .toCPU().rawValue
+              : rows.as(of: Float.self).reshaped(shape, offset: offset, strides: strides).copied()
+                .toCPU().rawValue
             graph.joined()
             store.write("\(key)/convolution/\(layerIndex)/\(index)", tensor: stored)
           }
