@@ -765,6 +765,12 @@
 
 "code_font_detail" = "Change the font of code in messages, including the one you are typing.";
 
+"chat_width" = "Chat Width";
+
+"chat_width_detail" = "Change how wide the chat gets in a large window. Wide gives code and tables more room.";
+
+"wide" = "Wide";
+
 "system" = "System";
 
 "other_dot" = "Other...";

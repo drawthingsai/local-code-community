@@ -28,6 +28,15 @@ extension SleepPrevention {
   }
 }
 
+extension ChatWidth {
+  fileprivate var title: String {
+    switch self {
+    case .normal: return LocalizedString.forKey("normal")
+    case .wide: return LocalizedString.forKey("wide")
+    }
+  }
+}
+
 enum UseAppleNeuralEngineOption {
   case automatic
   case yesPreferAppleNeuralEngineOnly
@@ -240,6 +249,7 @@ protocol MachineSettingsViewControllerDelegate: AnyObject {
   func didTapOtherTextFont(from sourceView: UIView)
   func didSelectCodeFont(_ family: String?)
   func didTapOtherCodeFont(from sourceView: UIView)
+  func didSelectChatWidth(_: ChatWidth)
   func didUseSystemDownloaderUpdated(_: Bool)
   func didBotModeUpdated(_: Bool)
   func didLockdownModeUpdated(_: Bool)
@@ -263,6 +273,7 @@ private enum MachineSettingsSection: Equatable, Hashable {
   case fontSize
   case textFont
   case codeFont
+  case chatWidth
   case reduceReasoningAnimation
 }
 
@@ -320,6 +331,12 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
   var codeFontFamily: String? {
     didSet {
       guard codeFontFamily != oldValue else { return }
+      updateSettingsSections()
+    }
+  }
+  var chatWidth = ChatWidth.normal {
+    didSet {
+      guard chatWidth != oldValue else { return }
       updateSettingsSections()
     }
   }
@@ -586,6 +603,7 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       .fontSize: fontSizeSection(),
       .textFont: textFontSection(),
       .codeFont: codeFontSection(),
+      .chatWidth: chatWidthSection(),
       .reduceReasoningAnimation: reduceReasoningAnimationSection(),
       .botMode: botModeSection(),
     ]
@@ -936,5 +954,37 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       lookUpKey: "code_font_detail_hidden",
       individualSectionStyle: false,
       workspace: workspace)
+  }
+
+  private func chatWidthSection() -> SettingsSectionItem {
+    var item = SettingsSectionItem(
+      settingsItems: [
+        SettingsButtonItem(
+          value: chatWidth.title,
+          showsMenuAsPrimaryAction: true,
+          makeButtonsUI: { [weak self] _, button in
+            guard let self else { return }
+            button?.menu = UIMenu(
+              children: ChatWidth.allCases.map { chatWidth in
+                UIAction(title: chatWidth.title, state: self.chatWidth == chatWidth ? .on : .off) {
+                  [weak self] _ in
+                  self?.delegate?.didSelectChatWidth(chatWidth)
+                }
+              })
+            button?.setTitle(self.chatWidth.title, for: .normal)
+          })
+      ], title: LocalizedString.forKey("chat_width"),
+      detail: LocalizedString.forKey("chat_width_detail"),
+      lookUpKey: "chat_width_detail_hidden",
+      individualSectionStyle: false,
+      workspace: workspace)
+    // Only a Mac window has the room: on an iPad's own screen the chat column never reaches even
+    // the normal width.
+    #if targetEnvironment(macCatalyst)
+      item.isHidden = false
+    #else
+      item.isHidden = true
+    #endif
+    return item
   }
 }

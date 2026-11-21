@@ -765,6 +765,12 @@
 
 "code_font_detail" = "Thay đổi phông chữ của mã trong tin nhắn, kể cả tin nhắn bạn đang soạn.";
 
+"chat_width" = "Độ rộng cuộc trò chuyện";
+
+"chat_width_detail" = "Thay đổi độ rộng của cuộc trò chuyện trong cửa sổ lớn. Rộng dành thêm chỗ cho mã và bảng.";
+
+"wide" = "Rộng";
+
 "system" = "Hệ thống";
 
 "other_dot" = "Khác...";

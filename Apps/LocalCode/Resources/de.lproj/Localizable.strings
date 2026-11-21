@@ -756,6 +756,12 @@
 
 "code_font_detail" = "Ändert die Schrift für Code in Nachrichten, auch in der, die Sie gerade schreiben.";
 
+"chat_width" = "Chatbreite";
+
+"chat_width_detail" = "Ändert, wie breit der Chat in einem großen Fenster wird. „Breit“ gibt Code und Tabellen mehr Platz.";
+
+"wide" = "Breit";
+
 "system" = "System";
 
 "other_dot" = "Andere...";

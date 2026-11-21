@@ -138,6 +138,7 @@ final class ChatWorkflow: Workflow {
   private var botModeSubscription: Workspace.Subscription?
   private var reduceReasoningAnimationSubscription: Workspace.Subscription?
   private var messageZoomSubscription: Workspace.Subscription?
+  private var chatWidthSubscription: Workspace.Subscription?
   private var workAttitudeSubscription: Workspace.Subscription?
   private var thinkingBudgetSubscription: Workspace.Subscription? = nil
   private var queuedItemSubscription: Workspace.Subscription?
@@ -507,6 +508,17 @@ final class ChatWorkflow: Workflow {
         // when the view controller lays the transcript out again.
         MarkdownFonts.default.messageZoom = messageZoom
         viewController?.messageZoom = messageZoom
+      }
+      // Machine Settings offers the chat width on the Mac, where a window has the room for it.
+      chatWidthSubscription = workspace.dictionary.subscribe("chat_width", of: Int.self) {
+        [weak viewController] value in
+        let rawValue: Int?
+        switch value {
+        case .deleted: rawValue = nil
+        case .initial(let value): rawValue = value
+        case .updated(let value): rawValue = value
+        }
+        viewController?.chatWidth = rawValue.flatMap(ChatWidth.init(rawValue:)) ?? .normal
       }
     }
     thinkingBudgetSubscription = workspace.dictionary.subscribe(

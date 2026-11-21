@@ -727,6 +727,12 @@
 
 "code_font_detail" = "更改消息中代码的字体，包括正在输入的消息。";
 
+"chat_width" = "聊天宽度";
+
+"chat_width_detail" = "更改聊天在大窗口中的宽度。“宽”可为代码和表格留出更多空间。";
+
+"wide" = "宽";
+
 "system" = "系统";
 
 "other_dot" = "其他...";

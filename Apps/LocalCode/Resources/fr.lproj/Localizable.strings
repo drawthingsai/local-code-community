@@ -756,6 +756,12 @@
 
 "code_font_detail" = "Modifiez la police du code dans les messages, y compris celui que vous écrivez.";
 
+"chat_width" = "Largeur de la discussion";
+
+"chat_width_detail" = "Modifiez la largeur que prend la discussion dans une grande fenêtre. Large laisse plus de place au code et aux tableaux.";
+
+"wide" = "Large";
+
 "system" = "Système";
 
 "other_dot" = "Autre...";

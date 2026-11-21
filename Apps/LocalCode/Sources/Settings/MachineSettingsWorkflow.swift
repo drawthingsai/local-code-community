@@ -25,6 +25,7 @@ final class MachineSettingsWorkflow: Workflow {
   private var reduceReasoningAnimationSubscription: Workspace.Subscription?
   private var textFontSubscription: Workspace.Subscription?
   private var codeFontSubscription: Workspace.Subscription?
+  private var chatWidthSubscription: Workspace.Subscription?
 
   final class ObjCResponder: NSObject {
     weak var workflow: MachineSettingsWorkflow?
@@ -186,6 +187,17 @@ final class MachineSettingsWorkflow: Workflow {
       self.viewController.codeFontFamily = family.flatMap {
         MarkdownFonts.isAvailable($0) ? $0 : nil
       }
+    }
+    chatWidthSubscription = workspace.dictionary.subscribe("chat_width", of: Int.self) {
+      [weak self] value in
+      guard let self else { return }
+      let rawValue: Int?
+      switch value {
+      case .deleted: rawValue = nil
+      case .initial(let value): rawValue = value
+      case .updated(let value): rawValue = value
+      }
+      self.viewController.chatWidth = rawValue.flatMap(ChatWidth.init(rawValue:)) ?? .normal
     }
 
     if let currentLanguages = UserDefaults.standard.object(forKey: "AppleLanguages") as? [String],
@@ -390,6 +402,7 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
     workspace.dictionary["weights_streaming", Int.self] = nil
     workspace.dictionary["text_font", String.self] = nil
     workspace.dictionary["code_font", String.self] = nil
+    workspace.dictionary["chat_width", Int.self] = nil
 
     viewController.languageSettings = Self.languageSettingsOption(for: nil)
     UserDefaults.standard.removeObject(forKey: "AppleLanguages")
@@ -441,6 +454,11 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
   func didSelectCodeFont(_ family: String?) {
     dispatchPrecondition(condition: .onQueue(.main))
     workspace.dictionary["code_font", String.self] = family
+  }
+
+  func didSelectChatWidth(_ chatWidth: ChatWidth) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    workspace.dictionary["chat_width", Int.self] = chatWidth.rawValue
   }
 
   func didTapOtherCodeFont(from sourceView: UIView) {

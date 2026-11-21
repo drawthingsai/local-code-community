@@ -727,6 +727,12 @@
 
 "code_font_detail" = "Cambia la fuente del código en los mensajes, incluido el que estás escribiendo.";
 
+"chat_width" = "Ancho del chat";
+
+"chat_width_detail" = "Cambia el ancho que alcanza el chat en una ventana grande. Ancho deja más espacio para el código y las tablas.";
+
+"wide" = "Ancho";
+
 "system" = "Sistema";
 
 "other_dot" = "Otra...";

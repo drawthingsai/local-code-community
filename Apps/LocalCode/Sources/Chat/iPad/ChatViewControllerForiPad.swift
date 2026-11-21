@@ -414,6 +414,18 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
         scrollTo: projectHistoryItems.last, animated: false, scrollToItem: false)
     }
   }
+  var chatWidth = ChatWidth.normal {
+    didSet {
+      guard chatWidth != oldValue, isViewLoaded else { return }
+      chatContentView.snp.updateConstraints { make in
+        make.width.lessThanOrEqualTo(chatWidth.maximumWidth)
+        make.width.equalTo(chatWidth.maximumWidth).priority(.high)
+      }
+      // A transcript resting at its bottom stays there as its rows take their new widths.
+      applyProjectHistorySnapshot(
+        scrollTo: projectHistoryItems.last, animated: false, scrollToItem: false)
+    }
+  }
   private lazy var messageZoomController: MessageZoomController = {
     let controller = MessageZoomController()
     controller.delegate = self
@@ -573,9 +585,11 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
       make.centerX.equalToSuperview()
       make.leading.greaterThanOrEqualToSuperview().offset(48)
       make.trailing.lessThanOrEqualToSuperview().offset(-48)
-      make.width.lessThanOrEqualTo(960)
+      // The chat column is as wide as the chat width setting allows, or the panel when it is
+      // narrower.
+      make.width.lessThanOrEqualTo(chatWidth.maximumWidth)
       make.width.equalToSuperview().offset(-96).priority(.high.advanced(by: 1))
-      make.width.equalTo(960).priority(.high)
+      make.width.equalTo(chatWidth.maximumWidth).priority(.high)
     }
     chatContentView.addSubview(queuedItemsView)
     chatContentView.addSubview(chatInputController.view)
