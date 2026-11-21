@@ -97,7 +97,13 @@ final class MarkdownFonts {
   /// The text font in place of `font`, the regular system font at the size the font size setting
   /// gives.
   func textFont(replacing font: UIFont) -> UIFont {
-    guard let family = textFamily else { return font }
+    textFont(replacing: font, family: textFamily)
+  }
+
+  /// The text font of `family` in place of `font`, whichever text font is chosen. Nil is the
+  /// system font.
+  func textFont(replacing font: UIFont, family: String?) -> UIFont {
+    guard let family else { return font }
     return UIFont(
       descriptor: UIFontDescriptor(fontAttributes: [.family: family]),
       size: font.pointSize * (Self.textScales[family] ?? 1))

@@ -2676,6 +2676,13 @@
 "your_account_your_workspace_detail" = "你的设置和工作区会在所有设备间保持同步。";
 "you_are_all_set" = "一切就绪！";
 "you_are_all_set_detail" = "下面简单介绍 Local Code 的组织方式。";
+"choose_a_reading_style" = "选择阅读样式";
+"choose_a_reading_style_detail" = "选择对话的显示方式。之后可以在“机器设置”中更改。";
+"text_size" = "文字大小";
+"smaller" = "较小";
+"bigger" = "较大";
+"rename_these_photos_by_date" = "按日期重命名这些照片。";
+"photos_renamed_by_date_detail" = "我已按拍摄日期重命名每张照片，没有删除任何内容。";
 "threads" = "对话";
 "onboarding_workspace_detail" = "工作区是 Local Code 可以读写的目录。“应用文档内”将一切限定在应用内；“本地”则可访问整台 Mac。可按项目分别设置。";
 "onboarding_workspace_bot_detail" = "工作区是 Local Code 可以读写的目录。“应用文档内”将一切限定在应用内；“本地”则可访问整台 Mac。可按机器人分别设置。";

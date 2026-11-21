@@ -2698,6 +2698,13 @@
 "your_account_your_workspace_detail" = "設定とワークスペースは、お使いのデバイス間で同期されます。";
 "you_are_all_set" = "準備完了！";
 "you_are_all_set_detail" = "Local Code の構成を簡単にご紹介します。";
+"choose_a_reading_style" = "読み方のスタイルを選択";
+"choose_a_reading_style_detail" = "会話の表示のしかたを選びます。あとでマシン設定から変更できます。";
+"text_size" = "文字サイズ";
+"smaller" = "小さめ";
+"bigger" = "大きめ";
+"rename_these_photos_by_date" = "これらの写真の名前を日付に変更して。";
+"photos_renamed_by_date_detail" = "各写真の名前を撮影日に変更しました。削除したものはありません。";
 "threads" = "スレッド";
 "onboarding_workspace_detail" = "ワークスペースは、Local Code が読み書きできるディレクトリです。「Appの書類内」ではすべてがアプリ内に収まり、「ローカル」では Mac 全体にアクセスできます。プロジェクトごとに設定できます。";
 "onboarding_workspace_bot_detail" = "ワークスペースは、Local Code が読み書きできるディレクトリです。「Appの書類内」ではすべてがアプリ内に収まり、「ローカル」では Mac 全体にアクセスできます。ボットごとに設定できます。";

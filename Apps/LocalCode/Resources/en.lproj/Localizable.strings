@@ -2973,6 +2973,13 @@
 "your_account_your_workspace_detail" = "Your settings and workspace stay synced across your devices.";
 "you_are_all_set" = "You’re all set!";
 "you_are_all_set_detail" = "Here’s a quick overview of how Local Code is organized.";
+"choose_a_reading_style" = "Choose a Reading Style";
+"choose_a_reading_style_detail" = "Pick how conversations read. You can change any of this later in Machine Settings.";
+"text_size" = "Text Size";
+"smaller" = "Smaller";
+"bigger" = "Bigger";
+"rename_these_photos_by_date" = "Rename these photos by date.";
+"photos_renamed_by_date_detail" = "I renamed each photo by the date it was taken. Nothing was deleted.";
 "threads" = "Threads";
 "onboarding_workspace_detail" = "The workspace is the directory Local Code can read and write. Inside App Documents keeps things contained; Local gives access across your Mac. Set it per project.";
 "onboarding_workspace_bot_detail" = "The workspace is the directory Local Code can read and write. Inside App Documents keeps things contained; Local gives access across your Mac. Set it per bot.";

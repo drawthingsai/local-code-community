@@ -46,9 +46,13 @@ final class OnboardingStateTests: XCTestCase {
       var state = OnboardingState(
         step: .model, selection: selection, welcomeCompleted: true, isAccountSignedIn: true,
         isProviderConnected: true, isModelSelected: true)
-      XCTAssertEqual(state.steps, [.welcome, .model, .finished])
+      XCTAssertEqual(state.steps, [.welcome, .model, .readingStyle, .finished])
+      state.advance()
+      XCTAssertEqual(state.step, .readingStyle)
       state.advance()
       XCTAssertEqual(state.step, .finished)
+      state.goBack()
+      XCTAssertEqual(state.step, .readingStyle)
       state.goBack()
       XCTAssertEqual(state.step, .model)
       state.goBack()
@@ -67,7 +71,19 @@ final class OnboardingStateTests: XCTestCase {
     XCTAssertFalse(state.canContinue)
     state.isModelSelected = true
     state.advance()
+    XCTAssertEqual(state.step, .readingStyle)
+  }
+
+  func testPhoneHasNoReadingStylePage() {
+    var state = OnboardingState(step: .model)
+    state.offersReadingStyle = false
+    XCTAssertEqual(state.steps, [.welcome, .model, .account, .finished])
+    state.advance()
+    XCTAssertEqual(state.step, .account)
+    state.advance()
     XCTAssertEqual(state.step, .finished)
+    state.goBack()
+    XCTAssertEqual(state.step, .account)
   }
 
   func testWelcomeCannotAdvanceUntilAnimationAndHoldComplete() {
@@ -84,6 +100,9 @@ final class OnboardingStateTests: XCTestCase {
     state.advance()
     XCTAssertEqual(state.step, .account)
     XCTAssertTrue(state.canSkipAccount)
+    state.advance()
+    XCTAssertEqual(state.step, .readingStyle)
+    XCTAssertTrue(state.canContinue)
     state.advance()
     XCTAssertEqual(state.step, .finished)
     XCTAssertTrue(state.canContinue)
@@ -102,6 +121,8 @@ final class OnboardingStateTests: XCTestCase {
     state.isModelSelected = true
     XCTAssertTrue(state.canContinue)
     state.advance()
+    XCTAssertEqual(state.step, .readingStyle)
+    state.advance()
     XCTAssertEqual(state.step, .finished)
     state.isAccountSignedIn = false
     XCTAssertFalse(state.canContinue)
@@ -119,6 +140,8 @@ final class OnboardingStateTests: XCTestCase {
       state.advance()
       XCTAssertEqual(state.step, .account)
       XCTAssertTrue(state.canContinue)
+      state.advance()
+      XCTAssertEqual(state.step, .readingStyle)
       state.advance()
       XCTAssertEqual(state.step, .finished)
       state.isProviderConnected = false

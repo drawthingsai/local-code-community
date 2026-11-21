@@ -2701,6 +2701,13 @@
 "your_account_your_workspace_detail" = "설정과 작업 공간이 모든 기기에서 동기화됩니다.";
 "you_are_all_set" = "모든 준비가 끝났습니다!";
 "you_are_all_set_detail" = "Local Code가 어떻게 구성되어 있는지 간단히 살펴보세요.";
+"choose_a_reading_style" = "읽기 스타일 선택";
+"choose_a_reading_style_detail" = "대화가 표시되는 방식을 고르세요. 나중에 기기 설정에서 바꿀 수 있습니다.";
+"text_size" = "텍스트 크기";
+"smaller" = "작게";
+"bigger" = "크게";
+"rename_these_photos_by_date" = "이 사진들의 이름을 날짜로 바꿔 줘.";
+"photos_renamed_by_date_detail" = "각 사진의 이름을 촬영한 날짜로 바꿨습니다. 삭제된 것은 없습니다.";
 "threads" = "스레드";
 "onboarding_workspace_detail" = "작업 공간은 Local Code가 읽고 쓸 수 있는 디렉터리입니다. ‘앱 문서 내부’는 모든 것을 앱 안에 보관하고, ‘로컬’은 Mac 전체에 접근할 수 있게 합니다. 프로젝트별로 설정하세요.";
 "onboarding_workspace_bot_detail" = "작업 공간은 Local Code가 읽고 쓸 수 있는 디렉터리입니다. ‘앱 문서 내부’는 모든 것을 앱 안에 보관하고, ‘로컬’은 Mac 전체에 접근할 수 있게 합니다. 봇별로 설정하세요.";

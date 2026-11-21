@@ -2973,6 +2973,13 @@
 "your_account_your_workspace_detail" = "Cài đặt và không gian làm việc của bạn luôn được đồng bộ trên các thiết bị.";
 "you_are_all_set" = "Bạn đã sẵn sàng!";
 "you_are_all_set_detail" = "Dưới đây là tổng quan nhanh về cách tổ chức của Local Code.";
+"choose_a_reading_style" = "Chọn kiểu đọc";
+"choose_a_reading_style_detail" = "Chọn cách hiển thị cuộc trò chuyện. Bạn có thể thay đổi sau trong Cài đặt máy.";
+"text_size" = "Cỡ chữ";
+"smaller" = "Nhỏ hơn";
+"bigger" = "Lớn hơn";
+"rename_these_photos_by_date" = "Đổi tên các ảnh này theo ngày.";
+"photos_renamed_by_date_detail" = "Tôi đã đổi tên từng ảnh theo ngày chụp. Không có gì bị xóa.";
 "threads" = "Cuộc trò chuyện";
 "onboarding_workspace_detail" = "Không gian làm việc là thư mục mà Local Code có thể đọc và ghi. “Trong tài liệu ứng dụng” giữ mọi thứ tách biệt; “Cục bộ” cho phép truy cập trên toàn bộ máy Mac của bạn. Thiết lập riêng cho từng dự án.";
 "onboarding_workspace_bot_detail" = "Không gian làm việc là thư mục mà Local Code có thể đọc và ghi. “Trong tài liệu ứng dụng” giữ mọi thứ tách biệt; “Cục bộ” cho phép truy cập trên toàn bộ máy Mac của bạn. Thiết lập riêng cho từng bot.";

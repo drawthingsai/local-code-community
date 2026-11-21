@@ -54,6 +54,16 @@ final class ChatInputController {
     }
   }
 
+  /// Leaves the model out of the row under the text, where the history slider then runs on to
+  /// dictation. The onboarding's miniature of the chat does this.
+  var isModelSelectorHidden = false {
+    didSet {
+      guard isModelSelectorHidden != oldValue else { return }
+      modelButton.isHidden = isModelSelectorHidden
+      modelButtonLeadingConstraint?.isActive = !isModelSelectorHidden
+    }
+  }
+
   var maxTextHistoryPointer: Int {
     get { Int(textSlider.maximumValue.rounded()) }
     set {
@@ -95,6 +105,7 @@ final class ChatInputController {
   private var resizePhantomViewHeight: CGFloat?
   private var resizePhantomViewHeightLast: CGFloat = 0
   private var sendControlWidthConstraint: Constraint?
+  private var modelButtonLeadingConstraint: Constraint?
   private var sendButtonWidthConstraint: Constraint?
   private var stopButtonWidthConstraint: Constraint?
   private var stopButtonLeadingToDividerConstraint: Constraint?
@@ -893,9 +904,14 @@ final class ChatInputController {
         make.centerY.equalTo(undoRedoOverlayView)
         make.leading.equalTo(undoRedoOverlayView.snp.trailing).offset(12)
         make.width.greaterThanOrEqualTo(88)
+        // Without the model the slider runs on to dictation. Kept below the model button's low
+        // hugging and compression resistance, so it changes nothing while the model is there.
+        make.trailing.equalTo(dictationButton.snp.leading).offset(-12).priority(
+          .low.advanced(by: -1))
       }
       modelButton.snp.makeConstraints { make in
-        make.leading.equalTo(textSlider.snp.trailing).offset(12)
+        modelButtonLeadingConstraint =
+          make.leading.equalTo(textSlider.snp.trailing).offset(12).constraint
         make.trailing.equalTo(dictationButton.snp.leading).offset(-12)
         make.centerY.equalTo(sendControlView)
         make.height.equalTo(32)

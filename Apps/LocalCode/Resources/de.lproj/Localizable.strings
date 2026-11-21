@@ -2700,6 +2700,13 @@
 "your_account_your_workspace_detail" = "Ihre Einstellungen und Ihr Arbeitsbereich bleiben auf allen Ihren Geräten synchron.";
 "you_are_all_set" = "Alles bereit!";
 "you_are_all_set_detail" = "Hier ist ein kurzer Überblick darüber, wie Local Code aufgebaut ist.";
+"choose_a_reading_style" = "Lesestil wählen";
+"choose_a_reading_style_detail" = "Legen Sie fest, wie Unterhaltungen dargestellt werden. Das lässt sich später unter „Maschineneinstellungen“ ändern.";
+"text_size" = "Textgröße";
+"smaller" = "Kleiner";
+"bigger" = "Größer";
+"rename_these_photos_by_date" = "Benenne diese Fotos nach Datum um.";
+"photos_renamed_by_date_detail" = "Ich habe jedes Foto nach seinem Aufnahmedatum umbenannt. Es wurde nichts gelöscht.";
 "threads" = "Threads";
 "onboarding_workspace_detail" = "Der Arbeitsbereich ist das Verzeichnis, in dem Local Code lesen und schreiben darf. „In App-Dokumente“ hält alles beisammen; „Lokal“ gewährt Zugriff auf Ihren gesamten Mac. Legen Sie ihn pro Projekt fest.";
 "onboarding_workspace_bot_detail" = "Der Arbeitsbereich ist das Verzeichnis, in dem Local Code lesen und schreiben darf. „In App-Dokumente“ hält alles beisammen; „Lokal“ gewährt Zugriff auf Ihren gesamten Mac. Legen Sie ihn pro Bot fest.";

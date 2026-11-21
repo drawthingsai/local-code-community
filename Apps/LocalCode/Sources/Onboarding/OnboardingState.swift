@@ -26,7 +26,15 @@ struct OnboardingState {
   }
 
   enum Step: Int, CaseIterable {
-    case welcome, model, account, finished
+    case welcome, model, account, readingStyle, finished
+  }
+
+  /// A message text size offered on the reading style page. The raw value is the message zoom
+  /// in percent.
+  enum TextSize: Int, CaseIterable {
+    case smaller = 90
+    case normal = 100
+    case bigger = 120
   }
 
   enum Selection: Hashable {
@@ -63,9 +71,14 @@ struct OnboardingState {
     .fileOrganizer, .houseChores, .dailyBrief, .taxProofread,
   ]
   var isBotModeEnabled = false
+  /// The phone layout has neither the message zoom nor the chat width, so it has no reading
+  /// style page.
+  var offersReadingStyle = true
 
   var steps: [Step] {
-    Step.allCases.filter { $0 != .account || !isAccountSignedIn }
+    Step.allCases.filter {
+      ($0 != .account || !isAccountSignedIn) && ($0 != .readingStyle || offersReadingStyle)
+    }
   }
 
   var canSkipAccount: Bool {
@@ -78,7 +91,7 @@ struct OnboardingState {
     case .model:
       return selection == .local || (selection == .remote(.localCode) && !isAccountSignedIn)
         || (isProviderConnected && isModelSelected)
-    case .account, .finished:
+    case .account, .readingStyle, .finished:
       if selection == .local { return true }
       if selection == .remote(.localCode) {
         return isAccountSignedIn && isProviderConnected && isModelSelected

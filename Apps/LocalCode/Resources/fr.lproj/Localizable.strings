@@ -2700,6 +2700,13 @@
 "your_account_your_workspace_detail" = "Vos paramètres et votre espace de travail restent synchronisés sur tous vos appareils.";
 "you_are_all_set" = "Tout est prêt !";
 "you_are_all_set_detail" = "Voici un aperçu rapide de l’organisation de Local Code.";
+"choose_a_reading_style" = "Choisir un style de lecture";
+"choose_a_reading_style_detail" = "Choisissez la présentation des conversations. Vous pourrez la modifier plus tard dans Paramètres de l'appareil.";
+"text_size" = "Taille du texte";
+"smaller" = "Plus petit";
+"bigger" = "Plus grand";
+"rename_these_photos_by_date" = "Renomme ces photos par date.";
+"photos_renamed_by_date_detail" = "J’ai renommé chaque photo d’après sa date de prise de vue. Rien n’a été supprimé.";
 "threads" = "Fils";
 "onboarding_workspace_detail" = "L’espace de travail est le répertoire dans lequel Local Code peut lire et écrire. « Dans les documents de l’app » garde tout au même endroit ; « Local » donne accès à l’ensemble de votre Mac. Définissez-le pour chaque projet.";
 "onboarding_workspace_bot_detail" = "L’espace de travail est le répertoire dans lequel Local Code peut lire et écrire. « Dans les documents de l’app » garde tout au même endroit ; « Local » donne accès à l’ensemble de votre Mac. Définissez-le pour chaque bot.";

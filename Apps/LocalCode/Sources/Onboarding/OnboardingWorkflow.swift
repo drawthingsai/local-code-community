@@ -31,7 +31,7 @@ protocol OnboardingWorkflowDelegate: AnyObject {
 final class OnboardingWorkflow: Workflow {
   weak var delegate: OnboardingWorkflowDelegate?
 
-  let viewController = OnboardingViewController()
+  let viewController: OnboardingViewController
   var viewControllable: UIViewController { viewController }
 
   private let workspace: SQLiteWorkspace
@@ -82,7 +82,10 @@ final class OnboardingWorkflow: Workflow {
     self.workspace = workspace
     self.accountManager = accountManager
     self.userInterfaceIdiom = userInterfaceIdiom
+    viewController = OnboardingViewController(
+      workspace: workspace, userInterfaceIdiom: userInterfaceIdiom)
     viewController.delegate = self
+    state.offersReadingStyle = userInterfaceIdiom != .phone
     // iPhones don't download local models, so they start on Local Code's cloud.
     if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
       state.selection = .remote(.localCode)
@@ -130,6 +133,13 @@ final class OnboardingWorkflow: Workflow {
     viewController.connectionMessage = LocalizedString.forKey(
       state.isProviderConnected
         ? "connected_choose_a_model_detail" : "connect_your_provider_to_continue")
+    viewController.textSize = OnboardingState.TextSize(
+      rawValue: workspace.dictionary["message_zoom", Int.self] ?? 100)
+    viewController.textFontFamily = workspace.dictionary["text_font", String.self].flatMap {
+      MarkdownFonts.isAvailable($0) ? $0 : nil
+    }
+    viewController.chatWidth =
+      workspace.dictionary["chat_width", Int.self].flatMap(ChatWidth.init(rawValue:)) ?? .normal
   }
 
   /// Derives the state from the account and saved credentials, which can change outside this
@@ -144,9 +154,10 @@ final class OnboardingWorkflow: Workflow {
         $0.endpoint.baseURL == account?.endpoint.baseURL
       } ?? false
     if state.step == .account, state.isAccountSignedIn {
-      state.step = state.canContinue ? .finished : .model
+      state.step =
+        state.canContinue ? (state.offersReadingStyle ? .readingStyle : .finished) : .model
     }
-    if state.step == .finished, !state.canContinue {
+    if state.step == .readingStyle || state.step == .finished, !state.canContinue {
       state.step =
         state.selection == .remote(.localCode) && !state.isAccountSignedIn ? .account : .model
     }
@@ -327,6 +338,30 @@ extension OnboardingWorkflow: OnboardingViewControllerDelegate {
     } else {
       state.projectIdeas.remove(idea)
     }
+    refresh()
+  }
+
+  // The reading style is app settings too: a choice takes effect right away, as it does from
+  // Machine Settings, and the page's miniature chat shows it.
+  func onboarding(
+    _ viewController: OnboardingViewController,
+    didSelectTextSize textSize: OnboardingState.TextSize
+  ) {
+    workspace.dictionary["message_zoom", Int.self] = textSize == .normal ? nil : textSize.rawValue
+    refresh()
+  }
+
+  func onboarding(
+    _ viewController: OnboardingViewController, didSelectTextFontFamily family: String?
+  ) {
+    workspace.dictionary["text_font", String.self] = family
+    refresh()
+  }
+
+  func onboarding(
+    _ viewController: OnboardingViewController, didSelectChatWidth chatWidth: ChatWidth
+  ) {
+    workspace.dictionary["chat_width", Int.self] = chatWidth.rawValue
     refresh()
   }
 
