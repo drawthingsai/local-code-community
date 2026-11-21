@@ -879,8 +879,10 @@ extension DeepSeek4_1TextGenerator {
           defer { DynamicGraph.setWholeFileMappingSizeLimit(0) }
           do {
             try graph.openStore(filePath, flags: .readOnly) { store in
-              let ordinary: DynamicGraph.Store.Codec = [.jit, .externalData(.wholeFile), .i8x]
-              try store.read("text_model", model: decoder, strict: true, codec: ordinary) {
+              try store.read(
+                "text_model", model: decoder, strict: true,
+                codec: [.jit, .externalData(.wholeFile), .i8x]
+              ) {
                 name, _, _, shape in
                 let name =
                   name
@@ -898,7 +900,7 @@ extension DeepSeek4_1TextGenerator {
                 {
                   return .continue(name, codec: [.jit, .externalOnDemand, .i8x])
                 }
-                return .continue(name, codec: ordinary)
+                return .continue(name)
               }
             }
           } catch {

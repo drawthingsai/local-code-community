@@ -657,8 +657,10 @@ public struct GLM5_3TextGenerator: TextGenerator {
         GLM5_3ResidentMappingSize(checkpoint: filePath, configuration: streamingConfiguration))
       defer { DynamicGraph.setWholeFileMappingSizeLimit(0) }
       let result = try? graph.openStore(filePath, flags: .readOnly) { store in
-        let codec: DynamicGraph.Store.Codec = [.jit, .i8x, .ezm7, .externalData(.wholeFile)]
-        try store.read("text_model", model: model, strict: true, codec: codec) {
+        try store.read(
+          "text_model", model: model, strict: true,
+          codec: [.jit, .i8x, .ezm7, .externalData(.wholeFile)]
+        ) {
           name, _, _, _ in
           // Streaming layers read their expert banks on demand; MoEWeightStreaming loads experts from
           // the file.

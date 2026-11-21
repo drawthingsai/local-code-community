@@ -860,7 +860,10 @@ extension Inkling2SmallTextGenerator {
     if isDrafting, let drafterFile, !storage.drafterIsLoaded {
       compileDraftHeadroom(isEager: false)
       let drafterResult = try? graph.openStore(drafterFile, flags: .readOnly) { store in
-        try store.read("text_model", model: storage.drafter, codec: [.jit, .i8x, .ezm7]) {
+        try store.read(
+          "text_model", model: storage.drafter,
+          codec: [.jit, .i8x, .ezm7, .externalData(.wholeFile)]
+        ) {
           name, _, _, _ in
           // The drafter reads this model's embedding and head, shared below.
           name.hasSuffix("[t-embed_tokens-0-0]") || name.hasSuffix("[t-lm_head-0-0]")
@@ -883,7 +886,8 @@ extension Inkling2SmallTextGenerator {
       draftContextKey = (rows: 1, globalRow: 0, localRow: draft.windowRows)
       let contextResult = try? graph.openStore(drafterFile, flags: .readOnly) { store in
         try store.read(
-          "text_model", model: storage.draftContext, strict: true, codec: [.jit, .i8x, .ezm7])
+          "text_model", model: storage.draftContext, strict: true,
+          codec: [.jit, .i8x, .ezm7, .externalData(.wholeFile)])
       }
       guard let contextResult, (try? contextResult.get()) != nil else { return [] }
       storage.drafter.pinMemory = true
