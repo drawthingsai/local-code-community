@@ -2523,6 +2523,9 @@
 "new_chat" = "新建聊天";
 "focus_chat" = "聚焦聊天";
 "stop_conversation" = "停止对话";
+"zoom_in" = "放大";
+"zoom_out" = "缩小";
+"actual_size" = "实际大小";
 
 "thread_completed_title" = "工作已完成";
 

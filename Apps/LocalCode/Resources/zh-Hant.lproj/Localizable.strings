@@ -2522,6 +2522,9 @@
 "new_chat" = "新增聊天";
 "focus_chat" = "聚焦聊天";
 "stop_conversation" = "停止對話";
+"zoom_in" = "放大";
+"zoom_out" = "縮小";
+"actual_size" = "實際大小";
 
 "thread_completed_title" = "工作已完成";
 

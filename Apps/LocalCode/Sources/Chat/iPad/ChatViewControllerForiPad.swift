@@ -73,6 +73,9 @@ protocol ChatViewControllableDelegate: AnyObject {
   func chatViewControllerDidRequestKitTab(_ viewController: UIViewController)
   func chatViewControllerDidRequestActivitiesTab(_ viewController: UIViewController)
   func chatViewControllerDidRequestWelcome(_ viewController: UIViewController)
+  func chatViewControllerDidRequestZoomIn(_ viewController: UIViewController)
+  func chatViewControllerDidRequestZoomOut(_ viewController: UIViewController)
+  func chatViewControllerDidRequestActualSize(_ viewController: UIViewController)
   func chatViewController(
     _ viewController: UIViewController,
     didSelectCopyHistoryText text: String)
@@ -400,6 +403,22 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
       }
     }
   }
+  var messageZoom = 100 {
+    didSet {
+      guard messageZoom != oldValue else { return }
+      messageZoomController.zoom = messageZoom
+      guard isViewLoaded else { return }
+      // The messages are at their new size already. A transcript resting at its bottom stays there
+      // as its rows take their new heights.
+      applyProjectHistorySnapshot(
+        scrollTo: projectHistoryItems.last, animated: false, scrollToItem: false)
+    }
+  }
+  private lazy var messageZoomController: MessageZoomController = {
+    let controller = MessageZoomController()
+    controller.delegate = self
+    return controller
+  }()
 
   override var keyCommands: [UIKeyCommand]? {
     Self.keyboardCommands(isBotModeEnabled: isBotModeEnabled)
@@ -626,6 +645,13 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
     projectBarController.view.snp.makeConstraints { make in
       make.leading.top.equalTo(middleContainerView).inset(20)
       make.trailing.lessThanOrEqualTo(middleContainerView).inset(20)
+    }
+    // The message zoom sits in the project bar's row, its trailing edge on the transcript's, while
+    // the transcript rests at its top, and scrolls away with it.
+    projectHistoryCollectionView.addSubview(messageZoomController.view)
+    messageZoomController.view.snp.makeConstraints { make in
+      make.bottom.equalTo(projectHistoryCollectionView.contentLayoutGuide.snp.top).offset(-16)
+      make.trailing.equalTo(projectHistoryContentInsetController.layoutGuide)
     }
     // A layout guide keeps the banner centered as the input/keyboard moves.
     let bannerSpace = UILayoutGuide()
@@ -922,6 +948,13 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
           keyboardCommand(for: .kitTab, isBotModeEnabled: isBotModeEnabled),
           keyboardCommand(for: .activitiesTab, isBotModeEnabled: isBotModeEnabled),
           keyboardCommand(for: .focusChat, isBotModeEnabled: isBotModeEnabled),
+          UIMenu(
+            title: "", options: .displayInline,
+            children: [
+              keyboardCommand(for: .actualSize, isBotModeEnabled: isBotModeEnabled),
+              keyboardCommand(for: .zoomIn, isBotModeEnabled: isBotModeEnabled),
+              keyboardCommand(for: .zoomOut, isBotModeEnabled: isBotModeEnabled),
+            ]),
         ]))
     builder.remove(menu: .fullscreen)
     builder.remove(menu: .format)
@@ -939,6 +972,9 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
       (.activitiesTab, #selector(menuActivitiesTabAction(_:))),
       (.focusChat, #selector(menuFocusChatAction(_:))),
       (.stopConversation, #selector(menuStopConversationAction(_:))),
+      (.zoomIn, #selector(menuZoomInAction(_:))),
+      (.zoomOut, #selector(menuZoomOutAction(_:))),
+      (.actualSize, #selector(menuActualSizeAction(_:))),
     ]
     return actions.map { keyboardCommand(for: $0, action: $1, isBotModeEnabled: isBotModeEnabled) }
   }
@@ -966,6 +1002,12 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
       selector = #selector(menuFocusChatAction(_:))
     case .stopConversation:
       selector = #selector(menuStopConversationAction(_:))
+    case .zoomIn:
+      selector = #selector(menuZoomInAction(_:))
+    case .zoomOut:
+      selector = #selector(menuZoomOutAction(_:))
+    case .actualSize:
+      selector = #selector(menuActualSizeAction(_:))
     }
     return keyboardCommand(for: action, action: selector, isBotModeEnabled: isBotModeEnabled)
   }
@@ -1020,6 +1062,18 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
 
   @objc private func menuStopConversationAction(_ sender: UIKeyCommand) {
     chatInputController.stop()
+  }
+
+  @objc private func menuZoomInAction(_ sender: UIKeyCommand) {
+    delegate?.chatViewControllerDidRequestZoomIn(self)
+  }
+
+  @objc private func menuZoomOutAction(_ sender: UIKeyCommand) {
+    delegate?.chatViewControllerDidRequestZoomOut(self)
+  }
+
+  @objc private func menuActualSizeAction(_ sender: UIKeyCommand) {
+    delegate?.chatViewControllerDidRequestActualSize(self)
   }
 
   /// The session-only message is appended to the snapshot, never to conversation history.
@@ -1325,6 +1379,12 @@ extension ChatViewControllerForiPad: QueuedItemViewDelegate {
     _ view: QueuedItemView, didTapDeleteQueuedItem queuedItem: ProjectQueuedItem
   ) {
     delegate?.chatViewController(self, didDeleteQueuedItem: queuedItem)
+  }
+}
+
+extension ChatViewControllerForiPad: MessageZoomControllerDelegate {
+  func messageZoomControllerDidTapActualSize(_ controller: MessageZoomController) {
+    delegate?.chatViewControllerDidRequestActualSize(self)
   }
 }
 

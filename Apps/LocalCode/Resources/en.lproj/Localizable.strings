@@ -2802,6 +2802,9 @@
 "new_chat" = "New Chat";
 "focus_chat" = "Focus Chat";
 "stop_conversation" = "Stop Conversation";
+"zoom_in" = "Zoom In";
+"zoom_out" = "Zoom Out";
+"actual_size" = "Actual Size";
 
 "thread_completed_title" = "Work finished";
 

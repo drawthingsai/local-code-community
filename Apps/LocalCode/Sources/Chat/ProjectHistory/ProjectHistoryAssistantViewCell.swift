@@ -52,7 +52,7 @@ final class ProjectHistoryAssistantViewCell: UICollectionViewCell {
     textView.alwaysBounceVertical = false
     textView.isUserInteractionEnabled = true
     FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: textView) {
-      $0.baseFont = MarkdownFonts.default.textFont(replacing: $1)
+      $0.baseFont = MarkdownFonts.default.messageFont(replacing: $1)
     }
     textView.configuration = ProjectHistoryMarkdownConfiguration.make(localPathResolver: nil)
     return textView

@@ -11,6 +11,9 @@ enum KeyboardShortcutAction: CaseIterable {
   case activitiesTab
   case focusChat
   case stopConversation
+  case zoomIn
+  case zoomOut
+  case actualSize
 
   func title(isBotModeEnabled: Bool) -> String {
     switch self {
@@ -32,6 +35,12 @@ enum KeyboardShortcutAction: CaseIterable {
       return LocalizedString.forKey("focus_chat")
     case .stopConversation:
       return LocalizedString.forKey("stop_conversation")
+    case .zoomIn:
+      return LocalizedString.forKey("zoom_in")
+    case .zoomOut:
+      return LocalizedString.forKey("zoom_out")
+    case .actualSize:
+      return LocalizedString.forKey("actual_size")
     }
   }
 
@@ -55,6 +64,26 @@ enum KeyboardShortcutAction: CaseIterable {
       return KeyboardShortcut(input: "l", modifierFlags: .command)
     case .stopConversation:
       return KeyboardShortcut(input: ".", modifierFlags: .command)
+    case .zoomIn:
+      return KeyboardShortcut(input: "+", modifierFlags: .command)
+    case .zoomOut:
+      return KeyboardShortcut(input: "-", modifierFlags: .command)
+    case .actualSize:
+      return KeyboardShortcut(input: "0", modifierFlags: .command)
+    }
+  }
+
+  /// Whether a key press runs this action.
+  func matches(_ pressed: KeyboardShortcut) -> Bool {
+    switch self {
+    case .zoomIn:
+      // The plus key is Shift-equals on most keyboards. As in a browser, Command-equals zooms in
+      // with or without Shift, and so does plus on a numeric keypad.
+      return ["+", "="].contains(pressed.input)
+        && pressed.modifierFlags.subtracting(.shift) == .command
+    case .newProject, .newChat, .machineSettings, .projectsTab, .settingsTab, .kitTab,
+      .activitiesTab, .focusChat, .stopConversation, .zoomOut, .actualSize:
+      return shortcut == pressed
     }
   }
 }

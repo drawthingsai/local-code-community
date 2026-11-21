@@ -2548,6 +2548,9 @@
 "new_chat" = "새 채팅";
 "focus_chat" = "채팅에 포커스";
 "stop_conversation" = "대화 중지";
+"zoom_in" = "확대";
+"zoom_out" = "축소";
+"actual_size" = "실제 크기";
 
 "thread_completed_title" = "작업 완료";
 

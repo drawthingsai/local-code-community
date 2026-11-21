@@ -2547,6 +2547,9 @@
 "new_chat" = "Nouvelle discussion";
 "focus_chat" = "Activer la discussion";
 "stop_conversation" = "Arrêter la conversation";
+"zoom_in" = "Zoom avant";
+"zoom_out" = "Zoom arrière";
+"actual_size" = "Taille réelle";
 
 "thread_completed_title" = "Travail terminé";
 

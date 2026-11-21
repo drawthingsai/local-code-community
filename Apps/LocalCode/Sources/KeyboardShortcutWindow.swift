@@ -35,7 +35,7 @@ final class KeyboardShortcutWindow: UIWindow {
           let pressedShortcut = KeyboardShortcut(
             input: key.charactersIgnoringModifiers, modifierFlags: key.modifierFlags)
           matchedAction = KeyboardShortcutAction.allCases.first(where: {
-            $0.shortcut == pressedShortcut
+            $0.matches(pressedShortcut)
           })
           if matchedAction != nil { break }
         }

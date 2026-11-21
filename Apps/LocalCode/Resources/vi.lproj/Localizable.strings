@@ -2802,6 +2802,9 @@
 "new_chat" = "Cuộc trò chuyện mới";
 "focus_chat" = "Chuyển tới ô trò chuyện";
 "stop_conversation" = "Dừng cuộc trò chuyện";
+"zoom_in" = "Phóng to";
+"zoom_out" = "Thu nhỏ";
+"actual_size" = "Kích cỡ thực";
 
 "thread_completed_title" = "Đã hoàn tất công việc";
 

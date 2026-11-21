@@ -137,6 +137,7 @@ final class ChatWorkflow: Workflow {
   private var reasoningEffortSubscription: Workspace.Subscription?
   private var botModeSubscription: Workspace.Subscription?
   private var reduceReasoningAnimationSubscription: Workspace.Subscription?
+  private var messageZoomSubscription: Workspace.Subscription?
   private var workAttitudeSubscription: Workspace.Subscription?
   private var thinkingBudgetSubscription: Workspace.Subscription? = nil
   private var queuedItemSubscription: Workspace.Subscription?
@@ -487,6 +488,25 @@ final class ChatWorkflow: Workflow {
         self.viewController.isReduceReasoningAnimationEnabled = value ?? false
       case .updated(let value):
         self.viewController.isReduceReasoningAnimationEnabled = value
+      }
+    }
+    // The phone layout does not zoom its messages.
+    if let viewController = viewController as? ChatViewControllerForiPad {
+      messageZoomSubscription = workspace.dictionary.subscribe("message_zoom", of: Int.self) {
+        [weak viewController] value in
+        let messageZoom: Int
+        switch value {
+        case .deleted:
+          messageZoom = 100
+        case .initial(let value):
+          messageZoom = value ?? 100
+        case .updated(let value):
+          messageZoom = value
+        }
+        // Message text views read this when they set their fonts, so they are at the new size
+        // when the view controller lays the transcript out again.
+        MarkdownFonts.default.messageZoom = messageZoom
+        viewController?.messageZoom = messageZoom
       }
     }
     thinkingBudgetSubscription = workspace.dictionary.subscribe(
@@ -2650,6 +2670,19 @@ extension ChatWorkflow {
       chatInputController.focus()
     case .stopConversation:
       chatInputController.stop()
+    case .zoomIn:
+      // Message text zooms a tenth of its regular size at a time, between 20% and 500%. The phone
+      // layout does not zoom.
+      guard userInterfaceIdiom != .phone else { return }
+      workspace.dictionary["message_zoom", Int.self] = min(
+        (workspace.dictionary["message_zoom", Int.self] ?? 100) + 10, 500)
+    case .zoomOut:
+      guard userInterfaceIdiom != .phone else { return }
+      workspace.dictionary["message_zoom", Int.self] = max(
+        (workspace.dictionary["message_zoom", Int.self] ?? 100) - 10, 20)
+    case .actualSize:
+      guard userInterfaceIdiom != .phone else { return }
+      workspace.dictionary["message_zoom", Int.self] = nil
     }
   }
 
@@ -2758,6 +2791,18 @@ extension ChatWorkflow: ChatViewControllableDelegate {
 
   func chatViewControllerDidRequestActivitiesTab(_ viewController: UIViewController) {
     handleKeyboardShortcut(.activitiesTab)
+  }
+
+  func chatViewControllerDidRequestZoomIn(_ viewController: UIViewController) {
+    handleKeyboardShortcut(.zoomIn)
+  }
+
+  func chatViewControllerDidRequestZoomOut(_ viewController: UIViewController) {
+    handleKeyboardShortcut(.zoomOut)
+  }
+
+  func chatViewControllerDidRequestActualSize(_ viewController: UIViewController) {
+    handleKeyboardShortcut(.actualSize)
   }
 
   func chatViewControllerDidRequestWelcome(_ viewController: UIViewController) {

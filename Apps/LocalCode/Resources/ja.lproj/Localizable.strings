@@ -2545,6 +2545,9 @@
 "new_chat" = "新しいチャット";
 "focus_chat" = "チャットにフォーカス";
 "stop_conversation" = "会話を停止";
+"zoom_in" = "拡大";
+"zoom_out" = "縮小";
+"actual_size" = "実際のサイズ";
 
 "thread_completed_title" = "作業が完了しました";
 

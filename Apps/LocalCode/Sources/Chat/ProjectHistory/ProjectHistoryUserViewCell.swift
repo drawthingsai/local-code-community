@@ -82,7 +82,7 @@ final class ProjectHistoryUserViewCell: UICollectionViewCell {
     textView.setContentHuggingPriority(UILayoutPriority(999), for: .horizontal)
     textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: textView) {
-      $0.baseFont = MarkdownFonts.default.textFont(replacing: $1)
+      $0.baseFont = MarkdownFonts.default.messageFont(replacing: $1)
     }
     textView.configuration = ProjectHistoryMarkdownConfiguration.make(localPathResolver: nil)
     return textView

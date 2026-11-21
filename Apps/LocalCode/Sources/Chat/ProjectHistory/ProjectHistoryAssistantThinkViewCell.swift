@@ -128,7 +128,14 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
     let label = UILabel(frame: .zero)
     label.text = LocalizedString.forKey("thinking_dot")
     label.textColor = .octonaryText
-    FontMetrics.default.scaleFont(.italicSystemFont(ofSize: 15), bindTo: label)
+    // The status is in the font of the messages, zoom included, italic the way their emphasis is.
+    FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: label) {
+      let font = MarkdownFonts.default.messageFont(replacing: $1)
+      $0.font =
+        font.fontDescriptor.withSymbolicTraits(.traitItalic).map {
+          UIFont(descriptor: $0, size: font.pointSize)
+        } ?? font
+    }
     return label
   }()
   private lazy var activityIndicator: UIActivityIndicatorView = {
@@ -396,7 +403,7 @@ final class ProjectHistoryAssistantThinkViewCell: UICollectionViewCell {
     textView.alwaysBounceVertical = false
     textView.isUserInteractionEnabled = true
     FontMetrics.default.scaleFont(.systemFont(ofSize: 15), bindTo: textView) {
-      $0.baseFont = MarkdownFonts.default.textFont(replacing: $1)
+      $0.baseFont = MarkdownFonts.default.messageFont(replacing: $1)
     }
     textView.configuration = ProjectHistoryMarkdownConfiguration.make(
       localPathResolver: nil, isTransient: true)
