@@ -1,5 +1,10 @@
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
+# Upstream mgriebling/SwiftMath at 48fcb89 (2025-11-04), formatted with .swift-format.json. Later
+# upstream commits change inline sizes and drop TeX spacing, explicit spaces and colors.
+# Not in that commit: BazelBundleModule.swift, \boxed (MTBoxed.swift and its hooks), and
+# \operatorname and \boldsymbol, taken from upstream main.
+
 swift_library(
     name = "SwiftMath",
     srcs = glob([

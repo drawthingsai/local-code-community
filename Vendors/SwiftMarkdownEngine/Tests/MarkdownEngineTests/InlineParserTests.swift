@@ -217,6 +217,85 @@ struct InlineParserTests {
       ])
   }
 
+  @Test("link text may hold a code span, parsed as its child")
+  func linkContainsCode() {
+    #expect(
+      InlineParser.parse("[`a`](u)") == [
+        .link(
+          range: r(0, 8), textRange: r(1, 3), url: r(6, 1),
+          markers: [r(0, 1), r(4, 1), r(5, 1), r(7, 1)],
+          children: [.code(range: r(1, 3), content: r(2, 1))])
+      ])
+    // The parentheses inside the code span are not the destination's.
+    #expect(
+      InlineParser.parse("[`f()`](u)") == [
+        .link(
+          range: r(0, 10), textRange: r(1, 5), url: r(8, 1),
+          markers: [r(0, 1), r(6, 1), r(7, 1), r(9, 1)],
+          children: [.code(range: r(1, 5), content: r(2, 3))])
+      ])
+  }
+
+  @Test("link text and destination may hold escape pairs")
+  func linkContainsEscapes() {
+    #expect(
+      InlineParser.parse(#"[a\_b](u)"#) == [
+        .link(
+          range: r(0, 9), textRange: r(1, 4), url: r(7, 1),
+          markers: [r(0, 1), r(5, 1), r(6, 1), r(8, 1)],
+          children: [
+            .text(r(1, 1)),
+            .escape(range: r(2, 2), character: r(3, 1), marker: r(2, 1)),
+            .text(r(4, 1)),
+          ])
+      ])
+    // An escaped `]` does not end the text, and an escaped `)` does not end the destination.
+    #expect(
+      InlineParser.parse(#"[a\]](u\)v)"#) == [
+        .link(
+          range: r(0, 11), textRange: r(1, 3), url: r(6, 4),
+          markers: [r(0, 1), r(4, 1), r(5, 1), r(10, 1)],
+          children: [
+            .text(r(1, 1)),
+            .escape(range: r(2, 2), character: r(3, 1), marker: r(2, 1)),
+          ])
+      ])
+  }
+
+  @Test("a code span binds tighter than the link it would cross")
+  func codeSpanBeatsLink() {
+    // The `](u)` is inside the code span, so the link ends at the later `](v)`.
+    #expect(
+      InlineParser.parse("[a `b](u)` c](v)") == [
+        .link(
+          range: r(0, 16), textRange: r(1, 11), url: r(14, 1),
+          markers: [r(0, 1), r(12, 1), r(13, 1), r(15, 1)],
+          children: [
+            .text(r(1, 2)),
+            .code(range: r(3, 7), content: r(4, 5)),
+            .text(r(10, 2)),
+          ])
+      ])
+    // A code span in the destination, or one that runs past the line, leaves no link.
+    for sample in ["[x](a`b`c)", "[a `b\nc` d](u)", #"\[a](b)"#, #"[a\](b)"#] {
+      #expect(
+        !InlineParser.parse(sample).contains {
+          if case .link = $0 { return true }
+          return false
+        })
+    }
+  }
+
+  @Test("image alt and destination may hold code spans and escape pairs")
+  func imageContainsCodeAndEscapes() {
+    #expect(
+      InlineParser.parse(#"![a `b`](p\_q.png)"#) == [
+        .image(
+          range: r(0, 18), alt: r(2, 5), url: r(9, 8),
+          markers: [r(0, 2), r(7, 1), r(8, 1), r(17, 1)])
+      ])
+  }
+
   // MARK: - Inline LaTeX
 
   @Test("inline math")
@@ -274,6 +353,109 @@ struct InlineParserTests {
         .text(r(0, 3)),
         .code(range: r(3, 3), content: r(4, 1)),
         .text(r(6, 3)),
+      ])
+  }
+
+  @Test("escape pairs inside inline math are LaTeX, not escapes")
+  func escapesInsideInlineLatex() {
+    #expect(
+      InlineParser.parse(#"$\{a\}$"#) == [
+        .inlineLatex(range: r(0, 7), content: r(1, 5), markers: [r(0, 1), r(6, 1)])
+      ])
+    for sample in [#"$a\,b$"#, #"$\|x\|$"#, #"$50\%$"#, #"$a \\ b$"#, #"$x\_i$"#] {
+      let length = (sample as NSString).length
+      #expect(
+        InlineParser.parse(sample) == [
+          .inlineLatex(
+            range: r(0, length), content: r(1, length - 2), markers: [r(0, 1), r(length - 1, 1)])
+        ])
+    }
+  }
+
+  @Test("an escaped dollar is a dollar sign, never a math delimiter")
+  func escapedDollarInLatex() {
+    #expect(
+      InlineParser.parse(#"\$5 and $x$"#) == [
+        .escape(range: r(0, 2), character: r(1, 1), marker: r(0, 1)),
+        .text(r(2, 6)),
+        .inlineLatex(range: r(8, 3), content: r(9, 1), markers: [r(8, 1), r(10, 1)]),
+      ])
+    // Inside math it is content, and does not end the math.
+    #expect(
+      InlineParser.parse(#"$a\$b$"#) == [
+        .inlineLatex(range: r(0, 6), content: r(1, 4), markers: [r(0, 1), r(5, 1)])
+      ])
+    let prose = [
+      #"\$x$"#, #"$x\$"#, #"It is $5\, or \$6, or $7."#, #"$PATH and $HOME\_DIR"#,
+    ]
+    for sample in prose {
+      #expect(
+        !InlineParser.parse(sample).contains {
+          if case .inlineLatex = $0 { return true }
+          return false
+        })
+    }
+  }
+
+  @Test(#"\(math\) is inline math, and its markers take the padding"#)
+  func parenthesizedLatex() {
+    #expect(
+      InlineParser.parse(#"\(x^2\)"#) == [
+        .inlineLatex(range: r(0, 7), content: r(2, 3), markers: [r(0, 2), r(5, 2)])
+      ])
+    #expect(
+      InlineParser.parse(#"\( x \)"#) == [
+        .inlineLatex(range: r(0, 7), content: r(3, 1), markers: [r(0, 3), r(4, 3)])
+      ])
+    // Escape pairs inside are LaTeX.
+    #expect(
+      InlineParser.parse(#"a \(\{1\}\) b"#) == [
+        .text(r(0, 2)),
+        .inlineLatex(range: r(2, 9), content: r(4, 5), markers: [r(2, 2), r(9, 2)]),
+        .text(r(11, 2)),
+      ])
+  }
+
+  @Test(#"emphasis wraps \(math\)"#)
+  func emphasisWrapsParenthesizedLatex() {
+    #expect(
+      InlineParser.parse(#"**a \(x\)**"#) == [
+        .emphasis(
+          .bold, range: r(0, 11), markers: [r(0, 2), r(9, 2)],
+          children: [
+            .text(r(2, 2)),
+            .inlineLatex(range: r(4, 5), content: r(6, 1), markers: [r(4, 2), r(7, 2)]),
+          ])
+      ])
+  }
+
+  @Test(#"a \( that does not open math stays an escape"#)
+  func parenEscapesNotLatex() {
+    let samples = [
+      #"\(\)"#, #"\( \)"#, #"\(x and more"#, #"\\(x\\)"#, "\\(a\nb\\)", #"\(a `b` c\)"#,
+    ]
+    for sample in samples {
+      #expect(
+        !InlineParser.parse(sample).contains {
+          if case .inlineLatex = $0 { return true }
+          return false
+        })
+    }
+    #expect(
+      InlineParser.parse(#"\(x"#) == [
+        .escape(range: r(0, 2), character: r(1, 1), marker: r(0, 1)),
+        .text(r(2, 1)),
+      ])
+  }
+
+  @Test(#"inline, \[ and \] stay escaped brackets"#)
+  func bracketEscapesNotLatex() {
+    #expect(
+      InlineParser.parse(#"arr\[0\]"#) == [
+        .text(r(0, 3)),
+        .escape(range: r(3, 2), character: r(4, 1), marker: r(3, 1)),
+        .text(r(5, 1)),
+        .escape(range: r(6, 2), character: r(7, 1), marker: r(6, 1)),
       ])
   }
 

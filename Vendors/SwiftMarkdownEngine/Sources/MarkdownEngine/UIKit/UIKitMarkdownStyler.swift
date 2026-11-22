@@ -475,11 +475,11 @@
       result: NSMutableAttributedString,
       configuration: MarkdownEditorConfiguration
     ) {
-      let full = text.substring(with: token.range)
-      guard let urlStart = full.firstIndex(of: "("), let urlEnd = full.lastIndex(of: ")") else {
-        return
-      }
-      let rawURL = String(full[full.index(after: urlStart)..<urlEnd])
+      // The token's own parentheses: the text may hold some too, as in [`parse()`](a.swift).
+      guard token.markerRanges.count >= 4 else { return }
+      let urlStart = NSMaxRange(token.markerRanges[2])
+      let rawURL = text.substring(
+        with: NSRange(location: urlStart, length: token.markerRanges[3].location - urlStart))
       let destination = normalizedMarkdownLinkDestination(rawURL)
       let color =
         isActive
@@ -607,7 +607,8 @@
         addMarkers(for: token, to: result, color: configuration.theme.mutedText)
         return
       }
-      let url = text.substring(with: NSRange(location: urlStart, length: urlLength))
+      let url = normalizedMarkdownLinkDestination(
+        text.substring(with: NSRange(location: urlStart, length: urlLength)))
       if styleHTML(
         token, name: url, isExplicitHTML: false, requestedHeight: nil,
         text: text, result: result, baseFont: baseFont,
@@ -639,7 +640,7 @@
         renderStandaloneMediaBlock(
           token,
           image: image,
-          imageURL: configuration.services.links.url(for: normalizedMarkdownLinkDestination(url)),
+          imageURL: configuration.services.links.url(for: url),
           imageBounds: imageBounds,
           text: text,
           result: result,

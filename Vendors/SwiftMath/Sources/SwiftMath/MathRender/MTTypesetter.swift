@@ -370,13 +370,24 @@ class MTTypesetter {
   }
   var cramped = false
   var spaced = false
+  var maxWidth: CGFloat = 0  // Maximum width for line breaking, 0 means no constraint
 
   static func createLineForMathList(_ mathList: MTMathList?, font: MTFont?, style: MTLineStyle)
     -> MTMathListDisplay?
   {
     let finalizedList = mathList?.finalized
+    // default is not cramped, no width constraint
+    return self.createLineForMathList(
+      finalizedList, font: font, style: style, cramped: false, maxWidth: 0)
+  }
+
+  static func createLineForMathList(
+    _ mathList: MTMathList?, font: MTFont?, style: MTLineStyle, maxWidth: CGFloat
+  ) -> MTMathListDisplay? {
+    let finalizedList = mathList?.finalized
     // default is not cramped
-    return self.createLineForMathList(finalizedList, font: font, style: style, cramped: false)
+    return self.createLineForMathList(
+      finalizedList, font: font, style: style, cramped: false, maxWidth: maxWidth)
   }
 
   // Internal
@@ -384,16 +395,34 @@ class MTTypesetter {
     _ mathList: MTMathList?, font: MTFont?, style: MTLineStyle, cramped: Bool
   ) -> MTMathListDisplay? {
     return self.createLineForMathList(
-      mathList, font: font, style: style, cramped: cramped, spaced: false)
+      mathList, font: font, style: style, cramped: cramped, spaced: false, maxWidth: 0)
+  }
+
+  // Internal
+  static func createLineForMathList(
+    _ mathList: MTMathList?, font: MTFont?, style: MTLineStyle, cramped: Bool, maxWidth: CGFloat
+  ) -> MTMathListDisplay? {
+    return self.createLineForMathList(
+      mathList, font: font, style: style, cramped: cramped, spaced: false, maxWidth: maxWidth)
   }
 
   // Internal
   static func createLineForMathList(
     _ mathList: MTMathList?, font: MTFont?, style: MTLineStyle, cramped: Bool, spaced: Bool
   ) -> MTMathListDisplay? {
+    return self.createLineForMathList(
+      mathList, font: font, style: style, cramped: cramped, spaced: spaced, maxWidth: 0)
+  }
+
+  // Internal
+  static func createLineForMathList(
+    _ mathList: MTMathList?, font: MTFont?, style: MTLineStyle, cramped: Bool, spaced: Bool,
+    maxWidth: CGFloat
+  ) -> MTMathListDisplay? {
     assert(font != nil)
     let preprocessedAtoms = self.preprocessMathList(mathList)
-    let typesetter = MTTypesetter(withFont: font, style: style, cramped: cramped, spaced: spaced)
+    let typesetter = MTTypesetter(
+      withFont: font, style: style, cramped: cramped, spaced: spaced, maxWidth: maxWidth)
     typesetter.createDisplayAtoms(preprocessedAtoms)
     let lastAtom = mathList!.atoms.last
     let last = lastAtom?.indexRange ?? NSMakeRange(0, 0)
@@ -404,12 +433,15 @@ class MTTypesetter {
 
   static var placeholderColor: MTColor { MTColor.blue }
 
-  init(withFont font: MTFont?, style: MTLineStyle, cramped: Bool, spaced: Bool) {
+  init(
+    withFont font: MTFont?, style: MTLineStyle, cramped: Bool, spaced: Bool, maxWidth: CGFloat = 0
+  ) {
     self.font = font
     self.displayAtoms = [MTDisplay]()
     self.currentPosition = CGPoint.zero
     self.cramped = cramped
     self.spaced = spaced
+    self.maxWidth = maxWidth
     self.currentLine = NSMutableAttributedString()
     self.currentAtoms = [MTMathAtom]()
     self.style = style
@@ -688,23 +720,99 @@ class MTTypesetter {
           self.makeScripts(atom, display: display, index: UInt(atom.indexRange.location), delta: 0)
         }
 
-      case .accent:
+      case .boxed:
         // stash the existing layout
         if currentLine.length > 0 {
           self.addDisplayLine()
         }
-        // Accent is considered as Ord in rule 16.
+        // \boxed is an Ord, as the \fbox it stands for.
         self.addInterElementSpace(prevNode, currentType: .ordinary)
         atom.type = .ordinary
 
-        let accent = atom as! MTAccent?
-        let display = self.makeAccent(accent)
+        let display = self.makeBoxed(atom as? MTBoxed)
         displayAtoms.append(display!)
         currentPosition.x += display!.width
-
         // add super scripts || subscripts
         if atom.subScript != nil || atom.superScript != nil {
           self.makeScripts(atom, display: display, index: UInt(atom.indexRange.location), delta: 0)
+        }
+
+      case .accent:
+        if maxWidth > 0 {
+          // When line wrapping is enabled, render the accent properly but inline
+          // to avoid premature line flushing
+
+          let accent = atom as! MTAccent
+
+          // Get the base character from innerList
+          var baseChar = ""
+          if let innerList = accent.innerList, !innerList.atoms.isEmpty {
+            // Convert innerList to string
+            baseChar = MTMathListBuilder.mathListToString(innerList)
+          }
+
+          // Combine base character with accent to create proper composed character
+          let accentChar = atom.nucleus
+          let composedString = baseChar + accentChar
+
+          // Normalize to composed form (NFC) to get proper accented character
+          let normalizedString = composedString.precomposedStringWithCanonicalMapping
+
+          // Add inter-element spacing
+          if prevNode != nil {
+            let interElementSpace = self.getInterElementSpace(prevNode!.type, right: .ordinary)
+            if currentLine.length > 0 {
+              if interElementSpace > 0 {
+                currentLine.addAttribute(
+                  kCTKernAttributeName as NSAttributedString.Key,
+                  value: NSNumber(floatLiteral: interElementSpace),
+                  range: currentLine.mutableString.rangeOfComposedCharacterSequence(
+                    at: currentLine.length - 1))
+              }
+            } else {
+              currentPosition.x += interElementSpace
+            }
+          }
+
+          // Add the properly composed accented character
+          let current = NSAttributedString(string: normalizedString)
+          currentLine.append(current)
+
+          // Check if we should break the line
+          self.checkAndBreakLine()
+
+          // Add to atom list
+          if currentLineIndexRange.location == NSNotFound {
+            currentLineIndexRange = atom.indexRange
+          } else {
+            currentLineIndexRange.length += atom.indexRange.length
+          }
+          currentAtoms.append(atom)
+
+          // Treat accent as ordinary for spacing purposes
+          atom.type = .ordinary
+        } else {
+          // Original behavior when no width constraint
+          // Check if we need to break the line due to width constraints
+          self.checkAndBreakLine()
+          // stash the existing layout
+          if currentLine.length > 0 {
+            self.addDisplayLine()
+          }
+          // Accent is considered as Ord in rule 16.
+          self.addInterElementSpace(prevNode, currentType: .ordinary)
+          atom.type = .ordinary
+
+          let accent = atom as! MTAccent?
+          let display = self.makeAccent(accent)
+          displayAtoms.append(display!)
+          currentPosition.x += display!.width
+
+          // add super scripts || subscripts
+          if atom.subScript != nil || atom.superScript != nil {
+            self.makeScripts(
+              atom, display: display, index: UInt(atom.indexRange.location), delta: 0)
+          }
         }
 
       case .table:
@@ -750,7 +858,101 @@ class MTTypesetter {
         } else {
           current = NSAttributedString(string: atom.nucleus)
         }
+
         currentLine.append(current!)
+
+        // Universal line breaking: only for simple atoms (no scripts)
+        // This works for text, mixed text+math, and simple equations
+        let isSimpleAtom = (atom.subScript == nil && atom.superScript == nil)
+
+        if isSimpleAtom && maxWidth > 0 {
+          // Measure the current line width
+          let attrString = currentLine.mutableCopy() as! NSMutableAttributedString
+          attrString.addAttribute(
+            kCTFontAttributeName as NSAttributedString.Key, value: styleFont.ctFont as Any,
+            range: NSMakeRange(0, attrString.length))
+          let ctLine = CTLineCreateWithAttributedString(attrString)
+          let lineWidth = CGFloat(CTLineGetTypographicBounds(ctLine, nil, nil, nil))
+
+          if lineWidth > maxWidth {
+            // Line is too wide - need to find a break point
+            let currentText = currentLine.string
+
+            // Use Unicode-aware line breaking with number protection
+            if let breakIndex = findBestBreakPoint(
+              in: currentText, font: styleFont.ctFont, maxWidth: maxWidth)
+            {
+              // Split the line at the suggested break point
+              let breakOffset = currentText.distance(from: currentText.startIndex, to: breakIndex)
+
+              // Create attributed string for the first line
+              let firstLine = NSMutableAttributedString(
+                string: String(currentText.prefix(breakOffset)))
+              firstLine.addAttribute(
+                kCTFontAttributeName as NSAttributedString.Key, value: styleFont.ctFont as Any,
+                range: NSMakeRange(0, firstLine.length))
+
+              // Check if first line still exceeds maxWidth - need to find earlier break point
+              let firstLineCT = CTLineCreateWithAttributedString(firstLine)
+              let firstLineWidth = CGFloat(CTLineGetTypographicBounds(firstLineCT, nil, nil, nil))
+
+              if firstLineWidth > maxWidth {
+                // Need to break earlier - find previous break point
+                let firstLineText = firstLine.string
+                if let earlierBreakIndex = findBestBreakPoint(
+                  in: firstLineText, font: styleFont.ctFont, maxWidth: maxWidth)
+                {
+                  let earlierOffset = firstLineText.distance(
+                    from: firstLineText.startIndex, to: earlierBreakIndex)
+                  let earlierLine = NSMutableAttributedString(
+                    string: String(firstLineText.prefix(earlierOffset)))
+                  earlierLine.addAttribute(
+                    kCTFontAttributeName as NSAttributedString.Key, value: styleFont.ctFont as Any,
+                    range: NSMakeRange(0, earlierLine.length))
+
+                  // Flush the earlier line
+                  currentLine = earlierLine
+                  currentAtoms = []  // Approximate - we're splitting
+                  self.addDisplayLine()
+
+                  // Move down for new line
+                  currentPosition.y -= styleFont.fontSize * 1.5
+                  currentPosition.x = 0
+
+                  // Remaining text includes everything after the earlier break
+                  let remainingText =
+                    String(firstLineText.suffix(from: earlierBreakIndex))
+                    + String(currentText.suffix(from: breakIndex))
+                  currentLine = NSMutableAttributedString(string: remainingText)
+                  currentAtoms = []
+                  currentLineIndexRange = NSMakeRange(NSNotFound, NSNotFound)
+                }
+              } else {
+                // First line fits - proceed with normal wrapping
+                // Keep track of atoms that belong to the first line
+                let firstLineAtoms = currentAtoms
+
+                // Flush the first line
+                currentLine = firstLine
+                currentAtoms = firstLineAtoms
+                self.addDisplayLine()
+
+                // Move down for new line and reset x position
+                currentPosition.y -= styleFont.fontSize * 1.5
+                currentPosition.x = 0
+
+                // Start the new line with the content after the break
+                let remainingText = String(currentText.suffix(from: breakIndex))
+                currentLine = NSMutableAttributedString(string: remainingText)
+
+                // Reset atom list for new line
+                currentAtoms = []
+                currentLineIndexRange = NSMakeRange(NSNotFound, NSNotFound)
+              }
+            }
+            // If no break point found, let it overflow (better than breaking mid-word)
+          }
+        }
         // add the atom to the current range
         if currentLineIndexRange.location == NSNotFound {
           currentLineIndexRange = atom.indexRange
@@ -795,6 +997,200 @@ class MTTypesetter {
       let display = displayAtoms.last
       let interElementSpace = self.getInterElementSpace(lastType, right: .close)
       display?.width += interElementSpace
+    }
+  }
+
+  // MARK: - Unicode-aware Line Breaking
+
+  /// Find the best break point using Core Text, with conservative number protection
+  func findBestBreakPoint(in text: String, font: CTFont, maxWidth: CGFloat) -> String.Index? {
+    let attributes: [NSAttributedString.Key: Any] = [
+      kCTFontAttributeName as NSAttributedString.Key: font
+    ]
+    let attrString = NSAttributedString(string: text, attributes: attributes)
+    let typesetter = CTTypesetterCreateWithAttributedString(attrString as CFAttributedString)
+    let suggestedBreak = CTTypesetterSuggestLineBreak(typesetter, 0, Double(maxWidth))
+
+    guard suggestedBreak > 0 && suggestedBreak < text.count else {
+      return nil
+    }
+
+    let breakIndex = text.index(text.startIndex, offsetBy: suggestedBreak)
+
+    // Conservative check: verify we're not breaking within a number
+    if isBreakingSafeForNumbers(text: text, breakIndex: breakIndex) {
+      return breakIndex
+    }
+
+    // If the suggested break would split a number, find the previous safe break point
+    return findPreviousSafeBreak(in: text, before: breakIndex)
+  }
+
+  /// Check if breaking at this index would split a number
+  func isBreakingSafeForNumbers(text: String, breakIndex: String.Index) -> Bool {
+    guard breakIndex > text.startIndex && breakIndex < text.endIndex else {
+      return true
+    }
+
+    // Check a small window around the break point
+    let beforeIndex = text.index(before: breakIndex)
+    let charBefore = text[beforeIndex]
+    let charAfter = text[breakIndex]
+
+    // Number separators in various locales
+    let numberSeparators: Set<Character> = [
+      ".", ",",  // Decimal/thousands (EN/FR)
+      "'",  // Thousands (CH)
+      "\u{00A0}",  // Non-breaking space (FR thousands)
+      "\u{2009}",  // Thin space (sometimes used)
+      "\u{202F}",  // Narrow no-break space (FR)
+    ]
+
+    // Pattern 1: digit + separator + digit (e.g., "3.14" or "3,14")
+    if charBefore.isNumber && numberSeparators.contains(charAfter) {
+      // Check if there's a digit after the separator
+      let nextIndex = text.index(after: breakIndex)
+      if nextIndex < text.endIndex && text[nextIndex].isNumber {
+        return false  // Don't break: this looks like "3.|14"
+      }
+    }
+
+    // Pattern 2: separator + digit, check if previous is digit
+    if numberSeparators.contains(charBefore) && charAfter.isNumber {
+      // Check if there's a digit before the separator
+      if beforeIndex > text.startIndex {
+        let prevIndex = text.index(before: beforeIndex)
+        if text[prevIndex].isNumber {
+          return false  // Don't break: this looks like "3,|14"
+        }
+      }
+    }
+
+    // Pattern 3: digit + digit (shouldn't happen with CTTypesetter, but be safe)
+    if charBefore.isNumber && charAfter.isNumber {
+      return false  // Don't break within consecutive digits
+    }
+
+    // Pattern 4: digit + space + digit (French: "1 000 000")
+    if charBefore.isNumber && charAfter.isWhitespace {
+      let nextIndex = text.index(after: breakIndex)
+      if nextIndex < text.endIndex && text[nextIndex].isNumber {
+        return false  // Don't break: this looks like "1 |000"
+      }
+    }
+
+    return true  // Safe to break
+  }
+
+  /// Find previous safe break point before the given index
+  func findPreviousSafeBreak(in text: String, before breakIndex: String.Index) -> String.Index? {
+    var currentIndex = breakIndex
+
+    // Walk backwards to find a space or safe break
+    while currentIndex > text.startIndex {
+      currentIndex = text.index(before: currentIndex)
+
+      // Prefer breaking at whitespace (safest option)
+      if text[currentIndex].isWhitespace {
+        return text.index(after: currentIndex)  // Break after the space
+      }
+
+      // Check if this would be safe
+      if isBreakingSafeForNumbers(text: text, breakIndex: currentIndex) {
+        return currentIndex
+      }
+    }
+
+    return nil
+  }
+
+  /// Check if the current line exceeds maxWidth and break if needed
+  func checkAndBreakLine() {
+    guard maxWidth > 0 && currentLine.length > 0 else { return }
+
+    // Measure the current line width
+    let attrString = currentLine.mutableCopy() as! NSMutableAttributedString
+    attrString.addAttribute(
+      kCTFontAttributeName as NSAttributedString.Key, value: styleFont.ctFont as Any,
+      range: NSMakeRange(0, attrString.length))
+    let ctLine = CTLineCreateWithAttributedString(attrString)
+    let lineWidth = CGFloat(CTLineGetTypographicBounds(ctLine, nil, nil, nil))
+
+    guard lineWidth > maxWidth else { return }
+
+    // Line is too wide - need to find a break point
+    let currentText = currentLine.string
+
+    // Use Unicode-aware line breaking with number protection
+    if let breakIndex = findBestBreakPoint(
+      in: currentText, font: styleFont.ctFont, maxWidth: maxWidth)
+    {
+      // Split the line at the suggested break point
+      let breakOffset = currentText.distance(from: currentText.startIndex, to: breakIndex)
+
+      // Create attributed string for the first line
+      let firstLine = NSMutableAttributedString(string: String(currentText.prefix(breakOffset)))
+      firstLine.addAttribute(
+        kCTFontAttributeName as NSAttributedString.Key, value: styleFont.ctFont as Any,
+        range: NSMakeRange(0, firstLine.length))
+
+      // Check if first line still exceeds maxWidth - need to find earlier break point
+      let firstLineCT = CTLineCreateWithAttributedString(firstLine)
+      let firstLineWidth = CGFloat(CTLineGetTypographicBounds(firstLineCT, nil, nil, nil))
+
+      if firstLineWidth > maxWidth {
+        // Need to break earlier - find previous break point
+        let firstLineText = firstLine.string
+        if let earlierBreakIndex = findBestBreakPoint(
+          in: firstLineText, font: styleFont.ctFont, maxWidth: maxWidth)
+        {
+          let earlierOffset = firstLineText.distance(
+            from: firstLineText.startIndex, to: earlierBreakIndex)
+          let earlierLine = NSMutableAttributedString(
+            string: String(firstLineText.prefix(earlierOffset)))
+          earlierLine.addAttribute(
+            kCTFontAttributeName as NSAttributedString.Key, value: styleFont.ctFont as Any,
+            range: NSMakeRange(0, earlierLine.length))
+
+          // Flush the earlier line
+          currentLine = earlierLine
+          currentAtoms = []
+          self.addDisplayLine()
+
+          // Move down for new line
+          currentPosition.y -= styleFont.fontSize * 1.5
+          currentPosition.x = 0
+
+          // Remaining text includes everything after the earlier break
+          let remainingText =
+            String(firstLineText.suffix(from: earlierBreakIndex))
+            + String(currentText.suffix(from: breakIndex))
+          currentLine = NSMutableAttributedString(string: remainingText)
+          currentAtoms = []
+          currentLineIndexRange = NSMakeRange(NSNotFound, NSNotFound)
+          return
+        }
+      }
+
+      // Keep track of atoms that belong to the first line
+      let firstLineAtoms = currentAtoms
+
+      // Flush the first line
+      currentLine = firstLine
+      currentAtoms = firstLineAtoms
+      self.addDisplayLine()
+
+      // Move down for new line and reset x position
+      currentPosition.y -= styleFont.fontSize * 1.5
+      currentPosition.x = 0
+
+      // Start the new line with the content after the break
+      let remainingText = String(currentText.suffix(from: breakIndex))
+      currentLine = NSMutableAttributedString(string: remainingText)
+
+      // Reset atom list for new line
+      currentAtoms = []
+      currentLineIndexRange = NSMakeRange(NSNotFound, NSNotFound)
     }
   }
 
@@ -1034,11 +1430,24 @@ class MTTypesetter {
 
   func makeFraction(_ frac: MTFraction?) -> MTDisplay? {
     // lay out the parts of the fraction
-    let fractionStyle = self.fractionStyle
+    let numeratorStyle: MTLineStyle
+    let denominatorStyle: MTLineStyle
+
+    if frac!.isContinuedFraction {
+      // Continued fractions always use display style
+      numeratorStyle = .display
+      denominatorStyle = .display
+    } else {
+      // Regular fractions use adaptive style
+      let fractionStyle = self.fractionStyle
+      numeratorStyle = fractionStyle()
+      denominatorStyle = fractionStyle()
+    }
+
     let numeratorDisplay = MTTypesetter.createLineForMathList(
-      frac!.numerator, font: font, style: fractionStyle(), cramped: false)
+      frac!.numerator, font: font, style: numeratorStyle, cramped: false)
     let denominatorDisplay = MTTypesetter.createLineForMathList(
-      frac!.denominator, font: font, style: fractionStyle(), cramped: true)
+      frac!.denominator, font: font, style: denominatorStyle, cramped: true)
 
     // determine the location of the numerator
     var numeratorShiftUp = self.numeratorShiftUp(frac!.hasRule)
@@ -1347,6 +1756,13 @@ class MTTypesetter {
     var glyph = [CGGlyph](repeating: CGGlyph.zero, count: chars.count)
     let found = CTFontGetGlyphsForCharacters(styleFont.ctFont, &chars, &glyph, chars.count)
     if !found {
+      // Try fallback font if available
+      if let fallbackFont = styleFont.fallbackFont {
+        let fallbackFound = CTFontGetGlyphsForCharacters(fallbackFont, &chars, &glyph, chars.count)
+        if fallbackFound {
+          return glyph[0]
+        }
+      }
       // the font did not contain a glyph for our character, so we just return 0 (notdef)
       return 0
     }

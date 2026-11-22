@@ -254,6 +254,21 @@ extension MarkdownTokenizer {
         content.length > 0
         ? InlineParser.parse(ns, range: content, registry: registry)
         : []
+    } else if kind == .blockLatex {
+      // Block LaTeX is opaque too: a `\{` in it is math, not an escape. Inline markup only
+      // counts in the text a `$$…$$` that is not alone shares its line with.
+      let ns = sub as NSString
+      var nodes: [InlineNode] = []
+      var cursor = 0
+      for math in blockLevel.map(\.range) + [NSRange(location: ns.length, length: 0)] {
+        if math.location > cursor {
+          nodes += InlineParser.parse(
+            ns, range: NSRange(location: cursor, length: math.location - cursor),
+            registry: registry)
+        }
+        cursor = max(cursor, NSMaxRange(math))
+      }
+      inlineNodes = nodes
     } else {
       inlineNodes = InlineParser.parse(sub, registry: registry)
     }

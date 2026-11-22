@@ -46,6 +46,8 @@ public enum MTMathAtomType: Int, CustomStringConvertible, Comparable {
   case overline
   /// An accented atom - Accent in TeX
   case accent
+  /// A framed atom, \boxed in amsmath - Does not exist in TeX.
+  case boxed
 
   // Atoms after this point do not support subscripts or superscripts
 
@@ -101,6 +103,7 @@ public enum MTMathAtomType: Int, CustomStringConvertible, Comparable {
     case .underline: return "Underline"
     case .overline: return "Overline"
     case .accent: return "Accent"
+    case .boxed: return "Boxed"
     case .boundary: return "Boundary"
     case .space: return "Space"
     case .style: return "Style"
@@ -237,6 +240,8 @@ public class MTMathAtom: NSObject {
       return MTOverLine(self as? MTOverLine)
     case .accent:
       return MTAccent(self as? MTAccent)
+    case .boxed:
+      return MTBoxed(self as? MTBoxed)
     case .space:
       return MTMathSpace(self as? MTMathSpace)
     case .color:
@@ -336,6 +341,10 @@ public class MTFraction: MTMathAtom {
   public var numerator: MTMathList?
   public var denominator: MTMathList?
 
+  // Continued fraction properties
+  public var isContinuedFraction: Bool = false
+  public var alignment: String = "c"  // "l", "r", "c" for left, right, center
+
   init(_ frac: MTFraction?) {
     super.init(frac)
     self.type = .fraction
@@ -345,6 +354,8 @@ public class MTFraction: MTMathAtom {
       self.hasRule = frac.hasRule
       self.leftDelimiter = frac.leftDelimiter
       self.rightDelimiter = frac.rightDelimiter
+      self.isContinuedFraction = frac.isContinuedFraction
+      self.alignment = frac.alignment
     }
   }
 

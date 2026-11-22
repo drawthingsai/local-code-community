@@ -144,7 +144,7 @@ enum BlockParser {
       changeStart: p, changeEndOld: oldLen - s, changeEndNew: newLen - s, delta: newLen - oldLen)
   }
 
-  /// Does any LINE touched by `[lo, hi)` contain a `$$` or ``` that can ripple?
+  /// Does any LINE touched by `[lo, hi)` contain a `$$`, `\[`, `\]` or ``` that can ripple?
   /// Line-expanded, not just ±3 around the edit: block delimiters are
   /// line-classified with a TRIMMED prefix (`isBlockLatexOpen`), so editing
   /// the leading whitespace of an indented `$$` opener flips the pairing
@@ -172,6 +172,8 @@ enum BlockParser {
     while i < end {
       if buf[i] == 0x24 {  // $
         if i + 1 < end, buf[i + 1] == 0x24 { return true }  // $$
+      } else if buf[i] == 0x5C {  // \
+        if i + 1 < end, buf[i + 1] == 0x5B || buf[i + 1] == 0x5D { return true }  // \[ or \]
       } else if buf[i] == 0x60, i + 2 < end, buf[i + 1] == 0x60, buf[i + 2] == 0x60 {
         return true  // ```
       }
@@ -320,9 +322,34 @@ enum BlockParser {
       return nil
     }
 
-    /// Line index of the `$$` closing a block-LaTeX run opened at `start`; nil if none.
+    /// Line index of the `$$` or `\]` closing a block-LaTeX run opened at `start`; nil if none.
     func blockLatexCloseIndex(from start: Int) -> Int? {
       let open = lineText(start).trimmingCharacters(in: .whitespacesAndNewlines)
+      if open.hasPrefix("\\[") {
+        // `\[` is also an escaped bracket in prose. It opens a block only when the first `\]`
+        // after it ends a line, with math in between. Like `$$`, the pairing depends on the
+        // lines holding a delimiter and nothing else, which is what `hasBlockDelimiter` assumes.
+        var rest = Array(open.utf16.dropFirst(2))
+        var hasMath = false
+        var j = start
+        while true {
+          var k = 0
+          while k < rest.count {
+            // Step over escape pairs, so the `\\` of a row break is not read as half of `\]`.
+            if rest[k] == 0x5C, k + 1 < rest.count {
+              if rest[k + 1] == 0x5D { return k + 2 == rest.count && hasMath ? j : nil }
+              hasMath = true
+              k += 2
+            } else {
+              if rest[k] != 0x20, rest[k] != 0x09 { hasMath = true }
+              k += 1
+            }
+          }
+          j += 1
+          guard j < lines.count else { return nil }
+          rest = Array(lineText(j).trimmingCharacters(in: .whitespacesAndNewlines).utf16)
+        }
+      }
       if open.dropFirst(2).contains("$$") { return start }
       var j = start + 1
       while j < lines.count {
@@ -377,7 +404,7 @@ enum BlockParser {
         i = end + 1
 
       } else if isBlockLatexOpen(line), let end = blockLatexCloseIndex(from: i) {
-        // Block LaTeX `$$…$$` — a single line or a `$$`-delimited run.
+        // Block LaTeX `$$…$$` or `\[…\]` — a single line or a delimited run.
         blocks.append(Block(kind: .blockLatex, range: union(lines[i...end])))
         i = end + 1
 
@@ -506,9 +533,10 @@ enum BlockParser {
       }
   }
 
-  /// A block-LaTeX opener: a line whose content starts with `$$`.
+  /// A block-LaTeX opener: a line whose content starts with `$$` or `\[`.
   private static func isBlockLatexOpen(_ line: String) -> Bool {
-    line.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("$$")
+    let content = line.trimmingCharacters(in: .whitespacesAndNewlines)
+    return content.hasPrefix("$$") || content.hasPrefix("\\[")
   }
 
   private static func union(_ ranges: ArraySlice<NSRange>) -> NSRange {

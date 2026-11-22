@@ -108,6 +108,52 @@ struct BlockParserTests {
     assertTiles(text)
   }
 
+  @Test(#"\[ … \] on its own lines is block LaTeX"#)
+  func bracketBlockLatex() {
+    let text = "a\n\n\\[\nx\n\\]\n\nb"
+    #expect(
+      BlockParser.parse(text) == [
+        b(.paragraph, 0, 2), b(.blank, 2, 1), b(.blockLatex, 3, 8), b(.blank, 11, 1),
+        b(.paragraph, 12, 1),
+      ])
+    assertTiles(text)
+  }
+
+  @Test(#"a one-line \[ … \] is block LaTeX, and interrupts a paragraph"#)
+  func bracketBlockLatexOneLine() {
+    let text = "a\n\\[ x = 1 \\]\nb"
+    #expect(
+      BlockParser.parse(text) == [
+        b(.paragraph, 0, 2), b(.blockLatex, 2, 12), b(.paragraph, 14, 1),
+      ])
+    assertTiles(text)
+  }
+
+  @Test(#"a row break's \\[2pt] does not close a \[ block"#)
+  func bracketBlockLatexRowBreak() {
+    let text = "\\[\na \\\\[2pt] b\n\\]"
+    #expect(BlockParser.parse(text) == [b(.blockLatex, 0, (text as NSString).length)])
+  }
+
+  @Test(#"\[ in prose is an escaped bracket, not a block"#)
+  func bracketInProseIsNotBlockLatex() {
+    let samples = [
+      "\\[citation needed\\] says so",  // `\]` does not end the line
+      "\\[a\\] and \\[b\\]",
+      "\\[ \\]",  // no math
+      "\\[\n\\]",
+      "\\[\n\n\\]",
+      "\\[\nx\n\\] trailing",
+      "\\[\nunclosed",
+    ]
+    for sample in samples {
+      #expect(
+        !BlockParser.parse(sample).contains { $0.kind == .blockLatex },
+        "\(sample.debugDescription)")
+      assertTiles(sample)
+    }
+  }
+
   @Test("an unclosed fence merges into the paragraph it starts")
   func unclosedFenceIsParagraph() {
     #expect(BlockParser.parse("```\n[l](u)") == [b(.paragraph, 0, 10)])

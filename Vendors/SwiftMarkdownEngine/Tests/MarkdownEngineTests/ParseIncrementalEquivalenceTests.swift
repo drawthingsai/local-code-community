@@ -43,6 +43,9 @@ struct ParseIncrementalEquivalenceTests {
     "| a | b |", "|---|---|", "| 1 | 2 |",
     "```swift", "let x = 1", "```",
     "$$", "E = mc^2", "$$",
+    "\\[", "a^2 + b^2 = c^2", "\\]",
+    "\\[ x = \\{1\\} \\]",
+    "Inline \\(x^2\\) and $a\\,b$ math, and arr\\[0\\].",
     "A [[Wiki Link]] and ==highlight== and ~~strike~~.",
     "Inline $x^2$ latex and an ![[embed.png]] image.",
     "",
@@ -50,6 +53,7 @@ struct ParseIncrementalEquivalenceTests {
 
   private static let editSnippets = [
     "x", "ab", " ", "\n", "`", "``", "```", "$", "$$", "**", "- ", "# ",
+    "\\[", "\\]", "\\(", "\\)", "\\",
     "| c |", "[[N]]", "\n\n", "word and more",
   ]
 

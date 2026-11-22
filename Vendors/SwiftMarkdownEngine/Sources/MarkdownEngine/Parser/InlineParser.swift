@@ -15,12 +15,19 @@
 //    1. scanCodeSpans   — highest precedence, opaque interior.
 //    2. scanEscapes      — `\x` becomes a claimed span, so the escaped char is
 //                          automatically inert for every pass below.
-//    3. scanLinkFamily   — ![[…]], [[…]], ![…](…), […](…), $…$ (+ registered
-//                          extension spans) in precedence order. URLs allow
-//                          balanced parens. A
+//    3. scanLinkFamily   — ![[…]], [[…]], ![…](…), […](…), $…$, \(…\)
+//                          (+ registered extension spans) in precedence
+//                          order. URLs allow balanced parens. A
 //                          candidate overlapping a claimed span is rejected
 //                          (kept literal) — this is what stops a `$…$` from
-//                          spanning across a code span.
+//                          spanning across a code span. Math is the
+//                          exception for escapes: inside it `\{` is LaTeX,
+//                          so it keeps the escape pairs it contains and
+//                          they stop being escape spans. A link or an
+//                          image is the other exception: its text may hold
+//                          code spans and escape pairs, which the
+//                          recursive parse of the text finds again, and
+//                          its destination may hold escape pairs.
 //    4. resolveEmphasis  — `*`/`_` delimiter runs over text outside every
 //                          claimed span; may wrap claimed spans.
 //    5. buildTree        — containment tree. Emphasis nests already-collected
@@ -91,9 +98,24 @@ enum InlineParser {
     let len = ns.length
     guard len > 0 else { return [] }
 
-    var claimed = scanCodeSpans(ns, len: len)
-    claimed += scanEscapes(ns, len: len, claimed: claimed.map(\.fullRange))
-    claimed += scanLinkFamily(ns, len: len, claimed: claimed.map(\.fullRange), registry: registry)
+    let code = scanCodeSpans(ns, len: len)
+    let escapes = scanEscapes(ns, len: len, claimed: code.map(\.fullRange))
+    let linkFamily = scanLinkFamily(
+      ns, len: len, code: code.map(\.fullRange), escapes: escapes.map(\.fullRange),
+      registry: registry)
+    // Math is opaque, so an escape pair inside it is LaTeX's (`\{`, `\,`), not an escape span.
+    // A link's text is parsed again on its own, and a destination or an alt text is opaque.
+    let owners = linkFamily.compactMap { span -> NSRange? in
+      switch span {
+      case .inlineLatex(let range, _, _), .link(let range, _, _, _), .image(let range, _, _, _):
+        return range
+      default:
+        return nil
+      }
+    }
+    let claimed =
+      (code + escapes).filter { inner in !owners.contains { rangeContains($0, inner.fullRange) } }
+      + linkFamily
     let emphasis = resolveEmphasis(ns, len: len, claimedRanges: claimed.map(\.fullRange))
     return buildTree(
       region: NSRange(location: 0, length: len), spans: claimed + emphasis, ns: ns,
@@ -224,34 +246,57 @@ enum InlineParser {
   // MARK: - 3. Link family / inline LaTeX / extension spans
 
   private static func scanLinkFamily(
-    _ ns: NSString, len: Int, claimed: [NSRange], registry: ExtensionRegistry
+    _ ns: NSString, len: Int, code: [NSRange], escapes: [NSRange], registry: ExtensionRegistry
   ) -> [Span] {
-    func overlapsClaimed(_ range: NSRange) -> Bool {
-      claimed.contains { NSIntersectionRange($0, range).length > 0 }
+    let claimed = code + escapes
+    func overlaps(_ ranges: [NSRange], _ range: NSRange) -> Bool {
+      ranges.contains { NSIntersectionRange($0, range).length > 0 }
     }
     var spans: [Span] = []
     var i = 0
     while i < len {
+      // `\(` is an escape pair, so `\(math\)` is matched where one starts.
+      if escapes.contains(where: { $0.location == i }),
+        let span = matchParenthesizedLatex(ns, len, start: i), !overlaps(code, span.fullRange)
+      {
+        spans.append(span)
+        i = NSMaxRange(span.fullRange)
+        continue
+      }
       if claimed.contains(where: { NSLocationInRange(i, $0) }) {
         i += 1
         continue
       }
-      if let span = matchClaimedSpan(ns, len, at: i, registry: registry),
-        !overlapsClaimed(span.fullRange)
+      if let span = matchClaimedSpan(
+        ns, len, at: i, code: code, escapes: escapes, registry: registry)
       {
-        spans.append(span)
-        i = NSMaxRange(span.fullRange)
-      } else {
-        i += 1
+        // Math may hold escape pairs, which then belong to it. A link or an image may hold them
+        // too, and code spans in its text. Nothing may cross a code span.
+        var vetoes = claimed
+        switch span {
+        case .inlineLatex:
+          vetoes = code
+        case .link(_, let text, _, _), .image(_, let text, _, _):
+          vetoes = code.filter { !rangeContains(text, $0) }
+        default:
+          break
+        }
+        if !overlaps(vetoes, span.fullRange) {
+          spans.append(span)
+          i = NSMaxRange(span.fullRange)
+          continue
+        }
       }
+      i += 1
     }
     return spans
   }
 
   private static func matchClaimedSpan(
-    _ ns: NSString, _ len: Int, at i: Int, registry: ExtensionRegistry
+    _ ns: NSString, _ len: Int, at i: Int, code: [NSRange], escapes: [NSRange],
+    registry: ExtensionRegistry
   ) -> Span? {
-    if let span = matchBuiltIn(ns, len, at: i) { return span }
+    if let span = matchBuiltIn(ns, len, at: i, code: code, escapes: escapes) { return span }
     // Extensions match after every built-in, in registration order. A
     // built-in trigger that matched-and-FAILED (e.g. `$50$` rejected by
     // the math heuristic) falls through here, so an extension sharing a
@@ -266,14 +311,18 @@ enum InlineParser {
   /// The built-in constructs, tried exclusively in fixed precedence order —
   /// the first branch whose trigger matches decides (nil = stays literal
   /// for built-ins), exactly the pre-extension behavior.
-  private static func matchBuiltIn(_ ns: NSString, _ len: Int, at i: Int) -> Span? {
+  private static func matchBuiltIn(
+    _ ns: NSString, _ len: Int, at i: Int, code: [NSRange], escapes: [NSRange]
+  ) -> Span? {
     let c = ns.character(at: i)
     let c1 = peek(ns, i + 1, len)
     let c2 = peek(ns, i + 2, len)
     if c == bang, c1 == lbracket, c2 == lbracket { return matchImageEmbed(ns, len, start: i) }
     if c == lbracket, c1 == lbracket { return matchWikiLink(ns, len, start: i) }
-    if c == bang, c1 == lbracket { return matchImage(ns, len, start: i) }
-    if c == lbracket { return matchLink(ns, len, start: i) }
+    if c == bang, c1 == lbracket {
+      return matchImage(ns, len, start: i, code: code, escapes: escapes)
+    }
+    if c == lbracket { return matchLink(ns, len, start: i, code: code, escapes: escapes) }
     if c == dollar, c1 != dollar { return matchInlineLatex(ns, len, start: i) }
     return nil
   }
@@ -373,12 +422,17 @@ enum InlineParser {
     return nil
   }
 
-  /// `![ alt ]( url )`
-  private static func matchImage(_ ns: NSString, _ len: Int, start i: Int) -> Span? {
+  /// `![ alt ]( url )`. A code span or an escape pair in the alt, or an escape pair in the url,
+  /// is stepped over: a `]` or `)` inside one is not where the part ends.
+  private static func matchImage(
+    _ ns: NSString, _ len: Int, start i: Int, code: [NSRange], escapes: [NSRange]
+  ) -> Span? {
     let altStart = i + 2
-    guard let closeBracket = findChar(ns, len, from: altStart, char: rbracket),
+    guard
+      let closeBracket = findChar(
+        ns, len, from: altStart, char: rbracket, skipping: code + escapes),
       peek(ns, closeBracket + 1, len) == lparen,
-      let closeParen = balancedParen(ns, len, from: closeBracket + 2)
+      let closeParen = balancedParen(ns, len, from: closeBracket + 2, skipping: escapes)
     else { return nil }
     let urlStart = closeBracket + 2
     guard closeParen > urlStart else { return nil }
@@ -395,13 +449,18 @@ enum InlineParser {
     )
   }
 
-  /// `[ text ]( url )`
-  private static func matchLink(_ ns: NSString, _ len: Int, start i: Int) -> Span? {
+  /// `[ text ]( url )`. A code span or an escape pair in the text, or an escape pair in the url,
+  /// is stepped over: a `]` or `)` inside one is not where the part ends.
+  private static func matchLink(
+    _ ns: NSString, _ len: Int, start i: Int, code: [NSRange], escapes: [NSRange]
+  ) -> Span? {
     let textStart = i + 1
-    guard let closeBracket = findChar(ns, len, from: textStart, char: rbracket),
+    guard
+      let closeBracket = findChar(
+        ns, len, from: textStart, char: rbracket, skipping: code + escapes),
       closeBracket > textStart,
       peek(ns, closeBracket + 1, len) == lparen,
-      let closeParen = balancedParen(ns, len, from: closeBracket + 2)
+      let closeParen = balancedParen(ns, len, from: closeBracket + 2, skipping: escapes)
     else { return nil }
     let urlStart = closeBracket + 2
     guard closeParen > urlStart else { return nil }
@@ -429,6 +488,11 @@ enum InlineParser {
     while k < len {
       let ch = ns.character(at: k)
       if ch == newline { return nil }
+      // An escape pair is math content, so `\$` is a dollar sign inside the math, not its end.
+      if ch == backslash, let next = peek(ns, k + 1, len), isAsciiPunctuationChar(next) {
+        k += 2
+        continue
+      }
       if ch == dollar {
         guard k > contentStart, !isWhitespace(ns.character(at: k - 1)) else { return nil }
         if let next = peek(ns, k + 1, len), next == dollar || isAsciiDigit(next) {
@@ -446,6 +510,43 @@ enum InlineParser {
     return nil
   }
 
+  /// `\(math\)` on one line. The markers take the spaces inside the delimiters, so the content is
+  /// the math alone. `\[math\]` is display math and a block (see `BlockParser`): inline, `\[` and
+  /// `\]` stay escaped brackets, as in `arr\[0\]`.
+  private static func matchParenthesizedLatex(_ ns: NSString, _ len: Int, start i: Int) -> Span? {
+    guard i + 1 < len, ns.character(at: i) == backslash, ns.character(at: i + 1) == lparen
+    else { return nil }
+    var k = i + 2
+    while k + 1 < len {
+      let ch = ns.character(at: k)
+      if ch == newline { return nil }
+      guard ch == backslash, isAsciiPunctuationChar(ns.character(at: k + 1)) else {
+        k += 1
+        continue
+      }
+      guard ns.character(at: k + 1) == rparen else {
+        k += 2
+        continue
+      }
+      var contentStart = i + 2
+      while contentStart < k, isWhitespace(ns.character(at: contentStart)) { contentStart += 1 }
+      var contentEnd = k
+      while contentEnd > contentStart, isWhitespace(ns.character(at: contentEnd - 1)) {
+        contentEnd -= 1
+      }
+      guard contentEnd > contentStart else { return nil }
+      return .inlineLatex(
+        range: NSRange(location: i, length: (k + 2) - i),
+        content: NSRange(location: contentStart, length: contentEnd - contentStart),
+        markers: [
+          NSRange(location: i, length: contentStart - i),
+          NSRange(location: contentEnd, length: (k + 2) - contentEnd),
+        ]
+      )
+    }
+    return nil
+  }
+
   private static func closeDoubleBracket(_ ns: NSString, _ len: Int, from: Int) -> Int? {
     var k = from
     while k < len {
@@ -457,9 +558,19 @@ enum InlineParser {
     return nil
   }
 
-  private static func findChar(_ ns: NSString, _ len: Int, from: Int, char: unichar) -> Int? {
+  private static func findChar(
+    _ ns: NSString, _ len: Int, from: Int, char: unichar, skipping claimed: [NSRange]
+  ) -> Int? {
     var k = from
     while k < len {
+      if let span = claimed.first(where: { $0.location == k }) {
+        // The part still ends at its line's end, also when a code span runs past it.
+        guard ns.range(of: "\n", options: [], range: span).location == NSNotFound else {
+          return nil
+        }
+        k = NSMaxRange(span)
+        continue
+      }
       let ch = ns.character(at: k)
       if ch == char { return k }
       if ch == newline { return nil }
@@ -468,10 +579,16 @@ enum InlineParser {
     return nil
   }
 
-  private static func balancedParen(_ ns: NSString, _ len: Int, from: Int) -> Int? {
+  private static func balancedParen(
+    _ ns: NSString, _ len: Int, from: Int, skipping escapes: [NSRange]
+  ) -> Int? {
     var depth = 1
     var k = from
     while k < len {
+      if let escape = escapes.first(where: { $0.location == k }) {
+        k = NSMaxRange(escape)
+        continue
+      }
       let ch = ns.character(at: k)
       if ch == newline { return nil }
       if ch == lparen {

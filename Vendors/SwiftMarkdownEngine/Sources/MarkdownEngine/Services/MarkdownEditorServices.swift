@@ -101,11 +101,25 @@ public struct DefaultMarkdownLinkResolver: MarkdownLinkResolver {
 }
 
 func normalizedMarkdownLinkDestination(_ destination: String) -> String {
-  let destination = destination.trimmingCharacters(in: .whitespacesAndNewlines)
-  guard destination.first == "<", destination.last == ">", destination.count >= 2 else {
-    return destination
+  var destination = destination.trimmingCharacters(in: .whitespacesAndNewlines)
+  if destination.first == "<", destination.last == ">", destination.count >= 2 {
+    destination = String(destination.dropFirst().dropLast())
   }
-  return String(destination.dropFirst().dropLast())
+  // An escape pair is the character it escapes, in a destination as in text: `my\_file.swift`.
+  guard destination.contains("\\") else { return destination }
+  var resolved = ""
+  var characters = destination.makeIterator()
+  while let character = characters.next() {
+    guard character == "\\", let escaped = characters.next() else {
+      resolved.append(character)
+      continue
+    }
+    if !(escaped.isASCII && (escaped.isPunctuation || escaped.isSymbol)) {
+      resolved.append(character)
+    }
+    resolved.append(escaped)
+  }
+  return resolved
 }
 
 // MARK: - Embedded Images

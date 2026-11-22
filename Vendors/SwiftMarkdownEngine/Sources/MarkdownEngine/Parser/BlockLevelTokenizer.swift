@@ -17,6 +17,8 @@ import Foundation
 enum BlockLevelTokenizer {
 
   private static let dollar: unichar = 0x24
+  private static let backslash: unichar = 0x5C
+  private static let lbracket: unichar = 0x5B
   private static let hash: unichar = 0x23
   private static let pipe: unichar = 0x7C
   private static let gt: unichar = 0x3E
@@ -270,10 +272,34 @@ enum BlockLevelTokenizer {
     return count >= 1
   }
 
-  // MARK: - Block LaTeX  (legacy `(?s)(?<!\$)\$\$(.+?)\$\$`)
+  // MARK: - Block LaTeX  (legacy `(?s)(?<!\$)\$\$(.+?)\$\$`, and `\[…\]`)
 
   private static func blockLatex(in s: NSString) -> [MarkdownToken] {
     let len = s.length
+    // `\[…\]`: the block parser makes this block only when `\]` is the last thing in it.
+    var start = 0
+    while start < len, isWS(s.character(at: start)) { start += 1 }
+    if start + 1 < len, s.character(at: start) == backslash, s.character(at: start + 1) == lbracket
+    {
+      var end = len
+      while end > start,
+        isWS(s.character(at: end - 1)) || s.character(at: end - 1) == lf
+          || s.character(at: end - 1) == cr
+      {
+        end -= 1
+      }
+      guard end - start >= 4 else { return [] }
+      return [
+        MarkdownToken(
+          kind: .blockLatex,
+          range: NSRange(location: start, length: end - start),
+          contentRange: NSRange(location: start + 2, length: end - start - 4),
+          markerRanges: [
+            NSRange(location: start, length: 2),
+            NSRange(location: end - 2, length: 2),
+          ])
+      ]
+    }
     var tokens: [MarkdownToken] = []
     var i = 0
     while i + 1 < len {
