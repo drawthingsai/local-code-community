@@ -296,6 +296,7 @@ final class KitSectionsController {
     var botToken = SettingsTextFieldItem(
       value: telegramSettings.botToken,
       placeholderText: LocalizedString.forKey("enter_your_bot_token"),
+      isSecret: true,
       didChangeText: { [weak self] text in
         guard let self else { return }
         self.delegate?.kitSectionsController(self, didChangeTelegramBotToken: text)
@@ -354,6 +355,7 @@ final class KitSectionsController {
     var botToken = SettingsTextFieldItem(
       value: discordSettings.botToken,
       placeholderText: LocalizedString.forKey("enter_your_bot_token"),
+      isSecret: true,
       didChangeText: { [weak self] text in
         guard let self else { return }
         self.delegate?.kitSectionsController(self, didChangeDiscordBotToken: text)

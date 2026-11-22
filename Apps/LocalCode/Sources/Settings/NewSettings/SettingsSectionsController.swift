@@ -578,6 +578,7 @@ final class SettingsSectionsController {
     var apiKeyItem = SettingsTextFieldItem(
       value: apiKey,
       placeholderText: LocalizedString.forKey("enter_your_api_key"),
+      isSecret: true,
       didChangeText: { [weak self] text in
         guard let self else { return }
         self.delegate?.settingsSectionsController(

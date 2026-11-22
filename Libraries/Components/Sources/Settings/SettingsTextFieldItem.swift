@@ -18,13 +18,26 @@ extension SettingsTextFieldItem {
     public var value: String
     public var didChangeText: (String) -> Void
 
+    // A secret shows its full value only while it is being edited.
+    private let isSecret: Bool
     private let textFieldResponder: ObjcTextFieldResponder
 
-    public init(value: String, didChangeText: @escaping (String) -> Void) {
+    public init(value: String, isSecret: Bool, didChangeText: @escaping (String) -> Void) {
       self.didChangeText = didChangeText
       self.value = value
+      self.isSecret = isSecret
       textFieldResponder = ObjcTextFieldResponder()
       textFieldResponder.viewModifier = self
+    }
+
+    // A fixed count of bullets hides the length, and the last four characters tell one value
+    // from another. A short value shows none of its characters. Whitespace around a pasted value
+    // is not part of it.
+    private static func maskedText(_ value: String) -> String {
+      let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !value.isEmpty else { return "" }
+      let bullets = String(repeating: "•", count: 8)
+      return value.count >= 12 ? bullets + value.suffix(4) : bullets
     }
 
     public func makeViews(from item: Item) -> ([UIView], any SettingsViewModifying) {
@@ -49,11 +62,26 @@ extension SettingsTextFieldItem {
       textField.textAlignment = .left
       textField.textColor = .tertiaryText
       textField.layer.cornerRadius = 8
-      textField.text = value
+      textField.text = isSecret ? Self.maskedText(value) : value
       textField.placeholder = item.placeholderText
       textField.delegate = textFieldResponder
-      FontMetrics.default.scaleFont(.systemFont(ofSize: 14), bindTo: textField) {
-        $0.font = $1
+      if isSecret {
+        // Monospace puts the bullets and the characters on one grid. The placeholder is prose,
+        // so it keeps the proportional font.
+        FontMetrics.default.scaleFont(
+          .monospacedSystemFont(ofSize: 14, weight: .regular), bindTo: textField
+        ) {
+          $0.font = $1
+          $0.attributedPlaceholder = NSAttributedString(
+            string: $0.placeholder ?? "",
+            attributes: [.font: UIFont.systemFont(ofSize: $1.pointSize)])
+        }
+        textField.autocapitalizationType = .none
+        textField.autocorrectionType = .no
+      } else {
+        FontMetrics.default.scaleFont(.systemFont(ofSize: 14), bindTo: textField) {
+          $0.font = $1
+        }
       }
       textField.returnKeyType = .done
 
@@ -93,11 +121,19 @@ extension SettingsTextFieldItem {
       updatingItem.value = newItem.value
       updatingItem.didChangeText = newItem.didChangeText
       if let textField = textField {
-        if textField.text != newItem.value {
-          textField.text = newItem.value
+        let text =
+          isSecret && !textField.isEditing ? Self.maskedText(newItem.value) : newItem.value
+        if textField.text != text {
+          textField.text = text
         }
         if textField.placeholder != newItem.placeholderText {
-          textField.placeholder = newItem.placeholderText
+          if isSecret {
+            textField.attributedPlaceholder = NSAttributedString(
+              string: newItem.placeholderText,
+              attributes: [.font: UIFont.systemFont(ofSize: textField.font?.pointSize ?? 14)])
+          } else {
+            textField.placeholder = newItem.placeholderText
+          }
         }
       }
       if updatingItem.isHidden != newItem.isHidden {
@@ -126,6 +162,7 @@ public struct SettingsTextFieldItem: SettingsViewObservable {
   public init(
     value: String,
     placeholderText: String,
+    isSecret: Bool = false,
     isIncompatible: Bool = false,
     didChangeText: @escaping (String) -> Void
   ) {
@@ -134,7 +171,7 @@ public struct SettingsTextFieldItem: SettingsViewObservable {
     self.isIncompatible = isIncompatible
     self.didChangeText = didChangeText
     self.viewModifying = ViewModifier(
-      value: value, didChangeText: didChangeText)
+      value: value, isSecret: isSecret, didChangeText: didChangeText)
   }
 
   public func isEquivalent(to other: any SettingsViewObservable) -> Bool {
@@ -150,6 +187,9 @@ extension SettingsTextFieldItem.ViewModifier {
   private final class ObjcTextFieldResponder: NSObject, UITextFieldDelegate {
     weak var viewModifier: SettingsTextFieldItem.ViewModifier? = nil
     func textFieldDidBeginEditing(_ textField: UITextField) {
+      if let viewModifier = viewModifier, viewModifier.isSecret {
+        textField.text = viewModifier.value
+      }
       textField.selectedTextRange = textField.textRange(
         from: textField.beginningOfDocument, to: textField.endOfDocument)
     }
@@ -159,12 +199,21 @@ extension SettingsTextFieldItem.ViewModifier {
       if reason == .committed, let text = textField.text, text != viewModifier.value {
         viewModifier.didChangeText(text)
       }
+      if viewModifier.isSecret {
+        // The field no longer holds the text, so keep it here for the next edit. The owner may
+        // not report the change back, for example when it only trimmed whitespace.
+        let text = textField.text ?? ""
+        viewModifier.value = text
+        textField.text = SettingsTextFieldItem.ViewModifier.maskedText(text)
+      }
     }
     func textField(
       _ textField: UITextField, shouldChangeCharactersIn range: NSRange,
       replacementString string: String
     ) -> Bool {
       guard let viewModifier = viewModifier else { return false }
+      // The masked text is never a value, so it cannot be edited into one.
+      guard !viewModifier.isSecret || textField.isEditing else { return false }
       let newText = ((textField.text ?? "") as NSString).replacingCharacters(
         in: range, with: string)
       if newText != viewModifier.value {
