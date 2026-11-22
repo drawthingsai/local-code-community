@@ -93,11 +93,13 @@ struct Inkling2ThinkingSplitter {
   mutating func append(_ token: Int32) -> (thinking: [Int32], output: [Int32]) {
     switch phase {
     case .pending:
-      if token == Inkling2CodeAgent.modelMessageToken && heldTokens.isEmpty {
+      if token == Inkling2CodeAgent<Inkling2SmallTextGenerator>.modelMessageToken
+        && heldTokens.isEmpty
+      {
         heldTokens.append(token)
         return ([], [])
       }
-      if token == Inkling2CodeAgent.thinkingContentToken {
+      if token == Inkling2CodeAgent<Inkling2SmallTextGenerator>.thinkingContentToken {
         heldTokens = []
         phase = .thinking
         return ([], [])
@@ -107,7 +109,7 @@ struct Inkling2ThinkingSplitter {
       heldTokens = []
       return ([], output)
     case .thinking:
-      if token == Inkling2CodeAgent.endMessageToken {
+      if token == Inkling2CodeAgent<Inkling2SmallTextGenerator>.endMessageToken {
         phase = .ended
         return ([], [])
       }
@@ -137,32 +139,34 @@ struct Inkling2ThinkingSplitter {
   }
 }
 
-public final class Inkling2CodeAgent: CodeAgent {
-  public typealias KVCache = Inkling2SmallTextGenerator.KVCache
-  public typealias ContextCache = Inkling2SmallContextCache
-  static let endOfTextToken: Int32 = 199_999
-  static let userMessageToken: Int32 = 200_000
-  static let modelMessageToken: Int32 = 200_001
-  static let systemMessageToken: Int32 = 200_002
-  static let toolMessageToken: Int32 = 200_003
-  static let textContentToken: Int32 = 200_004
-  static let imageContentToken: Int32 = 200_005
+public final class Inkling2CodeAgent<Generator: Inkling2TextGenerator>: CodeAgent {
+  public typealias KVCache = Generator.KVCache
+  public typealias ContextCache = Generator.ContextCache
+  static var endOfTextToken: Int32 { 199_999 }
+  static var userMessageToken: Int32 { 200_000 }
+  static var modelMessageToken: Int32 { 200_001 }
+  static var systemMessageToken: Int32 { 200_002 }
+  static var toolMessageToken: Int32 { 200_003 }
+  static var textContentToken: Int32 { 200_004 }
+  static var imageContentToken: Int32 { 200_005 }
   /// `<|content_model_end_sampling|>` ends the model's turn.
-  static let endOfTurnToken: Int32 = 200_006
-  static let thinkingContentToken: Int32 = 200_008
-  static let endMessageToken: Int32 = 200_010
-  static let toolErrorContentToken: Int32 = 200_022
-  static let invokeToolJSONContentToken: Int32 = 200_049
-  static let invokeToolTextContentToken: Int32 = 200_057
+  static var endOfTurnToken: Int32 { 200_006 }
+  static var thinkingContentToken: Int32 { 200_008 }
+  static var endMessageToken: Int32 { 200_010 }
+  static var toolErrorContentToken: Int32 { 200_022 }
+  static var invokeToolJSONContentToken: Int32 { 200_049 }
+  static var invokeToolTextContentToken: Int32 { 200_057 }
   static var imageToken: Int32 { Inkling2SmallVisionConfiguration.inkling2Small.imageTokenID }
-  static let stopTokens: Set<Int32> = [endOfTurnToken, endOfTextToken]
-  static let roleTokens: Set<Int32> = [
-    userMessageToken, modelMessageToken, systemMessageToken, toolMessageToken,
-  ]
-  static let contentTokens: Set<Int32> = [
-    textContentToken, imageContentToken, thinkingContentToken, toolErrorContentToken,
-    invokeToolJSONContentToken, invokeToolTextContentToken,
-  ]
+  static var stopTokens: Set<Int32> { [endOfTurnToken, endOfTextToken] }
+  static var roleTokens: Set<Int32> {
+    [userMessageToken, modelMessageToken, systemMessageToken, toolMessageToken]
+  }
+  static var contentTokens: Set<Int32> {
+    [
+      textContentToken, imageContentToken, thinkingContentToken, toolErrorContentToken,
+      invokeToolJSONContentToken, invokeToolTextContentToken,
+    ]
+  }
 
   private let thinkingBudgetStorage = ManagedAtomic<Int32>(131_072)
   private let deterministicStorage = ManagedAtomic<Bool>(false)
@@ -175,7 +179,7 @@ public final class Inkling2CodeAgent: CodeAgent {
   private var bashToolContext: BashToolContext
   /// Where the current or paused turn runs its tools and keeps its caches.
   private var environment: any CodeAgentEnvironment = ProjectEnvironment()
-  private var textGenerator: Inkling2SmallTextGenerator
+  private var textGenerator: Generator
   private let unsafeTokenizer: TiktokenTokenizer  // Supports the full control-token vocabulary.
   public let safeTokenizer: TiktokenTokenizer  // Prevents user text from injecting control tokens.
   private let skillCatalog: SkillCatalog
@@ -255,7 +259,7 @@ public final class Inkling2CodeAgent: CodeAgent {
   public var toolCallSpecialTokens: [Int32: String] { [:] }
 
   public init(
-    textGenerator: Inkling2SmallTextGenerator,
+    textGenerator: Generator,
     graph: DynamicGraph,
     streamContext: StreamContext,
     unsafeTokenizer: TiktokenTokenizer,
@@ -551,7 +555,7 @@ public final class Inkling2CodeAgent: CodeAgent {
         (path as NSString).isAbsolutePath
         ? path : (cachePath as NSString).appendingPathComponent(path)
       guard let digest = try? store.insert(filePath: filePath),
-        let count = Inkling2SmallTextGenerator.imageTokenCount(
+        let count = Generator.imageTokenCount(
           filePath: store.filePath(for: digest))
       else { continue }
       userTokens += Self.message(
@@ -660,7 +664,7 @@ public final class Inkling2CodeAgent: CodeAgent {
   private func saveSuspension(_ state: SuspensionState, threadId: Int64) throws {
     guard temporaryState == nil else { return }
     let data = try JSONEncoder().encode(state)
-    ContextCache(
+    Inkling2SmallContextCache(
       projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride
     ).saveSuspension(data, threadId: threadId)
   }
@@ -671,7 +675,7 @@ public final class Inkling2CodeAgent: CodeAgent {
   ) throws -> Bool {
     precondition(temporaryState == nil)
     guard
-      let data = ContextCache(
+      let data = Inkling2SmallContextCache(
         projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride
       ).loadSuspension(threadId: threadId)
     else { return false }
@@ -793,7 +797,7 @@ public final class Inkling2CodeAgent: CodeAgent {
           projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride)
         // Checkpoints save from inside the mutating `textGenerator.decode` callback, so they must
         // not read `textGenerator` again.
-        let suspensionCache = ContextCache(
+        let suspensionCache = Inkling2SmallContextCache(
           projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride)
         let thinkingBudget = state.thinkingBudget
         let deterministic = state.deterministic
@@ -1048,7 +1052,7 @@ public final class Inkling2CodeAgent: CodeAgent {
           appendGeneratedTokens(outputTokensBeforeDecode)
           var generated = [Int32]()
           var didPause = false
-          let shouldRestoreFromCache = kvCache.layers.isEmpty
+          let shouldRestoreFromCache = kvCache.isEmpty
           restoredTokenLength = 0
           let tokenGPU = graph.variable(Tensor<Int32>(inputTokens).toGPU(0))
           let thisOutputTokens = textGenerator.decode(
@@ -1371,7 +1375,7 @@ public final class Inkling2CodeAgent: CodeAgent {
           shouldInjectSystemSeenMemoryContext = false
         }
         if temporaryState == nil {
-          ContextCache(
+          Inkling2SmallContextCache(
             projectPath: environment.cachePath, checkpointStride: textGenerator.checkpointStride
           ).removeSuspension(threadId: state.threadId)
         }
@@ -1450,7 +1454,7 @@ extension Inkling2CodeAgent {
           textTokens = (textTokens ?? []) + responseTokens
         case .imageDigest(let digest):
           guard let cachePath = environment.cachePath,
-            let count = Inkling2SmallTextGenerator.imageTokenCount(
+            let count = Generator.imageTokenCount(
               filePath: EmbedsFileStore(projectPath: cachePath).filePath(for: digest))
           else { continue }
           appendText()

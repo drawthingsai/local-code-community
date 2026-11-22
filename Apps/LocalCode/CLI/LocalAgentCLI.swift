@@ -72,7 +72,7 @@ struct LocalAgentCLI: ParsableCommand {
     let specification = try specification()
     if weightsStreaming != nil, specification.version != .deepseek_4_flash,
       specification.version != .deepseek_4_1_flash, specification.version != .glm_5_3_flash,
-      specification.version != .inkling_2_small
+      specification.version != .inkling_2_small, specification.version != .inkling_2_mini
     {
       throw ValidationError("--weights-streaming applies only to DeepSeek, GLM and Inkling models.")
     }
@@ -122,6 +122,8 @@ struct LocalAgentCLI: ParsableCommand {
         vocabularySize = GLM5_3ModelConfiguration.glm5_3Flash.vocabularySize
       case .inkling_2_small:
         vocabularySize = Inkling2SmallConfiguration.inkling2Small.vocabularySize
+      case .inkling_2_mini:
+        vocabularySize = Inkling2MiniConfiguration.inkling2Mini.vocabularySize
       case .deepseek_4_flash:
         vocabularySize = DeepSeek4ModelConfiguration.deepSeekV4Flash.vocabularySize
       case .deepseek_4_1_flash:
@@ -212,6 +214,25 @@ struct LocalAgentCLI: ParsableCommand {
     case .inkling_2_small:
       // Without the drafter beside the checkpoint, decoding runs without DSpark.
       let generator = Inkling2SmallTextGenerator(
+        filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
+        weightsStreaming: weightsStreaming.flatMap(
+          DeviceCapability.WeightsStreaming.init(rawValue:)),
+        drafterFile: specification.draftFile.map {
+          URL(fileURLWithPath: checkpoint).deletingLastPathComponent().appendingPathComponent($0)
+            .path
+        })
+      agent = Inkling2CodeAgent(
+        textGenerator: generator, graph: graph, streamContext: stream,
+        unsafeTokenizer: Inkling2SmallTextGenerator.unsafeTokenizer,
+        safeTokenizer: Inkling2SmallTextGenerator.safeTokenizer,
+        systemPromptTemplate: SystemPromptTemplate.load(
+          projectURL: directories.project, model: templateModel, template: systemPromptForInkling2),
+        reasoningEffort: .init(reasoningEffort), skillCatalog: catalog,
+        projectContext: projectContext, environmentContext: environment, prefixTokens: prefixTokens,
+        prefixEmbedSpans: prefixEmbedSpans)
+    case .inkling_2_mini:
+      // Without the drafter beside the checkpoint, decoding runs without DSpark.
+      let generator = Inkling2MiniTextGenerator(
         filePath: checkpoint, chunkedPrefillMaxLength: chunkLength,
         weightsStreaming: weightsStreaming.flatMap(
           DeviceCapability.WeightsStreaming.init(rawValue:)),
@@ -409,7 +430,8 @@ private final class LocalAgentTrace {
       }
       let restoredTokenLength =
         (agent as? GLM5_3CodeAgent)?.restoredTokenLength
-        ?? (agent as? Inkling2CodeAgent)?.restoredTokenLength ?? 0
+        ?? (agent as? Inkling2CodeAgent<Inkling2SmallTextGenerator>)?.restoredTokenLength
+        ?? (agent as? Inkling2CodeAgent<Inkling2MiniTextGenerator>)?.restoredTokenLength ?? 0
       if restoredTokenLength > reportedRestoredTokenLength {
         FileHandle.standardError.write(
           Data("[cache] restoredTokenLength=\(restoredTokenLength)\n".utf8))

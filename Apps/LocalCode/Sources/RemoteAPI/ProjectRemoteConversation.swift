@@ -33,7 +33,9 @@ struct ProjectRemoteConversation {
       case .glm_5_3_flash:
         parseLogTokens = GLM5_3CodeAgent.parse
       case .inkling_2_small:
-        parseLogTokens = Inkling2CodeAgent.parse
+        parseLogTokens = Inkling2CodeAgent<Inkling2SmallTextGenerator>.parse
+      case .inkling_2_mini:
+        parseLogTokens = Inkling2CodeAgent<Inkling2MiniTextGenerator>.parse
       }
     } else {
       parseLogTokens = nil

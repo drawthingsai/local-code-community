@@ -164,7 +164,7 @@ enum RemoteConversationCodec {
       return DeepSeek4_1TextGenerator.safeTokenizer.decode(tokens)
     case .glm_5_3_flash:
       return GLM5_3TextGenerator.safeTokenizer.decode(tokens)
-    case .inkling_2_small:
+    case .inkling_2_small, .inkling_2_mini:
       return Inkling2SmallTextGenerator.safeTokenizer.decode(tokens)
     }
   }
@@ -185,7 +185,7 @@ enum RemoteConversationCodec {
     case .glm_5_3_flash:
       decoded = GLM5_3TextGenerator.safeTokenizer.decode(
         tokens, specialTokens: GLM5_3ToolCallParser.toolCallSpecialTokens)
-    case .inkling_2_small:
+    case .inkling_2_small, .inkling_2_mini:
       // Inkling 2 keeps only the visible text in a node's tokens.
       decoded = Inkling2SmallTextGenerator.safeTokenizer.decode(tokens)
     }

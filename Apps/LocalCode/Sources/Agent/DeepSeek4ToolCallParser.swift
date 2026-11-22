@@ -34,7 +34,8 @@ public struct DeepSeek4ToolCallParser {
         invokeEnd = "</｜DSML｜ invoke>"
         parameterStart = "<｜DSML｜ parameter"
         parameterEnd = "</｜DSML｜ parameter>"
-      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, .glm_5_3_flash, .inkling_2_small:
+      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, .glm_5_3_flash, .inkling_2_small,
+        .inkling_2_mini:
         fatalError("DeepSeek tool-call format requires a DeepSeek model version")
       }
       escapedParameterEnd = "&lt;" + parameterEnd.dropFirst()

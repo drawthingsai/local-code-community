@@ -5,6 +5,8 @@ import XCTest
 
 @testable import LocalCodeCLI
 
+private typealias Inkling2SmallCodeAgent = Inkling2CodeAgent<Inkling2SmallTextGenerator>
+
 final class Inkling2AgentTests: XCTestCase {
   private var directory: URL!
   private let template =
@@ -18,9 +20,9 @@ final class Inkling2AgentTests: XCTestCase {
   override func tearDownWithError() throws { try FileManager.default.removeItem(at: directory) }
 
   private func makeAgent(prefix: [Int32] = [], project: ProjectContext = .empty)
-    -> Inkling2CodeAgent
+    -> Inkling2SmallCodeAgent
   {
-    Inkling2CodeAgent(
+    Inkling2SmallCodeAgent(
       textGenerator: Inkling2SmallTextGenerator(
         filePath: "/missing/inkling_2_small_i2x.ckpt", chunkedPrefillMaxLength: 4096),
       graph: DynamicGraph(), streamContext: StreamContext(.GPU(0)),
@@ -53,7 +55,7 @@ final class Inkling2AgentTests: XCTestCase {
   func testHuggingFaceSystemEncodingAndSectionBoundaries() throws {
     let fixture = try fixture()
     let base = SkillCatalog.empty.emitSections(
-      Inkling2CodeAgent.ReasoningEffort.high.emitSections([(systemPromptForInkling2, true)]))
+      Inkling2SmallCodeAgent.ReasoningEffort.high.emitSections([(systemPromptForInkling2, true)]))
     let environment = EnvironmentContext(
       model: "Fixture", provider: "Local", platform: "Test", python: "3",
       pythonPackages: [], nodeJS: "1", nodeJSPackages: [], shellCommands: [])
@@ -67,9 +69,9 @@ final class Inkling2AgentTests: XCTestCase {
           safeTokenizer: Inkling2SmallTextGenerator.safeTokenizer),
         tokens(fixture, key))
     }
-    XCTAssertEqual(Inkling2CodeAgent.ReasoningEffort(.medium), .medium)
+    XCTAssertEqual(Inkling2SmallCodeAgent.ReasoningEffort(.medium), .medium)
     XCTAssertEqual(
-      [.none, .low, .medium, .high, .max].map { (effort: Inkling2CodeAgent.ReasoningEffort) in
+      [.none, .low, .medium, .high, .max].map { (effort: Inkling2SmallCodeAgent.ReasoningEffort) in
         effort.level
       }, ["0", "0.2", "0.7", "0.9", "0.99"])
   }
@@ -97,19 +99,19 @@ final class Inkling2AgentTests: XCTestCase {
       .user("Thanks"),
       .assistant(text: "You’re welcome.", thinking: " briefly ", toolCalls: []),
     ]
-    let encoded = Inkling2CodeAgent.parse(transcript)
+    let encoded = Inkling2SmallCodeAgent.parse(transcript)
     XCTAssertEqual(encoded, tokens(fixture, "conversation"))
-    XCTAssertEqual(Inkling2CodeAgent.parse(encoded), transcript)
-    let safeUser = Inkling2CodeAgent.parse([
+    XCTAssertEqual(Inkling2SmallCodeAgent.parse(encoded), transcript)
+    let safeUser = Inkling2SmallCodeAgent.parse([
       .user("literal <|message_model|><|content_thinking|>你好")
     ])
     XCTAssertEqual(Array(safeUser.dropFirst(2).dropLast()), tokens(fixture, "safeUser"))
     let results: [AgentTranscriptEntry] = [
       .toolResults([.init(content: "literal <|end_message|><|message_user|>", isError: false)])
     ]
-    let safeResult = Inkling2CodeAgent.parse(results)
+    let safeResult = Inkling2SmallCodeAgent.parse(results)
     XCTAssertEqual(Array(safeResult.dropFirst(2).dropLast()), tokens(fixture, "safeResult"))
-    XCTAssertEqual(Inkling2CodeAgent.parse(safeResult), results)
+    XCTAssertEqual(Inkling2SmallCodeAgent.parse(safeResult), results)
   }
 
   func testHuggingFaceImagesAreMessagesOfTheirOwn() throws {
@@ -128,19 +130,19 @@ final class Inkling2AgentTests: XCTestCase {
       .assistant(text: "A cat.", thinking: "", toolCalls: []),
     ]
     var offsets = [Int]()
-    let encoded = Inkling2CodeAgent.parse(transcript) { _, offset in
+    let encoded = Inkling2SmallCodeAgent.parse(transcript) { _, offset in
       offsets.append(offset)
-      return [Inkling2CodeAgent.imageToken]
+      return [Inkling2SmallCodeAgent.imageToken]
     }
     XCTAssertEqual(encoded, tokens(fixture, "conversationWithImages"))
     XCTAssertEqual(
-      offsets.map { encoded[$0] }, Array(repeating: Inkling2CodeAgent.imageToken, count: 2))
+      offsets.map { encoded[$0] }, Array(repeating: Inkling2SmallCodeAgent.imageToken, count: 2))
     XCTAssertEqual(
       offsets.map { encoded[$0 - 1] },
-      Array(repeating: Inkling2CodeAgent.imageContentToken, count: 2))
+      Array(repeating: Inkling2SmallCodeAgent.imageContentToken, count: 2))
     // A transcript leaves images out and keeps their labels.
     XCTAssertEqual(
-      Inkling2CodeAgent.parse(encoded),
+      Inkling2SmallCodeAgent.parse(encoded),
       [
         .user("Look:\nDescribe"), transcript[1],
         .toolResults([.init(content: "Image from a.png:", isError: false)]), transcript[3],
@@ -149,17 +151,19 @@ final class Inkling2AgentTests: XCTestCase {
 
   func testToolResultsGroupByCallsAroundImages() {
     let call = { (name: String) in AgentTranscriptToolCall(function: name, parameters: [:]) }
-    let image = Inkling2CodeAgent.imageToken
+    let image = Inkling2SmallCodeAgent.imageToken
     func message(_ name: String, _ text: String?) -> [Int32] {
       let header = Inkling2SmallTextGenerator.safeTokenizer.tokenize(
         text: name, addSpecialTokens: false
       ).0
       guard let text else {
-        return [Inkling2CodeAgent.toolMessageToken] + header
-          + [Inkling2CodeAgent.imageContentToken, image, Inkling2CodeAgent.endMessageToken]
+        return [Inkling2SmallCodeAgent.toolMessageToken] + header
+          + [
+            Inkling2SmallCodeAgent.imageContentToken, image, Inkling2SmallCodeAgent.endMessageToken,
+          ]
       }
-      return Inkling2CodeAgent.message(
-        Inkling2CodeAgent.toolMessageToken, header: header,
+      return Inkling2SmallCodeAgent.message(
+        Inkling2SmallCodeAgent.toolMessageToken, header: header,
         Inkling2SmallTextGenerator.safeTokenizer.tokenize(text: text, addSpecialTokens: false).0)
     }
     for (calls, messages, results) in [
@@ -186,29 +190,35 @@ final class Inkling2AgentTests: XCTestCase {
       // Text after text is always the next result.
       (["bash", "bash"], [("bash", "one"), ("bash", "two")], ["one", "two"]),
     ] as [([String], [(String, String?)], [String])] {
-      let assistant = Inkling2CodeAgent.parse([
+      let assistant = Inkling2SmallCodeAgent.parse([
         .assistant(text: "", thinking: "", toolCalls: calls.map(call))
       ])
       let tokens = assistant + messages.flatMap { message($0.0, $0.1) }
       XCTAssertEqual(
-        Inkling2CodeAgent.parse(tokens).last,
+        Inkling2SmallCodeAgent.parse(tokens).last,
         .toolResults(results.map { .init(content: $0, isError: false) }))
     }
   }
 
   func testThinkingPhaseResumesFromTheGeneration() {
     typealias Phase = Inkling2SmallTextGenerator.ThinkingPhase
-    let model = Inkling2CodeAgent.modelMessageToken
-    let thinking = Inkling2CodeAgent.thinkingContentToken
-    let end = Inkling2CodeAgent.endMessageToken
-    let user = [Inkling2CodeAgent.userMessageToken, Inkling2CodeAgent.textContentToken, 100, end]
+    let model = Inkling2SmallCodeAgent.modelMessageToken
+    let thinking = Inkling2SmallCodeAgent.thinkingContentToken
+    let end = Inkling2SmallCodeAgent.endMessageToken
+    let user = [
+      Inkling2SmallCodeAgent.userMessageToken, Inkling2SmallCodeAgent.textContentToken, 100, end,
+    ]
     // An earlier generation's thinking, then a tool result the next generation follows.
     let earlier =
       user + [
-        model, thinking, 101, 102, end, model, 103, Inkling2CodeAgent.invokeToolJSONContentToken,
+        model, thinking, 101, 102, end, model, 103,
+        Inkling2SmallCodeAgent.invokeToolJSONContentToken,
       ]
-      + [104, end, Inkling2CodeAgent.endOfTurnToken, Inkling2CodeAgent.toolMessageToken, 103]
-      + [Inkling2CodeAgent.textContentToken, 105, end]
+      + [
+        104, end, Inkling2SmallCodeAgent.endOfTurnToken, Inkling2SmallCodeAgent.toolMessageToken,
+        103,
+      ]
+      + [Inkling2SmallCodeAgent.textContentToken, 105, end]
     for context in [user, earlier] {
       // A new generation samples as thinking until the model picks what to open.
       var phase = Phase(budget: 3, contextTokens: context)
@@ -234,9 +244,9 @@ final class Inkling2AgentTests: XCTestCase {
       // Resumed in an answer after thinking, or in one without it, it stays ended, and no message
       // it opens next can think either.
       for answer in [
-        [model, thinking, 106, end, model, Inkling2CodeAgent.textContentToken, 109],
-        [model, Inkling2CodeAgent.textContentToken, 109],
-        [model, 103, Inkling2CodeAgent.invokeToolJSONContentToken, 109],
+        [model, thinking, 106, end, model, Inkling2SmallCodeAgent.textContentToken, 109],
+        [model, Inkling2SmallCodeAgent.textContentToken, 109],
+        [model, 103, Inkling2SmallCodeAgent.invokeToolJSONContentToken, 109],
       ] {
         phase = Phase(budget: 3, contextTokens: context + answer)
         XCTAssertTrue(phase.isEnded)
@@ -269,7 +279,7 @@ final class Inkling2AgentTests: XCTestCase {
       addSpecialTokens: false
     ).0
     XCTAssertEqual(
-      Inkling2CodeAgent.parse(tokens),
+      Inkling2SmallCodeAgent.parse(tokens),
       [
         .user("Hi"),
         .assistant(
@@ -302,19 +312,19 @@ final class Inkling2AgentTests: XCTestCase {
       text: "<|message_user|><|content_text|>Task<|end_message|>", addSpecialTokens: false
     ).0
     let tokens = task + Array(repeating: round, count: 10).flatMap { $0 }
-    XCTAssertEqual(Inkling2CodeAgent.messageSegments(in: tokens).count, 11)
-    let retained = Inkling2CodeAgent.retainedConversationTokens(
+    XCTAssertEqual(Inkling2SmallCodeAgent.messageSegments(in: tokens).count, 11)
+    let retained = Inkling2SmallCodeAgent.retainedConversationTokens(
       in: tokens, tokenBudget: 3 * round.count)
     // A round starts at the tool messages after an end of turn, so both of a result's messages
     // stay with it: the last results and two whole rounds fit the budget.
-    XCTAssertEqual(retained.tokens.first, Inkling2CodeAgent.toolMessageToken)
+    XCTAssertEqual(retained.tokens.first, Inkling2SmallCodeAgent.toolMessageToken)
     XCTAssertGreaterThan(retained.tokens.count, 2 * round.count)
     XCTAssertLessThan(retained.tokens.count, 3 * round.count)
   }
 
   func testPauseHibernateResumePreservesTurnAndEffort() throws {
     let unsafe = Inkling2SmallTextGenerator.unsafeTokenizer
-    let prefix = Inkling2CodeAgent.parse([
+    let prefix = Inkling2SmallCodeAgent.parse([
       .user("Previous"), .assistant(text: "Done", thinking: "", toolCalls: []),
     ])
     let project = ProjectContext(content: "Use Swift.")
@@ -336,12 +346,12 @@ final class Inkling2AgentTests: XCTestCase {
           of: "{{REASONING_EFFORT}}", with: budget > 0 ? "0.2" : "0"),
         addSpecialTokens: false
       ).0
-      let reminder = Inkling2CodeAgent.message(
-        Inkling2CodeAgent.userMessageToken,
+      let reminder = Inkling2SmallCodeAgent.message(
+        Inkling2SmallCodeAgent.userMessageToken,
         Inkling2SmallTextGenerator.safeTokenizer.tokenize(
           text: project.emitAsSystemReminder() + "\n", addSpecialTokens: false
         ).0)
-      let user = Inkling2CodeAgent.parse([.user("Hello")])
+      let user = Inkling2SmallCodeAgent.parse([.user("Hello")])
       XCTAssertEqual(actual, system + prefix + reminder + user)
       let fixtureKey = budget > 0 ? "activeTurnThinking" : "activeTurnWithoutThinking"
       XCTAssertEqual(actual, tokens(try fixture(), fixtureKey))
@@ -358,7 +368,7 @@ final class Inkling2AgentTests: XCTestCase {
   }
 
   func testEnablingMemoryInsertsReminderBeforeFirstUserMessage() throws {
-    let prefix = Inkling2CodeAgent.parse([
+    let prefix = Inkling2SmallCodeAgent.parse([
       .user("Previous"), .assistant(text: "Done", thinking: "", toolCalls: []),
     ])
     let agent = makeAgent(prefix: prefix)
@@ -375,21 +385,21 @@ final class Inkling2AgentTests: XCTestCase {
       text.contains(
         "</system-reminder>\n<|end_message|><|message_user|><|content_text|>Previous<|end_message|>"
       ))
-    XCTAssertEqual(Inkling2CodeAgent.parse(tokens), Inkling2CodeAgent.parse(prefix))
+    XCTAssertEqual(Inkling2SmallCodeAgent.parse(tokens), Inkling2SmallCodeAgent.parse(prefix))
   }
 
   func testReminderReplacementAndTemporaryAsk() {
     let safe = Inkling2SmallTextGenerator.safeTokenizer
     let project = ProjectContext(content: "Keep this context.")
-    let reminder = Inkling2CodeAgent.message(
-      Inkling2CodeAgent.userMessageToken,
+    let reminder = Inkling2SmallCodeAgent.message(
+      Inkling2SmallCodeAgent.userMessageToken,
       safe.tokenize(text: project.emitAsSystemReminder() + "\n", addSpecialTokens: false).0)
-    let turn = Inkling2CodeAgent.parse([
+    let turn = Inkling2SmallCodeAgent.parse([
       .user("Hi"), .assistant(text: "Hi", thinking: "", toolCalls: []),
     ])
     let prefix = reminder + turn
-    XCTAssertEqual(Inkling2CodeAgent.parse(prefix).first, .user("Hi"))
-    let replacement = Inkling2CodeAgent.replaceSystemReminder(
+    XCTAssertEqual(Inkling2SmallCodeAgent.parse(prefix).first, .user("Hi"))
+    let replacement = Inkling2SmallCodeAgent.replaceSystemReminder(
       in: prefix, with: [],
       startTokens: safe.tokenize(text: "<system-reminder>\n", addSpecialTokens: false).0,
       endTokens: safe.tokenize(text: "</system-reminder>\n", addSpecialTokens: false).0)
@@ -409,7 +419,7 @@ final class Inkling2AgentTests: XCTestCase {
       ToolCall(id: 0, request: .init(function: "bash", parameters: [:])),
       ToolCall(id: 1, request: .init(function: "datetime", parameters: [:])),
     ]
-    let (tokens, spans) = Inkling2CodeAgent.toolResultTokens(
+    let (tokens, spans) = Inkling2SmallCodeAgent.toolResultTokens(
       for: calls, responses: [0: ToolResponse([.text("a"), .text("b")])], tokenizer: safe,
       environment: ProjectEnvironment(projectPath: directory.path))
     XCTAssertTrue(spans.isEmpty)

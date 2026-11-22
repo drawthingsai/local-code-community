@@ -87,7 +87,7 @@ extension DeviceCapability.WeightsStreaming {
     // The drafter loads whole at every tier.
     let drafterSize: UInt64 =
       draft
-      ? 1_493_315_584  // inkling_2_small_dspark_q8_q5k.ckpt, 1.39 GiB.
+      ? 1_490_514_944  // inkling_2_small_dspark_q8_q5k_trailer.ckpt, 1.39 GiB.
       : 0
     return weightsSize + drafterSize
   }
@@ -310,13 +310,11 @@ public struct Inkling2SmallTextGenerator {
     var drafter: ModelBuilder<(mainRows: Int, globalRow: Int, localOffset: Int, temperature: Float)>
     {
       if let cachedDrafter { return cachedDrafter }
-      let configuration = self.configuration
       let drafter = ModelBuilder {
         (shape: (mainRows: Int, globalRow: Int, localOffset: Int, temperature: Float), _) in
         Inkling2SmallDSpark(
           Float16.self, mainRows: shape.mainRows, globalRow: shape.globalRow,
-          localOffset: shape.localOffset, temperature: shape.temperature,
-          configuration: configuration)
+          localOffset: shape.localOffset, temperature: shape.temperature)
       }
       cachedDrafter = drafter
       return drafter
@@ -324,11 +322,9 @@ public struct Inkling2SmallTextGenerator {
     private var cachedDraftContext: ModelBuilder<(rows: Int, globalRow: Int, localRow: Int)>?
     var draftContext: ModelBuilder<(rows: Int, globalRow: Int, localRow: Int)> {
       if let cachedDraftContext { return cachedDraftContext }
-      let configuration = self.configuration
       let context = ModelBuilder { (shape: (rows: Int, globalRow: Int, localRow: Int), _) in
         Inkling2SmallDSparkContext(
-          Float16.self, rows: shape.rows, globalRow: shape.globalRow, localRow: shape.localRow,
-          configuration: configuration)
+          Float16.self, rows: shape.rows, globalRow: shape.globalRow, localRow: shape.localRow)
       }
       cachedDraftContext = context
       return context

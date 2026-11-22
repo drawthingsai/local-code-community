@@ -301,6 +301,11 @@ final class ChatWorkflow: Workflow {
           filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
           chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming,
           drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
+      case .inkling_2_mini:
+        textGenerator = Inkling2MiniTextGenerator(
+          filePath: LLMZoo.filePathForModelDownloaded(initialLLM),
+          chunkedPrefillMaxLength: chunkedPrefillMaxLength, weightsStreaming: weightsStreaming,
+          drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
       case .deepseek_4_1_flash:
         guard let engram = specification.engram else {
           preconditionFailure("DeepSeek 4.1 requires an Engram companion")
@@ -719,7 +724,9 @@ final class ChatWorkflow: Workflow {
       codeAgent.reasoningEffort = .init(reasoningEffort)
     case let codeAgent as GLM5_3CodeAgent:
       codeAgent.reasoningEffort = .init(reasoningEffort)
-    case let codeAgent as Inkling2CodeAgent:
+    case let codeAgent as Inkling2CodeAgent<Inkling2SmallTextGenerator>:
+      codeAgent.reasoningEffort = .init(reasoningEffort)
+    case let codeAgent as Inkling2CodeAgent<Inkling2MiniTextGenerator>:
       codeAgent.reasoningEffort = .init(reasoningEffort)
     default:
       preconditionFailure("Unsupported code agent")
@@ -875,7 +882,7 @@ final class ChatWorkflow: Workflow {
     case .glm_5_3_flash:
       // The Z.ai mark is a flat dark glyph; template rendering keeps it visible in dark mode.
       return #imageLiteral(resourceName: "zai-20").withRenderingMode(.alwaysTemplate)
-    case .inkling_2_small:
+    case .inkling_2_small, .inkling_2_mini:
       // Thinking Machines' mark is a flat dark square; template rendering keeps it visible in dark
       // mode, as for Z.ai's.
       return #imageLiteral(resourceName: "thinkingmachines-20").withRenderingMode(.alwaysTemplate)
@@ -1109,6 +1116,11 @@ final class ChatWorkflow: Workflow {
         drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
     case .inkling_2_small:
       return Inkling2SmallTextGenerator(
+        filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength,
+        weightsStreaming: weightsStreaming,
+        drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
+    case .inkling_2_mini:
+      return Inkling2MiniTextGenerator(
         filePath: filePath, chunkedPrefillMaxLength: chunkedPrefillMaxLength,
         weightsStreaming: weightsStreaming,
         drafterFile: specification.draftFile.map(LLMZoo.filePathForModelDownloaded))
@@ -1968,7 +1980,8 @@ final class ChatWorkflow: Workflow {
         GLM5_3ContextCache(
           projectPath: projectURL.path, checkpointStride: textGenerator.checkpointStride
         ).loadSuspension(threadId: threadId) != nil
-    case let textGenerator as Inkling2SmallTextGenerator:
+    case let textGenerator as any Inkling2TextGenerator:
+      // Either Inkling 2 keeps its suspensions in Inkling 2 Small's context cache.
       hasPersistedSuspension =
         Inkling2SmallContextCache(
           projectPath: projectURL.path, checkpointStride: textGenerator.checkpointStride
@@ -2081,7 +2094,7 @@ final class ChatWorkflow: Workflow {
         safeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
       case .glm_5_3_flash:
         safeTokenizer = GLM5_3TextGenerator.safeTokenizer
-      case .inkling_2_small:
+      case .inkling_2_small, .inkling_2_mini:
         safeTokenizer = Inkling2SmallTextGenerator.safeTokenizer
       case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
         safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
@@ -2160,7 +2173,7 @@ final class ChatWorkflow: Workflow {
         toolCallSpecialTokens = DeepSeek4ToolCallParser.toolCallSpecialTokens
       } else if textGenerator is GLM5_3TextGenerator {
         toolCallSpecialTokens = GLM5_3ToolCallParser.toolCallSpecialTokens
-      } else if textGenerator is Inkling2SmallTextGenerator {
+      } else if textGenerator is any Inkling2TextGenerator {
         // Inkling 2 keeps only the visible text in a node's tokens.
         toolCallSpecialTokens = [:]
       } else {
@@ -2180,7 +2193,7 @@ final class ChatWorkflow: Workflow {
       case .glm_5_3_flash:
         safeTokenizer = GLM5_3TextGenerator.safeTokenizer
         toolCallSpecialTokens = GLM5_3ToolCallParser.toolCallSpecialTokens
-      case .inkling_2_small:
+      case .inkling_2_small, .inkling_2_mini:
         safeTokenizer = Inkling2SmallTextGenerator.safeTokenizer
         toolCallSpecialTokens = [:]
       case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:

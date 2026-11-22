@@ -134,6 +134,8 @@ func responsesModelAdapter(for textGenerator: any TextGenerator, projectPath: St
     return GLM5_3ResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
   case let textGenerator as Inkling2SmallTextGenerator:
     return Inkling2ResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
+  case let textGenerator as Inkling2MiniTextGenerator:
+    return Inkling2ResponsesModelAdapter(textGenerator: textGenerator, projectPath: projectPath)
   default:
     return nil
   }
@@ -684,7 +686,9 @@ final class GLM5_3ResponsesModelAdapter: ResponsesModelAdapter {
   }
 }
 
-final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
+final class Inkling2ResponsesModelAdapter<Generator: Inkling2TextGenerator>: ResponsesModelAdapter {
+  typealias Agent = Inkling2CodeAgent<Generator>
+
   private struct Scanner: ResponsesToolCallScanner {
     var parser = Inkling2ToolCallParser()
     /// After the opening of a reply without thinking, the model's message is already open.
@@ -704,20 +708,20 @@ final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
     mutating func finish() { parser.finish() }
   }
 
-  private var textGenerator: Inkling2SmallTextGenerator
+  private var textGenerator: Generator
   private let projectPath: String
-  private var kvCache = Inkling2SmallTextGenerator.KVCache()
+  private var kvCache = Generator.KVCache()
   var kvCacheTokenLength: Int { kvCache.tokenLength }
   private(set) var restoredTokenLength: Int?
 
-  init(textGenerator: Inkling2SmallTextGenerator, projectPath: String) {
+  init(textGenerator: Generator, projectPath: String) {
     self.textGenerator = textGenerator
     self.projectPath = projectPath
   }
 
   var filePath: String { textGenerator.filePath }
-  var maximumContextLength: Int { Inkling2CodeAgent.maximumContextLength }
-  var minimumGenerationReserve: Int { Inkling2CodeAgent.minimumGenerationReserve }
+  var maximumContextLength: Int { Agent.maximumContextLength }
+  var minimumGenerationReserve: Int { Agent.minimumGenerationReserve }
   var isImageSupported: Bool { true }
   // The generator reads the open thinking and its length from the generation.
   var countsThinkingFromContext: Bool { true }
@@ -729,22 +733,22 @@ final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
       Self.systemSections(
         instructions: request.instructions, tools: request.tools,
         // As the agent does, which turns thinking off with an effort of 0.
-        reasoningEffort: isThinking ? Inkling2CodeAgent.ReasoningEffort(reasoningEffort) : .none),
+        reasoningEffort: isThinking ? Agent.ReasoningEffort(reasoningEffort) : .none),
       unsafeTokenizer: Inkling2SmallTextGenerator.unsafeTokenizer,
       safeTokenizer: Inkling2SmallTextGenerator.safeTokenizer)
     let store = EmbedsFileStore(projectPath: projectPath)
     var embedSpans = [EmbedSpan]()
     // The agent's renderer keeps each turn's thinking and writes calls the way the model does.
-    let transcriptTokens = Inkling2CodeAgent.parse(request.transcript) { image, tokenOffset in
+    let transcriptTokens = Agent.parse(request.transcript) { image, tokenOffset in
       guard let digest = try? store.insert(data: image.data),
-        let count = Inkling2SmallTextGenerator.imageTokenCount(
+        let count = Generator.imageTokenCount(
           filePath: store.filePath(for: digest))
       else { return [] }
       embedSpans.append(
         EmbedSpan(
           start: Int64(systemTokens.count + tokenOffset), length: Int64(count),
           digest: Array(digest), kind: .image))
-      return Array(repeating: Inkling2CodeAgent.imageToken, count: count)
+      return Array(repeating: Agent.imageToken, count: count)
     }
     return ResponsesPrompt(
       tokens: systemTokens + transcriptTokens + replyOpening(isThinking: isThinking),
@@ -756,15 +760,15 @@ final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
   /// thinking. Either way the prompt doesn't end on the end of an assistant turn it was given.
   func replyOpening(isThinking: Bool) -> [Int32] {
     isThinking
-      ? [Inkling2CodeAgent.modelMessageToken, Inkling2CodeAgent.thinkingContentToken]
-      : [Inkling2CodeAgent.modelMessageToken]
+      ? [Agent.modelMessageToken, Agent.thinkingContentToken]
+      : [Agent.modelMessageToken]
   }
 
   /// The tools part follows the agent's prompt, without the instructions meant for its own tools.
   /// The template declares the tools, then the system message, then states the effort.
   static func systemSections(
     instructions: String, tools: [ResponsesRequest.Tool],
-    reasoningEffort: Inkling2CodeAgent.ReasoningEffort
+    reasoningEffort: Agent.ReasoningEffort
   ) -> [SystemPromptSection] {
     var sections = [SystemPromptSection]()
     if !tools.isEmpty {
@@ -797,7 +801,7 @@ final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
 
   func makeOutputParser(isThinking: Bool) -> ResponsesOutputParser {
     ResponsesOutputParser(
-      isThinking: isThinking, thinkEndToken: Inkling2CodeAgent.endMessageToken,
+      isThinking: isThinking, thinkEndToken: Agent.endMessageToken,
       isTerminal: { [self] in
         isTerminal($0)
       }, safeTokenizer: Inkling2SmallTextGenerator.safeTokenizer,
@@ -806,7 +810,7 @@ final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
   }
 
   func isTerminal(_ token: Int32) -> Bool {
-    Inkling2CodeAgent.stopTokens.contains(token)
+    Agent.stopTokens.contains(token)
   }
 
   func decode(
@@ -814,7 +818,7 @@ final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
     contextTokens: [Int32], embedSpans: [EmbedSpan], thinkingBudget: Int, deterministic: Bool,
     handler: (Int, Int, [Int32], CodeAgentStatistics) -> ContinuationState
   ) -> [Int32] {
-    let contextCache = Inkling2SmallContextCache(
+    let contextCache = Generator.ContextCache(
       projectPath: projectPath, checkpointStride: textGenerator.checkpointStride)
     defer { restoredTokenLength = contextCache.restoredTokenLength }
     return textGenerator.decode(
@@ -831,11 +835,11 @@ final class Inkling2ResponsesModelAdapter: ResponsesModelAdapter {
             tokenGenerationDurationSoFar: statistics.tokenGenerationDurationSoFar,
             tokenGeneratedSoFar: statistics.tokenGeneratedSoFar,
             contextUsedTokens: contextTokens.count + generatedTokens.count,
-            contextWindowTokens: Inkling2CodeAgent.maximumContextLength)))
+            contextWindowTokens: Agent.maximumContextLength)))
     }
   }
 
   func resetCaches() {
-    kvCache = Inkling2SmallTextGenerator.KVCache()
+    kvCache = Generator.KVCache()
   }
 }

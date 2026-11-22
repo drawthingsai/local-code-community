@@ -4,14 +4,16 @@ import Tokenizer
 
 extension Inkling2CodeAgent {
   // Inkling 2 Small takes up to 1M tokens. Its 8 full-attention layers keep 32 KiB a token, so
-  // 256K holds 8 GiB of them, and prefill and decoding stay acceptably fast. Compaction starts at
-  // the same share of the window as GLM 5.3's and DeepSeek 4's.
-  static var maximumContextLength: Int { 256 * 1_024 }
-  static var contextCheckpointCompactionTokenThreshold: Int { 208 * 1_024 }
-  static var contextCheckpointCompactionHistoryTokenBudget: Int { 64 * 1_024 }
+  // 256K holds 8 GiB of them, and prefill and decoding stay acceptably fast. Inkling 2 Mini keeps
+  // 64K where its experts stream. Compaction starts at the same share of the window as GLM 5.3's
+  // and DeepSeek 4's, and the thresholds below scale with the window: 208K, 64K, 64K and 32K of
+  // 256K.
+  static var maximumContextLength: Int { Generator.contextWindowLength }
+  static var contextCheckpointCompactionTokenThreshold: Int { maximumContextLength / 16 * 13 }
+  static var contextCheckpointCompactionHistoryTokenBudget: Int { maximumContextLength / 4 }
   static var minimumGenerationReserve: Int { 8_192 }
-  static var readResponsePreviewTokenThreshold: Int { 65_536 }
-  static var toolResponseExternalizationTokenThreshold: Int { 32_768 }
+  static var readResponsePreviewTokenThreshold: Int { maximumContextLength / 4 }
+  static var toolResponseExternalizationTokenThreshold: Int { maximumContextLength / 8 }
 
   static var contextCheckpointCompactionPrompt: String {
     """

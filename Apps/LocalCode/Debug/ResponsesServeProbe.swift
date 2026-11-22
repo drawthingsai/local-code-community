@@ -23,7 +23,7 @@ enum ResponsesServeProbe {
       let cachePath = values["--cache-project-path"]
     else {
       print(
-        "Usage: --model-path <ckpt> --family <qwen_3_5_27b|deepseek_4|deepseek_4_1|glm_5_3|inkling_2_small> --cache-project-path <dir> [--chat-seconds 8] [--hot-limit 1] [--time-slice 2] [--weights-streaming 48] [--ip 0.0.0.0] [--port 11435]"
+        "Usage: --model-path <ckpt> --family <qwen_3_5_27b|deepseek_4|deepseek_4_1|glm_5_3|inkling_2_small|inkling_2_mini> --cache-project-path <dir> [--chat-seconds 8] [--hot-limit 1] [--time-slice 2] [--weights-streaming 48] [--ip 0.0.0.0] [--port 11435]"
       )
       exit(2)
     }
@@ -222,6 +222,9 @@ private final class Probe: ServeControllerDelegate {
         filePath: modelPath, chunkedPrefillMaxLength: chunk, weightsStreaming: weightsStreaming)
     case "inkling_2_small":
       return Inkling2SmallTextGenerator(
+        filePath: modelPath, chunkedPrefillMaxLength: chunk, weightsStreaming: weightsStreaming)
+    case "inkling_2_mini":
+      return Inkling2MiniTextGenerator(
         filePath: modelPath, chunkedPrefillMaxLength: chunk, weightsStreaming: weightsStreaming)
     default:
       fatalError("Unknown family \(family)")

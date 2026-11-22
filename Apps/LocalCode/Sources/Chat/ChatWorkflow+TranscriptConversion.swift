@@ -23,7 +23,7 @@ extension ChatWorkflow {
       targetSafeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
     case .glm_5_3_flash:
       targetSafeTokenizer = GLM5_3TextGenerator.safeTokenizer
-    case .inkling_2_small:
+    case .inkling_2_small, .inkling_2_mini:
       targetSafeTokenizer = Inkling2SmallTextGenerator.safeTokenizer
     }
     if parseRemoteThreadModelIdentifier(sourceModel) != nil {
@@ -82,20 +82,23 @@ extension ChatWorkflow {
       switch targetVersion {
       case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b:
         return history
-      case .deepseek_4_flash, .deepseek_4_1_flash, .glm_5_3_flash, .inkling_2_small:
+      case .deepseek_4_flash, .deepseek_4_1_flash, .glm_5_3_flash, .inkling_2_small,
+        .inkling_2_mini:
         break
       }
     case .deepseek_4_flash, .deepseek_4_1_flash:
       switch targetVersion {
-      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, .glm_5_3_flash, .inkling_2_small:
+      case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, .glm_5_3_flash, .inkling_2_small,
+        .inkling_2_mini:
         break
       case .deepseek_4_flash, .deepseek_4_1_flash:
         return history
       }
     case .glm_5_3_flash:
       if targetVersion == .glm_5_3_flash { return history }
-    case .inkling_2_small:
-      if targetVersion == .inkling_2_small { return history }
+    case .inkling_2_small, .inkling_2_mini:
+      // The two share a tokenizer and a chat format.
+      if targetVersion == .inkling_2_small || targetVersion == .inkling_2_mini { return history }
     }
     let sourceSafeTokenizer: TiktokenTokenizer
     switch sourceVersion {
@@ -107,7 +110,7 @@ extension ChatWorkflow {
       sourceSafeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
     case .glm_5_3_flash:
       sourceSafeTokenizer = GLM5_3TextGenerator.safeTokenizer
-    case .inkling_2_small:
+    case .inkling_2_small, .inkling_2_mini:
       sourceSafeTokenizer = Inkling2SmallTextGenerator.safeTokenizer
     }
 
@@ -154,7 +157,7 @@ extension ChatWorkflow {
       sourceSafeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
     case .glm_5_3_flash:
       sourceSafeTokenizer = GLM5_3TextGenerator.safeTokenizer
-    case .inkling_2_small:
+    case .inkling_2_small, .inkling_2_mini:
       sourceSafeTokenizer = Inkling2SmallTextGenerator.safeTokenizer
     }
     do {
@@ -177,7 +180,7 @@ extension ChatWorkflow {
             case .glm_5_3_flash:
               text = sourceSafeTokenizer.decode(
                 node.tokens, specialTokens: GLM5_3ToolCallParser.toolCallSpecialTokens)
-            case .inkling_2_small:
+            case .inkling_2_small, .inkling_2_mini:
               // Inkling 2 keeps only the visible text in a node's tokens.
               text = sourceSafeTokenizer.decode(node.tokens)
             case .deepseek_4_flash, .deepseek_4_1_flash:
@@ -293,6 +296,23 @@ extension ChatWorkflow {
         prefixTokens: prefixTokens, prefixEmbedSpans: prefixEmbedSpans,
         bashToolContext: bashToolContext,
         shouldInjectSystemSeenMemoryContext: shouldInjectSystemSeenMemoryContext)
+    case let textGenerator as Inkling2MiniTextGenerator:
+      let systemPromptTemplate = SystemPromptTemplate.load(
+        projectURL: projectURL, model: systemPromptModel,
+        template: systemPromptForInkling2)
+      codeAgent = Inkling2CodeAgent(
+        textGenerator: textGenerator, graph: graph, streamContext: streamContext,
+        unsafeTokenizer: Inkling2MiniTextGenerator.unsafeTokenizer,
+        safeTokenizer: textGenerator.safeTokenizer,
+        systemPromptTemplate: systemPromptTemplate,
+        reasoningEffort: .init(reasoningEffort),
+        skillCatalog: skillCatalog,
+        projectContext: projectContext,
+        environmentContext: environmentContext,
+        memoryContext: systemSeenMemoryContext,
+        prefixTokens: prefixTokens, prefixEmbedSpans: prefixEmbedSpans,
+        bashToolContext: bashToolContext,
+        shouldInjectSystemSeenMemoryContext: shouldInjectSystemSeenMemoryContext)
     case let textGenerator as DeepSeek4TextGenerator:
       guard prefixEmbedSpans.isEmpty else { return nil }
       let systemPromptTemplate = SystemPromptTemplate.load(
@@ -351,7 +371,9 @@ extension ChatWorkflow {
     case .glm_5_3_flash:
       return GLM5_3CodeAgent.parse(tokens)
     case .inkling_2_small:
-      return Inkling2CodeAgent.parse(tokens)
+      return Inkling2CodeAgent<Inkling2SmallTextGenerator>.parse(tokens)
+    case .inkling_2_mini:
+      return Inkling2CodeAgent<Inkling2MiniTextGenerator>.parse(tokens)
     }
   }
 
@@ -368,7 +390,9 @@ extension ChatWorkflow {
     case .glm_5_3_flash:
       return GLM5_3CodeAgent.parse(transcript)
     case .inkling_2_small:
-      return Inkling2CodeAgent.parse(transcript)
+      return Inkling2CodeAgent<Inkling2SmallTextGenerator>.parse(transcript)
+    case .inkling_2_mini:
+      return Inkling2CodeAgent<Inkling2MiniTextGenerator>.parse(transcript)
     }
   }
 

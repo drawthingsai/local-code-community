@@ -2010,7 +2010,7 @@ extension SettingsWorkflow: ProjectControllerDelegate {
       safeTokenizer = DeepSeek4_1TextGenerator.safeTokenizer
     case .glm_5_3_flash:
       safeTokenizer = GLM5_3TextGenerator.safeTokenizer
-    case .inkling_2_small:
+    case .inkling_2_small, .inkling_2_mini:
       safeTokenizer = Inkling2SmallTextGenerator.safeTokenizer
     case .qwen_3_5_4b, .qwen_3_5_9b, .qwen_3_5_27b, nil:
       safeTokenizer = Qwen3_5TextGenerator.safeTokenizer
@@ -2138,7 +2138,7 @@ extension SettingsWorkflow: ProjectControllerDelegate {
           unsafeTokenizer = DeepSeek4_1TextGenerator.unsafeTokenizer
         case .glm_5_3_flash:
           unsafeTokenizer = GLM5_3TextGenerator.unsafeTokenizer
-        case .inkling_2_small:
+        case .inkling_2_small, .inkling_2_mini:
           unsafeTokenizer = Inkling2SmallTextGenerator.unsafeTokenizer
         }
         contents = unsafeTokenizer.decode(ProjectHistoryManager.context(history: history).tokens)

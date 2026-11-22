@@ -158,6 +158,11 @@ final class ModelSpeedWorkflow: Workflow {
         textGenerator: textGenerator, contextLengths: SpeedometerReading.contextLengths,
         graph: graph, streamContext: streamContext, storePath: Self.storePath,
         libraryURL: Self.libraryURL, thinkingBudget: thinkingBudget, deterministic: deterministic)
+    case let textGenerator as Inkling2MiniTextGenerator:
+      return Inkling2Speedometer(
+        textGenerator: textGenerator, contextLengths: SpeedometerReading.contextLengths,
+        graph: graph, streamContext: streamContext, storePath: Self.storePath,
+        libraryURL: Self.libraryURL, thinkingBudget: thinkingBudget, deterministic: deterministic)
     default:
       return nil
     }

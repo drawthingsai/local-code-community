@@ -5,8 +5,10 @@ import LLM
 import NNC
 import Tokenizer
 
-/// Times Inkling 2 Small through `Inkling2SmallTextGenerator`, the decode the chat runs.
-final class Inkling2Speedometer: Speedometer {
+/// Times Inkling 2 Small or Mini through its text generator, the decode the chat runs.
+final class Inkling2Speedometer<Generator: Inkling2TextGenerator>: Speedometer {
+  typealias Agent = Inkling2CodeAgent<Generator>
+
   private static var decodeTokenCount: Int { 128 }
   // Long enough for the chip to shed the heat of a reading, short enough to keep a run brisk.
   private static var coolDownDuration: TimeInterval { 20 }
@@ -14,7 +16,7 @@ final class Inkling2Speedometer: Speedometer {
   weak var delegate: (any SpeedometerDelegate)?
   let contextLengths: [Int]
   let promptLength: Int
-  private var textGenerator: Inkling2SmallTextGenerator
+  private var textGenerator: Generator
   private let graph: DynamicGraph
   private let streamContext: StreamContext
   private let storePath: String
@@ -29,7 +31,7 @@ final class Inkling2Speedometer: Speedometer {
   private var isWarmedUp = false
 
   init(
-    textGenerator: Inkling2SmallTextGenerator, contextLengths: [Int], graph: DynamicGraph,
+    textGenerator: Generator, contextLengths: [Int], graph: DynamicGraph,
     streamContext: StreamContext, storePath: String, libraryURL: URL, thinkingBudget: Int,
     deterministic: Bool
   ) {
@@ -41,7 +43,7 @@ final class Inkling2Speedometer: Speedometer {
       contextLength.isMultiple(of: promptLength)
         && contextLength.isMultiple(of: textGenerator.checkpointStride)
         && contextLength + promptLength + Self.decodeTokenCount
-          < Inkling2CodeAgent.maximumContextLength
+          < Agent.maximumContextLength
     }
     self.promptLength = promptLength
     self.textGenerator = textGenerator
@@ -157,13 +159,13 @@ final class Inkling2Speedometer: Speedometer {
     let contextLength = context.count
     let tokens = context + prompt
     // Restoring stops at the context, and nothing is saved while timing.
-    let contextCache = Inkling2SmallContextCache(
+    let contextCache = Generator.ContextCache(
       storePath: storePath, checkpointStride: textGenerator.checkpointStride, isReadOnly: true,
       maximumRestoredTokenLength: contextLength)
     let isStopped = isStopped
     var isMissingContext = false
     var isCooledDown = false
-    var kvCache = Inkling2SmallTextGenerator.KVCache()
+    var kvCache = Generator.KVCache()
     DynamicGraph.setSeed(0)
     let tokensGPU = graph.variable(Tensor<Int32>(tokens).toGPU(0))
     _ = graph.withStream(streamContext) {
@@ -171,7 +173,7 @@ final class Inkling2Speedometer: Speedometer {
         textGenerator.decode(
           graph: graph, tokens: tokensGPU, tokenOffset: 0, thinkingBudget: thinkingBudget,
           deterministic: deterministic, kvCache: &kvCache, contextTokens: tokens,
-          contextCache: contextCache
+          contextCache: contextCache, embedSpans: [], projectPath: nil
         ) { prefillStart, _, generatedTokens, _ in
           guard !isStopped.load(ordering: .acquiring) else { return .abort }
           // Stops right after a restore that fell short, before any of the context is prefilled.
@@ -214,19 +216,19 @@ final class Inkling2Speedometer: Speedometer {
 
   /// Prefills `context`, saving checkpoints into the cache along the way, and stops before decode.
   private func build(context: [Int32]) -> Bool {
-    let contextCache = Inkling2SmallContextCache(
+    let contextCache = Generator.ContextCache(
       storePath: storePath, checkpointStride: textGenerator.checkpointStride, isReadOnly: false,
       maximumRestoredTokenLength: .max)
     let isStopped = isStopped
     var isBuilt = false
-    var kvCache = Inkling2SmallTextGenerator.KVCache()
+    var kvCache = Generator.KVCache()
     let tokensGPU = graph.variable(Tensor<Int32>(context).toGPU(0))
     _ = graph.withStream(streamContext) {
       graph.withNoGrad {
         textGenerator.decode(
           graph: graph, tokens: tokensGPU, tokenOffset: 0, thinkingBudget: thinkingBudget,
           deterministic: deterministic, kvCache: &kvCache, contextTokens: context,
-          contextCache: contextCache
+          contextCache: contextCache, embedSpans: [], projectPath: nil
         ) { prefillStart, tokenLength, generatedTokens, _ in
           guard !isStopped.load(ordering: .acquiring) else { return .abort }
           delegate?.speedometer(
@@ -251,21 +253,21 @@ final class Inkling2Speedometer: Speedometer {
     // As the Serve adapter opens a reply: the model's thinking message, or its message without one.
     var assistantPromptTokens: [Int32] {
       isThinking
-        ? [Inkling2CodeAgent.modelMessageToken, Inkling2CodeAgent.thinkingContentToken]
-        : [Inkling2CodeAgent.modelMessageToken]
+        ? [Agent.modelMessageToken, Agent.thinkingContentToken]
+        : [Agent.modelMessageToken]
     }
 
     // The template states the effort before the first message that isn't the system's, at its
     // default of 0.9, or 0 with thinking off as the agent does.
     func requestTokens(_ text: String) -> [Int32] {
-      let effort: Inkling2CodeAgent.ReasoningEffort = isThinking ? .high : .none
-      return Inkling2CodeAgent.message(
-        Inkling2CodeAgent.systemMessageToken, tokens("Thinking effort level: \(effort.level)"))
+      let effort: Agent.ReasoningEffort = isThinking ? .high : .none
+      return Agent.message(
+        Agent.systemMessageToken, tokens("Thinking effort level: \(effort.level)"))
         + userTokens(text)
     }
 
     func userTokens(_ text: String) -> [Int32] {
-      Inkling2CodeAgent.message(Inkling2CodeAgent.userMessageToken, tokens(text))
+      Agent.message(Agent.userMessageToken, tokens(text))
     }
 
     // The model ends its turn after the call.
@@ -276,13 +278,13 @@ final class Inkling2Speedometer: Speedometer {
       }
       let body =
         "{\"name\":\"read\",\"args\":" + Inkling2ToolCallParser.json(arguments) + "}"
-      return [Inkling2CodeAgent.modelMessageToken] + tokens("read")
-        + [Inkling2CodeAgent.invokeToolJSONContentToken] + tokens(body)
-        + [Inkling2CodeAgent.endMessageToken, Inkling2CodeAgent.endOfTurnToken]
+      return [Agent.modelMessageToken] + tokens("read")
+        + [Agent.invokeToolJSONContentToken] + tokens(body)
+        + [Agent.endMessageToken, Agent.endOfTurnToken]
     }
 
     func toolResultTokens(_ content: [Int32]) -> [Int32] {
-      Inkling2CodeAgent.message(Inkling2CodeAgent.toolMessageToken, header: tokens("read"), content)
+      Agent.message(Agent.toolMessageToken, header: tokens("read"), content)
     }
 
     func tokens(_ text: String) -> [Int32] {
