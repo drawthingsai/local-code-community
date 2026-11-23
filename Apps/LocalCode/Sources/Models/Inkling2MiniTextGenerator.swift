@@ -276,11 +276,11 @@ extension Inkling2MiniTextGenerator {
   public static let isWeightsStreamingPreferred =
     ProcessInfo.processInfo.physicalMemory < 32 * 1_024 * 1_024 * 1_024
 
-  /// The decode pool slots the experts stream with: the 2.5 GiB plan on an iPhone, the 3 GiB plan
+  /// The decode pool slots the experts stream with: the 2.3 GiB plan on an iPhone, the 3 GiB plan
   /// on any other device with less than 24 GiB of memory, and the 6 GiB plan from 24 GiB. A device
   /// with 32 GiB or more streams only at a weights-streaming tier smaller than the store.
   static let streamingExpertResidentSlots: [Int] = {
-    if DeviceCapability.isPhone() { return expertResidentSlotsAt2_5GiB }
+    if DeviceCapability.isPhone() { return expertResidentSlotsAt2_3GiB }
     return ProcessInfo.processInfo.physicalMemory < 24 * 1_024 * 1_024 * 1_024
       ? expertResidentSlotsAt3GiB : expertResidentSlotsAt6GiB
   }()
@@ -300,11 +300,12 @@ extension Inkling2MiniTextGenerator {
     11, 11, 11, 8, 8, 8, 31, 31, 26, 26, 31, 31, 26, 25, 26, 26, 23, 31, 13, 11, 11, 12, 11, 12,
   ]
 
-  // The same fit at 2.5 GiB: a 1.00 GiB pool, 495 MiB a decoded token; 4-bit S holds 3.19 GiB.
+  // The same fit at 2.3 GiB: a 0.80 GiB pool, 577 MiB a decoded token; 4-bit S holds 2.93 GiB.
   // A layer takes at least 8 slots, the experts a token routes to (with fewer, its decode calls
-  // stage them), so 3-bit S needs at least 2.16 GiB.
-  static let expertResidentSlotsAt2_5GiB = [
-    8, 8, 8, 8, 8, 8, 16, 17, 17, 17, 17, 17, 16, 15, 18, 17, 16, 25, 9, 8, 8, 8, 8, 8,
+  // stage them), so 3-bit S needs at least 2.16 GiB. Below 2.3 GiB each byte given up costs more
+  // reads: 2.5 GiB reads 495 MiB a token, 2.16 GiB 683.
+  static let expertResidentSlotsAt2_3GiB = [
+    8, 8, 8, 8, 8, 8, 10, 11, 11, 11, 11, 11, 11, 11, 13, 12, 12, 19, 8, 8, 8, 8, 8, 8,
   ]
 
   // The same fit at 6 GiB: a 4.50 GiB pool, 95 MiB a decoded token; 4-bit S holds 7.54 GiB.
@@ -325,7 +326,7 @@ extension Inkling2MiniTextGenerator {
   public var filePaths: [String] { [filePath] + [drafterFile].compactMap { $0 } }
 
   /// While the experts stream at the device's plan, what 4-bit S holds there, rounded up: 4 GiB at
-  /// the 2.5 GiB and 3 GiB plans (3.19 GiB and 3.82 GiB), 8 GiB at the 6 GiB plan (7.54 GiB).
+  /// the 2.3 GiB and 3 GiB plans (2.93 GiB and 3.82 GiB), 8 GiB at the 6 GiB plan (7.54 GiB).
   /// Otherwise the store's size, and the drafter's when it is downloaded.
   public var residentWeightsSize: UInt64 {
     guard weightsStreamingWatermarkBytes == nil else {
@@ -377,7 +378,7 @@ extension Inkling2MiniTextGenerator {
       let result = try? graph.openStore(filePath, flags: .readOnly) { store in
         // Read, not mapped, as Inkling 2 Mini's: the tower is a small part of the file. An iPhone
         // reads each weight when its layer runs instead, so the tower, about 0.6 GiB in FP16, does
-        // not stay resident beside the 2.5 GiB plan.
+        // not stay resident beside the 2.3 GiB plan.
         try store.read(
           "vision_model", model: vision, strict: true,
           codec: [
