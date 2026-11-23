@@ -386,6 +386,18 @@ extension MachineSettingsWorkflow: MachineSettingsViewControllerDelegate {
             try? fileManager.removeItem(at: mfaV2Url.appendingPathComponent(directory))
           }
         }
+        // $TMPDIR of the Bash jobs.
+        let jobTmpUrl = cacheUrl.appendingPathComponent("tmp")
+        if let directories = try? fileManager.contentsOfDirectory(atPath: jobTmpUrl.path) {
+          for directory in directories {
+            try? fileManager.removeItem(at: jobTmpUrl.appendingPathComponent(directory))
+          }
+        }
+        // The contexts Model Speed runs build. The next run for a model builds its own again.
+        for suffix in ["", "-wal", "-shm"] {
+          try? fileManager.removeItem(
+            at: cacheUrl.appendingPathComponent("speed_context_cache.sqlite3" + suffix))
+        }
       }
     }
   }

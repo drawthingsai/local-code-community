@@ -42,11 +42,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>26.1121.1</string>
+	<string>26.1122.0</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>261121.1</string>
+	<string>261122.0</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>LocalCodeAppleWebSignInURL</key>

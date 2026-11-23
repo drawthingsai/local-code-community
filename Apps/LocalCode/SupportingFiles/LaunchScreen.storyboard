@@ -32,8 +32,8 @@
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="7RY-Bh-wMJ" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="B8l-v1-kha"/>
-                            <constraint firstItem="Bcu-3y-fUS" firstAttribute="trailing" secondItem="UAF-xj-Rf6" secondAttribute="trailing" priority="750" constant="16" id="IyB-cW-z6t"/>
-                            <constraint firstItem="UAF-xj-Rf6" firstAttribute="leading" secondItem="Bcu-3y-fUS" secondAttribute="leading" priority="750" constant="16" id="KUZ-nF-KxP"/>
+                            <constraint firstItem="Bcu-3y-fUS" firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="UAF-xj-Rf6" secondAttribute="trailing" constant="16" id="IyB-cW-z6t"/>
+                            <constraint firstItem="UAF-xj-Rf6" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="Bcu-3y-fUS" secondAttribute="leading" constant="16" id="KUZ-nF-KxP"/>
                             <constraint firstAttribute="trailing" secondItem="7RY-Bh-wMJ" secondAttribute="trailing" id="Quh-tT-s2Q"/>
                             <constraint firstItem="UAF-xj-Rf6" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="hdD-Nm-e4U"/>
                             <constraint firstItem="7RY-Bh-wMJ" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="ifC-Nv-3hF"/>

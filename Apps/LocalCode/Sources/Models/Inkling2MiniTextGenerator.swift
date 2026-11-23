@@ -276,13 +276,26 @@ extension Inkling2MiniTextGenerator {
   public static let isWeightsStreamingPreferred =
     ProcessInfo.processInfo.physicalMemory < 32 * 1_024 * 1_024 * 1_024
 
-  /// The decode pool slots the experts stream with: the 2.3 GiB plan on an iPhone, the 3 GiB plan
-  /// on any other device with less than 24 GiB of memory, and the 6 GiB plan from 24 GiB. A device
-  /// with 32 GiB or more streams only at a weights-streaming tier smaller than the store.
+  /// The decode pool slots the experts stream with: the 2.3 GiB plan on an iPhone, a Mac with less
+  /// than 16 GiB of memory and an iPad with 8 GiB or less, the 3 GiB plan on any other device with
+  /// less than 24 GiB (a 12 GiB iPad among them), and the 6 GiB plan from 24 GiB. A weights-streaming
+  /// tier doesn't change the plan. A device with 32 GiB or more streams only at a tier smaller than
+  /// the store.
   static let streamingExpertResidentSlots: [Int] = {
+    let gibibyte: UInt64 = 1_024 * 1_024 * 1_024
+    let physicalMemory = ProcessInfo.processInfo.physicalMemory
     if DeviceCapability.isPhone() { return expertResidentSlotsAt2_3GiB }
-    return ProcessInfo.processInfo.physicalMemory < 24 * 1_024 * 1_024 * 1_024
-      ? expertResidentSlotsAt3GiB : expertResidentSlotsAt6GiB
+    // A Mac has 8 GiB, or 16 GiB and more. An iPad reports somewhat less than it has: a 12 GiB one
+    // more than 11 GiB, a 16 GiB one more than 15 GiB. An iPad app on a Mac counts as a Mac.
+    #if os(macOS)
+      let isMac = true
+    #else
+      let isMac = ProcessInfo.processInfo.isMacCatalystApp
+    #endif
+    if physicalMemory < 15 * gibibyte, isMac || physicalMemory < 11 * gibibyte {
+      return expertResidentSlotsAt2_3GiB
+    }
+    return physicalMemory < 24 * gibibyte ? expertResidentSlotsAt3GiB : expertResidentSlotsAt6GiB
   }()
 
   /// 64K tokens where the experts stream, whose caches take 2.4 GB of the memory left; 256K

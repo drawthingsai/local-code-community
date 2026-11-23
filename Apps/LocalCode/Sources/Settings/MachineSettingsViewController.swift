@@ -436,7 +436,7 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
     let button = UIButton(type: .custom)
     var configuration = UIButton.Configuration.filled()
     configuration.title = LocalizedString.forKey("restore_default")
-    configuration.background.cornerRadius = 8
+    configuration.cornerStyle = .capsule
     configuration.baseBackgroundColor = .primaryFill
     configuration.baseForegroundColor = .nonaryText
     configuration.contentInsets = NSDirectionalEdgeInsets(

@@ -39,13 +39,12 @@ final class AccountBalanceView: UIView {
 
     let topUpButton = UIButton(type: .custom)
     var configuration = UIButton.Configuration.plain()
-    configuration.cornerStyle = .fixed
+    configuration.cornerStyle = .capsule
     configuration.title = LocalizedString.forKey("add_funds")
     configuration.image = UIImage(imageLiteralResourceName: "arrow-right-16").withTintColor(
       .octonaryText)
     configuration.imagePlacement = .trailing
     configuration.imagePadding = 4
-    configuration.background.cornerRadius = 8
     configuration.background.backgroundColor = .clear
     configuration.background.strokeColor = .primaryBorder
     configuration.background.strokeWidth = 1

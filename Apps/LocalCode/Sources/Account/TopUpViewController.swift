@@ -211,7 +211,7 @@ final class TopUpViewController: UIViewController {
         configuration.titlePadding = 0
       }
       configuration.titleAlignment = .center
-      configuration.background.cornerRadius = 8
+      configuration.cornerStyle = .capsule
       configuration.background.backgroundColor = .tertiaryFill
       configuration.background.strokeColor = .primaryBorder
       configuration.background.strokeWidth = 1
@@ -321,7 +321,7 @@ final class TopUpViewController: UIViewController {
     var configuration = UIButton.Configuration.filled()
     configuration.title = LocalizedString.forKey(showsContinueGeneration ? "cancel" : "done")
     configuration.titleAlignment = .center
-    configuration.background.cornerRadius = 8
+    configuration.cornerStyle = .capsule
     configuration.background.backgroundColor = showsContinueGeneration ? .nonaryFill : .primaryFill
     configuration.baseForegroundColor = showsContinueGeneration ? .octonaryText : .nonaryText
     if showsContinueGeneration {
@@ -345,7 +345,7 @@ final class TopUpViewController: UIViewController {
     configuration.title = LocalizedString.forKey("continue")
     configuration.background.backgroundColor = .primaryFill
     configuration.baseForegroundColor = .nonaryText
-    configuration.background.cornerRadius = 8
+    configuration.cornerStyle = .capsule
     configuration.contentInsets = .init(top: 8, leading: 16, bottom: 8, trailing: 16)
     button.configuration = configuration
     button.titleLabel?.numberOfLines = 0
