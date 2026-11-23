@@ -722,8 +722,8 @@ extension Inkling2MiniTextGenerator {
     }
     if isDrafting, let drafterFile, !storage.drafterIsLoaded {
       compileDraftHeadroom(isEager: false)
-      let drafterResult = try? graph.openStore(drafterFile, flags: .readOnly) { store in
-        try store.read(
+      let drafterResult = graph.openStore(drafterFile, flags: .readOnly) { store in
+        store.read(
           "text_model", model: storage.drafter,
           codec: [.jit, .i8x, .ezm7, .externalData(.wholeFile)]
         ) {
@@ -733,7 +733,7 @@ extension Inkling2MiniTextGenerator {
             ? .fail : .continue(name)
         }
       }
-      guard let drafterResult, (try? drafterResult.get()) != nil else { return [] }
+      guard (try? drafterResult.get()) != nil else { return [] }
       storage.drafter.parameters.share(from: decoder.parameters) { name, _ in
         name.contains("t-embed_tokens-0-0") || name.contains("t-lm_head-0-0")
           ? .continue(name) : .fail
