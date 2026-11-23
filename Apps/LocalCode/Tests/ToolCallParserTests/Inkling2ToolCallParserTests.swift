@@ -47,6 +47,54 @@ final class Inkling2ToolCallParserTests: XCTestCase {
     XCTAssertEqual(parser.text, "")
   }
 
+  func testIncompleteCallLeavesOutWhatCannotBeReadYet() {
+    func incomplete(_ body: String, header: String = "write") -> ToolCall.Request? {
+      var parser = Inkling2ToolCallParser()
+      parser.append("<|message_model|>" + header + "<|content_invoke_tool_json|>" + body)
+      XCTAssertTrue(parser.hasIncompleteToolCall)
+      return parser.incompleteToolCall?.request
+    }
+    // A key shows once its value has started.
+    for body in [
+      #"{"name":"write","args":{"path":"a.txt","#, #"{"name":"write","args":{"path":"a.txt","cont"#,
+      #"{"name":"write","args":{"path":"a.txt","content""#,
+      #"{"name":"write","args":{"path":"a.txt","content":"#,
+      #"{"name":"write","args":{"path":"a.txt","content":""#,
+      #"{"name":"write","args":{"path":"a.txt","whole":tr"#,
+      #"{"name":"write","args":{"path":"a.txt","max_lines":-"#,
+    ] {
+      XCTAssertEqual(incomplete(body)?.parameters.mapValues(\.value), ["path": "a.txt"], body)
+    }
+    // An escape sequence shows once whole, and a surrogate pair once both halves are.
+    for (body, content) in [
+      (#"{"name":"write","args":{"content":"a\"#, "a"),
+      (#"{"name":"write","args":{"content":"a\n\u00e"#, "a\n"),
+      (#"{"name":"write","args":{"content":"a\ud83d"#, "a"),
+      (#"{"name":"write","args":{"content":"a\ud83d\ude0"#, "a"),
+      (#"{"name":"write","args":{"content":"a\ud83d\ude00"#, "a😀"),
+      (#"{"name":"write","args":{"content":"a\\"#, "a\\"),
+    ] {
+      XCTAssertEqual(incomplete(body)?.parameters["content"]?.value, content, body)
+    }
+    // A number reads up to its last digit, and other values once whole.
+    let scalars = incomplete(#"{"name":"read","args":{"whole":true,"offset":null,"max_lines":12."#)
+    XCTAssertEqual(
+      scalars?.parameters.mapValues(\.value),
+      ["whole": "true", "max_lines": "12", "offset": "null"])
+    XCTAssertEqual(scalars?.parameters["max_lines"]?.string, false)
+    // Arguments stay while the name follows them, or a marker starts after the body.
+    for body in [
+      #"{"args":{"path":"a.txt"},"na"#, #"{"args":{"path":"a.txt"},"name":"wri"#,
+      #"{"name":"write","args":{"path":"a.txt"}}<|end_mess"#,
+    ] {
+      XCTAssertEqual(incomplete(body)?.parameters.mapValues(\.value), ["path": "a.txt"], body)
+    }
+    // Without a header, the body's name counts once whole.
+    XCTAssertNil(incomplete(#"{"name":"bash"#, header: ""))
+    XCTAssertEqual(
+      incomplete(#"{"name":"bash_wait","args":{"job":2"#, header: "")?.function, "bash_wait")
+  }
+
   func testNamesAndMalformedCalls() {
     var parser = Inkling2ToolCallParser()
     parser.append(

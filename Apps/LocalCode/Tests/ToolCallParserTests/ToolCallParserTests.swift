@@ -301,6 +301,22 @@ final class ToolCallParserTests: XCTestCase {
     }
   }
 
+  func testInklingStreamedToolCallParametersOnlyGrow() {
+    for body in [
+      #"{"name":"read","args":{"path":"src/main.ts","max_lines":500,"whole":true}}"#,
+      #"{"args": {"whole": true, "max_lines": 500, "path": "src/main.ts"}, "name": "read"}"#,
+    ] {
+      assertStreamedParametersOnlyGrow(
+        "<|message_model|>read<|content_invoke_tool_json|>" + body + "<|end_message|>",
+        values: ["path": "src/main.ts", "max_lines": "500", "whole": "true"]
+      ) { prefix in
+        var parser = Inkling2ToolCallParser()
+        parser.append(prefix)
+        return (parser.toolCalls.first ?? parser.incompleteToolCall)?.request.parameters ?? [:]
+      }
+    }
+  }
+
   // The chat renders a streaming tool call only while it validates, so a parameter that empties,
   // picks up closing-tag text, or drops out removes the line until its value settles.
   private func assertStreamedParametersOnlyGrow(

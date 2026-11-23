@@ -2017,7 +2017,10 @@ final class ChatWorkflow: Workflow {
               $0.request, projectPath: projectURL.path, workspacePath: workspacePath
             )?.subtitle(for: .past)
           }.joined(separator: "\n")
-          if suspendedResult.output.isEmpty {
+          // Inkling 2's output is its visible text alone, so a call can come without any.
+          if suspendedResult.output.isEmpty, suspendedResult.toolCalls.isEmpty,
+            !suspendedResult.hasIncompleteToolCall
+          {
             var chainOfThought = suspendedResult.think.trimmingCharacters(
               in: .whitespacesAndNewlines)
             let chainOfThoughtLines = chainOfThought.components(separatedBy: .newlines)
@@ -2033,15 +2036,19 @@ final class ChatWorkflow: Workflow {
               suspendedResult.output, toolCallStart: restoredCodeAgent.toolCallStart,
               toolCallEnd: restoredCodeAgent.toolCallEnd
             ).trimmingCharacters(in: .whitespacesAndNewlines)
-            var renderingToolCalls = suspendedResult.toolCalls
-            if let incompleteToolCall = suspendedResult.incompleteToolCall {
-              renderingToolCalls.append(incompleteToolCall)
-            }
-            let toolCallContext = renderingToolCalls.compactMap {
+            var toolCallSubtitles = suspendedResult.toolCalls.compactMap {
               ToolsRegistry.parse(
                 $0.request, projectPath: projectURL.path, workspacePath: workspacePath
               )?.subtitle(for: .now)
-            }.joined(separator: "\n")
+            }
+            if let incompleteToolCall = suspendedResult.incompleteToolCall,
+              let subtitle = ToolsRegistry.subtitle(
+                forIncomplete: incompleteToolCall.request, projectPath: projectURL.path,
+                workspacePath: workspacePath)
+            {
+              toolCallSubtitles.append(subtitle)
+            }
+            let toolCallContext = toolCallSubtitles.joined(separator: "\n")
             incompleteResponseText =
               [toolCallHistoryContext, response, toolCallContext].filter { !$0.isEmpty }.joined(
                 separator: "\n---\n")
@@ -4035,7 +4042,8 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     let incompleteToolCall = partialResult.incompleteToolCall
     let hasIncompleteToolCall = partialResult.hasIncompleteToolCall
     let tokens = partialResult.thinkTokens.count + partialResult.outputTokens.count
-    if outputText.isEmpty {
+    // Inkling 2's output is its visible text alone, so a call can come without any.
+    if outputText.isEmpty, toolCalls.isEmpty, !hasIncompleteToolCall {
       let toolCallContext = toolCallHistory.compactMap {
         ToolsRegistry.parse(
           $0.request, projectPath: projectPath, workspacePath: workspacePath
@@ -4057,15 +4065,19 @@ extension ChatWorkflow: ChatInputControllerDelegate {
         )?.subtitle(for: .past)
       }.joined(separator: "\n")
       if !toolCalls.isEmpty || hasIncompleteToolCall {
-        var renderingToolCalls = toolCalls
-        if let incompleteToolCall {
-          renderingToolCalls.append(incompleteToolCall)
-        }
-        let toolCallContext = renderingToolCalls.compactMap {
+        var toolCallSubtitles = toolCalls.compactMap {
           ToolsRegistry.parse(
             $0.request, projectPath: projectPath, workspacePath: workspacePath
           )?.subtitle(for: .now)
-        }.joined(separator: "\n")
+        }
+        if let incompleteToolCall,
+          let subtitle = ToolsRegistry.subtitle(
+            forIncomplete: incompleteToolCall.request, projectPath: projectPath,
+            workspacePath: workspacePath)
+        {
+          toolCallSubtitles.append(subtitle)
+        }
+        let toolCallContext = toolCallSubtitles.joined(separator: "\n")
         viewController.setLastMessage(
           toolCallHistoryContext, thinking: "",
           output: [response, toolCallContext].filter { !$0.isEmpty }.joined(separator: "\n---\n"),

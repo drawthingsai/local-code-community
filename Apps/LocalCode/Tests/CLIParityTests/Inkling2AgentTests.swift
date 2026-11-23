@@ -301,6 +301,29 @@ final class Inkling2AgentTests: XCTestCase {
       Inkling2ThinkingSplitter.split(Array(generated.suffix(3))).output, Array(generated.suffix(3)))
   }
 
+  func testStreamingCallShowsItsTitleUntilItsArgumentsMakeACall() throws {
+    func subtitle(_ parser: Inkling2ToolCallParser) -> String? {
+      parser.incompleteToolCall.flatMap {
+        ToolsRegistry.subtitle(forIncomplete: $0.request, projectPath: nil, workspacePath: nil)
+      }
+    }
+    // The chat template writes arguments in key order, so a write's content comes before its path.
+    var parser = Inkling2ToolCallParser()
+    parser.append("<|message_model|>write<|content_invoke_tool_json|>")
+    let title = try XCTUnwrap(subtitle(parser))
+    XCTAssertTrue(title.hasPrefix("**") && title.hasSuffix("**"), title)
+    parser.append("{\"name\":\"write\",\"args\":{\"content\":\"let a = 1\\n")
+    XCTAssertEqual(subtitle(parser), title)
+    parser.append("\",\"path\":\"a.txt")
+    let written = try XCTUnwrap(subtitle(parser))
+    XCTAssertTrue(written.hasPrefix(title + ": ") && written.contains("a.txt"), written)
+    // A call to no tool of ours has no title to show.
+    parser = Inkling2ToolCallParser()
+    parser.append("<|message_model|>grep<|content_invoke_tool_json|>{\"name\":\"grep\",\"args\":{")
+    XCTAssertNotNil(parser.incompleteToolCall)
+    XCTAssertNil(subtitle(parser))
+  }
+
   func testRetainedConversationKeepsRecentToolRounds() {
     let tokenizer = Inkling2SmallTextGenerator.unsafeTokenizer
     let round = tokenizer.tokenize(

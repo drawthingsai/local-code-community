@@ -452,6 +452,53 @@ public enum ToolsRegistry {
     }
   }
 
+  /// The subtitle of a call still being written. Until the arguments written so far make a call,
+  /// as while a write's content streams in ahead of its path, it is the tool's title alone.
+  public static func subtitle(
+    forIncomplete request: ToolCall.Request, projectPath: String?, workspacePath: String?
+  ) -> String? {
+    if let invocation = parse(request, projectPath: projectPath, workspacePath: workspacePath) {
+      return invocation.subtitle(for: .now)
+    }
+    guard let tool = Tool(rawValue: request.function) else { return nil }
+    let title: String
+    switch tool {
+    case .bash:
+      title = LocalizedString.forKey("tool_bash_now")
+    case .bashStatus:
+      title = LocalizedString.forKey("tool_bash_status_now")
+    case .bashWait:
+      title = LocalizedString.forKey("tool_bash_wait_now")
+    case .bashStop:
+      title = LocalizedString.forKey("tool_bash_stop_now")
+    case .read:
+      title = LocalizedString.forKey("tool_read_now")
+    case .view:
+      title = LocalizedString.forKey("tool_view_now")
+    case .more:
+      title = LocalizedString.forKey("tool_more_now")
+    case .write:
+      title = LocalizedString.forKey("tool_write_now")
+    case .edit:
+      title = LocalizedString.forKey("tool_edit_now")
+    case .search:
+      title = LocalizedString.forKey("tool_search_now")
+    case .list:
+      title = LocalizedString.forKey("tool_list_now")
+    case .datetime:
+      title = LocalizedString.forKey("tool_datetime_now")
+    case .memory:
+      title = LocalizedString.forKey("tool_memory")
+    case .checkSmt:
+      title = LocalizedString.forKey("tool_check_smt_now")
+    case .webSearch:
+      title = LocalizedString.forKey("tool_web_search_now")
+    case .webFetch:
+      title = LocalizedString.forKey("tool_web_fetch_now")
+    }
+    return "**\(title)**"
+  }
+
 }
 public struct DateTimeTool {
   public var timeZone: TimeZone
