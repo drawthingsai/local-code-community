@@ -5,24 +5,22 @@ import RemoteAPI
 struct OnboardingState {
   static let threadIdentifier: Int64 = -2
 
-  /// The local models offered in onboarding: both DeepSeek variants and the one Qwen variant
-  /// that suits this much memory, then Inkling 2 Small. The first is preselected, which Inkling
-  /// never is.
+  /// The local models offered in onboarding: both DeepSeek variants and the one Inkling 2 Mini
+  /// variant that suits this much memory, then Inkling 2 Small. The first is preselected:
+  /// Inkling 2 Mini below 64 GiB, DeepSeek from there. Inkling 2 Small never is.
   static func offeredLocalModels(physicalMemory: UInt64) -> [String] {
     let gibibyte: UInt64 = 1_024 * 1_024 * 1_024
     let deepSeek41 = "deepseek_4.1_flash_1017_i2x.ckpt"
     let deepSeek4 = "deepseek_4_flash_0731_i2x.ckpt"
-    // Leave room beyond the weights for Qwen's roughly 7 GiB context cache and the OS. The
-    // 8-bit variant is never offered here; it is only in the model list.
-    let qwen =
-      physicalMemory >= 32 * gibibyte ? "qwen_3.8_27b_i4x.ckpt" : "qwen_3.8_27b_i2x.ckpt"
-    let inkling = "inkling_2_small_i2x.ckpt"
+    let inklingMini =
+      physicalMemory >= 32 * gibibyte ? "inkling_2_mini_i4x.ckpt" : "inkling_2_mini_i3x.ckpt"
+    let inklingSmall = "inkling_2_small_i2x.ckpt"
     if physicalMemory >= 96 * gibibyte {
-      return [deepSeek41, deepSeek4, qwen, inkling]
+      return [deepSeek41, deepSeek4, inklingMini, inklingSmall]
     } else if physicalMemory >= 64 * gibibyte {
-      return [deepSeek4, deepSeek41, qwen, inkling]
+      return [deepSeek4, deepSeek41, inklingMini, inklingSmall]
     }
-    return [qwen, deepSeek41, deepSeek4, inkling]
+    return [inklingMini, deepSeek41, deepSeek4, inklingSmall]
   }
 
   enum Step: Int, CaseIterable {

@@ -2288,11 +2288,17 @@ final class ChatWorkflow: Workflow {
 extension ChatWorkflow: OnboardingWorkflowDelegate {
   func onboardingWorkflow(
     _ workflow: OnboardingWorkflow, didRequestSignIn provider: AccountManager.SignInProvider,
-    sourceView: UIView
+    completion: @escaping (Error?) -> Void
   ) {
-    settingsWorkflow.signInFromOnboarding(
-      provider: provider, presentingViewController: workflow.viewController,
-      sourceView: sourceView)
+    settingsWorkflow.signIn(
+      with: provider, from: workflow.viewController.view.window, completion: completion)
+  }
+
+  func onboardingWorkflow(
+    _ workflow: OnboardingWorkflow, didRequestManageAccountFrom sourceView: UIView
+  ) {
+    settingsWorkflow.presentAccountFromOnboarding(
+      presentingViewController: workflow.viewController, sourceView: sourceView)
   }
 
   func onboardingWorkflow(

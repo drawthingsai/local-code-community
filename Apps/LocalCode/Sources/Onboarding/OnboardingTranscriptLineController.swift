@@ -82,7 +82,14 @@ final class OnboardingTranscriptLineController {
     contentStack.snp.makeConstraints { make in
       make.top.equalToSuperview().offset(topMargin)
       // The text shares its leading edge with the row under the transcript, as in the chat.
-      make.leading.trailing.equalToSuperview()
+      make.leading.equalToSuperview()
+      // The checkmark follows the text: the line is as wide as its text, which wraps only at the
+      // edge.
+      if hasCheck {
+        make.trailing.lessThanOrEqualToSuperview()
+      } else {
+        make.trailing.equalToSuperview()
+      }
       make.bottom.equalToSuperview().offset(-4)
     }
     codeLabel.snp.makeConstraints { make in
@@ -92,10 +99,7 @@ final class OnboardingTranscriptLineController {
     codeBackgroundView.setContentHuggingPriority(.required, for: .horizontal)
     codeBackgroundView.setContentCompressionResistancePriority(.required, for: .horizontal)
     guard hasCheck else { return }
-    // The checkmark follows the text, so the text hugs and a spacer takes the remaining width.
-    textLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
     contentStack.addArrangedSubview(checkView)
-    contentStack.addArrangedSubview(UIView())
     checkView.snp.makeConstraints { make in
       make.size.equalTo(16)
     }

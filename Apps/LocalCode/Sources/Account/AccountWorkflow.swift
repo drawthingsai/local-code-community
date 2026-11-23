@@ -106,6 +106,9 @@ final class AccountWorkflow: Workflow {
   // Credential provisioning must not be cancelled by account/balance refreshes.
   private var webAuthenticationSession: ASWebAuthenticationSession?
   private var webSignInAttempt: WebSignInAttempt?
+  /// Where the system's sign-in sheet shows for a sign-in started without the account panel.
+  private weak var signInWindow: UIWindow?
+  private var signInCompletion: ((Error?) -> Void)?
   private var isSignInOnly = false
   private var snapshot: AccountClient.CreditSnapshot?
   private var errorMessage: String?
@@ -202,8 +205,7 @@ final class AccountWorkflow: Workflow {
 
   func present(
     from presentingViewController: UIViewController, sourceView: UIView,
-    placement: AccountAnimatedTransitioning.Placement = .trailing, isSignInOnly: Bool = false,
-    signInProvider: AccountManager.SignInProvider? = nil
+    placement: AccountAnimatedTransitioning.Placement = .trailing, isSignInOnly: Bool = false
   ) {
     guard viewController.presentingViewController == nil else { return }
     self.isSignInOnly = isSignInOnly
@@ -219,10 +221,33 @@ final class AccountWorkflow: Workflow {
     presentingViewController.present(viewController, animated: true) { [weak self] in
       guard let self else { return }
       self.viewController.presentationController?.delegate = self.objCResponder
-      if let signInProvider, !self.accountManager.isSignedIn {
-        self.accountViewController(self.viewController, didRequestSignIn: signInProvider)
-      }
     }
+  }
+
+  /// Signs in for a screen that has sign-in buttons of its own, such as onboarding, without the
+  /// account panel. The system's sign-in sheet shows over `window`. Completes once the account is
+  /// signed in and its key is saved, or the sign-in was cancelled, or with the error that stopped
+  /// it.
+  func signIn(
+    with provider: AccountManager.SignInProvider, from window: UIWindow?,
+    completion: @escaping (Error?) -> Void
+  ) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    guard !accountManager.isSignedIn, signInCompletion == nil, webAuthenticationSession == nil
+    else {
+      completion(nil)
+      return
+    }
+    signInWindow = window
+    signInCompletion = completion
+    startSignIn(with: provider)
+  }
+
+  private func completeSignIn(error: Error?) {
+    guard let completion = signInCompletion else { return }
+    signInCompletion = nil
+    signInWindow = nil
+    completion(error)
   }
 
   func toolAccountProvider(from presenter: UIViewController) -> ToolAccountProvider {
@@ -523,6 +548,7 @@ final class AccountWorkflow: Workflow {
           return
         }
         self.updateView()
+        self.completeSignIn(error: nil)
         // Balance and unfinished purchases must not depend on OpenRouter's
         // model catalog being available. Refresh the catalog afterwards.
         if refreshModels {
@@ -626,6 +652,7 @@ final class AccountWorkflow: Workflow {
         {
           self.isBusy = false
           self.updateView()
+          self.completeSignIn(error: nil)
           return
         }
         self.finishWithError(
@@ -650,6 +677,7 @@ final class AccountWorkflow: Workflow {
     isBusy = false
     errorMessage = error.localizedDescription
     updateView()
+    completeSignIn(error: error)
   }
 
   private func updateView() {
@@ -675,6 +703,11 @@ final class AccountWorkflow: Workflow {
     topUpViewController?.canContinueGeneration =
       isSignedIn && (snapshot?.availableMicroUsd ?? 0) > 0
     delegate?.accountWorkflowDidUpdateAccount(self)
+  }
+
+  /// The window the system's sign-in sheet shows over.
+  fileprivate var presentationAnchor: ASPresentationAnchor {
+    signInWindow ?? viewController.view.window ?? UIWindow()
   }
 
   fileprivate func didDismiss() {
@@ -724,6 +757,7 @@ final class AccountWorkflow: Workflow {
     {
       isBusy = false
       updateView()
+      completeSignIn(error: nil)
       return
     }
     finishWithError(error)
@@ -744,6 +778,10 @@ extension AccountWorkflow: AccountViewControllerDelegate {
       refreshAccount()
       return
     }
+    startSignIn(with: provider)
+  }
+
+  private func startSignIn(with provider: AccountManager.SignInProvider) {
     switch provider {
     case .apple:
       webSignInAttempt = nil
@@ -1068,11 +1106,11 @@ extension AccountWorkflow.ObjCResponder: ASAuthorizationControllerDelegate,
   }
 
   func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-    workflow?.viewController.view.window ?? UIWindow()
+    workflow?.presentationAnchor ?? UIWindow()
   }
 
   func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-    workflow?.viewController.view.window ?? UIWindow()
+    workflow?.presentationAnchor ?? UIWindow()
   }
 
   func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {

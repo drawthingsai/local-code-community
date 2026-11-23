@@ -115,7 +115,9 @@ final class OnboardingChatPreviewController {
     canvasView.addSubview(chatInputController.view)
     canvasView.addSubview(projectBarController.view)
     borderView.snp.makeConstraints { make in
-      make.height.equalTo(borderView.snp.width)
+      // Below the page column's width, so the page hidden in onboarding's stack closes without
+      // pulling every page down to the narrowest width the chat input allows.
+      make.height.equalTo(borderView.snp.width).priority(.medium)
     }
     canvasView.snp.makeConstraints { make in
       make.center.equalToSuperview()

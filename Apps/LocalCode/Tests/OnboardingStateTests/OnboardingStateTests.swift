@@ -4,37 +4,37 @@ import XCTest
 final class OnboardingStateTests: XCTestCase {
   func testOfferedLocalModelsPreselectByMemory() {
     let gibibyte: UInt64 = 1_024 * 1_024 * 1_024
-    let qwen2 = "qwen_3.8_27b_i2x.ckpt"
-    let qwen4 = "qwen_3.8_27b_i4x.ckpt"
+    let inklingMini3 = "inkling_2_mini_i3x.ckpt"
+    let inklingMini4 = "inkling_2_mini_i4x.ckpt"
     let deepSeek4 = "deepseek_4_flash_0731_i2x.ckpt"
     let deepSeek41 = "deepseek_4.1_flash_1017_i2x.ckpt"
-    let inkling = "inkling_2_small_i2x.ckpt"
-    // Both DeepSeek variants are always offered, and Inkling last, never preselected; only the
-    // preselected first entry changes.
+    let inklingSmall = "inkling_2_small_i2x.ckpt"
+    // Both DeepSeek variants are always offered, and Inkling 2 Small last, never preselected;
+    // only the preselected first entry changes.
     for memory in [8, 16, 18, 24] {
       XCTAssertEqual(
         OnboardingState.offeredLocalModels(physicalMemory: UInt64(memory) * gibibyte),
-        [qwen2, deepSeek41, deepSeek4, inkling])
+        [inklingMini3, deepSeek41, deepSeek4, inklingSmall])
     }
     for memory in [32, 36, 48] {
       XCTAssertEqual(
         OnboardingState.offeredLocalModels(physicalMemory: UInt64(memory) * gibibyte),
-        [qwen4, deepSeek41, deepSeek4, inkling])
+        [inklingMini4, deepSeek41, deepSeek4, inklingSmall])
     }
     for memory in [64, 72] {
       XCTAssertEqual(
         OnboardingState.offeredLocalModels(physicalMemory: UInt64(memory) * gibibyte),
-        [deepSeek4, deepSeek41, qwen4, inkling])
+        [deepSeek4, deepSeek41, inklingMini4, inklingSmall])
     }
     for memory in [96, 128, 256] {
       XCTAssertEqual(
         OnboardingState.offeredLocalModels(physicalMemory: UInt64(memory) * gibibyte),
-        [deepSeek41, deepSeek4, qwen4, inkling])
+        [deepSeek41, deepSeek4, inklingMini4, inklingSmall])
     }
     XCTAssertEqual(
-      OnboardingState.offeredLocalModels(physicalMemory: 32 * gibibyte - 1).first, qwen2)
+      OnboardingState.offeredLocalModels(physicalMemory: 32 * gibibyte - 1).first, inklingMini3)
     XCTAssertEqual(
-      OnboardingState.offeredLocalModels(physicalMemory: 64 * gibibyte - 1).first, qwen4)
+      OnboardingState.offeredLocalModels(physicalMemory: 64 * gibibyte - 1).first, inklingMini4)
     XCTAssertEqual(
       OnboardingState.offeredLocalModels(physicalMemory: 96 * gibibyte - 1).first, deepSeek4)
   }

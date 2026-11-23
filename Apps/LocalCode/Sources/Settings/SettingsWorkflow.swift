@@ -723,12 +723,19 @@ final class SettingsWorkflow: Workflow {
     accountWorkflow.presentTopUp(from: presenter, completion: completion)
   }
 
-  func signInFromOnboarding(
-    provider: AccountManager.SignInProvider, presentingViewController: UIViewController,
-    sourceView: UIView
+  /// Signs in from onboarding's own buttons. The system's sign-in sheet is all that shows.
+  func signIn(
+    with provider: AccountManager.SignInProvider, from window: UIWindow?,
+    completion: @escaping (Error?) -> Void
   ) {
-    accountWorkflow.present(
-      from: presentingViewController, sourceView: sourceView, signInProvider: provider)
+    accountWorkflow.signIn(with: provider, from: window, completion: completion)
+  }
+
+  /// Opens the account panel from onboarding, which leaves Settings' account button alone.
+  func presentAccountFromOnboarding(
+    presentingViewController: UIViewController, sourceView: UIView
+  ) {
+    accountWorkflow.present(from: presentingViewController, sourceView: sourceView)
   }
 
   private var defaultWorkspaceFolderURL: URL {

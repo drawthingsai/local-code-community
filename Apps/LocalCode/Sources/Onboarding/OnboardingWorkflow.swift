@@ -10,9 +10,13 @@ import UIKit
 import UserAccount
 
 protocol OnboardingWorkflowDelegate: AnyObject {
+  /// Signs in with the system's sign-in sheet over onboarding. Completes when the sign-in is over,
+  /// with the error that stopped it, if any.
   func onboardingWorkflow(
     _ workflow: OnboardingWorkflow, didRequestSignIn provider: AccountManager.SignInProvider,
-    sourceView: UIView)
+    completion: @escaping (Error?) -> Void)
+  func onboardingWorkflow(
+    _ workflow: OnboardingWorkflow, didRequestManageAccountFrom sourceView: UIView)
   /// Asks for the local model chosen on the model step to start downloading right away. It is
   /// only selected once onboarding finishes.
   func onboardingWorkflow(
@@ -54,14 +58,16 @@ final class OnboardingWorkflow: Workflow {
   // The choice stays pending here until Continue hands it to the chat workflow, which owns
   // the selected model.
   private var pendingLocalModel: String?
+  private var signingInProvider: AccountManager.SignInProvider?
+  private var signInErrorMessage: String?
   private var selectedLocalModel: LLMZoo.Specification? {
     let selectedFile = pendingLocalModel ?? workspace.dictionary["llm_model", String.self]
     return localModelSpecifications.first { $0.file == selectedFile }
       ?? localModelSpecifications.first
   }
 
-  // The local choices depend only on this device, so they are built once. An iPhone downloads
-  // none of the models offered here, which leaves it without the local option.
+  // The local choices depend only on this device, so they are built once. Of the models offered
+  // here, an iPhone downloads only Inkling 2 Mini.
   private lazy var localModelSpecifications: [LLMZoo.Specification] =
     OnboardingState.offeredLocalModels(physicalMemory: ProcessInfo.processInfo.physicalMemory)
     .compactMap { LLMZoo.specificationForModel($0) }
@@ -144,6 +150,8 @@ final class OnboardingWorkflow: Workflow {
     }
     viewController.chatWidth =
       workspace.dictionary["chat_width", Int.self].flatMap(ChatWidth.init(rawValue:)) ?? .normal
+    viewController.signingInProvider = signingInProvider
+    viewController.signInErrorMessage = signInErrorMessage
   }
 
   /// Derives the state from the account and saved credentials, which can change outside this
@@ -168,13 +176,14 @@ final class OnboardingWorkflow: Workflow {
   }
 
   private var modelOptions: [OnboardingViewController.ModelOption] {
-    let defaultModelName = localModelOptions.first?.name ?? "Qwen 3.8 27B"
-    let localOption = OnboardingViewController.ModelOption(
-      selection: .local, title: LocalizedString.forKey("local_model"),
-      detail: LocalizedString.format(key: "onboarding_local_model_detail", defaultModelName),
-      badge: LocalizedString.forKey("recommended"), isBadgeHighlighted: true)
+    let localOptions = localModelOptions.prefix(1).map { defaultModel in
+      OnboardingViewController.ModelOption(
+        selection: .local, title: LocalizedString.forKey("local_model"),
+        detail: LocalizedString.format(key: "onboarding_local_model_detail", defaultModel.name),
+        badge: LocalizedString.forKey("recommended"), isBadgeHighlighted: true)
+    }
     return
-      (localModelSpecifications.isEmpty ? [] : [localOption])
+      localOptions
       + RemoteProvider.allCases.map { provider in
         let account = provider.account(in: workspace)
         let badge: String
@@ -326,10 +335,24 @@ extension OnboardingWorkflow: OnboardingViewControllerDelegate {
 
   func onboarding(
     _ viewController: OnboardingViewController,
-    didRequestSignIn provider: AccountManager.SignInProvider,
-    sourceView: UIView
+    didRequestSignIn provider: AccountManager.SignInProvider
   ) {
-    delegate?.onboardingWorkflow(self, didRequestSignIn: provider, sourceView: sourceView)
+    guard signingInProvider == nil else { return }
+    signingInProvider = provider
+    signInErrorMessage = nil
+    refresh()
+    delegate?.onboardingWorkflow(self, didRequestSignIn: provider) { [weak self] error in
+      guard let self else { return }
+      self.signingInProvider = nil
+      self.signInErrorMessage = error?.localizedDescription
+      self.refresh()
+    }
+  }
+
+  func onboarding(
+    _ viewController: OnboardingViewController, didRequestManageAccountFrom sourceView: UIView
+  ) {
+    delegate?.onboardingWorkflow(self, didRequestManageAccountFrom: sourceView)
   }
 
   func onboarding(
