@@ -979,7 +979,7 @@ extension Inkling2MiniTextGenerator {
     var decodeLogScales = logScale(
       cachedTokenLength: decodeLogScaleStart, tokenLength: cacheCapacity - decodeLogScaleStart)
     let queueWatermark = DynamicGraph.queueWatermark
-    DynamicGraph.queueWatermark = queueWatermark * 16
+    DynamicGraph.queueWatermark = queueWatermark * (DeviceCapability.isUltraPerformance ? 16 : 64)
     defer { DynamicGraph.queueWatermark = queueWatermark }
     var shouldAppendPendingToken = true
     var shouldStopAfterSampling = false
