@@ -288,6 +288,18 @@ extension Inkling2MiniTextGenerator {
   static let expertResidentSlotsAt3GiB = [
     11, 11, 11, 8, 8, 8, 31, 31, 26, 26, 31, 31, 26, 25, 26, 26, 23, 31, 13, 11, 11, 12, 11, 12,
   ]
+
+  // The same fit at 2.5 GiB: a 1.00 GiB pool, 495 MiB a decoded token; 4-bit S holds 3.19 GiB.
+  // A layer takes at least 8 slots, the experts a token routes to (with fewer, its decode calls
+  // stage them), so 3-bit S needs at least 2.16 GiB.
+  static let expertResidentSlotsAt2_5GiB = [
+    8, 8, 8, 8, 8, 8, 16, 17, 17, 17, 17, 17, 16, 15, 18, 17, 16, 25, 9, 8, 8, 8, 8, 8,
+  ]
+
+  // The same fit at 6 GiB: a 4.50 GiB pool, 95 MiB a decoded token; 4-bit S holds 7.54 GiB.
+  static let expertResidentSlotsAt6GiB = [
+    52, 45, 52, 56, 52, 56, 80, 72, 64, 64, 68, 64, 68, 68, 60, 64, 60, 64, 30, 36, 40, 41, 44, 52,
+  ]
 }
 
 extension Inkling2MiniTextGenerator: TextGenerator {
