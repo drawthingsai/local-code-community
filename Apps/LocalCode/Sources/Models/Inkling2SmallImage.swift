@@ -51,7 +51,7 @@ public struct Inkling2SmallImage {
   /// Block-major vision patches and the class token's zero patch (Inkling2SmallVisionPreprocess).
   /// Pixels are drawn into sRGB without alpha, so sRGB and untagged files keep the values PIL's
   /// `convert("RGB")` reads in the reference processor.
-  public func patches() -> Tensor<Float>? {
+  public func patches() -> Tensor<Float16>? {
     let width = image.width
     let height = image.height
     guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB),
@@ -62,12 +62,12 @@ public struct Inkling2SmallImage {
     else { return nil }
     context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
     guard let pixels = context.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
-    var rgb = Tensor<Float>(.CPU, .NHWC(1, height, width, 3))
+    var rgb = Tensor<Float16>(.CPU, .NHWC(1, height, width, 3))
     rgb.withUnsafeMutableBytes { buffer in
-      let values = buffer.bindMemory(to: Float.self)
+      let values = buffer.bindMemory(to: Float16.self)
       for i in 0..<(width * height) {
         for channel in 0..<3 {
-          values[i * 3 + channel] = Float(pixels[i * 4 + channel]) / 255
+          values[i * 3 + channel] = Float16(Float(pixels[i * 4 + channel]) / 255)
         }
       }
     }

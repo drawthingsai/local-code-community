@@ -365,7 +365,7 @@ extension Inkling2MiniTextGenerator {
     let interpolation = Inkling2SmallVisionPositionInterpolation(
       grid: image.grid, of: Float16.self)
     let inputs: [DynamicGraph.AnyTensor] = [
-      graph.variable(Tensor<Float16>(from: patches).toGPU(0)),
+      graph.variable(patches.toGPU(0)),
       graph.variable(interpolation.indices.toGPU(0)),
       graph.variable(interpolation.weights.toGPU(0)),
       graph.variable(
@@ -375,9 +375,14 @@ extension Inkling2MiniTextGenerator {
     if !storage.isVisionLoaded {
       vision.compile(image.grid, inputs: inputs)
       let result = try? graph.openStore(filePath, flags: .readOnly) { store in
-        // Read, not mapped, as Inkling 2 Mini's: the tower is a small part of the file.
+        // Read, not mapped, as Inkling 2 Mini's: the tower is a small part of the file. An iPhone
+        // reads each weight when its layer runs instead, so the tower, about 0.6 GiB in FP16, does
+        // not stay resident beside the 2.5 GiB plan.
         try store.read(
-          "vision_model", model: vision, strict: true, codec: [.jit, .i8x, .ezm7, .externalData])
+          "vision_model", model: vision, strict: true,
+          codec: [
+            .jit, .i8x, .ezm7, DeviceCapability.isPhone() ? .externalOnDemand : .externalData,
+          ])
       }
       guard let result, (try? result.get()) != nil else { return nil }
       storage.isVisionLoaded = true

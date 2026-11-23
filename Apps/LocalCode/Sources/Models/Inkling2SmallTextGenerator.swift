@@ -507,7 +507,7 @@ extension Inkling2SmallTextGenerator {
     let interpolation = Inkling2SmallVisionPositionInterpolation(
       grid: image.grid, of: Float16.self)
     let inputs: [DynamicGraph.AnyTensor] = [
-      graph.variable(Tensor<Float16>(from: patches).toGPU(0)),
+      graph.variable(patches.toGPU(0)),
       graph.variable(interpolation.indices.toGPU(0)),
       graph.variable(interpolation.weights.toGPU(0)),
       graph.variable(
@@ -855,8 +855,8 @@ extension Inkling2SmallTextGenerator {
     }
     if isDrafting, let drafterFile, !storage.drafterIsLoaded {
       compileDraftHeadroom(isEager: false)
-      let drafterResult = try? graph.openStore(drafterFile, flags: .readOnly) { store in
-        try store.read(
+      let drafterResult = graph.openStore(drafterFile, flags: .readOnly) { store in
+        store.read(
           "text_model", model: storage.drafter,
           codec: [.jit, .i8x, .ezm7, .externalData(.wholeFile)]
         ) {
@@ -866,7 +866,7 @@ extension Inkling2SmallTextGenerator {
             ? .fail : .continue(name)
         }
       }
-      guard let drafterResult, (try? drafterResult.get()) != nil else { return [] }
+      guard (try? drafterResult.get()) != nil else { return [] }
       storage.drafter.parameters.share(from: decoder.parameters) { name, _ in
         name.contains("t-embed_tokens-0-0") || name.contains("t-lm_head-0-0")
           ? .continue(name) : .fail
