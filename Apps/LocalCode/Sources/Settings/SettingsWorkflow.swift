@@ -201,11 +201,9 @@ final class SettingsWorkflow: Workflow {
     accountWorkflow = AccountWorkflow(
       workspace: workspace, accountManager: accountManager, client: accountClient)
     projectsController = ProjectController(userInterfaceIdiom: userInterfaceIdiom)
-    // Phones only talk to remote backends; local inference is not offered there. They also show
-    // the account balance above the context used on every page instead of on this one.
+    // Phones show the account balance above the context used on every page instead of on this one.
     settingsSectionsController = SettingsSectionsController(
-      workspace: workspace, isOnDeviceAvailable: userInterfaceIdiom != .phone,
-      showsAccountBalance: userInterfaceIdiom != .phone)
+      workspace: workspace, showsAccountBalance: userInterfaceIdiom != .phone)
     kitSectionsController = KitSectionsController(workspace: workspace)
     activitiesSectionsController = ActivitiesSectionsController(workspace: workspace)
     serveSectionsController =

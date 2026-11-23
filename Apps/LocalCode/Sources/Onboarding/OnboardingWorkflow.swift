@@ -60,10 +60,14 @@ final class OnboardingWorkflow: Workflow {
       ?? localModelSpecifications.first
   }
 
-  // The local choices depend only on this device, so they are built once.
+  // The local choices depend only on this device, so they are built once. An iPhone downloads
+  // none of the models offered here, which leaves it without the local option.
   private lazy var localModelSpecifications: [LLMZoo.Specification] =
     OnboardingState.offeredLocalModels(physicalMemory: ProcessInfo.processInfo.physicalMemory)
     .compactMap { LLMZoo.specificationForModel($0) }
+    .filter {
+      DeviceCapability.canDownloadLocalModel($0, userInterfaceIdiom: userInterfaceIdiom)
+    }
   private var localModelOptions: [OnboardingViewController.LocalModelOption] {
     localModelSpecifications.map { specification in
       // The quantization suffix is an implementation detail the choice does not need.
@@ -86,8 +90,8 @@ final class OnboardingWorkflow: Workflow {
       workspace: workspace, userInterfaceIdiom: userInterfaceIdiom)
     viewController.delegate = self
     state.offersReadingStyle = userInterfaceIdiom != .phone
-    // iPhones don't download local models, so they start on Local Code's cloud.
-    if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
+    // With no local model to offer, it starts on Local Code's cloud.
+    if localModelSpecifications.isEmpty {
       state.selection = .remote(.localCode)
     }
     viewController.localModels = localModelOptions
@@ -170,8 +174,7 @@ final class OnboardingWorkflow: Workflow {
       detail: LocalizedString.format(key: "onboarding_local_model_detail", defaultModelName),
       badge: LocalizedString.forKey("recommended"), isBadgeHighlighted: true)
     return
-      (DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom)
-      ? [localOption] : [])
+      (localModelSpecifications.isEmpty ? [] : [localOption])
       + RemoteProvider.allCases.map { provider in
         let account = provider.account(in: workspace)
         let badge: String

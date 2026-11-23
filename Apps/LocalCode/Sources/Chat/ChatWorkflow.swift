@@ -342,7 +342,8 @@ final class ChatWorkflow: Workflow {
       modelImage = Self.modelImage(for: nil)
     }
     projectBarController = ProjectBarController(userInterfaceIdiom: userInterfaceIdiom)
-    emptyBannerController = EmptyBannerController(isVertical: userInterfaceIdiom == .phone)
+    emptyBannerController = EmptyBannerController(
+      isVertical: userInterfaceIdiom == .phone, fallsAsleep: userInterfaceIdiom != .phone)
     chatInputController.setModel(
       name: modelName ?? LocalizedString.forKey("unspecified"), image: modelImage)
     textHistoryManager = TextHistoryManager(project: workspace, initialPositiveText: "")
@@ -898,26 +899,26 @@ final class ChatWorkflow: Workflow {
     return #imageLiteral(resourceName: "cloud-compute-24").withRenderingMode(.alwaysTemplate)
   }
 
-  /// The local models a model selector lists, marking the ones still to download. An iPhone
-  /// lists only the ones it already has.
+  /// The local models a model selector lists, marking the ones still to download. Of the ones
+  /// the device doesn't download, it lists only those it already has.
   static func localModelSection(
     selectedModel: String?, workspace: SQLiteWorkspace, userInterfaceIdiom: UIUserInterfaceIdiom
   ) -> ItemDisplaySectionModel {
-    let canDownloadLocalModels = DeviceCapability.canDownloadLocalModels(
-      userInterfaceIdiom: userInterfaceIdiom)
     let viewModels: [ItemDisplayCollectionViewCellViewModel] =
       LLMZoo.builtinSpecifications.compactMap { specification in
+        let canDownload = DeviceCapability.canDownloadLocalModel(
+          specification, userInterfaceIdiom: userInterfaceIdiom)
         let isDownloaded = LLMZoo.isModelDownloaded(specification)
-        // An iPhone lists the ones it can run as they are, a missing drafter included, and has
-        // nothing to mark as nothing downloads there.
+        // One the device doesn't download is listed as it is when it can run, a missing drafter
+        // included, and has nothing to mark.
         guard
-          canDownloadLocalModels
+          canDownload
             ? isDownloaded || specification.file == selectedModel
               || !LLMZoo.isModelDeprecated(specification.file)
             : LLMZoo.isModelDownloaded(specification, required: true)
         else { return nil }
         let title = NSMutableAttributedString(string: specification.name)
-        if canDownloadLocalModels, !isDownloaded {
+        if canDownload, !isDownloaded {
           title.append(NSAttributedString(string: " "))
           let configuration = UIImage.SymbolConfiguration(
             pointSize: 13, weight: .regular, scale: .default)
@@ -1221,18 +1222,18 @@ final class ChatWorkflow: Workflow {
   }
 
   private func selectLocalModel(file: String) {
-    guard chatInputController.sendState == .idle else { return }
-    let canDownloadLocalModels = DeviceCapability.canDownloadLocalModels(
-      userInterfaceIdiom: userInterfaceIdiom)
-    guard let specification = LLMZoo.specificationForModel(file),
-      canDownloadLocalModels || LLMZoo.isModelDownloaded(specification, required: true)
+    guard chatInputController.sendState == .idle,
+      let specification = LLMZoo.specificationForModel(file)
     else { return }
+    let canDownload = DeviceCapability.canDownloadLocalModel(
+      specification, userInterfaceIdiom: userInterfaceIdiom)
+    guard canDownload || LLMZoo.isModelDownloaded(specification, required: true) else { return }
     selectedLLM = file
     workspace.dictionary["chat_backend", String.self] = nil
     chatInputController.setModel(
       name: LLMZoo.humanReadableNameForModel(file), image: Self.modelImage(for: file))
-    // Selecting downloads the rest of the model, the drafter too, except on an iPhone.
-    if canDownloadLocalModels, !LLMZoo.isModelDownloaded(specification) {
+    // Selecting downloads the rest of the model, the drafter too, where the device downloads it.
+    if canDownload, !LLMZoo.isModelDownloaded(specification) {
       downloadLLMModel(specification) { [weak self] success in
         guard let self, success, self.selectedLLM == file else { return }
         self.warmupSelectedModel()
@@ -1775,7 +1776,7 @@ final class ChatWorkflow: Workflow {
           chatInputController.setModel(
             name: LLMZoo.humanReadableNameForModel(threadModel),
             image: Self.modelImage(for: threadModel))
-        } else if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
+        } else if userInterfaceIdiom == .phone {
           selectCloudFallbackProvider()
         } else {
           codeAgentWrapper = nil
@@ -1786,7 +1787,7 @@ final class ChatWorkflow: Workflow {
           chatInputController.setModel(
             name: LocalizedString.forKey("unspecified"), image: Self.modelImage(for: nil))
         }
-      } else if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
+      } else if userInterfaceIdiom == .phone {
         selectCloudFallbackProvider()
       } else {
         codeAgentWrapper = nil
@@ -1815,7 +1816,7 @@ final class ChatWorkflow: Workflow {
         chatInputController.setModel(
           name: LLMZoo.humanReadableNameForModel(selectedLLM),
           image: Self.modelImage(for: selectedLLM))
-      } else if !DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) {
+      } else if userInterfaceIdiom == .phone {
         selectCloudFallbackProvider()
       } else {
         codeAgentWrapper = nil
@@ -2286,8 +2287,8 @@ extension ChatWorkflow: OnboardingWorkflowDelegate {
   func onboardingWorkflow(
     _ workflow: OnboardingWorkflow, didRequestDownloadOfLocalModel file: String
   ) {
-    guard DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom),
-      let specification = LLMZoo.specificationForModel(file),
+    guard let specification = LLMZoo.specificationForModel(file),
+      DeviceCapability.canDownloadLocalModel(specification, userInterfaceIdiom: userInterfaceIdiom),
       !LLMZoo.isModelDownloaded(specification)
     else { return }
     // Selecting the model later joins this download instead of starting another.
@@ -3112,7 +3113,10 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     if let specification = LLMZoo.specificationForModel(file),
       !LLMZoo.isModelDownloaded(specification, required: true)
     {
-      guard DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) else {
+      guard
+        DeviceCapability.canDownloadLocalModel(
+          specification, userInterfaceIdiom: userInterfaceIdiom)
+      else {
         presentModelNotOnPhone(specification)
         return
       }
@@ -3173,12 +3177,12 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     // Stopping without a steer hands the queue back to the input instead of sending it.
     let isRestoringQueue = isStopping && steeredItems.isEmpty
     // Like a new turn, sending downloads a model whose files were removed. The queue stays
-    // until then, so it goes out once the download finishes. An iPhone doesn't download: the
-    // send says so, and the queue goes back to the input.
+    // until then, so it goes out once the download finishes. One the device doesn't download
+    // isn't waited for: the send says so, and the queue goes back to the input.
     if !isRestoringUserNode, !isRestoringQueue,
-      DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom),
       case .some(.local) = codeAgentWrapper,
       let file = selectedLLM, let specification = LLMZoo.specificationForModel(file),
+      DeviceCapability.canDownloadLocalModel(specification, userInterfaceIdiom: userInterfaceIdiom),
       !LLMZoo.isModelDownloaded(specification, required: true)
     {
       let threadId = projectHistoryManager.threadId
@@ -3356,7 +3360,10 @@ extension ChatWorkflow: ChatInputControllerDelegate {
     else { return false }
     // A missing drafter does not hold the turn; selecting the model downloads it.
     guard LLMZoo.isModelDownloaded(specification, required: true) else {
-      guard DeviceCapability.canDownloadLocalModels(userInterfaceIdiom: userInterfaceIdiom) else {
+      guard
+        DeviceCapability.canDownloadLocalModel(
+          specification, userInterfaceIdiom: userInterfaceIdiom)
+      else {
         presentModelNotOnPhone(specification)
         return false
       }

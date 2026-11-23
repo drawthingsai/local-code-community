@@ -61,9 +61,9 @@ extension ChatWorkflow {
       name: LLMZoo.humanReadableNameForModel(selectedLLM), image: Self.modelImage(for: selectedLLM))
   }
 
-  /// A phone opening a thread with no model it can run: it has no local model to fall back on, so
-  /// it takes the first provider that can answer of the last used, Cloud Compute, and the others;
-  /// or Cloud Compute, with its sign-in.
+  /// A phone opening a thread with no model it can run: it takes the first provider that can
+  /// answer of the last used, Cloud Compute, and the others; or Cloud Compute, with its sign-in.
+  /// An iPad or a Mac leaves the model unspecified instead.
   func selectCloudFallbackProvider() {
     let lastUsed = workspace.dictionary["where_models_run_last_used", String.self].flatMap(
       RemoteProvider.init(rawValue:))

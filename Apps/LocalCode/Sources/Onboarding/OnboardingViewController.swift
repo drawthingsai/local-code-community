@@ -157,7 +157,8 @@ final class OnboardingViewController: UIViewController {
   private lazy var scrollContent = UIView()
   private lazy var column = UIView()
   private lazy var bannerController: EmptyBannerController = {
-    let controller = EmptyBannerController(animatesBackground: false)
+    let controller = EmptyBannerController(
+      animatesBackground: false, fallsAsleep: userInterfaceIdiom != .phone)
     controller.setVisible(true, animated: false)
     return controller
   }()

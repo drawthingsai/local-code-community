@@ -102,6 +102,8 @@ final class EmptyBannerController {
   private var isVisible = false
   private let animatesBackground: Bool
   private let isVertical: Bool
+  // A phone's monkey stays awake: decoding the sleep clips costs it too much.
+  private let fallsAsleep: Bool
   private static let cardSize = CGSize(width: 201, height: 308)
   private var visibilityAnimator: UIViewPropertyAnimator?
   private var backgroundAnimator: UIViewPropertyAnimator?
@@ -114,9 +116,10 @@ final class EmptyBannerController {
     static let assetSubdirectory: String? = nil
   #endif
 
-  init(animatesBackground: Bool = true, isVertical: Bool = false) {
+  init(animatesBackground: Bool = true, isVertical: Bool = false, fallsAsleep: Bool = true) {
     self.animatesBackground = animatesBackground
     self.isVertical = isVertical
+    self.fallsAsleep = fallsAsleep
     view.addSubview(bannerView)
     bannerView.addSubview(backgroundView)
     bannerView.addSubview(wordmarkView)
@@ -488,7 +491,7 @@ final class EmptyBannerController {
   }
 
   private func scheduleIdleTimer() {
-    guard idleTimer == nil, sleep == .awake, isVisible, view.window != nil,
+    guard fallsAsleep, idleTimer == nil, sleep == .awake, isVisible, view.window != nil,
       UIApplication.shared.applicationState == .active
     else { return }
     // User events only record their time, so a burst of them never reschedules the timer.
