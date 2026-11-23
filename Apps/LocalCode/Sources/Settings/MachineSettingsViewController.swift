@@ -383,6 +383,18 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
   private let workspace: SQLiteWorkspace
   private let userInterfaceIdiom: UIUserInterfaceIdiom
   private lazy var stackView = UIStackView(frame: .zero)
+  /// Holds everything in the sheet. A closed iPhone Duo has a bar down its side, with the status
+  /// bar in it, and a sheet runs under that bar. This stops where the bar starts, and the sheet
+  /// shows nothing of its own beyond it. See `viewSafeAreaInsetsDidChange`.
+  private lazy var contentView: UIView = {
+    let view = UIView(frame: .zero)
+    view.backgroundColor = .secondaryBackground
+    view.clipsToBounds = true
+    view.layer.maskedCorners = [.layerMaxXMinYCorner]
+    view.layer.cornerCurve = .continuous
+    return view
+  }()
+  private var isUnderSideBar = false
   private var gradientLayer: CAGradientLayer?
   private var itemReconciler:
     SettingsItemReconciler<
@@ -468,22 +480,27 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = .secondaryBackground
+    view.addSubview(contentView)
+    contentView.snp.makeConstraints { make in
+      make.leading.top.bottom.equalToSuperview()
+      make.trailing.equalTo(view.safeAreaLayoutGuide)
+    }
 
-    view.addSubview(xButton)
+    contentView.addSubview(xButton)
     xButton.snp.makeConstraints { make in
       make.top.equalTo(view.snp.topMargin).offset(10)
       make.trailing.equalToSuperview().offset(-14)
       make.width.height.equalTo(32)
     }
 
-    view.addSubview(titleLabel)
+    contentView.addSubview(titleLabel)
     titleLabel.snp.makeConstraints { make in
       make.centerY.equalTo(xButton)
       make.leading.equalToSuperview().offset(24)
       make.trailing.lessThanOrEqualTo(xButton.snp.leading).offset(-12)
     }
 
-    view.addSubview(topDivider)
+    contentView.addSubview(topDivider)
     topDivider.snp.makeConstraints { make in
       make.bottom.equalTo(view.snp.topMargin).offset(52)
       make.height.equalTo(1)
@@ -499,7 +516,7 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
     scrollView.automaticallyAdjustsScrollIndicatorInsets = false
     scrollView.contentInsetAdjustmentBehavior = .never
     scrollView.contentInset = UIEdgeInsets(top: 8, left: 0, bottom: 80, right: 0)
-    view.addSubview(scrollView)
+    contentView.addSubview(scrollView)
     scrollView.snp.makeConstraints { make in
       make.top.equalToSuperview().offset(52)
       if userInterfaceIdiom == .phone && UIScreen.main.isAllScreen {
@@ -546,11 +563,12 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       UIColor.secondaryBackground.cgColor,
     ]
     gradientLayer.locations = [0, 0.5, 1]
-    gradientLayer.frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 80)
+    // viewDidLayoutSubviews gives it the view's width.
+    gradientLayer.frame = CGRect(x: 0, y: 0, width: 0, height: 80)
     self.gradientLayer = gradientLayer
     overshadowView.layer.addSublayer(gradientLayer)
     overshadowView.clipsToBounds = true
-    view.addSubview(overshadowView)
+    contentView.addSubview(overshadowView)
     overshadowView.snp.makeConstraints { make in
       make.height.equalTo(80)
       make.leading.trailing.equalToSuperview()
@@ -561,13 +579,45 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
       }
     }
 
-    view.addSubview(restoreButton)
+    contentView.addSubview(restoreButton)
     restoreButton.snp.makeConstraints { make in
       make.leading.greaterThanOrEqualToSuperview().offset(20)
       make.trailing.equalToSuperview().offset(-20)
       make.height.equalTo(40)
       make.centerY.equalTo(overshadowView)
     }
+  }
+
+  override func viewSafeAreaInsetsDidChange() {
+    super.viewSafeAreaInsetsDidChange()
+    guard isUnderSideBar != (view.safeAreaInsets.right > 0) else { return }
+    isUnderSideBar.toggle()
+    // Under an iPhone Duo's side bar the sheet shows what is behind it. That takes clearing
+    // the background the sheet itself draws behind this view.
+    view.backgroundColor = isUnderSideBar ? .clear : .secondaryBackground
+    if #available(iOS 26.1, *) {
+      let detent = UISheetPresentationController.Detent.large()
+      detent.backgroundEffect = isUnderSideBar ? UIVisualEffect() : nil
+      sheetPresentationController?.detents = [detent]
+    }
+    view.setNeedsLayout()
+  }
+
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    if #available(iOS 26.0, *) {
+      // The content's free corner is the sheet's corner, moved in. The sheet clips this view
+      // from the view above it.
+      contentView.layer.cornerRadius =
+        isUnderSideBar ? view.superview?.effectiveRadius(corner: .topRight) ?? 0 : 0
+    }
+    // The sheet's width, not the main screen's: on an open iPhone Duo the main screen is the
+    // narrower outer display.
+    guard let gradientLayer, gradientLayer.frame.width != view.bounds.width else { return }
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    gradientLayer.frame.size.width = view.bounds.width
+    CATransaction.commit()
   }
 
   @objc func dismissWithEscape() {

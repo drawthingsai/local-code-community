@@ -20,10 +20,53 @@ final class ProjectBarController {
       configuration.title = projectName ?? LocalizedString.forKey("projects")
       projectButton.configuration = configuration
       newChatButton.isEnabled = projectName != nil
+      if userInterfaceIdiom == .phone {
+        newChatBarButtonItem.isEnabled = projectName != nil
+      }
     }
   }
 
+  /// An iPhone Duo has a bar down its side. The phone layout puts settings and new chat there, as
+  /// the two bar button items below. The two buttons here then go away and the project button has
+  /// the bar to itself.
+  var showsButtonsInVerticalBar = false {
+    didSet {
+      guard showsButtonsInVerticalBar != oldValue else { return }
+      settingsButton.alpha = showsButtonsInVerticalBar ? 0 : 1
+      newChatButton.alpha = showsButtonsInVerticalBar ? 0 : 1
+      projectButtonLeadingToSettingsConstraint?.isActive = !showsButtonsInVerticalBar
+      projectButtonTrailingToNewChatConstraint?.isActive = !showsButtonsInVerticalBar
+    }
+  }
+
+  private(set) lazy var settingsBarButtonItem: UIBarButtonItem = {
+    let item = UIBarButtonItem(
+      title: LocalizedString.forKey("settings"),
+      image: #imageLiteral(resourceName: "hamburger").withRenderingMode(.alwaysTemplate),
+      primaryAction: UIAction { [weak self] _ in
+        guard let self else { return }
+        self.delegate?.projectBarControllerDidTapSettings(self)
+      })
+    item.tintColor = .primaryText
+    return item
+  }()
+
+  private(set) lazy var newChatBarButtonItem: UIBarButtonItem = {
+    let item = UIBarButtonItem(
+      title: LocalizedString.forKey("new_chat"),
+      image: #imageLiteral(resourceName: "chat-new-24").withRenderingMode(.alwaysTemplate),
+      primaryAction: UIAction { [weak self] _ in
+        guard let self else { return }
+        self.delegate?.projectBarControllerDidTapNewChat(self)
+      })
+    item.tintColor = .primaryText
+    item.isEnabled = projectName != nil
+    return item
+  }()
+
   private let userInterfaceIdiom: UIUserInterfaceIdiom
+  private var projectButtonLeadingToSettingsConstraint: Constraint?
+  private var projectButtonTrailingToNewChatConstraint: Constraint?
 
   private lazy var settingsButton: UIButton = {
     let button = UIButton(type: .custom)
@@ -158,8 +201,12 @@ final class ProjectBarController {
       projectButton.snp.makeConstraints { make in
         make.center.equalToSuperview()
         make.height.equalTo(52)
-        make.leading.greaterThanOrEqualTo(settingsButton.snp.trailing).offset(12)
-        make.trailing.lessThanOrEqualTo(newChatButton.snp.leading).offset(-12)
+        make.leading.greaterThanOrEqualToSuperview()
+        make.trailing.lessThanOrEqualToSuperview()
+        projectButtonLeadingToSettingsConstraint =
+          make.leading.greaterThanOrEqualTo(settingsButton.snp.trailing).offset(12).constraint
+        projectButtonTrailingToNewChatConstraint =
+          make.trailing.lessThanOrEqualTo(newChatButton.snp.leading).offset(-12).constraint
       }
       return
     }

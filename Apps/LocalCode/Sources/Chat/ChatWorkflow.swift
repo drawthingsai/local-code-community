@@ -349,10 +349,14 @@ final class ChatWorkflow: Workflow {
     textHistoryManager = TextHistoryManager(project: workspace, initialPositiveText: "")
     let viewController: any ChatViewControllable
     if userInterfaceIdiom == .phone {
-      viewController = ChatViewControllerForiPhone(
+      let phoneViewController = ChatViewControllerForiPhone(
         chatInputController: chatInputController,
         projectBarController: projectBarController,
-        emptyBannerController: emptyBannerController)
+        emptyBannerController: emptyBannerController,
+        settingsViewController: settingsWorkflow.viewControllable)
+      phoneViewController.hidesSettingsBeside =
+        workspace.dictionary["settings_beside_chat_hidden", Bool.self] == true
+      viewController = phoneViewController
     } else {
       viewController = ChatViewControllerForiPad(
         chatInputController: chatInputController,
@@ -2737,6 +2741,13 @@ extension ChatWorkflow {
       body()
       return
     }
+    if let viewController = viewController as? ChatViewControllerForiPhone,
+      viewController.canShowSettingsBeside
+    {
+      viewController.setSettingsBeside(true, animated: true)
+      body()
+      return
+    }
     presentSettings(interactive: false, completion: body)
   }
 
@@ -2756,18 +2767,32 @@ extension ChatWorkflow: ChatViewControllableDelegate {
     _ viewController: UIViewController,
     didReceiveScreenEdgePan screenEdgePanGestureRecognizer: UIScreenEdgePanGestureRecognizer
   ) {
-    // This is to trigger settings workflow presentation.
+    if let viewController = viewController as? ChatViewControllerForiPhone,
+      viewController.canShowSettingsBeside
+    {
+      // Beside the chat, settings has nothing to slide over. The swipe brings it back.
+      if screenEdgePanGestureRecognizer.state == .began, !viewController.isSettingsBeside {
+        viewController.setSettingsBeside(true, animated: true)
+        viewController.hidesSettingsBeside = false
+        workspace.dictionary["settings_beside_chat_hidden", Bool.self] = nil
+      }
+      return
+    }
+    // This is to trigger settings workflow presentation. The swipe moves settings by its own
+    // width, which leaves some of the chat showing.
+    let presentedWidth = SettingsPresentationController.presentedFrame(
+      in: viewController.view.window ?? viewController.view
+    ).width
     switch screenEdgePanGestureRecognizer.state {
     case .began:
       presentSettings(interactive: true)
     case .changed:
       let translationX = screenEdgePanGestureRecognizer.translation(in: viewController.view).x
-      // 48 removes the hinge that still visible after settings presented.
-      let percent = translationX / (viewController.view.bounds.width - 48)
+      let percent = translationX / presentedWidth
       settingsWorkflow.percentDrivenInteractiveTransition?.update(percent)
     case .ended:
       let translationX = screenEdgePanGestureRecognizer.translation(in: viewController.view).x
-      let percent = translationX / (viewController.view.bounds.width - 48)
+      let percent = translationX / presentedWidth
       if percent > 0.5
         || (translationX > 48
           && screenEdgePanGestureRecognizer.velocity(in: viewController.view).x >= 800)
@@ -2906,6 +2931,17 @@ extension ChatWorkflow: ProjectBarControllerDelegate {
   func projectBarControllerDidTapSettings(_ controller: ProjectBarController) {
     // Settings comes back on whichever tab was last visited.
     guard userInterfaceIdiom == .phone else { return }
+    if let viewController = viewController as? ChatViewControllerForiPhone,
+      viewController.canShowSettingsBeside
+    {
+      // An unfolded iPhone Duo held wide has settings beside the chat, where this button shows
+      // it and puts it away. Put away, it stays away until it is shown again.
+      let isBeside = !viewController.isSettingsBeside
+      viewController.setSettingsBeside(isBeside, animated: true)
+      viewController.hidesSettingsBeside = !isBeside
+      workspace.dictionary["settings_beside_chat_hidden", Bool.self] = isBeside ? nil : true
+      return
+    }
     presentSettings(interactive: false)
   }
 

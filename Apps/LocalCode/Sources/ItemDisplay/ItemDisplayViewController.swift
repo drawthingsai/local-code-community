@@ -168,7 +168,6 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     let collectionViewLayout = UICollectionViewFlowLayout()
     collectionViewLayout.minimumLineSpacing = minimumLineSpacing
     collectionViewLayout.minimumInteritemSpacing = 4
-    let screenWidth = UIScreen.main.bounds.width
     collectionViewLayout.itemSize = CGSize(width: 70, height: 70)
     collectionViewLayout.sectionInset = .zero
     collectionViewLayout.sectionHeadersPinToVisibleBounds = true

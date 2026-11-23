@@ -51,27 +51,27 @@ extension SettingsAnimatedTransitioning: UIViewControllerAnimatedTransitioning {
     let sourceFrame: CGRect
     let target: UIViewController
     let targetFrame: CGRect
-    let windowWideTopSafeArea = containerView.window?.safeAreaInsets.top ?? 0
+    let presentedFrame = SettingsPresentationController.presentedFrame(in: containerView)
+    let presentedTop = presentedFrame.minY
+    let presentedWidth = presentedFrame.width
     switch transition {
     case .easeIn:
       sourceFrame = CGRect(
-        x: containerView.bounds.width - 48, y: 0, width: from.view.frame.width,
-        height: from.view.frame.height)
+        x: presentedWidth, y: 0, width: from.view.frame.width, height: from.view.frame.height)
       source = from
       containerView.addSubview(to.view)
       to.view.frame = CGRect(
-        x: -containerView.bounds.width + 48, y: windowWideTopSafeArea,
-        width: containerView.bounds.width - 48,
-        height: containerView.bounds.height - windowWideTopSafeArea)
+        x: -presentedWidth, y: presentedTop, width: presentedWidth,
+        height: containerView.bounds.height - presentedTop)
       to.view.layoutIfNeeded()
       targetFrame = CGRect(
-        x: 0, y: windowWideTopSafeArea, width: to.view.frame.width, height: to.view.frame.height)
+        x: 0, y: presentedTop, width: to.view.frame.width, height: to.view.frame.height)
       target = to
     case .easeOut:
       sourceFrame = CGRect(x: 0, y: 0, width: to.view.frame.width, height: to.view.frame.height)
       source = to
       targetFrame = CGRect(
-        x: -containerView.bounds.width + 48, y: windowWideTopSafeArea, width: from.view.frame.width,
+        x: -presentedWidth, y: presentedTop, width: from.view.frame.width,
         height: from.view.frame.height)
       target = from
     }

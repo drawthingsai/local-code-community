@@ -64,7 +64,7 @@
 	<true/>
 	<key>UIFileSharingEnabled</key>
 	<true/>
-	<key>UIRequiresFullScreen</key>
+	<key>UIRequiresFullScreen~ipad</key>
 	<true/>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
@@ -74,6 +74,8 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>

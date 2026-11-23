@@ -160,6 +160,16 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
     workflow?.handle(url: url) ?? false
   }
 
+  func application(
+    _ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?
+  ) -> UIInterfaceOrientationMask {
+    // Info.plist lists landscape for iPhone so that an open iPhone Duo fills its inner display,
+    // which is wider than tall when the phone is upright. That display ignores this answer
+    // unless the app requires full screen, which Info.plist asks of the iPad alone. Every other
+    // iPhone screen stays in portrait, and an iPad keeps the landscape pair Info.plist gives it.
+    UIDevice.current.userInterfaceIdiom == .phone ? .portrait : .landscape
+  }
+
   override func buildMenu(with builder: UIMenuBuilder) {
     guard UIDevice.current.userInterfaceIdiom != .phone else { return }
     // Browser windows need multiple scenes, but there is one chat window.

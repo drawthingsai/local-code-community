@@ -5,7 +5,8 @@ import Style
 import UIKit
 
 /// The phone layout: one full-screen conversation. `ChatWorkflow` presents the projects / settings /
-/// kit panel over it from the leading edge.
+/// kit panel over it from the leading edge. An unfolded iPhone Duo held wide has that panel beside
+/// the conversation instead.
 final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable {
   /// Hides the transcript behind the status bar and project bar, fading out just below the bar.
   private final class TopFadeView: UIView {
@@ -45,10 +46,31 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
     }
   }
   private(set) var localPathResolver: LocalPathResolver?
+  /// Whether settings stays away when it could sit beside the chat, because it was put away
+  /// there. `ChatWorkflow` keeps the choice.
+  var hidesSettingsBeside = false
+  /// Whether settings sits beside the chat.
+  private(set) var isSettingsBeside = false
+  /// An unfolded iPhone Duo held wide has room for settings beside the chat. Turned upright it
+  /// goes back to bars along the top, and to the layout of any other phone with them.
+  var canShowSettingsBeside: Bool {
+    guard #available(iOS 27.1, *) else { return false }
+    return traitCollection.horizontalSizeClass == .regular
+      && traitCollection.verticalBarEdge != .unspecified
+  }
+  /// How wide settings is beside the chat with the phone open flat: as wide as it is over the
+  /// chat on a 402 pt wide iPhone, which shows its title in full. Like the leading column the
+  /// system gives a split view on this display, which is 320 pt, it stops well short of the fold.
+  private static let settingsBesideWidth: CGFloat = 354
 
   private let chatInputController: ChatInputController
   private let projectBarController: ProjectBarController
   private let emptyBannerController: EmptyBannerController
+  private let settingsViewController: UIViewController
+  private var chatContainerLeadingConstraint: Constraint?
+  private var settingsBesideWidthConstraint: Constraint?
+  private var backgroundViewTopConstraint: Constraint?
+  private var statusBarBackgroundViewHeightConstraint: Constraint?
   private var onboardingViewController: OnboardingViewController?
   private var chatBannerView: UIView?
   private var projectHistoryItems = [ProjectHistoryItem]()
@@ -60,21 +82,29 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
   private var chatInputHorizontalConstraint: Constraint?
   private var keyboardAppearanceMonitor: KeyboardAppearanceMonitor? = nil
 
-  private lazy var chatContainerView = UIView(frame: .zero)
-  /// Keeps the chat in its own color below the status bar while settings is presented, with a
-  /// border along the edge that meets the settings panel.
+  /// Its layout margins hold its safe area, and the chat lays out in those. See
+  /// `updateChatSafeArea`.
+  private lazy var chatContainerView: UIView = {
+    let view = UIView(frame: .zero)
+    view.insetsLayoutMarginsFromSafeArea = false
+    view.layoutMargins = .zero
+    return view
+  }()
+  /// Runs down the edge of the chat that meets settings, while settings is presented over the
+  /// chat or sits beside it. It is above the chat, whose top fades out under the bars.
+  private lazy var settingsBorderView: UIView = {
+    let view = UIView(frame: .zero)
+    view.alpha = 0
+    view.backgroundColor = .primaryBorder
+    view.isUserInteractionEnabled = false
+    return view
+  }()
+  /// Keeps the chat in its own color below the status bar while settings is presented.
   private lazy var backgroundView: UIView = {
     let view = UIView(frame: .zero)
     view.alpha = 0
     view.backgroundColor = .tertiaryBackground
     view.isUserInteractionEnabled = false
-    let borderView = UIView(frame: .zero)
-    borderView.backgroundColor = .primaryBorder
-    view.addSubview(borderView)
-    borderView.snp.makeConstraints { make in
-      make.leading.top.bottom.equalToSuperview()
-      make.width.equalTo(1)
-    }
     return view
   }()
   private lazy var queuedItemsStackView: UIStackView = {
@@ -212,11 +242,12 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
 
   init(
     chatInputController: ChatInputController, projectBarController: ProjectBarController,
-    emptyBannerController: EmptyBannerController
+    emptyBannerController: EmptyBannerController, settingsViewController: UIViewController
   ) {
     self.chatInputController = chatInputController
     self.projectBarController = projectBarController
     self.emptyBannerController = emptyBannerController
+    self.settingsViewController = settingsViewController
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -233,12 +264,24 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
     view.addSubview(backgroundView)
     backgroundView.snp.makeConstraints { make in
       make.leading.trailing.bottom.equalToSuperview()
-      make.top.equalTo(view.safeAreaLayoutGuide)
+      backgroundViewTopConstraint = make.top.equalToSuperview().constraint
     }
 
     view.addSubview(chatContainerView)
     chatContainerView.snp.makeConstraints { make in
-      make.edges.equalToSuperview()
+      make.top.bottom.trailing.equalToSuperview()
+      // Settings beside the chat on an unfolded iPhone Duo sets this. A fold narrows the window
+      // a moment before settings goes away, and for that moment the chat keeps the width its
+      // content needs.
+      chatContainerLeadingConstraint =
+        make.leading.equalToSuperview().priority(.required.advanced(by: -1)).constraint
+    }
+    view.addSubview(settingsBorderView)
+    settingsBorderView.snp.makeConstraints { make in
+      make.leading.equalTo(chatContainerView)
+      make.top.equalTo(backgroundView)
+      make.bottom.equalToSuperview()
+      make.width.equalTo(1)
     }
     chatInputController.addAttachmentDropInteraction(to: chatContainerView)
     chatInputController.setAttachmentDropDelegate(of: projectHistoryCollectionView)
@@ -257,15 +300,15 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
     projectHistoryCollectionView.addGestureRecognizer(dismissKeyboardTap)
 
     projectBarController.view.snp.makeConstraints { make in
-      make.top.equalTo(chatContainerView.safeAreaLayoutGuide).offset(8)
-      make.leading.trailing.equalTo(chatContainerView.safeAreaLayoutGuide).inset(16)
+      make.top.equalTo(chatContainerView.layoutMarginsGuide).offset(8)
+      make.leading.trailing.equalTo(chatContainerView.layoutMarginsGuide).inset(16)
     }
     // At rest the input sits on the safe area, 16pt in from the sides; over the keyboard it sits
     // 8pt above it and widens to 8pt from the sides.
     chatInputController.view.snp.makeConstraints { make in
       chatInputHorizontalConstraint =
-        make.leading.trailing.equalTo(chatContainerView.safeAreaLayoutGuide).inset(16).constraint
-      make.bottom.equalTo(chatContainerView.safeAreaLayoutGuide).priority(.high)
+        make.leading.trailing.equalTo(chatContainerView.layoutMarginsGuide).inset(16).constraint
+      make.bottom.equalTo(chatContainerView.layoutMarginsGuide).priority(.high)
       make.bottom.lessThanOrEqualTo(view.keyboardLayoutGuide.snp.top).offset(-8)
     }
     if #available(iOS 17.0, *) {
@@ -300,7 +343,7 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
     // viewDidLayoutSubviews.
     // It spans the safe area so wide tables can scroll out to its edges; rows keep a 16pt margin.
     projectHistoryCollectionView.snp.makeConstraints { make in
-      make.leading.trailing.equalTo(chatContainerView.safeAreaLayoutGuide)
+      make.leading.trailing.equalTo(chatContainerView.layoutMarginsGuide)
       make.top.equalToSuperview()
       make.bottom.equalTo(queuedItemsView.snp.top).offset(24)
     }
@@ -311,7 +354,7 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
     }
     statusBarBackgroundView.snp.makeConstraints { make in
       make.top.leading.trailing.equalToSuperview()
-      make.bottom.equalTo(chatContainerView.safeAreaLayoutGuide.snp.top)
+      statusBarBackgroundViewHeightConstraint = make.height.equalTo(0).constraint
     }
     // A layout guide keeps the banner centered between the bar and the input as the keyboard moves.
     let bannerSpace = UILayoutGuide()
@@ -327,6 +370,19 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
       make.center.equalTo(bannerSpace)
       make.top.greaterThanOrEqualTo(bannerSpace).offset(16)
     }
+    if #available(iOS 27.1, *) {
+      // An iPhone Duo has a bar down its side on the outer display, and on the inner one held
+      // wide. It takes these from a navigation bar that is showing; with no title, that bar
+      // has no height.
+      navigationItem.title = nil
+      navigationItem.leftBarButtonItem = projectBarController.settingsBarButtonItem
+      navigationItem.rightBarButtonItem = projectBarController.newChatBarButtonItem
+      registerForTraitChanges(
+        UITraitCollection.systemTraitsAffectingVerticalBarEdge + [UITraitHorizontalSizeClass.self]
+      ) { (self: ChatViewControllerForiPhone, _: UITraitCollection) in
+        self.updateForVerticalBar()
+      }
+    }
 
     updateChatInputEmptyState()
     updateQueuedItems(from: [])
@@ -335,8 +391,40 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
       scrollToItem: !projectHistoryItems.isEmpty)
   }
 
+  override func viewIsAppearing(_ animated: Bool) {
+    super.viewIsAppearing(animated)
+    if #available(iOS 27.1, *) {
+      updateForVerticalBar()
+    }
+  }
+
+  override func viewWillLayoutSubviews() {
+    super.viewWillLayoutSubviews()
+    guard settingsViewController.parent === self else { return }
+    // Held half folded, settings and the chat have a half each and meet on the fold, which is
+    // where the system moves a split view's columns too.
+    var settingsWidth = Self.settingsBesideWidth
+    if #available(iOS 27.1, *),
+      let fold = view.reservedRegions(kind: .division).first(where: {
+        $0.frame.height > $0.frame.width
+      })
+    {
+      settingsWidth = fold.frame.midX
+    }
+    settingsBesideWidthConstraint?.update(offset: settingsWidth)
+    chatContainerLeadingConstraint?.update(offset: isSettingsBeside ? settingsWidth : 0)
+  }
+
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
+    updateChatSafeArea()
+    // With settings over the chat, the chat takes the settings color above where settings starts
+    // and keeps its own below. Settings starts below the status bar on most phones. Where it
+    // starts at the top, as on an unfolded iPhone Duo turned upright, the chat's own color runs
+    // to the top beside it.
+    let settingsTop = SettingsPresentationController.presentedFrame(in: view.window ?? view).minY
+    backgroundViewTopConstraint?.update(offset: settingsTop)
+    statusBarBackgroundViewHeightConstraint?.update(offset: settingsTop)
     let topInset = projectBarController.view.frame.maxY + 16
     if projectHistoryCollectionView.contentInset.top != topInset {
       projectHistoryCollectionView.contentInset.top = topInset
@@ -350,6 +438,61 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
 
   @objc private func screenEdgePan(_ gestureRecognizer: UIScreenEdgePanGestureRecognizer) {
     delegate?.chatViewController(self, didReceiveScreenEdgePan: gestureRecognizer)
+  }
+
+  /// Shows settings beside the chat or puts it away. The chat has the width that is left.
+  func setSettingsBeside(_ isBeside: Bool, animated: Bool) {
+    guard isBeside != isSettingsBeside else { return }
+    // Still open over the chat, as it stays with something of its own open over it, settings
+    // cannot also go beside the chat.
+    guard !isBeside || settingsViewController.presentingViewController == nil else { return }
+    if isBeside, settingsViewController.parent !== self {
+      addChild(settingsViewController)
+      view.insertSubview(settingsViewController.view, belowSubview: chatContainerView)
+      settingsViewController.view.snp.remakeConstraints { make in
+        make.top.bottom.equalToSuperview()
+        // A width settings can lay out in. The layout pass below sets it for how the phone is
+        // held.
+        settingsBesideWidthConstraint = make.width.equalTo(Self.settingsBesideWidth).constraint
+        make.trailing.equalTo(chatContainerView.snp.leading)
+      }
+      settingsViewController.didMove(toParent: self)
+      // Settings takes the look it ends with when it slides in over the chat.
+      (settingsViewController as? AnimatingTransitioningPresentable)?.animate(
+        alongsideTransition: .easeIn)
+      view.layoutIfNeeded()
+    }
+    isSettingsBeside = isBeside
+    if isBeside {
+      settingsBorderView.alpha = 1
+    }
+    updateChatSafeArea()
+    view.setNeedsLayout()
+    let completion = { [self] (_: Bool) in
+      // Put away, settings leaves once it is out of sight, unless it was shown again meanwhile.
+      guard !isSettingsBeside, settingsViewController.parent === self else { return }
+      settingsViewController.willMove(toParent: nil)
+      settingsBorderView.alpha = 0
+      settingsViewController.view.snp.removeConstraints()
+      settingsViewController.view.removeFromSuperview()
+      // Presented over the chat again, it is placed by its frame, and starts from the look it
+      // has before it slides in.
+      settingsViewController.view.translatesAutoresizingMaskIntoConstraints = true
+      (settingsViewController as? AnimatingTransitioningPresentable)?.animate(
+        alongsideTransition: .easeOut)
+      settingsViewController.removeFromParent()
+    }
+    guard animated, view.window != nil else {
+      view.layoutIfNeeded()
+      completion(true)
+      return
+    }
+    UIView.animate(
+      withDuration: 0.4, delay: 0, usingSpringWithDamping: 1, initialSpringVelocity: 0,
+      options: [.beginFromCurrentState, .curveEaseOut],
+      animations: {
+        self.view.layoutIfNeeded()
+      }, completion: completion)
   }
 
   // MARK: - ChatViewControllable
@@ -383,7 +526,7 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
       addChild(controller)
       chatContainerView.addSubview(controller.view)
       controller.view.snp.makeConstraints {
-        $0.edges.equalTo(chatContainerView.safeAreaLayoutGuide)
+        $0.edges.equalTo(chatContainerView.layoutMarginsGuide)
       }
       controller.bannerGuide.snp.remakeConstraints { make in
         make.edges.equalTo(emptyBannerController.view)
@@ -404,6 +547,8 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
       queuedItemsView.isHidden = isOnboarding
       projectHistoryCollectionView.isHidden = isOnboarding
       projectBarController.view.isHidden = isOnboarding
+      projectBarController.settingsBarButtonItem.isHidden = isOnboarding
+      projectBarController.newChatBarButtonItem.isHidden = isOnboarding
       topFadeView.isHidden = isOnboarding
       updateChatInputEmptyState()
       completionHandler?()
@@ -607,6 +752,58 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
 
   // MARK: - Private
 
+  /// Settings and new chat are in the bar down the side where an iPhone Duo has one, and in the
+  /// project bar otherwise. Settings is beside the chat where there is room, unless it was put
+  /// away there.
+  @available(iOS 27.1, *)
+  private func updateForVerticalBar() {
+    let hasVerticalBar = traitCollection.verticalBarEdge != .unspecified
+    navigationController?.setNavigationBarHidden(!hasVerticalBar, animated: false)
+    projectBarController.showsButtonsInVerticalBar = hasVerticalBar
+    guard canShowSettingsBeside else {
+      setSettingsBeside(false, animated: false)
+      return
+    }
+    guard !isSettingsBeside else { return }
+    guard settingsViewController.presentingViewController != nil else {
+      setSettingsBeside(!hidesSettingsBeside, animated: false)
+      return
+    }
+    // Settings was open over the chat when the phone unfolded, and moves beside it. With
+    // something of its own open over it, it stays where it is.
+    guard settingsViewController.presentedViewController == nil else { return }
+    settingsViewController.dismiss(animated: false) {
+      guard self.canShowSettingsBeside else { return }
+      self.setSettingsBeside(true, animated: false)
+    }
+  }
+
+  /// While settings pushes the chat aside, an iPhone Duo keeps its side bar at the edge of the
+  /// display, so the chat's safe area grows by about as far as the chat has moved. Following it
+  /// would lay the whole conversation out again in the sliver that still shows. The chat keeps
+  /// the safe area it has in place.
+  private func updateChatSafeArea() {
+    // Settings moves the navigation controller's view. A sheet over the chat only scales it,
+    // which leaves its center alone.
+    let pushedView: UIView = navigationController?.view ?? view
+    guard pushedView.center.x == pushedView.bounds.midX else { return }
+    var safeAreaInsets = view.safeAreaInsets
+    if let window = view.window, navigationController?.isNavigationBarHidden == false {
+      // The navigation bar that feeds an iPhone Duo's side bar has no height, but it sits a
+      // little way down the display, and the safe area starts below it. The chat has nothing
+      // to clear there. It starts where the window's safe area does, as settings beside it
+      // does.
+      safeAreaInsets.top = window.safeAreaInsets.top
+    }
+    if canShowSettingsBeside, !isSettingsBeside {
+      // With an unfolded iPhone Duo's width to itself, the chat is centered on the fold. It
+      // leaves as much room at the leading edge as the side bar takes at the trailing one.
+      safeAreaInsets.left = safeAreaInsets.right
+    }
+    guard chatContainerView.layoutMargins != safeAreaInsets else { return }
+    chatContainerView.layoutMargins = safeAreaInsets
+  }
+
   private func updateChatInputEmptyState() {
     let isEmpty = projectHistoryItems.isEmpty && actionableMessageItem == nil
     chatInputController.isEmptyState = isEmpty
@@ -749,10 +946,15 @@ extension ChatViewControllerForiPhone: AnimatingTransitioningPresentable {
       view.backgroundColor = .primaryBackground
       backgroundView.alpha = 1
       statusBarBackgroundView.alpha = 1
+      settingsBorderView.alpha = 1
     case .easeOut:
       view.backgroundColor = .tertiaryBackground
       backgroundView.alpha = 0
       statusBarBackgroundView.alpha = 0
+      settingsBorderView.alpha = 0
+      // Back in place, the chat takes up any safe area change it sat out. See
+      // updateChatSafeArea.
+      view.setNeedsLayout()
     }
   }
 
@@ -766,11 +968,13 @@ extension ChatViewControllerForiPhone: AnimatingTransitioningPresentable {
         from: .tertiaryBackground, to: .primaryBackground, with: percent)
       backgroundView.alpha = percent
       statusBarBackgroundView.alpha = percent
+      settingsBorderView.alpha = percent
     case .easeOut:
       view.backgroundColor = UIColor.interpolate(
         from: .primaryBackground, to: .tertiaryBackground, with: percent)
       backgroundView.alpha = 1.0 - percent
       statusBarBackgroundView.alpha = 1.0 - percent
+      settingsBorderView.alpha = 1.0 - percent
     }
   }
 }

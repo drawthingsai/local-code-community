@@ -23,12 +23,40 @@ final class SettingsPresentationController: UIPresentationController {
     return super.presentedView
   }
 
+  /// Where the panel rests: below the status bar, with a strip of the chat showing beside it.
+  /// An iPhone Duo changes both.
+  ///
+  /// `containerView` is the transition's container or the window; they cover the same area.
+  static func presentedFrame(in containerView: UIView) -> CGRect {
+    let window = (containerView as? UIWindow) ?? containerView.window
+    var top = window?.safeAreaInsets.top ?? 0
+    var chatWidth: CGFloat = 48
+    if #available(iOS 27.1, *), let window {
+      if window.traitCollection.verticalBarEdge != .unspecified {
+        // An iPhone Duo keeps its side bar at the trailing edge while the chat moves, with the
+        // bar's buttons centered 48 pt in. Twice that shows, and the buttons are in the middle
+        // of it.
+        chatWidth = 48 * 2
+      } else if window.traitCollection.horizontalSizeClass == .regular,
+        let statusItems = containerView.reservedRegions(kind: .occlusion).first(where: {
+          $0.frame.minY <= 0 && $0.frame.maxX >= containerView.bounds.maxX
+        })
+      {
+        // An unfolded iPhone Duo turned upright has the clock and its signal indicator in the
+        // top trailing corner. The panel stops where they start, so both are over the chat.
+        // With nothing above it, it runs to the top.
+        chatWidth = containerView.bounds.maxX - statusItems.frame.minX
+        top = 0
+      }
+    }
+    return CGRect(
+      x: 0, y: top, width: containerView.bounds.width - chatWidth,
+      height: containerView.bounds.height - top)
+  }
+
   override var frameOfPresentedViewInContainerView: CGRect {
     guard let containerView = containerView else { return .zero }
-    let windowWideTopSafeArea = containerView.window?.safeAreaInsets.top ?? 0
-    return CGRect(
-      x: 0, y: windowWideTopSafeArea, width: containerView.bounds.width - 48,
-      height: containerView.bounds.height - windowWideTopSafeArea)
+    return Self.presentedFrame(in: containerView)
   }
 
   override func presentationTransitionWillBegin() {
@@ -40,6 +68,13 @@ final class SettingsPresentationController: UIPresentationController {
     dimmingView.snp.makeConstraints { (make) in
       make.edges.equalToSuperview()
     }
+    // The window's safe area runs the display's whole width. Settings starts below the status
+    // bar, so none of it reaches settings, except on an unfolded iPhone Duo turned upright, where
+    // settings runs to the top beside the status items. There it keeps 24 pt, as much as it has
+    // beside the chat with the phone held wide, which clears the display's rounded corner.
+    let topSafeArea =
+      (containerView?.window?.safeAreaInsets.top ?? 0) - frameOfPresentedViewInContainerView.minY
+    presentedViewController.additionalSafeAreaInsets.top = min(topSafeArea, 24) - topSafeArea
     let coordinator = presentedViewController.transitionCoordinator
     coordinator?.animate(
       alongsideTransition: { _ in
@@ -63,6 +98,18 @@ final class SettingsPresentationController: UIPresentationController {
     shouldSetFrameWhenAccessingPresentedView = false
   }
 
+  override func dismissalTransitionDidEnd(_ completed: Bool) {
+    guard completed else { return }
+    presentedViewController.additionalSafeAreaInsets.top = 0
+    // A dismissal that is not animated skips the animator, which is what moves the chat back.
+    // That happens when an iPhone Duo unfolds and settings goes beside the chat.
+    presentingViewController.view.frame.origin.x = 0
+    SettingsAnimatedTransitioning.presentable(for: presentedViewController)?.animate(
+      alongsideTransition: .easeOut)
+    SettingsAnimatedTransitioning.presentable(for: presentingViewController)?.animate(
+      alongsideTransition: .easeOut)
+  }
+
   override func size(
     forChildContentContainer container: UIContentContainer,
     withParentContainerSize parentSize: CGSize
@@ -73,6 +120,17 @@ final class SettingsPresentationController: UIPresentationController {
   override func containerViewDidLayoutSubviews() {
     super.containerViewDidLayoutSubviews()
     calculatedFrameOfPresentedViewInContainerView = frameOfPresentedViewInContainerView
+    // See presentationTransitionWillBegin. The phone can fold or turn while settings is open.
+    let topSafeArea =
+      (containerView?.window?.safeAreaInsets.top ?? 0)
+      - calculatedFrameOfPresentedViewInContainerView.minY
+    presentedViewController.additionalSafeAreaInsets.top = min(topSafeArea, 24) - topSafeArea
+    // The window can change size while settings is open, such as when an iPhone Duo folds. The
+    // transition left the chat beside settings at the old width.
+    guard shouldSetFrameWhenAccessingPresentedView, !isPanningSheet, let presentedView,
+      let presentingView = presentingViewController.view
+    else { return }
+    presentingView.frame.origin.x = presentedView.frame.maxX
   }
 }
 
@@ -136,7 +194,7 @@ extension SettingsPresentationController {
   private func stabilize(finalVelocity: CGFloat, animated: Bool) {
     guard let containerView = containerView else { return }
     let currentX = presentedViewController.view.frame.minX
-    let thresholdConstant = (containerView.frame.width - 48) * 0.667
+    let thresholdConstant = Self.presentedFrame(in: containerView).width * 0.667
     let thresholdX = -thresholdConstant
     let currentOrigin = presentedViewController.view.frame.origin
 
