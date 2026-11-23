@@ -215,16 +215,17 @@ public struct Inkling2MiniTextGenerator {
   public let compilePrefillHeadroom: Int
   /// The DSpark drafter store (Inkling2MiniConverter --dspark), which reads this model's
   /// embedding and head. Without it, while it is not downloaded, or while the experts stream at the
-  /// 3 GiB plan, a step decodes one token.
+  /// device's plan, a step decodes one token.
   public let drafterFile: String?
   /// Set while this generator decodes when it picked the streaming plan itself, so a prompt chunk
   /// stages one expert bank at a time; nil leaves the watermark as it is.
   private let weightsStreamingWatermarkBytes: Int?
 
   /// A configuration whose layers stream is used as it is. Otherwise, with nil the experts stream
-  /// on devices with 16 GiB of memory or less, `.disabled` keeps every weight resident, and any
-  /// other tier streams when the store is larger than it. Streaming that way uses the 3 GiB plan,
-  /// prefills at most 1,024 tokens a chunk and decodes without the drafter.
+  /// on devices with less than 32 GiB of memory, `.disabled` keeps every weight resident, and any
+  /// other tier streams when the store is larger than it. Streaming that way uses the device's plan
+  /// (`streamingExpertResidentSlots`), prefills at most 1,024 tokens a chunk and decodes without the
+  /// drafter.
   public init(
     filePath: String, configuration: Inkling2MiniConfiguration = .inkling2Mini,
     chunkedPrefillMaxLength: Int, compilePrefillHeadroom: Int = 64 * 1_024,
@@ -250,8 +251,9 @@ public struct Inkling2MiniTextGenerator {
     self.drafterFile = drafterFile
     self.compilePrefillHeadroom = compilePrefillHeadroom
     if isStreaming, !(0..<configuration.layers).contains(where: configuration.isStreamingLayer) {
-      configuration.expertResidentSlots = Self.expertResidentSlotsAt3GiB
-      // Measured on 3-bit S with caches for 64K (benchmark-results/inkling2-mini-streaming-20261121):
+      configuration.expertResidentSlots = Self.streamingExpertResidentSlots
+      // Measured on 3-bit S at the 3 GiB plan with caches for 64K
+      // (benchmark-results/inkling2-mini-streaming-20261121):
       // staging one bank at a time keeps a prompt's peak at 7.2 GB with 1,024-token chunks, against
       // 9.3 GB unbounded and 8.3 GB with 2,048-token chunks, at the same prefill speed. Each chunk
       // reads every bank, so prefill gets faster with longer chunks. Drafting gained nothing: a
@@ -269,10 +271,19 @@ public struct Inkling2MiniTextGenerator {
 }
 
 extension Inkling2MiniTextGenerator {
-  /// With 16 GiB of memory or less, the experts stream from the store: 13.5 GB (3-bit S) or 16.6 GB
-  /// (4-bit S) do not fit beside the system and the caches.
+  /// With less than 32 GiB of memory, the experts stream from the store: 13.5 GB (3-bit S) or
+  /// 16.6 GB (4-bit S) do not fit beside the system and the caches.
   public static let isWeightsStreamingPreferred =
-    ProcessInfo.processInfo.physicalMemory <= 16 * 1_024 * 1_024 * 1_024
+    ProcessInfo.processInfo.physicalMemory < 32 * 1_024 * 1_024 * 1_024
+
+  /// The decode pool slots the experts stream with: the 2.5 GiB plan on an iPhone, the 3 GiB plan
+  /// on any other device with less than 24 GiB of memory, and the 6 GiB plan from 24 GiB. A device
+  /// with 32 GiB or more streams only at a weights-streaming tier smaller than the store.
+  static let streamingExpertResidentSlots: [Int] = {
+    if DeviceCapability.isPhone() { return expertResidentSlotsAt2_5GiB }
+    return ProcessInfo.processInfo.physicalMemory < 24 * 1_024 * 1_024 * 1_024
+      ? expertResidentSlotsAt3GiB : expertResidentSlotsAt6GiB
+  }()
 
   /// 64K tokens where the experts stream, whose caches take 2.4 GB of the memory left; 256K
   /// otherwise.
@@ -313,10 +324,14 @@ extension Inkling2MiniTextGenerator {
 
   public var filePaths: [String] { [filePath] + [drafterFile].compactMap { $0 } }
 
-  /// At most 4 GiB while the experts stream at the 3 GiB plan (3.00 GiB with 3-bit S, 3.82 GiB with
-  /// 4-bit S); otherwise the store's size, and the drafter's when it is downloaded.
+  /// While the experts stream at the device's plan, what 4-bit S holds there, rounded up: 4 GiB at
+  /// the 2.5 GiB and 3 GiB plans (3.19 GiB and 3.82 GiB), 8 GiB at the 6 GiB plan (7.54 GiB).
+  /// Otherwise the store's size, and the drafter's when it is downloaded.
   public var residentWeightsSize: UInt64 {
-    guard weightsStreamingWatermarkBytes == nil else { return 4 * 1_024 * 1_024 * 1_024 }
+    guard weightsStreamingWatermarkBytes == nil else {
+      return (configuration.expertResidentSlots == Self.expertResidentSlotsAt6GiB ? 8 : 4) * 1_024
+        * 1_024 * 1_024
+    }
     return [filePath, drafterFile].compactMap { $0 }.reduce(0) {
       $0
         + (((try? FileManager.default.attributesOfItem(atPath: $1))?[.size] as? NSNumber)?
