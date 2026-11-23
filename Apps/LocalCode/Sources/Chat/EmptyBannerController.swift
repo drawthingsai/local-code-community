@@ -147,10 +147,13 @@ final class EmptyBannerController {
       borderView.snp.makeConstraints { make in
         make.edges.equalToSuperview()
       }
-      // The monkey runs off the bottom of the card, which clips it.
+      // As in the app icon, the monkey runs off the leading edge and the bottom, where the rim
+      // cuts it with a corner concentric with the card's. Its own cut edge stays under the rim,
+      // its helmet keeps the icon's margin from the trailing rim, and the small sparkle sits in
+      // the notch under its ear cup.
       for (subview, rect) in [
         (wordmarkView, CGRect(x: 14.5, y: 16, width: 172, height: 110.5)),
-        (neutralView, CGRect(x: 13.25, y: 137.75, width: 176.25, height: 181.15)),
+        (neutralView, CGRect(x: 3.75, y: 132.75, width: 183.5, height: 188.6)),
         (sparklesView, CGRect(origin: .zero, size: Self.cardSize)),
       ] {
         subview.snp.makeConstraints { make in
