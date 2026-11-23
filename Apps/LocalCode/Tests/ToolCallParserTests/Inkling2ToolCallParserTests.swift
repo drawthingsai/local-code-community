@@ -50,8 +50,9 @@ final class Inkling2ToolCallParserTests: XCTestCase {
   func testNamesAndMalformedCalls() {
     var parser = Inkling2ToolCallParser()
     parser.append(
-      // The body's name wins; a header names a call whose body has none.
-      "<|message_model|>bash<|content_invoke_tool_json|>{\"name\":\"read\",\"args\":{}}<|end_message|>"
+      // The header's name wins over the body's, as Inkling 2 Mini has written them apart; either
+      // names a call that lacks the other.
+      "<|message_model|>bash_wait<|content_invoke_tool_json|>{\"name\":\"bash\",\"args\":{\"job\":2}}<|end_message|>"
         + "<|message_model|>list<|content_invoke_tool_json|>{\"args\":{\"path\":\".\"}}<|end_message|>"
         // Malformed bodies and names are not calls.
         + "<|message_model|>read<|content_invoke_tool_json|>{\"name\":\"read\",\"args\":<|end_message|>"
@@ -59,7 +60,8 @@ final class Inkling2ToolCallParserTests: XCTestCase {
         + "<|message_model|>read<|content_invoke_tool_json|>{\"name\":\"read\",\"args\":[]}<|end_message|>"
         + "<|content_invoke_tool_json|>{\"name\":\"datetime\",\"args\":{}}<|end_message|>")
     parser.finish()
-    XCTAssertEqual(parser.toolCalls.map(\.request.function), ["read", "list", "datetime"])
+    XCTAssertEqual(parser.toolCalls.map(\.request.function), ["bash_wait", "list", "datetime"])
+    XCTAssertEqual(parser.toolCalls[0].request.parameters["job"]?.value, "2")
     XCTAssertEqual(parser.toolCalls[1].request.parameters["path"]?.value, ".")
     XCTAssertEqual(parser.text, "")
   }

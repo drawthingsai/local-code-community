@@ -5,10 +5,12 @@ import Foundation
 /// Text messages (`<|content_text|>`, and `<|content_tool_error|>` and `<|content_invoke_tool_text|>`,
 /// which the official response parser reads as content too) make up the visible text; thinking
 /// messages are left out. A tool call is a message whose header names the tool and whose body is
-/// `{"name":NAME,"args":{...}}` after `<|content_invoke_tool_json|>`. The body's name wins over the
-/// header's, as in the official response parser. String arguments are reported as strings and other
-/// values as their JSON text. A message ends only at `<|end_message|>`, so a literal one inside an
-/// argument ends the call early.
+/// `{"name":NAME,"args":{...}}` after `<|content_invoke_tool_json|>`. The chat template writes the
+/// same name in both. When the model's differ, the header's wins: Inkling 2 Mini has written a
+/// `bash_wait` header over a body naming `bash`, with `bash_wait`'s arguments. The official response
+/// parser reads only the body's, which names a call without a header. String arguments are
+/// reported as strings and other values as their JSON text. A message ends only at
+/// `<|end_message|>`, so a literal one inside an argument ends the call early.
 public struct Inkling2ToolCallParser {
   static let modelMessageStart = "<|message_model|>"
   static let endMessage = "<|end_message|>"
@@ -167,10 +169,9 @@ public struct Inkling2ToolCallParser {
     } else {
       object = partialJSONObject(body)
     }
-    let headerName = header.trimmingCharacters(in: .whitespacesAndNewlines)
-    var name = (object?["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    var name = header.trimmingCharacters(in: .whitespacesAndNewlines)
     if !isValidName(name) {
-      name = headerName
+      name = (object?["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
     guard isValidName(name) else { return nil }
     guard let object else {
