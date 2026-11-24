@@ -237,7 +237,8 @@ extension ChatWorkflow {
       systemSeenMemoryContext = memoryContext
       shouldInjectSystemSeenMemoryContext = true
     }
-    let reasoningEffort = workspace.dictionary["reasoning_effort", ReasoningEffort.self] ?? .high
+    let reasoningEffort =
+      workspace.dictionary["reasoning_effort", ReasoningEffort.self] ?? .deviceDefault
     let environmentContext = EnvironmentContext(
       model: LLMZoo.humanReadableNameForModel(model), provider: "Local, via s4nnc",
       pythonLibraryURL: Bundle.main.resourceURL?.appendingPathComponent(

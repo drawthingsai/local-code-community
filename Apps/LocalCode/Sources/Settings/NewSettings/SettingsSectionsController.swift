@@ -118,7 +118,7 @@ final class SettingsSectionsController {
   private let sections: [SettingsSection]
   private var displayingSections: [SettingsSection: any SettingsViewObservable] = [:]
   private var sectionViewModifiers: [SettingsSection: any SettingsViewModifying] = [:]
-  var reasoningEffort: ReasoningEffort = .high {
+  var reasoningEffort: ReasoningEffort = .deviceDefault {
     didSet {
       guard reasoningEffort != oldValue else { return }
       updateSettingsSections()

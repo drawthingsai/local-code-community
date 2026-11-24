@@ -75,7 +75,7 @@ final class ServeController {
 
   /// The chat's Reasoning Effort.
   private static func reasoningEffort(workspace: SQLiteWorkspace) -> ReasoningEffort {
-    workspace.dictionary["reasoning_effort", ReasoningEffort.self] ?? .high
+    workspace.dictionary["reasoning_effort", ReasoningEffort.self] ?? .deviceDefault
   }
 
   /// The chat's model until one is picked for serving.

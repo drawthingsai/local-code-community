@@ -542,9 +542,9 @@ final class SettingsWorkflow: Workflow {
       let reasoningEffort: ReasoningEffort
       switch value {
       case .deleted:
-        reasoningEffort = .high
+        reasoningEffort = .deviceDefault
       case .initial(let value):
-        reasoningEffort = value ?? .high
+        reasoningEffort = value ?? .deviceDefault
       case .updated(let value):
         reasoningEffort = value
       }

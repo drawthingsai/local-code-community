@@ -721,7 +721,7 @@ final class ChatWorkflow: Workflow {
 
   private func reasoningEffortChanged(_ value: ReasoningEffort?) {
     guard case .some(.local(_, let codeAgent)) = codeAgentWrapper, let codeAgent else { return }
-    let reasoningEffort = value ?? .high
+    let reasoningEffort = value ?? .deviceDefault
     switch codeAgent {
     case let codeAgent as Qwen3_5CodeAgent:
       codeAgent.reasoningEffort = .init(reasoningEffort)

@@ -1440,6 +1440,7 @@ swift_binary(
         "Sources/Agent/CodeAgent.swift",
         "Sources/Agent/CodeAgentEnvironment.swift",
         "Sources/Agent/CodeAgentReasoningEffort.swift",
+        "Sources/Agent/CodeAgentReasoningEffort+DeviceDefault.swift",
         "Sources/Agent/DeepSeek4CodeAgent.swift",
         "Sources/Agent/DeepSeek4CodeAgent+Compact.swift",
         "Sources/Agent/DeepSeek4CodeAgent+Parse.swift",
