@@ -939,88 +939,95 @@ extension DeepSeek4TextGenerator {
       recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar
     let prefillStartTime = CACurrentMediaTime()
     while prefillChunkStart < tokenLength {
-      Self.compactCachesIfNeeded(&kvCache, configuration: configuration)
-      let start = prefillChunkStart
-      let cachedRawTokenLength = kvCache.rawTokenLength
-      let length = prefillChunkLength(remainingTokenLength: tokenLength - start)
-      guard length > 0 else { return [] }
-      if length < chunkedPrefillMaxLength {
-        DynamicGraph.flags.insert(.disableMFAGEMMSpecializingM)
-      }
-      let chunkInputs: [DynamicGraph.AnyTensor]
-      let chunkTokens: DynamicGraph.Tensor<Int32>
-      if start == prefillStart {
-        chunkTokens = firstTokens
-        chunkInputs = firstInputs
-      } else {
-        chunkTokens = tokens.reshaped(
-          format: .NHWC, shape: [length], offset: [start], strides: [1]
-        ).copied()
-        let causalCompressedIndices = makePrefillCausalCompressedIndices(
-          cachedTokenLength: tokenOffset + start, tokenLength: length)
-        chunkInputs = modelInputs(
-          tokens: chunkTokens, cachedTokenLength: tokenOffset + start,
-          cachedRawTokenLength: cachedRawTokenLength,
-          cachedCompressorInputLengths: kvCache.compressorInputLengths,
-          causalCompressedIndices: causalCompressedIndices,
-          rawRotaryEmbedding: prefillRawRotaryEmbedding,
-          rawRotaryStart: prefillRawRotaryStart,
-          rawRotaryLength: prefillRawRotaryLength,
-          compressedRotaryEmbedding: prefillCompressedRotaryEmbedding,
-          indexerRotaryEmbedding: prefillIndexerRotaryEmbedding,
-          compressedRotaryStart: prefillCompressedRotaryStart,
-          compressedRotaryLength: prefillCompressedRotaryLength)
-      }
-      let prefillOutputs = storage.decoder(
-        (
-          cachedTokenLength: tokenOffset + start,
-          cachedRawTokenLength: cachedRawTokenLength,
-          cachedCompressorInputLengths: kvCache.compressorInputLengths,
-          tokenLength: length
-        ),
-        inputs: chunkTokens, chunkInputs)
-      if start + length == tokenLength {
-        let logits = prefillOutputs[0].as(of: FloatType.self)
-        if deterministic {
-          if thinkingBudget > 0 {
+      // Each chunk drains what it autoreleases too.
+      let length = autoreleasepool { () -> Int in
+        Self.compactCachesIfNeeded(&kvCache, configuration: configuration)
+        let start = prefillChunkStart
+        let cachedRawTokenLength = kvCache.rawTokenLength
+        let length = prefillChunkLength(remainingTokenLength: tokenLength - start)
+        guard length > 0 else { return 0 }
+        if length < chunkedPrefillMaxLength {
+          DynamicGraph.flags.insert(.disableMFAGEMMSpecializingM)
+        }
+        let chunkInputs: [DynamicGraph.AnyTensor]
+        let chunkTokens: DynamicGraph.Tensor<Int32>
+        if start == prefillStart {
+          chunkTokens = firstTokens
+          chunkInputs = firstInputs
+        } else {
+          chunkTokens = tokens.reshaped(
+            format: .NHWC, shape: [length], offset: [start], strides: [1]
+          ).copied()
+          let causalCompressedIndices = makePrefillCausalCompressedIndices(
+            cachedTokenLength: tokenOffset + start, tokenLength: length)
+          chunkInputs = modelInputs(
+            tokens: chunkTokens, cachedTokenLength: tokenOffset + start,
+            cachedRawTokenLength: cachedRawTokenLength,
+            cachedCompressorInputLengths: kvCache.compressorInputLengths,
+            causalCompressedIndices: causalCompressedIndices,
+            rawRotaryEmbedding: prefillRawRotaryEmbedding,
+            rawRotaryStart: prefillRawRotaryStart,
+            rawRotaryLength: prefillRawRotaryLength,
+            compressedRotaryEmbedding: prefillCompressedRotaryEmbedding,
+            indexerRotaryEmbedding: prefillIndexerRotaryEmbedding,
+            compressedRotaryStart: prefillCompressedRotaryStart,
+            compressedRotaryLength: prefillCompressedRotaryLength)
+        }
+        let prefillOutputs = storage.decoder(
+          (
+            cachedTokenLength: tokenOffset + start,
+            cachedRawTokenLength: cachedRawTokenLength,
+            cachedCompressorInputLengths: kvCache.compressorInputLengths,
+            tokenLength: length
+          ),
+          inputs: chunkTokens, chunkInputs)
+        if start + length == tokenLength {
+          let logits = prefillOutputs[0].as(of: FloatType.self)
+          if deterministic {
+            if thinkingBudget > 0 {
+              let zmax = logits.reduced(.max, axis: [1])
+              // min-p = 0.01: -log(0.01) = 4.6051702 at sampling scale 1.
+              logits.fill(-Float.infinity, if: logits < (zmax - 4.605_170_2))
+              prefillTokenCPU = Functional.gumbelArgmax(logits, axis: 1, scale: 1).reshaped(
+                format: .NHWC, shape: [1]
+              ).toCPU()
+            } else {
+              prefillTokenCPU = Functional.argmax(logits, axis: 1).reshaped(
+                format: .NHWC, shape: [1]
+              )
+              .toCPU()
+            }
+          } else {
+            let scale: Float = thinkingBudget > 0 ? 1 : 0.7
+            let minPLogitRange: Float = thinkingBudget > 0 ? 4.605_170_2 : 2.097_012_5
             let zmax = logits.reduced(.max, axis: [1])
-            // min-p = 0.01: -log(0.01) = 4.6051702 at sampling scale 1.
-            logits.fill(-Float.infinity, if: logits < (zmax - 4.605_170_2))
-            prefillTokenCPU = Functional.gumbelArgmax(logits, axis: 1, scale: 1).reshaped(
+            // min-p is 0.01 for thinking and 0.05 for creative answer sampling.
+            logits.fill(-Float.infinity, if: logits < (zmax - minPLogitRange))
+            prefillTokenCPU = Functional.gumbelArgmax(logits, axis: 1, scale: scale).reshaped(
               format: .NHWC, shape: [1]
             ).toCPU()
-          } else {
-            prefillTokenCPU = Functional.argmax(logits, axis: 1).reshaped(format: .NHWC, shape: [1])
-              .toCPU()
           }
-        } else {
-          let scale: Float = thinkingBudget > 0 ? 1 : 0.7
-          let minPLogitRange: Float = thinkingBudget > 0 ? 4.605_170_2 : 2.097_012_5
-          let zmax = logits.reduced(.max, axis: [1])
-          // min-p is 0.01 for thinking and 0.05 for creative answer sampling.
-          logits.fill(-Float.infinity, if: logits < (zmax - minPLogitRange))
-          prefillTokenCPU = Functional.gumbelArgmax(logits, axis: 1, scale: scale).reshaped(
-            format: .NHWC, shape: [1]
-          ).toCPU()
         }
+        prefillChunkStart += length
+        kvCache.tokenLength = tokenOffset + prefillChunkStart
+        kvCache.rawTokenLength += length
+        for compressionRatio in configuration.compressionRatios {
+          kvCache.compressorInputLengths[compressionRatio]! += length
+        }
+        let checkpointLength = tokenOffset + prefillChunkStart
+        if checkpointLength.isMultiple(of: contextCache.checkpointStride) {
+          contextCache.save(
+            graph: graph, tokens: contextTokens, checkpointLength: checkpointLength,
+            configuration: configuration, kvCache: kvCache,
+            hasher: &contextCacheHasher)
+        }
+        recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar =
+          Float(CACurrentMediaTime() - prefillStartTime) + initialPrefillDurationSoFar
+        recentInteractionStatistics[interactionStatisticsIndex].prefillTokensSoFar += length
+        DynamicGraph.flags = flags
+        return length
       }
-      prefillChunkStart += length
-      kvCache.tokenLength = tokenOffset + prefillChunkStart
-      kvCache.rawTokenLength += length
-      for compressionRatio in configuration.compressionRatios {
-        kvCache.compressorInputLengths[compressionRatio]! += length
-      }
-      let checkpointLength = tokenOffset + prefillChunkStart
-      if checkpointLength.isMultiple(of: contextCache.checkpointStride) {
-        contextCache.save(
-          graph: graph, tokens: contextTokens, checkpointLength: checkpointLength,
-          configuration: configuration, kvCache: kvCache,
-          hasher: &contextCacheHasher)
-      }
-      recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar =
-        Float(CACurrentMediaTime() - prefillStartTime) + initialPrefillDurationSoFar
-      recentInteractionStatistics[interactionStatisticsIndex].prefillTokensSoFar += length
-      DynamicGraph.flags = flags
+      guard length > 0 else { return [] }
       switch continuationHandler(prefillChunkStart, tokenLength, [], statistics) {
       case .continue:
         break
@@ -1098,171 +1105,176 @@ extension DeepSeek4TextGenerator {
         + initialTokenGenerationDurationSoFar
     }
     while decodeIndex < decodeTokenCapacity {
-      if thinkingBudget > 0 && !thinkingEnded && decodeIndex == thinkingBudget {
-        nextTokenGPU = graph.variable(
-          Tensor<Int32>([Self.endThinkToken], kind: .CPU, format: .NHWC, shape: [1]).toGPU(0))
-        thinkingEnded = true
-      }
-      if kvCache.tokenLength + 1 > allocatedCacheCapacity {
-        let nextCacheCapacity = min(
-          allocatedCacheCapacity + self.compilePrefillHeadroom, Self.maximumContextLength)
-        let nextRawRotaryStart = kvCache.tokenLength
-        let nextRawRotaryLength = min(
-          nextCacheCapacity - kvCache.tokenLength,
-          decodeTokenCapacity - decodeIndex)
-        let nextRawRotaryEmbedding = graph.variable(
-          Tensor<FloatType>(
-            from: DeepSeek4RotaryEmbedding(
-              sequenceLength: nextRawRotaryLength,
-              cachedTokenLength: nextRawRotaryStart, compressed: false,
-              configuration: configuration, of: Float.self)
-          ).toGPU(0))
-        let nextCompressedRotaryStart = minimumCompressedRotaryStart(
-          cachedTokenLength: kvCache.tokenLength)
-        let nextCompressedRotaryLength =
-          kvCache.tokenLength + nextRawRotaryLength - nextCompressedRotaryStart
-        let nextCompressedRotaryEmbedding: DynamicGraph.Tensor<FloatType>?
-        if usesCompressedRotary {
-          nextCompressedRotaryEmbedding = graph.variable(
-            Tensor<FloatType>(
-              from: DeepSeek4RotaryEmbedding(
-                sequenceLength: nextCompressedRotaryLength,
-                cachedTokenLength: nextCompressedRotaryStart, compressed: true,
-                configuration: configuration, of: Float.self)
-            ).toGPU(0))
-        } else {
-          nextCompressedRotaryEmbedding = nil
-        }
-        let nextIndexerRotaryEmbedding: DynamicGraph.Tensor<FloatType>?
-        if usesIndexerRotary {
-          nextIndexerRotaryEmbedding = graph.variable(
-            Tensor<FloatType>(
-              from: DeepSeek4RotaryEmbedding(
-                sequenceLength: nextCompressedRotaryLength,
-                cachedTokenLength: nextCompressedRotaryStart, compressed: true,
-                headDim: configuration.indexerHeadDim,
-                configuration: configuration, of: Float.self)
-            ).toGPU(0))
-        } else {
-          nextIndexerRotaryEmbedding = nil
-        }
-        Self.resizeCaches(
-          graph: graph, kvCache: &kvCache, cacheCapacity: nextCacheCapacity,
-          workingCacheCapacity: workingCacheCapacity,
-          configuration: configuration)
-        allocatedCacheCapacity = Self.cacheCapacity(
-          kvCache, configuration: configuration)
-        maximumCompressedIndices = makeMaximumCompressedIndices(
-          cacheCapacity: allocatedCacheCapacity)
-        decodeRawRotaryStart = nextRawRotaryStart
-        decodeRawRotaryLength = nextRawRotaryLength
-        decodeRawRotaryEmbedding = nextRawRotaryEmbedding
-        if let nextCompressedRotaryEmbedding {
-          decodeCompressedRotaryStart = nextCompressedRotaryStart
-          decodeCompressedRotaryLength = nextCompressedRotaryLength
-          decodeCompressedRotaryEmbedding = nextCompressedRotaryEmbedding
-        }
-        if let nextIndexerRotaryEmbedding {
-          decodeIndexerRotaryEmbedding = nextIndexerRotaryEmbedding
-        }
-        compilePrefillHeadroom(cacheCapacity: allocatedCacheCapacity)
-      }
-      Self.compactCachesIfNeeded(&kvCache, configuration: configuration)
-      let cachedRawTokenLength = kvCache.rawTokenLength
-      let oldDecodedTokenCPU = nextTokenGPU.toCPU()
-      let decodeInputs = modelInputs(
-        tokens: nextTokenGPU, cachedTokenLength: kvCache.tokenLength,
-        cachedRawTokenLength: cachedRawTokenLength,
-        cachedCompressorInputLengths: kvCache.compressorInputLengths,
-        causalCompressedIndices: maximumCompressedIndices,
-        rawRotaryEmbedding: decodeRawRotaryEmbedding,
-        rawRotaryStart: decodeRawRotaryStart,
-        rawRotaryLength: decodeRawRotaryLength,
-        compressedRotaryEmbedding: decodeCompressedRotaryEmbedding,
-        indexerRotaryEmbedding: decodeIndexerRotaryEmbedding,
-        compressedRotaryStart: decodeCompressedRotaryStart,
-        compressedRotaryLength: decodeCompressedRotaryLength)
-      let decodeOutputs = storage.decoder(
-        (
-          cachedTokenLength: kvCache.tokenLength,
-          cachedRawTokenLength: cachedRawTokenLength,
-          cachedCompressorInputLengths: kvCache.compressorInputLengths,
-          tokenLength: 1
-        ),
-        inputs: nextTokenGPU, decodeInputs)
-      let logits = decodeOutputs[0].as(of: FloatType.self)
-      kvCache.tokenLength += 1
-      kvCache.rawTokenLength += 1
-      for compressionRatio in configuration.compressionRatios {
-        kvCache.compressorInputLengths[compressionRatio]! += 1
-      }
-      recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
-        Float(CACurrentMediaTime() - tokenGenerationStartTime)
-        + initialTokenGenerationDurationSoFar
-      if decodeIndex == 0 {
-        // At this point, caches might filled, we just need to save the cache if it hits the boundary.
-        thisContextTokens.append(firstToken)
-        if thisContextTokens.count.isMultiple(of: contextCache.checkpointStride) {
-          contextCache.save(
-            graph: graph, tokens: thisContextTokens,
-            checkpointLength: thisContextTokens.count, configuration: configuration,
-            kvCache: kvCache, hasher: &contextCacheHasher)
-        }
-      } else {
-        let decodedToken = oldDecodedTokenCPU[0]
-        generated.append(decodedToken)
-        thisContextTokens.append(decodedToken)
-        if thisContextTokens.count.isMultiple(of: contextCache.checkpointStride) {
-          contextCache.save(
-            graph: graph, tokens: thisContextTokens,
-            checkpointLength: thisContextTokens.count, configuration: configuration,
-            kvCache: kvCache, hasher: &contextCacheHasher)
-        }
-        recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
-        if decodedToken == Self.endThinkToken {
+      // Each step drains what it autoreleases, Metal command buffers among them: a long reply would
+      // otherwise hold all of them until the call returns.
+      let shouldStop = autoreleasepool { () -> Bool in
+        if thinkingBudget > 0 && !thinkingEnded && decodeIndex == thinkingBudget {
+          nextTokenGPU = graph.variable(
+            Tensor<Int32>([Self.endThinkToken], kind: .CPU, format: .NHWC, shape: [1]).toGPU(0))
           thinkingEnded = true
         }
-        if Self.eosTokenIds.contains(decodedToken) {
-          shouldAppendPendingToken = false
-          break
+        if kvCache.tokenLength + 1 > allocatedCacheCapacity {
+          let nextCacheCapacity = min(
+            allocatedCacheCapacity + self.compilePrefillHeadroom, Self.maximumContextLength)
+          let nextRawRotaryStart = kvCache.tokenLength
+          let nextRawRotaryLength = min(
+            nextCacheCapacity - kvCache.tokenLength,
+            decodeTokenCapacity - decodeIndex)
+          let nextRawRotaryEmbedding = graph.variable(
+            Tensor<FloatType>(
+              from: DeepSeek4RotaryEmbedding(
+                sequenceLength: nextRawRotaryLength,
+                cachedTokenLength: nextRawRotaryStart, compressed: false,
+                configuration: configuration, of: Float.self)
+            ).toGPU(0))
+          let nextCompressedRotaryStart = minimumCompressedRotaryStart(
+            cachedTokenLength: kvCache.tokenLength)
+          let nextCompressedRotaryLength =
+            kvCache.tokenLength + nextRawRotaryLength - nextCompressedRotaryStart
+          let nextCompressedRotaryEmbedding: DynamicGraph.Tensor<FloatType>?
+          if usesCompressedRotary {
+            nextCompressedRotaryEmbedding = graph.variable(
+              Tensor<FloatType>(
+                from: DeepSeek4RotaryEmbedding(
+                  sequenceLength: nextCompressedRotaryLength,
+                  cachedTokenLength: nextCompressedRotaryStart, compressed: true,
+                  configuration: configuration, of: Float.self)
+              ).toGPU(0))
+          } else {
+            nextCompressedRotaryEmbedding = nil
+          }
+          let nextIndexerRotaryEmbedding: DynamicGraph.Tensor<FloatType>?
+          if usesIndexerRotary {
+            nextIndexerRotaryEmbedding = graph.variable(
+              Tensor<FloatType>(
+                from: DeepSeek4RotaryEmbedding(
+                  sequenceLength: nextCompressedRotaryLength,
+                  cachedTokenLength: nextCompressedRotaryStart, compressed: true,
+                  headDim: configuration.indexerHeadDim,
+                  configuration: configuration, of: Float.self)
+              ).toGPU(0))
+          } else {
+            nextIndexerRotaryEmbedding = nil
+          }
+          Self.resizeCaches(
+            graph: graph, kvCache: &kvCache, cacheCapacity: nextCacheCapacity,
+            workingCacheCapacity: workingCacheCapacity,
+            configuration: configuration)
+          allocatedCacheCapacity = Self.cacheCapacity(
+            kvCache, configuration: configuration)
+          maximumCompressedIndices = makeMaximumCompressedIndices(
+            cacheCapacity: allocatedCacheCapacity)
+          decodeRawRotaryStart = nextRawRotaryStart
+          decodeRawRotaryLength = nextRawRotaryLength
+          decodeRawRotaryEmbedding = nextRawRotaryEmbedding
+          if let nextCompressedRotaryEmbedding {
+            decodeCompressedRotaryStart = nextCompressedRotaryStart
+            decodeCompressedRotaryLength = nextCompressedRotaryLength
+            decodeCompressedRotaryEmbedding = nextCompressedRotaryEmbedding
+          }
+          if let nextIndexerRotaryEmbedding {
+            decodeIndexerRotaryEmbedding = nextIndexerRotaryEmbedding
+          }
+          compilePrefillHeadroom(cacheCapacity: allocatedCacheCapacity)
         }
-        switch continuationHandler(
-          kvCache.tokenLength, kvCache.tokenLength, generated, statistics)
-        {
-        case .continue:
-          break
-        case .pause:
-          shouldStopAfterSampling = true
-        case .abort:
-          shouldAppendPendingToken = false
-          break
+        Self.compactCachesIfNeeded(&kvCache, configuration: configuration)
+        let cachedRawTokenLength = kvCache.rawTokenLength
+        let oldDecodedTokenCPU = nextTokenGPU.toCPU()
+        let decodeInputs = modelInputs(
+          tokens: nextTokenGPU, cachedTokenLength: kvCache.tokenLength,
+          cachedRawTokenLength: cachedRawTokenLength,
+          cachedCompressorInputLengths: kvCache.compressorInputLengths,
+          causalCompressedIndices: maximumCompressedIndices,
+          rawRotaryEmbedding: decodeRawRotaryEmbedding,
+          rawRotaryStart: decodeRawRotaryStart,
+          rawRotaryLength: decodeRawRotaryLength,
+          compressedRotaryEmbedding: decodeCompressedRotaryEmbedding,
+          indexerRotaryEmbedding: decodeIndexerRotaryEmbedding,
+          compressedRotaryStart: decodeCompressedRotaryStart,
+          compressedRotaryLength: decodeCompressedRotaryLength)
+        let decodeOutputs = storage.decoder(
+          (
+            cachedTokenLength: kvCache.tokenLength,
+            cachedRawTokenLength: cachedRawTokenLength,
+            cachedCompressorInputLengths: kvCache.compressorInputLengths,
+            tokenLength: 1
+          ),
+          inputs: nextTokenGPU, decodeInputs)
+        let logits = decodeOutputs[0].as(of: FloatType.self)
+        kvCache.tokenLength += 1
+        kvCache.rawTokenLength += 1
+        for compressionRatio in configuration.compressionRatios {
+          kvCache.compressorInputLengths[compressionRatio]! += 1
         }
-        if !shouldAppendPendingToken {
-          break
-        }
-      }
-      if deterministic {
-        if thinkingBudget > 0 && !thinkingEnded {
-          let zmax = logits.reduced(.max, axis: [1])
-          // min-p = 0.01: -log(0.01) = 4.6051702 at sampling scale 1.
-          logits.fill(-Float.infinity, if: logits < (zmax - 4.605_170_2))
-          nextTokenGPU = Functional.gumbelArgmax(logits, axis: 1, scale: 1).reshaped(
-            format: .NHWC, shape: [1])
+        recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
+          Float(CACurrentMediaTime() - tokenGenerationStartTime)
+          + initialTokenGenerationDurationSoFar
+        if decodeIndex == 0 {
+          // At this point, caches might filled, we just need to save the cache if it hits the boundary.
+          thisContextTokens.append(firstToken)
+          if thisContextTokens.count.isMultiple(of: contextCache.checkpointStride) {
+            contextCache.save(
+              graph: graph, tokens: thisContextTokens,
+              checkpointLength: thisContextTokens.count, configuration: configuration,
+              kvCache: kvCache, hasher: &contextCacheHasher)
+          }
         } else {
-          nextTokenGPU = Functional.argmax(logits, axis: 1).reshaped(format: .NHWC, shape: [1])
+          let decodedToken = oldDecodedTokenCPU[0]
+          generated.append(decodedToken)
+          thisContextTokens.append(decodedToken)
+          if thisContextTokens.count.isMultiple(of: contextCache.checkpointStride) {
+            contextCache.save(
+              graph: graph, tokens: thisContextTokens,
+              checkpointLength: thisContextTokens.count, configuration: configuration,
+              kvCache: kvCache, hasher: &contextCacheHasher)
+          }
+          recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
+          if decodedToken == Self.endThinkToken {
+            thinkingEnded = true
+          }
+          if Self.eosTokenIds.contains(decodedToken) {
+            shouldAppendPendingToken = false
+            return true
+          }
+          switch continuationHandler(
+            kvCache.tokenLength, kvCache.tokenLength, generated, statistics)
+          {
+          case .continue:
+            break
+          case .pause:
+            shouldStopAfterSampling = true
+          case .abort:
+            shouldAppendPendingToken = false
+            break
+          }
+          if !shouldAppendPendingToken {
+            return true
+          }
         }
-      } else {
-        let scale: Float = thinkingBudget > 0 && !thinkingEnded ? 1 : 0.7
-        let minPLogitRange: Float =
-          thinkingBudget > 0 && !thinkingEnded ? 4.605_170_2 : 2.097_012_5
-        let zmax = logits.reduced(.max, axis: [1])
-        // min-p is 0.01 for thinking and 0.05 for creative answer sampling.
-        logits.fill(-Float.infinity, if: logits < (zmax - minPLogitRange))
-        nextTokenGPU = Functional.gumbelArgmax(logits, axis: 1, scale: scale).reshaped(
-          format: .NHWC, shape: [1])
+        if deterministic {
+          if thinkingBudget > 0 && !thinkingEnded {
+            let zmax = logits.reduced(.max, axis: [1])
+            // min-p = 0.01: -log(0.01) = 4.6051702 at sampling scale 1.
+            logits.fill(-Float.infinity, if: logits < (zmax - 4.605_170_2))
+            nextTokenGPU = Functional.gumbelArgmax(logits, axis: 1, scale: 1).reshaped(
+              format: .NHWC, shape: [1])
+          } else {
+            nextTokenGPU = Functional.argmax(logits, axis: 1).reshaped(format: .NHWC, shape: [1])
+          }
+        } else {
+          let scale: Float = thinkingBudget > 0 && !thinkingEnded ? 1 : 0.7
+          let minPLogitRange: Float =
+            thinkingBudget > 0 && !thinkingEnded ? 4.605_170_2 : 2.097_012_5
+          let zmax = logits.reduced(.max, axis: [1])
+          // min-p is 0.01 for thinking and 0.05 for creative answer sampling.
+          logits.fill(-Float.infinity, if: logits < (zmax - minPLogitRange))
+          nextTokenGPU = Functional.gumbelArgmax(logits, axis: 1, scale: scale).reshaped(
+            format: .NHWC, shape: [1])
+        }
+        decodeIndex += 1
+        return shouldStopAfterSampling
       }
-      decodeIndex += 1
-      if shouldStopAfterSampling {
+      if shouldStop {
         break
       }
     }

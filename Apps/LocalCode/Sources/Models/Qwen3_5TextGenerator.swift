@@ -697,31 +697,110 @@ extension Qwen3_5TextGenerator {
       let start = prefillChunkStart
       let length = prefillChunkLength(start: start)
       guard length > 0 else { break }
-      if start != prefillStart {
-        prepareChunk(start: start, length: length)
-      }
-      if length < chunkedPrefillMaxLength {
-        DynamicGraph.flags.insert(.disableMFAGEMMSpecializingM)
-      }
-      let isLast = start + length == tokenLength
-      let chunkInputs = prefillInputs(start: start, length: length)
-      let prefillOutputs = storage.decoder(
-        (
-          cachedTokenLength: start + tokenOffset, tokenLength: length,
-          lastNumberOfTokens: isLast ? 1 : 0, linearStateCheckpointCount: 0
-        ), inputs: chunkInputs.tokens,
-        [chunkInputs.injected, chunkInputs.postTokens] + chunkInputs.attentionInputs
-          + chunkInputs.cacheInputs)
-      Self.updateLinearCaches(
-        &kvCache, from: prefillOutputs, outputOffset: storage.isMTPEnabled ? 2 : 1,
-        stateCheckpointIndex: 0, tokenLength: length, inputCaches: nil, configuration: configuration
-      )
-      if storage.isMTPEnabled {
-        let prefillHidden = DynamicGraph.Tensor<BFloat16>(
-          from: prefillOutputs[0].as(of: FloatType.self))
-        let firstTokenCPU: DynamicGraph.Tensor<Int32>?
-        if isLast {
-          let logits = prefillOutputs[1].as(of: FloatType.self)
+      // Each chunk drains what it autoreleases too.
+      autoreleasepool {
+        if start != prefillStart {
+          prepareChunk(start: start, length: length)
+        }
+        if length < chunkedPrefillMaxLength {
+          DynamicGraph.flags.insert(.disableMFAGEMMSpecializingM)
+        }
+        let isLast = start + length == tokenLength
+        let chunkInputs = prefillInputs(start: start, length: length)
+        let prefillOutputs = storage.decoder(
+          (
+            cachedTokenLength: start + tokenOffset, tokenLength: length,
+            lastNumberOfTokens: isLast ? 1 : 0, linearStateCheckpointCount: 0
+          ), inputs: chunkInputs.tokens,
+          [chunkInputs.injected, chunkInputs.postTokens] + chunkInputs.attentionInputs
+            + chunkInputs.cacheInputs)
+        Self.updateLinearCaches(
+          &kvCache, from: prefillOutputs, outputOffset: storage.isMTPEnabled ? 2 : 1,
+          stateCheckpointIndex: 0, tokenLength: length, inputCaches: nil,
+          configuration: configuration
+        )
+        if storage.isMTPEnabled {
+          let prefillHidden = DynamicGraph.Tensor<BFloat16>(
+            from: prefillOutputs[0].as(of: FloatType.self))
+          let firstTokenCPU: DynamicGraph.Tensor<Int32>?
+          if isLast {
+            let logits = prefillOutputs[1].as(of: FloatType.self)
+            if thinkingBudget > 0 || !deterministic {
+              let temperature: Float = thinkingBudget > 0 ? 1 : 0.7
+              let minimumPLogitRangeGPU =
+                thinkingBudget > 0
+                ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
+              let maximumLogit = logits.reduced(.max, axis: [1])
+              logits.fill(-Float.infinity, if: logits < (maximumLogit - minimumPLogitRangeGPU))
+              nextTokenGPU = Functional.gumbelArgmax(
+                logits, axis: 1, scale: temperature
+              ).reshaped(format: .NHWC, shape: [1])
+            } else {
+              nextTokenGPU = Functional.argmax(logits, axis: 1).reshaped(
+                format: .NHWC, shape: [1])
+            }
+            firstTokenCPU = nextTokenGPU.toCPU()
+          } else {
+            firstTokenCPU = nil
+          }
+          let draftInputs = prefillDraftInputs(
+            start: start, length: length,
+            hidden: prefillHidden, nextToken: isLast ? nextTokenGPU : nil)
+          if isLast {
+            // ModelBuilder rebuilds only for input-shape changes. A prefill aborted after a
+            // non-final chunk of this shape would otherwise leave a graph without logits.
+            storage.drafter.compile(
+              (
+                cachedTokenLength: draftInputs.cachedTokenLength,
+                tokenLength: draftInputs.tokenLength, lastNumberOfTokens: 1
+              ),
+              inputs: [
+                draftInputs.tokens, draftInputs.injected, draftInputs.postTokens,
+                draftInputs.hidden,
+              ] + draftInputs.attentionInputs + draftInputs.cacheInputs)
+          }
+          let draftOutputs = storage.drafter(
+            (
+              cachedTokenLength: draftInputs.cachedTokenLength,
+              tokenLength: draftInputs.tokenLength,
+              lastNumberOfTokens: isLast ? 1 : 0
+            ), inputs: draftInputs.tokens,
+            [draftInputs.injected, draftInputs.postTokens, draftInputs.hidden]
+              + draftInputs.attentionInputs + draftInputs.cacheInputs)
+          Self.updateDraftLastHidden(
+            &draftCache, from: prefillHidden, rowIndex: length - 1, configuration: configuration)
+          if isLast {
+            let isDraftThinking: Bool
+            if let firstTokenCPU = firstTokenCPU {
+              isDraftThinking = thinkingBudget > 0 && firstTokenCPU[0] != 248_069
+            } else {
+              isDraftThinking = false
+            }
+            let draftLogits = draftOutputs[1].as(of: FloatType.self)
+            let draftTokenGPU: DynamicGraph.Tensor<Int32>
+            if isDraftThinking || !deterministic {
+              let temperature: Float = isDraftThinking ? 1 : 0.7
+              let minimumPLogitRangeGPU =
+                isDraftThinking ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
+              let maskedLogits = draftLogits.copied()
+              let maximumLogit = maskedLogits.reduced(.max, axis: [1])
+              maskedLogits.fill(
+                -Float.infinity, if: maskedLogits < (maximumLogit - minimumPLogitRangeGPU))
+              let logSumExp = Functional.logSumExp(
+                maskedLogits, axis: [1], scale: 1 / temperature)
+              draftTokenGPU = Functional.gumbelArgmax(
+                maskedLogits, axis: 1, scale: temperature
+              ).reshaped(format: .NHWC, shape: [1])
+              draftSamplingState = (maskedLogits, logSumExp, temperature)
+            } else {
+              draftTokenGPU = Functional.argmax(draftLogits, axis: 1).reshaped(
+                format: .NHWC, shape: [1])
+              draftSamplingState = nil
+            }
+            prefillTokenCPU = Functional.concat(axis: 0, nextTokenGPU, draftTokenGPU).toCPU()
+          }
+        } else if isLast {
+          let logits = prefillOutputs[0].as(of: FloatType.self)
           if thinkingBudget > 0 || !deterministic {
             let temperature: Float = thinkingBudget > 0 ? 1 : 0.7
             let minimumPLogitRangeGPU =
@@ -729,104 +808,31 @@ extension Qwen3_5TextGenerator {
               ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
             let maximumLogit = logits.reduced(.max, axis: [1])
             logits.fill(-Float.infinity, if: logits < (maximumLogit - minimumPLogitRangeGPU))
-            nextTokenGPU = Functional.gumbelArgmax(
+            prefillTokenCPU = Functional.gumbelArgmax(
               logits, axis: 1, scale: temperature
-            ).reshaped(format: .NHWC, shape: [1])
+            ).reshaped(format: .NHWC, shape: [1]).toCPU()
           } else {
-            nextTokenGPU = Functional.argmax(logits, axis: 1).reshaped(
-              format: .NHWC, shape: [1])
+            prefillTokenCPU = Functional.argmax(logits, axis: 1).reshaped(
+              format: .NHWC, shape: [1]
+            ).toCPU()
           }
-          firstTokenCPU = nextTokenGPU.toCPU()
-        } else {
-          firstTokenCPU = nil
         }
-        let draftInputs = prefillDraftInputs(
-          start: start, length: length,
-          hidden: prefillHidden, nextToken: isLast ? nextTokenGPU : nil)
-        if isLast {
-          // ModelBuilder rebuilds only for input-shape changes. A prefill aborted after a
-          // non-final chunk of this shape would otherwise leave a graph without logits.
-          storage.drafter.compile(
-            (
-              cachedTokenLength: draftInputs.cachedTokenLength,
-              tokenLength: draftInputs.tokenLength, lastNumberOfTokens: 1
-            ),
-            inputs: [
-              draftInputs.tokens, draftInputs.injected, draftInputs.postTokens, draftInputs.hidden,
-            ] + draftInputs.attentionInputs + draftInputs.cacheInputs)
+        ropeDelta = preparedEndRopeDelta
+        let checkpointLength = tokenOffset + start + length
+        if !hasPaddedImages, checkpointLength % contextCache.checkpointStride == 0 {
+          contextCache.save(
+            graph: graph, tokens: contextTokens, checkpointLength: checkpointLength,
+            configuration: configuration, isMTPEnabled: storage.isMTPEnabled, kvCache: kvCache,
+            draftCache: draftCache, hasher: &contextCacheHasher, ropeDelta: ropeDelta,
+            embeddingSpans: embedSpans)
         }
-        let draftOutputs = storage.drafter(
-          (
-            cachedTokenLength: draftInputs.cachedTokenLength, tokenLength: draftInputs.tokenLength,
-            lastNumberOfTokens: isLast ? 1 : 0
-          ), inputs: draftInputs.tokens,
-          [draftInputs.injected, draftInputs.postTokens, draftInputs.hidden]
-            + draftInputs.attentionInputs + draftInputs.cacheInputs)
-        Self.updateDraftLastHidden(
-          &draftCache, from: prefillHidden, rowIndex: length - 1, configuration: configuration)
-        if isLast {
-          let isDraftThinking: Bool
-          if let firstTokenCPU = firstTokenCPU {
-            isDraftThinking = thinkingBudget > 0 && firstTokenCPU[0] != 248_069
-          } else {
-            isDraftThinking = false
-          }
-          let draftLogits = draftOutputs[1].as(of: FloatType.self)
-          let draftTokenGPU: DynamicGraph.Tensor<Int32>
-          if isDraftThinking || !deterministic {
-            let temperature: Float = isDraftThinking ? 1 : 0.7
-            let minimumPLogitRangeGPU =
-              isDraftThinking ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
-            let maskedLogits = draftLogits.copied()
-            let maximumLogit = maskedLogits.reduced(.max, axis: [1])
-            maskedLogits.fill(
-              -Float.infinity, if: maskedLogits < (maximumLogit - minimumPLogitRangeGPU))
-            let logSumExp = Functional.logSumExp(
-              maskedLogits, axis: [1], scale: 1 / temperature)
-            draftTokenGPU = Functional.gumbelArgmax(
-              maskedLogits, axis: 1, scale: temperature
-            ).reshaped(format: .NHWC, shape: [1])
-            draftSamplingState = (maskedLogits, logSumExp, temperature)
-          } else {
-            draftTokenGPU = Functional.argmax(draftLogits, axis: 1).reshaped(
-              format: .NHWC, shape: [1])
-            draftSamplingState = nil
-          }
-          prefillTokenCPU = Functional.concat(axis: 0, nextTokenGPU, draftTokenGPU).toCPU()
-        }
-      } else if isLast {
-        let logits = prefillOutputs[0].as(of: FloatType.self)
-        if thinkingBudget > 0 || !deterministic {
-          let temperature: Float = thinkingBudget > 0 ? 1 : 0.7
-          let minimumPLogitRangeGPU =
-            thinkingBudget > 0
-            ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
-          let maximumLogit = logits.reduced(.max, axis: [1])
-          logits.fill(-Float.infinity, if: logits < (maximumLogit - minimumPLogitRangeGPU))
-          prefillTokenCPU = Functional.gumbelArgmax(
-            logits, axis: 1, scale: temperature
-          ).reshaped(format: .NHWC, shape: [1]).toCPU()
-        } else {
-          prefillTokenCPU = Functional.argmax(logits, axis: 1).reshaped(
-            format: .NHWC, shape: [1]
-          ).toCPU()
-        }
+        prefillChunkStart += length
+        kvCacheTokenLength = tokenOffset + prefillChunkStart
+        recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar =
+          Float(CACurrentMediaTime() - prefillStartTime) + initialPrefillDurationSoFar
+        recentInteractionStatistics[interactionStatisticsIndex].prefillTokensSoFar += length
+        DynamicGraph.flags = flags
       }
-      ropeDelta = preparedEndRopeDelta
-      let checkpointLength = tokenOffset + start + length
-      if !hasPaddedImages, checkpointLength % contextCache.checkpointStride == 0 {
-        contextCache.save(
-          graph: graph, tokens: contextTokens, checkpointLength: checkpointLength,
-          configuration: configuration, isMTPEnabled: storage.isMTPEnabled, kvCache: kvCache,
-          draftCache: draftCache, hasher: &contextCacheHasher, ropeDelta: ropeDelta,
-          embeddingSpans: embedSpans)
-      }
-      prefillChunkStart += length
-      kvCacheTokenLength = tokenOffset + prefillChunkStart
-      recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar =
-        Float(CACurrentMediaTime() - prefillStartTime) + initialPrefillDurationSoFar
-      recentInteractionStatistics[interactionStatisticsIndex].prefillTokensSoFar += length
-      DynamicGraph.flags = flags
       switch continuationHandler(prefillChunkStart, tokenLength, [], statistics) {
       case .continue:
         break
@@ -916,426 +922,437 @@ extension Qwen3_5TextGenerator {
         + initialTokenGenerationDurationSoFar
     }
     while decodeIndex < decodeTokenCapacity {
-      let cachedTokenLength = prefilledTokenLength + decodeIndex
-      let sequenceLength = storage.isMTPEnabled ? maxDraftLength : 1
-      var isThinkingEndedForcedAtVerify = false
-      var isThinkingEndedForcedAtDraft = false
-      if thinkingBudget > 0 && !thinkingEnded {
-        if storage.isMTPEnabled {
-          if decodeIndex == thinkingBudget {
-            nextTokenGPU = graph.variable(
-              Tensor<Int32>(
-                [248_069, 271], kind: .CPU, format: .NHWC, shape: [maxDraftLength]
-              )
-              .toGPU(0))
-            isThinkingEndedForcedAtVerify = true
-          } else if decodeIndex + 1 == thinkingBudget {
-            let currentTokenGPU = nextTokenGPU.reshaped(
-              format: .NHWC, shape: [1], offset: [0], strides: [1]
-            ).copied()
-            let endThinkTokenGPU = graph.variable(
-              Tensor<Int32>([248_069], kind: .CPU, format: .NHWC, shape: [1]).toGPU(0))
-            nextTokenGPU = Functional.concat(axis: 0, currentTokenGPU, endThinkTokenGPU)
-            isThinkingEndedForcedAtDraft = true
-          }
-        } else if decodeIndex == thinkingBudget {
-          // No matter if thinking ended this round or not, we will use end of think token right now.
-          nextTokenGPU = graph.variable(
-            Tensor<Int32>([248_069], kind: .CPU, format: .NHWC, shape: [1]).toGPU(0))
-        }
-      }
-      if cachedTokenLength + sequenceLength > decodeCacheCapacity {
-        decodeCacheCapacity = min(decodeCacheCapacity + 4_096, Self.maximumContextLength)
-        let nextRotaryEmbedding = Qwen3_5RotaryEmbedding(
-          sequenceLength: min(
-            decodeCacheCapacity - cachedTokenLength, decodeTokenCapacity - decodeIndex)
-            + (storage.isMTPEnabled ? 1 : 0),
-          cachedTokenLength: cachedTokenLength + ropeDelta,
-          configuration: configuration, of: FloatType.self
-        )
-        graph.joined()
-        let nextRotaryEmbeddingForDecode = graph.variable(nextRotaryEmbedding.toGPU(0))
-        Self.resizeCaches(
-          graph: graph, kvCache: &kvCache, cacheCapacity: decodeCacheCapacity,
-          configuration: configuration)
-        if storage.isMTPEnabled {
-          Self.resizeDraftCache(
-            graph: graph, draftCache: &draftCache, cacheCapacity: decodeCacheCapacity + 1,
-            configuration: configuration)
-        }
-        compileDecode(cacheCapacity: decodeCacheCapacity)
-        decodeRotaryStartIndex = decodeIndex
-        rotaryEmbeddingForDecode = nextRotaryEmbeddingForDecode
-      }
-      let decodeRotaryEmebedding = rotaryEmbeddingForDecode.reshaped(
-        format: .NHWC, shape: [1, sequenceLength, 1, configuration.attentionHeadDim],
-        offset: [0, decodeIndex - decodeRotaryStartIndex, 0, 0],
-        strides: [
-          configuration.attentionHeadDim, configuration.attentionHeadDim,
-          configuration.attentionHeadDim, 1,
-        ]
-      ).copied()
-      let cacheInputs = Self.cacheInputs(
-        kvCache, currentTokenLength: cachedTokenLength + sequenceLength,
-        configuration: configuration)
-      let oldDecodedTokenCPU = nextTokenGPU.toCPU()
-      let decodeOutputs = storage.decoder(
-        (
-          cachedTokenLength: cachedTokenLength, tokenLength: sequenceLength,
-          lastNumberOfTokens: sequenceLength,
-          linearStateCheckpointCount: storage.isMTPEnabled ? sequenceLength - 1 : 0
-        ), inputs: nextTokenGPU,
-        [emptyEmbeddings, emptyTokens, decodeRotaryEmebedding] + cacheInputs)
-      let logits = decodeOutputs[storage.isMTPEnabled ? 1 : 0].as(of: FloatType.self)
-      recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
-        Float(CACurrentMediaTime() - tokenGenerationStartTime)
-        + initialTokenGenerationDurationSoFar
-      if storage.isMTPEnabled {
-        // Compile the next verify shape while this one runs, assuming the draft is accepted;
-        // a rejected draft rebuilds after verification as before.
-        let advance = isThinkingEndedForcedAtVerify ? 1 : sequenceLength
-        let nextCachedTokenLength = cachedTokenLength + advance
-        if decodeIndex + advance < decodeTokenCapacity,
-          nextCachedTokenLength + sequenceLength <= decodeCacheCapacity
-        {
-          storage.decoder.compile(
-            (
-              cachedTokenLength: nextCachedTokenLength, tokenLength: sequenceLength,
-              lastNumberOfTokens: sequenceLength, linearStateCheckpointCount: sequenceLength - 1
-            ),
-            inputs: [nextTokenGPU, emptyEmbeddings, emptyTokens, decodeRotaryEmebedding]
-              + Self.cacheInputs(
-                kvCache, currentTokenLength: nextCachedTokenLength + sequenceLength,
-                configuration: configuration))
-        }
-        let vocabularySize = logits.shape[1]
-        let firstTargetLogits = logits.reshaped(
-          .WC(1, vocabularySize), offset: [0, 0], strides: [vocabularySize, 1]
-        )
-        let secondTargetLogits = logits.reshaped(
-          .WC(1, vocabularySize), offset: [1, 0], strides: [vocabularySize, 1]
-        )
-        let advanceCount: Int
-        let tokenAfterVerifiedBlockGPU: DynamicGraph.Tensor<Int32>
-        if isThinkingEndedForcedAtVerify || isThinkingEndedForcedAtDraft {
-          advanceCount = isThinkingEndedForcedAtDraft ? maxDraftLength : 1
-          let targetLogits = isThinkingEndedForcedAtDraft ? secondTargetLogits : firstTargetLogits
-          if !deterministic {
-            let maximumLogit = targetLogits.reduced(.max, axis: [1])
-            targetLogits.fill(
-              -Float.infinity, if: targetLogits < (maximumLogit - answerMinimumPLogitRangeGPU))
-            tokenAfterVerifiedBlockGPU = Functional.gumbelArgmax(
-              targetLogits, axis: 1, scale: 0.7
-            ).reshaped(format: .NHWC, shape: [1])
-          } else {
-            tokenAfterVerifiedBlockGPU = Functional.argmax(targetLogits, axis: 1).reshaped(
-              format: .NHWC, shape: [1])
-          }
-        } else if let draftSamplingState = draftSamplingState {
-          let targetMaskedLogits = firstTargetLogits.copied()
-          let minimumPLogitRangeGPU =
-            draftSamplingState.temperature == 1
-            ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
-          let maximumLogit = targetMaskedLogits.reduced(.max, axis: [1])
-          targetMaskedLogits.fill(
-            -Float.infinity, if: targetMaskedLogits < (maximumLogit - minimumPLogitRangeGPU))
-          let draftToken = Int(oldDecodedTokenCPU[1])
-          let targetLogSumExpGPU = Functional.logSumExp(
-            targetMaskedLogits, axis: [1], scale: 1 / draftSamplingState.temperature
-          )
-          let draftLogSumExpGPU = draftSamplingState.logSumExp
-          let targetLogSumExpCPU = targetLogSumExpGPU.toCPU()
-          let draftLogSumExpCPU = draftLogSumExpGPU.toCPU()
-          let selectedTargetLogitCPU =
-            targetMaskedLogits[0..<1, draftToken..<(draftToken + 1)].toCPU()
-          let selectedDraftLogitCPU =
-            draftSamplingState.maskedLogits[0..<1, draftToken..<(draftToken + 1)].toCPU()
-          let targetTokenLogProbability =
-            Float(selectedTargetLogitCPU[0, 0]) / draftSamplingState.temperature
-            - Float(targetLogSumExpCPU[0, 0])
-          let draftTokenLogProbability =
-            Float(selectedDraftLogitCPU[0, 0]) / draftSamplingState.temperature
-            - Float(draftLogSumExpCPU[0, 0])
-          let logAcceptanceRatio = targetTokenLogProbability - draftTokenLogProbability
-          let isDraftAccepted: Bool
-          if logAcceptanceRatio >= 0 {
-            isDraftAccepted = true
-          } else {
-            let uniform = Float.random(in: 0..<1, using: &sfmt)
-            isDraftAccepted =
-              log(max(uniform, Float.leastNonzeroMagnitude)) <= logAcceptanceRatio
-          }
-          if isDraftAccepted {
-            advanceCount = maxDraftLength
-            let isThinking =
-              draftSamplingState.temperature == 1 && oldDecodedTokenCPU[1] != 248_069
-            if isThinking || !deterministic {
-              let temperature: Float = isThinking ? 1 : 0.7
-              let minimumPLogitRangeGPU =
-                isThinking ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
-              let maximumLogit = secondTargetLogits.reduced(.max, axis: [1])
-              secondTargetLogits.fill(
-                -Float.infinity,
-                if: secondTargetLogits < (maximumLogit - minimumPLogitRangeGPU))
-              tokenAfterVerifiedBlockGPU = Functional.gumbelArgmax(
-                secondTargetLogits, axis: 1, scale: temperature
-              ).reshaped(format: .NHWC, shape: [1])
-            } else {
-              tokenAfterVerifiedBlockGPU = Functional.argmax(
-                secondTargetLogits, axis: 1
-              ).reshaped(format: .NHWC, shape: [1])
+      // Each step drains what it autoreleases, Metal command buffers among them: a long reply would
+      // otherwise hold all of them until the call returns.
+      let shouldStop = autoreleasepool { () -> Bool in
+        let cachedTokenLength = prefilledTokenLength + decodeIndex
+        let sequenceLength = storage.isMTPEnabled ? maxDraftLength : 1
+        var isThinkingEndedForcedAtVerify = false
+        var isThinkingEndedForcedAtDraft = false
+        if thinkingBudget > 0 && !thinkingEnded {
+          if storage.isMTPEnabled {
+            if decodeIndex == thinkingBudget {
+              nextTokenGPU = graph.variable(
+                Tensor<Int32>(
+                  [248_069, 271], kind: .CPU, format: .NHWC, shape: [maxDraftLength]
+                )
+                .toGPU(0))
+              isThinkingEndedForcedAtVerify = true
+            } else if decodeIndex + 1 == thinkingBudget {
+              let currentTokenGPU = nextTokenGPU.reshaped(
+                format: .NHWC, shape: [1], offset: [0], strides: [1]
+              ).copied()
+              let endThinkTokenGPU = graph.variable(
+                Tensor<Int32>([248_069], kind: .CPU, format: .NHWC, shape: [1]).toGPU(0))
+              nextTokenGPU = Functional.concat(axis: 0, currentTokenGPU, endThinkTokenGPU)
+              isThinkingEndedForcedAtDraft = true
             }
-          } else {
-            advanceCount = 1
-            let targetLogProbabilities =
-              targetMaskedLogits / draftSamplingState.temperature - targetLogSumExpGPU
-            let draftLogProbabilities =
-              draftSamplingState.maskedLogits / draftSamplingState.temperature
-              - draftLogSumExpGPU
-            let residualProbabilities =
-              Functional.exp(targetLogProbabilities) - Functional.exp(draftLogProbabilities)
-            residualProbabilities.clamp(0...)
-            tokenAfterVerifiedBlockGPU = Functional.gumbelArgmax(
-              Functional.log(residualProbabilities), axis: 1, scale: 1
-            ).reshaped(format: .NHWC, shape: [1])
-          }
-        } else {
-          let targetTokenGPU = Functional.argmax(firstTargetLogits, axis: 1).reshaped(
-            format: .NHWC, shape: [1])
-          if targetTokenGPU.toCPU()[0] == oldDecodedTokenCPU[1] {
-            advanceCount = maxDraftLength
-            tokenAfterVerifiedBlockGPU = Functional.argmax(secondTargetLogits, axis: 1).reshaped(
-              format: .NHWC, shape: [1])
-          } else {
-            advanceCount = 1
-            tokenAfterVerifiedBlockGPU = targetTokenGPU
+          } else if decodeIndex == thinkingBudget {
+            // No matter if thinking ended this round or not, we will use end of think token right now.
+            nextTokenGPU = graph.variable(
+              Tensor<Int32>([248_069], kind: .CPU, format: .NHWC, shape: [1]).toGPU(0))
           }
         }
-        var commitCount = advanceCount
-        for i in 0..<advanceCount {
-          if Self.eosTokenIds.contains(oldDecodedTokenCPU[i]) {
-            commitCount = i + 1
-            break
-          }
-        }
-        let nextCheckpointLength =
-          ((cachedTokenLength / contextCache.checkpointStride) + 1) * contextCache.checkpointStride
-        let partialCheckpointDelta: Int?
-        let partialLinearOverrides: [Qwen3_5LinearCacheOverride]?
-        if nextCheckpointLength > cachedTokenLength
-          && nextCheckpointLength < cachedTokenLength + commitCount
-        {
-          let checkpointDelta = nextCheckpointLength - cachedTokenLength
-          partialCheckpointDelta = checkpointDelta
-          partialLinearOverrides = Self.linearCacheOverrides(
-            from: decodeOutputs, outputOffset: 2,
-            stateCheckpointIndex: sequenceLength - checkpointDelta, tokenLength: sequenceLength,
-            inputCaches: kvCache, configuration: configuration)
-        } else {
-          partialCheckpointDelta = nil
-          partialLinearOverrides = nil
-        }
-        if commitCount == sequenceLength {
-          Self.updateLinearCaches(
-            &kvCache, from: decodeOutputs, outputOffset: 2, stateCheckpointIndex: 0,
-            tokenLength: sequenceLength, inputCaches: nil, configuration: configuration)
-        } else {
-          let inputCaches = kvCache
-          Self.updateLinearCaches(
-            &kvCache, from: decodeOutputs, outputOffset: 2,
-            stateCheckpointIndex: sequenceLength - commitCount, tokenLength: sequenceLength,
-            inputCaches: inputCaches, configuration: configuration)
-        }
-        // All of the committed block is in now, however many of it get reported below.
-        kvCacheTokenLength = cachedTokenLength + commitCount
-        let draftTokens: DynamicGraph.Tensor<Int32>
-        if commitCount == sequenceLength {
-          let acceptedTokenGPU = graph.variable(
-            Tensor<Int32>(
-              [oldDecodedTokenCPU[1]], kind: .CPU, format: .NHWC, shape: [1]
-            ).toGPU(0))
-          draftTokens = Functional.concat(
-            axis: 0, acceptedTokenGPU, tokenAfterVerifiedBlockGPU
+        if cachedTokenLength + sequenceLength > decodeCacheCapacity {
+          decodeCacheCapacity = min(decodeCacheCapacity + 4_096, Self.maximumContextLength)
+          let nextRotaryEmbedding = Qwen3_5RotaryEmbedding(
+            sequenceLength: min(
+              decodeCacheCapacity - cachedTokenLength, decodeTokenCapacity - decodeIndex)
+              + (storage.isMTPEnabled ? 1 : 0),
+            cachedTokenLength: cachedTokenLength + ropeDelta,
+            configuration: configuration, of: FloatType.self
           )
-        } else {
-          draftTokens = tokenAfterVerifiedBlockGPU
+          graph.joined()
+          let nextRotaryEmbeddingForDecode = graph.variable(nextRotaryEmbedding.toGPU(0))
+          Self.resizeCaches(
+            graph: graph, kvCache: &kvCache, cacheCapacity: decodeCacheCapacity,
+            configuration: configuration)
+          if storage.isMTPEnabled {
+            Self.resizeDraftCache(
+              graph: graph, draftCache: &draftCache, cacheCapacity: decodeCacheCapacity + 1,
+              configuration: configuration)
+          }
+          compileDecode(cacheCapacity: decodeCacheCapacity)
+          decodeRotaryStartIndex = decodeIndex
+          rotaryEmbeddingForDecode = nextRotaryEmbeddingForDecode
         }
-        let isNextDraftPossiblyThinking =
-          thinkingBudget > 0 && !thinkingEnded && oldDecodedTokenCPU[0] != 248_069
-          && (advanceCount == 1 || oldDecodedTokenCPU[1] != 248_069)
-        let thisTokenGPU = tokenAfterVerifiedBlockGPU
-        let thisTokenCPU =
-          isNextDraftPossiblyThinking ? thisTokenGPU.toCPU() : nil
-        let draftHidden = DynamicGraph.Tensor<BFloat16>(
-          from: decodeOutputs[0].as(of: FloatType.self).reshaped(
-            .NC(commitCount, configuration.hiddenSize), offset: [0, 0],
-            strides: [configuration.hiddenSize, 1]
-          ).copied())
-        let draftRotaryEmebedding = rotaryEmbeddingForDecode.reshaped(
-          format: .NHWC, shape: [1, commitCount, 1, configuration.attentionHeadDim],
-          offset: [0, decodeIndex + 1 - decodeRotaryStartIndex, 0, 0],
+        let decodeRotaryEmebedding = rotaryEmbeddingForDecode.reshaped(
+          format: .NHWC, shape: [1, sequenceLength, 1, configuration.attentionHeadDim],
+          offset: [0, decodeIndex - decodeRotaryStartIndex, 0, 0],
           strides: [
             configuration.attentionHeadDim, configuration.attentionHeadDim,
             configuration.attentionHeadDim, 1,
           ]
         ).copied()
-        let draftCacheInputs = Self.draftCacheInputs(
-          draftCache, currentTokenLength: cachedTokenLength + commitCount + 1,
+        let cacheInputs = Self.cacheInputs(
+          kvCache, currentTokenLength: cachedTokenLength + sequenceLength,
           configuration: configuration)
-        let draftOutputs = storage.drafter(
+        let oldDecodedTokenCPU = nextTokenGPU.toCPU()
+        let decodeOutputs = storage.decoder(
           (
-            cachedTokenLength: cachedTokenLength + 1, tokenLength: commitCount,
-            lastNumberOfTokens: 1
-          ), inputs: draftTokens,
-          [emptyEmbeddings, emptyTokens, draftHidden, draftRotaryEmebedding] + draftCacheInputs)
-        Self.updateDraftLastHidden(
-          &draftCache, from: draftHidden, rowIndex: commitCount - 1, configuration: configuration)
-        let isNextDraftThinking =
-          thisTokenCPU.map { $0[0] != 248_069 } ?? false
-        let draftLogits = draftOutputs[1].as(of: FloatType.self)
-        let draftTokenGPU: DynamicGraph.Tensor<Int32>
-        if isNextDraftThinking || !deterministic {
-          let temperature: Float = isNextDraftThinking ? 1 : 0.7
-          let minimumPLogitRangeGPU =
-            isNextDraftThinking ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
-          let maskedLogits = draftLogits.copied()
-          let maximumLogit = maskedLogits.reduced(.max, axis: [1])
-          maskedLogits.fill(
-            -Float.infinity, if: maskedLogits < (maximumLogit - minimumPLogitRangeGPU))
-          let logSumExp = Functional.logSumExp(
-            maskedLogits, axis: [1], scale: 1 / temperature)
-          draftTokenGPU = Functional.gumbelArgmax(
-            maskedLogits, axis: 1, scale: temperature
-          ).reshaped(format: .NHWC, shape: [1])
-          draftSamplingState = (maskedLogits, logSumExp, temperature)
-        } else {
-          draftTokenGPU = Functional.argmax(draftLogits, axis: 1).reshaped(
-            format: .NHWC, shape: [1])
-          draftSamplingState = nil
-        }
-        nextTokenGPU = Functional.concat(axis: 0, thisTokenGPU, draftTokenGPU)
-        // This needs to happen after the draft because draft needs to update the internal KV states.
-        for i in 0..<commitCount {
-          let decodedToken = oldDecodedTokenCPU[i]
-          runningContextTokens.append(decodedToken)
-          let checkpointLength = runningContextTokens.count
-          if !hasPaddedImages, checkpointLength % contextCache.checkpointStride == 0 {
-            if let partialCheckpointDelta = partialCheckpointDelta,
-              partialCheckpointDelta == i + 1,
-              let partialLinearOverrides = partialLinearOverrides
-            {
-              let draftLastHidden = draftHidden.reshaped(
-                .NC(1, configuration.hiddenSize), offset: [i, 0],
-                strides: [configuration.hiddenSize, 1]
-              ).copied()
-              contextCache.save(
-                graph: graph, tokens: runningContextTokens, checkpointLength: checkpointLength,
-                configuration: configuration, isMTPEnabled: storage.isMTPEnabled, kvCache: kvCache,
-                draftCache: draftCache, hasher: &contextCacheHasher,
-                linearOverrides: partialLinearOverrides,
-                draftLastHiddenOverride: draftLastHidden, ropeDelta: ropeDelta,
-                embeddingSpans: embedSpans)
+            cachedTokenLength: cachedTokenLength, tokenLength: sequenceLength,
+            lastNumberOfTokens: sequenceLength,
+            linearStateCheckpointCount: storage.isMTPEnabled ? sequenceLength - 1 : 0
+          ), inputs: nextTokenGPU,
+          [emptyEmbeddings, emptyTokens, decodeRotaryEmebedding] + cacheInputs)
+        let logits = decodeOutputs[storage.isMTPEnabled ? 1 : 0].as(of: FloatType.self)
+        recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
+          Float(CACurrentMediaTime() - tokenGenerationStartTime)
+          + initialTokenGenerationDurationSoFar
+        if storage.isMTPEnabled {
+          // Compile the next verify shape while this one runs, assuming the draft is accepted;
+          // a rejected draft rebuilds after verification as before.
+          let advance = isThinkingEndedForcedAtVerify ? 1 : sequenceLength
+          let nextCachedTokenLength = cachedTokenLength + advance
+          if decodeIndex + advance < decodeTokenCapacity,
+            nextCachedTokenLength + sequenceLength <= decodeCacheCapacity
+          {
+            storage.decoder.compile(
+              (
+                cachedTokenLength: nextCachedTokenLength, tokenLength: sequenceLength,
+                lastNumberOfTokens: sequenceLength, linearStateCheckpointCount: sequenceLength - 1
+              ),
+              inputs: [nextTokenGPU, emptyEmbeddings, emptyTokens, decodeRotaryEmebedding]
+                + Self.cacheInputs(
+                  kvCache, currentTokenLength: nextCachedTokenLength + sequenceLength,
+                  configuration: configuration))
+          }
+          let vocabularySize = logits.shape[1]
+          let firstTargetLogits = logits.reshaped(
+            .WC(1, vocabularySize), offset: [0, 0], strides: [vocabularySize, 1]
+          )
+          let secondTargetLogits = logits.reshaped(
+            .WC(1, vocabularySize), offset: [1, 0], strides: [vocabularySize, 1]
+          )
+          let advanceCount: Int
+          let tokenAfterVerifiedBlockGPU: DynamicGraph.Tensor<Int32>
+          if isThinkingEndedForcedAtVerify || isThinkingEndedForcedAtDraft {
+            advanceCount = isThinkingEndedForcedAtDraft ? maxDraftLength : 1
+            let targetLogits = isThinkingEndedForcedAtDraft ? secondTargetLogits : firstTargetLogits
+            if !deterministic {
+              let maximumLogit = targetLogits.reduced(.max, axis: [1])
+              targetLogits.fill(
+                -Float.infinity, if: targetLogits < (maximumLogit - answerMinimumPLogitRangeGPU))
+              tokenAfterVerifiedBlockGPU = Functional.gumbelArgmax(
+                targetLogits, axis: 1, scale: 0.7
+              ).reshaped(format: .NHWC, shape: [1])
             } else {
-              contextCache.save(
-                graph: graph, tokens: runningContextTokens, checkpointLength: checkpointLength,
-                configuration: configuration, isMTPEnabled: storage.isMTPEnabled, kvCache: kvCache,
-                draftCache: draftCache, hasher: &contextCacheHasher, ropeDelta: ropeDelta,
-                embeddingSpans: embedSpans)
+              tokenAfterVerifiedBlockGPU = Functional.argmax(targetLogits, axis: 1).reshaped(
+                format: .NHWC, shape: [1])
+            }
+          } else if let draftSamplingState = draftSamplingState {
+            let targetMaskedLogits = firstTargetLogits.copied()
+            let minimumPLogitRangeGPU =
+              draftSamplingState.temperature == 1
+              ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
+            let maximumLogit = targetMaskedLogits.reduced(.max, axis: [1])
+            targetMaskedLogits.fill(
+              -Float.infinity, if: targetMaskedLogits < (maximumLogit - minimumPLogitRangeGPU))
+            let draftToken = Int(oldDecodedTokenCPU[1])
+            let targetLogSumExpGPU = Functional.logSumExp(
+              targetMaskedLogits, axis: [1], scale: 1 / draftSamplingState.temperature
+            )
+            let draftLogSumExpGPU = draftSamplingState.logSumExp
+            let targetLogSumExpCPU = targetLogSumExpGPU.toCPU()
+            let draftLogSumExpCPU = draftLogSumExpGPU.toCPU()
+            let selectedTargetLogitCPU =
+              targetMaskedLogits[0..<1, draftToken..<(draftToken + 1)].toCPU()
+            let selectedDraftLogitCPU =
+              draftSamplingState.maskedLogits[0..<1, draftToken..<(draftToken + 1)].toCPU()
+            let targetTokenLogProbability =
+              Float(selectedTargetLogitCPU[0, 0]) / draftSamplingState.temperature
+              - Float(targetLogSumExpCPU[0, 0])
+            let draftTokenLogProbability =
+              Float(selectedDraftLogitCPU[0, 0]) / draftSamplingState.temperature
+              - Float(draftLogSumExpCPU[0, 0])
+            let logAcceptanceRatio = targetTokenLogProbability - draftTokenLogProbability
+            let isDraftAccepted: Bool
+            if logAcceptanceRatio >= 0 {
+              isDraftAccepted = true
+            } else {
+              let uniform = Float.random(in: 0..<1, using: &sfmt)
+              isDraftAccepted =
+                log(max(uniform, Float.leastNonzeroMagnitude)) <= logAcceptanceRatio
+            }
+            if isDraftAccepted {
+              advanceCount = maxDraftLength
+              let isThinking =
+                draftSamplingState.temperature == 1 && oldDecodedTokenCPU[1] != 248_069
+              if isThinking || !deterministic {
+                let temperature: Float = isThinking ? 1 : 0.7
+                let minimumPLogitRangeGPU =
+                  isThinking ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
+                let maximumLogit = secondTargetLogits.reduced(.max, axis: [1])
+                secondTargetLogits.fill(
+                  -Float.infinity,
+                  if: secondTargetLogits < (maximumLogit - minimumPLogitRangeGPU))
+                tokenAfterVerifiedBlockGPU = Functional.gumbelArgmax(
+                  secondTargetLogits, axis: 1, scale: temperature
+                ).reshaped(format: .NHWC, shape: [1])
+              } else {
+                tokenAfterVerifiedBlockGPU = Functional.argmax(
+                  secondTargetLogits, axis: 1
+                ).reshaped(format: .NHWC, shape: [1])
+              }
+            } else {
+              advanceCount = 1
+              let targetLogProbabilities =
+                targetMaskedLogits / draftSamplingState.temperature - targetLogSumExpGPU
+              let draftLogProbabilities =
+                draftSamplingState.maskedLogits / draftSamplingState.temperature
+                - draftLogSumExpGPU
+              let residualProbabilities =
+                Functional.exp(targetLogProbabilities) - Functional.exp(draftLogProbabilities)
+              residualProbabilities.clamp(0...)
+              tokenAfterVerifiedBlockGPU = Functional.gumbelArgmax(
+                Functional.log(residualProbabilities), axis: 1, scale: 1
+              ).reshaped(format: .NHWC, shape: [1])
+            }
+          } else {
+            let targetTokenGPU = Functional.argmax(firstTargetLogits, axis: 1).reshaped(
+              format: .NHWC, shape: [1])
+            if targetTokenGPU.toCPU()[0] == oldDecodedTokenCPU[1] {
+              advanceCount = maxDraftLength
+              tokenAfterVerifiedBlockGPU = Functional.argmax(secondTargetLogits, axis: 1).reshaped(
+                format: .NHWC, shape: [1])
+            } else {
+              advanceCount = 1
+              tokenAfterVerifiedBlockGPU = targetTokenGPU
             }
           }
-          generated.append(decodedToken)
-          recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
-          recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
-            Float(CACurrentMediaTime() - tokenGenerationStartTime)
-            + initialTokenGenerationDurationSoFar
-          if decodedToken == 248_069 {
-            thinkingEnded = true
+          var commitCount = advanceCount
+          for i in 0..<advanceCount {
+            if Self.eosTokenIds.contains(oldDecodedTokenCPU[i]) {
+              commitCount = i + 1
+              break
+            }
           }
-          if Self.eosTokenIds.contains(decodedToken) {
-            shouldAppendPendingToken = false
-            break
-          }
-          if shouldStopAfterSampling {
-            continue
-          }
-          switch continuationHandler(
-            cachedTokenLength + i + 1, cachedTokenLength + i + 1, generated, statistics)
+          let nextCheckpointLength =
+            ((cachedTokenLength / contextCache.checkpointStride) + 1)
+            * contextCache.checkpointStride
+          let partialCheckpointDelta: Int?
+          let partialLinearOverrides: [Qwen3_5LinearCacheOverride]?
+          if nextCheckpointLength > cachedTokenLength
+            && nextCheckpointLength < cachedTokenLength + commitCount
           {
-          case .continue:
-            break
-          case .pause:
-            shouldStopAfterSampling = true
-          case .abort:
-            shouldAppendPendingToken = false
-            break
+            let checkpointDelta = nextCheckpointLength - cachedTokenLength
+            partialCheckpointDelta = checkpointDelta
+            partialLinearOverrides = Self.linearCacheOverrides(
+              from: decodeOutputs, outputOffset: 2,
+              stateCheckpointIndex: sequenceLength - checkpointDelta, tokenLength: sequenceLength,
+              inputCaches: kvCache, configuration: configuration)
+          } else {
+            partialCheckpointDelta = nil
+            partialLinearOverrides = nil
           }
-          if !shouldAppendPendingToken {
-            break
+          if commitCount == sequenceLength {
+            Self.updateLinearCaches(
+              &kvCache, from: decodeOutputs, outputOffset: 2, stateCheckpointIndex: 0,
+              tokenLength: sequenceLength, inputCaches: nil, configuration: configuration)
+          } else {
+            let inputCaches = kvCache
+            Self.updateLinearCaches(
+              &kvCache, from: decodeOutputs, outputOffset: 2,
+              stateCheckpointIndex: sequenceLength - commitCount, tokenLength: sequenceLength,
+              inputCaches: inputCaches, configuration: configuration)
           }
-        }
-        decodeIndex += commitCount
-        if !shouldAppendPendingToken || shouldStopAfterSampling {
-          break
-        }
-      } else {
-        let isNextTokenThinking =
-          thinkingBudget > 0 && !thinkingEnded && oldDecodedTokenCPU[0] != 248_069
-        if isNextTokenThinking || !deterministic {
-          let temperature: Float = isNextTokenThinking ? 1 : 0.7
-          let minimumPLogitRangeGPU =
-            isNextTokenThinking ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
-          let maximumLogit = logits.reduced(.max, axis: [1])
-          logits.fill(-Float.infinity, if: logits < (maximumLogit - minimumPLogitRangeGPU))
-          nextTokenGPU = Functional.gumbelArgmax(
-            logits, axis: 1, scale: temperature
-          ).reshaped(format: .NHWC, shape: [1])
+          // All of the committed block is in now, however many of it get reported below.
+          kvCacheTokenLength = cachedTokenLength + commitCount
+          let draftTokens: DynamicGraph.Tensor<Int32>
+          if commitCount == sequenceLength {
+            let acceptedTokenGPU = graph.variable(
+              Tensor<Int32>(
+                [oldDecodedTokenCPU[1]], kind: .CPU, format: .NHWC, shape: [1]
+              ).toGPU(0))
+            draftTokens = Functional.concat(
+              axis: 0, acceptedTokenGPU, tokenAfterVerifiedBlockGPU
+            )
+          } else {
+            draftTokens = tokenAfterVerifiedBlockGPU
+          }
+          let isNextDraftPossiblyThinking =
+            thinkingBudget > 0 && !thinkingEnded && oldDecodedTokenCPU[0] != 248_069
+            && (advanceCount == 1 || oldDecodedTokenCPU[1] != 248_069)
+          let thisTokenGPU = tokenAfterVerifiedBlockGPU
+          let thisTokenCPU =
+            isNextDraftPossiblyThinking ? thisTokenGPU.toCPU() : nil
+          let draftHidden = DynamicGraph.Tensor<BFloat16>(
+            from: decodeOutputs[0].as(of: FloatType.self).reshaped(
+              .NC(commitCount, configuration.hiddenSize), offset: [0, 0],
+              strides: [configuration.hiddenSize, 1]
+            ).copied())
+          let draftRotaryEmebedding = rotaryEmbeddingForDecode.reshaped(
+            format: .NHWC, shape: [1, commitCount, 1, configuration.attentionHeadDim],
+            offset: [0, decodeIndex + 1 - decodeRotaryStartIndex, 0, 0],
+            strides: [
+              configuration.attentionHeadDim, configuration.attentionHeadDim,
+              configuration.attentionHeadDim, 1,
+            ]
+          ).copied()
+          let draftCacheInputs = Self.draftCacheInputs(
+            draftCache, currentTokenLength: cachedTokenLength + commitCount + 1,
+            configuration: configuration)
+          let draftOutputs = storage.drafter(
+            (
+              cachedTokenLength: cachedTokenLength + 1, tokenLength: commitCount,
+              lastNumberOfTokens: 1
+            ), inputs: draftTokens,
+            [emptyEmbeddings, emptyTokens, draftHidden, draftRotaryEmebedding] + draftCacheInputs)
+          Self.updateDraftLastHidden(
+            &draftCache, from: draftHidden, rowIndex: commitCount - 1, configuration: configuration)
+          let isNextDraftThinking =
+            thisTokenCPU.map { $0[0] != 248_069 } ?? false
+          let draftLogits = draftOutputs[1].as(of: FloatType.self)
+          let draftTokenGPU: DynamicGraph.Tensor<Int32>
+          if isNextDraftThinking || !deterministic {
+            let temperature: Float = isNextDraftThinking ? 1 : 0.7
+            let minimumPLogitRangeGPU =
+              isNextDraftThinking ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
+            let maskedLogits = draftLogits.copied()
+            let maximumLogit = maskedLogits.reduced(.max, axis: [1])
+            maskedLogits.fill(
+              -Float.infinity, if: maskedLogits < (maximumLogit - minimumPLogitRangeGPU))
+            let logSumExp = Functional.logSumExp(
+              maskedLogits, axis: [1], scale: 1 / temperature)
+            draftTokenGPU = Functional.gumbelArgmax(
+              maskedLogits, axis: 1, scale: temperature
+            ).reshaped(format: .NHWC, shape: [1])
+            draftSamplingState = (maskedLogits, logSumExp, temperature)
+          } else {
+            draftTokenGPU = Functional.argmax(draftLogits, axis: 1).reshaped(
+              format: .NHWC, shape: [1])
+            draftSamplingState = nil
+          }
+          nextTokenGPU = Functional.concat(axis: 0, thisTokenGPU, draftTokenGPU)
+          // This needs to happen after the draft because draft needs to update the internal KV states.
+          for i in 0..<commitCount {
+            let decodedToken = oldDecodedTokenCPU[i]
+            runningContextTokens.append(decodedToken)
+            let checkpointLength = runningContextTokens.count
+            if !hasPaddedImages, checkpointLength % contextCache.checkpointStride == 0 {
+              if let partialCheckpointDelta = partialCheckpointDelta,
+                partialCheckpointDelta == i + 1,
+                let partialLinearOverrides = partialLinearOverrides
+              {
+                let draftLastHidden = draftHidden.reshaped(
+                  .NC(1, configuration.hiddenSize), offset: [i, 0],
+                  strides: [configuration.hiddenSize, 1]
+                ).copied()
+                contextCache.save(
+                  graph: graph, tokens: runningContextTokens, checkpointLength: checkpointLength,
+                  configuration: configuration, isMTPEnabled: storage.isMTPEnabled,
+                  kvCache: kvCache,
+                  draftCache: draftCache, hasher: &contextCacheHasher,
+                  linearOverrides: partialLinearOverrides,
+                  draftLastHiddenOverride: draftLastHidden, ropeDelta: ropeDelta,
+                  embeddingSpans: embedSpans)
+              } else {
+                contextCache.save(
+                  graph: graph, tokens: runningContextTokens, checkpointLength: checkpointLength,
+                  configuration: configuration, isMTPEnabled: storage.isMTPEnabled,
+                  kvCache: kvCache,
+                  draftCache: draftCache, hasher: &contextCacheHasher, ropeDelta: ropeDelta,
+                  embeddingSpans: embedSpans)
+              }
+            }
+            generated.append(decodedToken)
+            recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
+            recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
+              Float(CACurrentMediaTime() - tokenGenerationStartTime)
+              + initialTokenGenerationDurationSoFar
+            if decodedToken == 248_069 {
+              thinkingEnded = true
+            }
+            if Self.eosTokenIds.contains(decodedToken) {
+              shouldAppendPendingToken = false
+              break
+            }
+            if shouldStopAfterSampling {
+              continue
+            }
+            switch continuationHandler(
+              cachedTokenLength + i + 1, cachedTokenLength + i + 1, generated, statistics)
+            {
+            case .continue:
+              break
+            case .pause:
+              shouldStopAfterSampling = true
+            case .abort:
+              shouldAppendPendingToken = false
+              break
+            }
+            if !shouldAppendPendingToken {
+              break
+            }
+          }
+          decodeIndex += commitCount
+          if !shouldAppendPendingToken || shouldStopAfterSampling {
+            return true
+          }
         } else {
-          nextTokenGPU = Functional.argmax(logits, axis: 1).reshaped(
-            format: .NHWC, shape: [1])
+          let isNextTokenThinking =
+            thinkingBudget > 0 && !thinkingEnded && oldDecodedTokenCPU[0] != 248_069
+          if isNextTokenThinking || !deterministic {
+            let temperature: Float = isNextTokenThinking ? 1 : 0.7
+            let minimumPLogitRangeGPU =
+              isNextTokenThinking ? reasoningMinimumPLogitRangeGPU : answerMinimumPLogitRangeGPU
+            let maximumLogit = logits.reduced(.max, axis: [1])
+            logits.fill(-Float.infinity, if: logits < (maximumLogit - minimumPLogitRangeGPU))
+            nextTokenGPU = Functional.gumbelArgmax(
+              logits, axis: 1, scale: temperature
+            ).reshaped(format: .NHWC, shape: [1])
+          } else {
+            nextTokenGPU = Functional.argmax(logits, axis: 1).reshaped(
+              format: .NHWC, shape: [1])
+          }
+          Self.updateLinearCaches(
+            &kvCache, from: decodeOutputs, outputOffset: 1, stateCheckpointIndex: 0,
+            tokenLength: sequenceLength, inputCaches: nil, configuration: configuration)
+          kvCacheTokenLength = cachedTokenLength + 1
+          let decodedToken = oldDecodedTokenCPU[0]
+          runningContextTokens.append(decodedToken)
+          if !hasPaddedImages, runningContextTokens.count % contextCache.checkpointStride == 0 {
+            contextCache.save(
+              graph: graph, tokens: runningContextTokens,
+              checkpointLength: runningContextTokens.count, configuration: configuration,
+              isMTPEnabled: storage.isMTPEnabled, kvCache: kvCache, draftCache: draftCache,
+              hasher: &contextCacheHasher)
+          }
+          if decodeIndex > 0 {
+            generated.append(decodedToken)
+            recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
+            recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
+              Float(CACurrentMediaTime() - tokenGenerationStartTime)
+              + initialTokenGenerationDurationSoFar
+            if decodedToken == 248_069 {
+              thinkingEnded = true
+            }
+            if Self.eosTokenIds.contains(decodedToken) {
+              shouldAppendPendingToken = false
+              return true
+            }
+            switch continuationHandler(
+              cachedTokenLength + 1, cachedTokenLength + 1, generated, statistics)
+            {
+            case .continue:
+              break
+            case .pause:
+              shouldStopAfterSampling = true
+            case .abort:
+              shouldAppendPendingToken = false
+              break
+            }
+            if !shouldAppendPendingToken {
+              return true
+            }
+          }
+          decodeIndex += 1
+          if shouldStopAfterSampling { return true }
         }
-        Self.updateLinearCaches(
-          &kvCache, from: decodeOutputs, outputOffset: 1, stateCheckpointIndex: 0,
-          tokenLength: sequenceLength, inputCaches: nil, configuration: configuration)
-        kvCacheTokenLength = cachedTokenLength + 1
-        let decodedToken = oldDecodedTokenCPU[0]
-        runningContextTokens.append(decodedToken)
-        if !hasPaddedImages, runningContextTokens.count % contextCache.checkpointStride == 0 {
-          contextCache.save(
-            graph: graph, tokens: runningContextTokens,
-            checkpointLength: runningContextTokens.count, configuration: configuration,
-            isMTPEnabled: storage.isMTPEnabled, kvCache: kvCache, draftCache: draftCache,
-            hasher: &contextCacheHasher)
-        }
-        if decodeIndex > 0 {
-          generated.append(decodedToken)
-          recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
-          recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
-            Float(CACurrentMediaTime() - tokenGenerationStartTime)
-            + initialTokenGenerationDurationSoFar
-          if decodedToken == 248_069 {
-            thinkingEnded = true
-          }
-          if Self.eosTokenIds.contains(decodedToken) {
-            shouldAppendPendingToken = false
-            break
-          }
-          switch continuationHandler(
-            cachedTokenLength + 1, cachedTokenLength + 1, generated, statistics)
-          {
-          case .continue:
-            break
-          case .pause:
-            shouldStopAfterSampling = true
-          case .abort:
-            shouldAppendPendingToken = false
-            break
-          }
-          if !shouldAppendPendingToken {
-            break
-          }
-        }
-        decodeIndex += 1
-        if shouldStopAfterSampling { break }
+        return false
+      }
+      if shouldStop {
+        break
       }
     }
     if shouldAppendPendingToken {

@@ -958,128 +958,131 @@ extension Inkling2SmallTextGenerator {
       recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar
     let prefillStartTime = CACurrentMediaTime()
     while prefillChunkStart < tokenLength {
-      let start = prefillChunkStart
-      let position = tokenOffset + start
-      // A chunk never crosses a checkpoint.
-      let nextCheckpoint = (position / checkpointStride + 1) * checkpointStride
-      var end =
-        position + min(chunkedPrefillMaxLength, tokenLength - start, nextCheckpoint - position)
-      encodeImages(overlapping: position..<end)
-      // A chunk holds at most one image, with text rows before and after it, the order
-      // Inkling2SmallCausalLM takes, so it ends where the next image starts. Unavailable images
-      // stay text rows.
-      let images = embedSpans.filter {
-        Int($0.start) < end && Int($0.end) > position && encodedImages[$0.digest] != nil
-      }.sorted { $0.start < $1.start }
-      if images.count > 1 { end = Int(images[1].start) }
-      if embedSpans.contains(where: {
-        Int($0.start) < end && Int($0.end) > position && unavailableImages.contains($0.digest)
-      }) {
-        kvCache.hasPaddedImages = true
-      }
-      var textEnd = end
-      var postStart = end
-      var injected = emptyInjected
-      if let span = images.first, let embeddings = encodedImages[span.digest] {
-        textEnd = max(position, Int(span.start))
-        postStart = min(end, Int(span.end))
-        injected = embeddings.reshaped(
-          .WC(postStart - textEnd, configuration.hiddenSize),
-          offset: [textEnd - Int(span.start), 0], strides: [configuration.hiddenSize, 1]
-        ).copied()
-      }
-      if images.isEmpty && shouldCompilePrefillHeadroom {
-        graph.joined()
-        compilePrefillHeadroom(cacheCapacity: cacheCapacity)
-        shouldCompilePrefillHeadroom = false
-      }
-      let length = end - position
-      makeRoom(for: length)
-      let flags = DynamicGraph.flags
-      if length < chunkedPrefillMaxLength {
-        DynamicGraph.flags.insert(.disableMFAGEMMSpecializingM)
-      }
-      let textTokens =
-        textEnd > position
-        ? tokens.reshaped(
-          format: .NHWC, shape: [textEnd - position], offset: [start], strides: [1]
-        ).copied() : emptyTokens
-      let postTokens =
-        postStart < end
-        ? tokens.reshaped(
-          format: .NHWC, shape: [end - postStart], offset: [postStart - tokenOffset],
-          strides: [1]
-        ).copied() : emptyTokens
-      let prefillOutputs = decoder(
-        (
-          cached: position, sliding: kvCache.slidingTokenLength, count: length, logits: 1,
-          convolutionOffset: kvCache.convolutionOffset
-        ),
-        inputs: textTokens,
-        modelInputs(
-          injected: injected, postTokens: postTokens, cachedTokenLength: position,
-          tokenLength: length,
-          logScale: logScale(cachedTokenLength: position, tokenLength: length)))
-      DynamicGraph.flags = flags
-      if !images.isEmpty {
-        shouldCompilePrefillHeadroom = true
-      }
-      advance(by: length)
-      saveCheckpoint()
-      if isDrafting {
-        // The drafter's target features of the chunk's rows come last.
-        let features = prefillOutputs[prefillOutputs.count - 1].as(of: Float16.self)
-        writeDraftContext(features: features, rows: length, firstPosition: position)
-        if start + length == tokenLength {
-          // The first draft rewrites the last position from its target features.
-          let width = features.shape[1]
-          kvCache.draftMainFeatures = features.reshaped(
-            .WC(1, width), offset: [length - 1, 0], strides: [width, 1]
+      // Each chunk drains what it autoreleases too.
+      autoreleasepool {
+        let start = prefillChunkStart
+        let position = tokenOffset + start
+        // A chunk never crosses a checkpoint.
+        let nextCheckpoint = (position / checkpointStride + 1) * checkpointStride
+        var end =
+          position + min(chunkedPrefillMaxLength, tokenLength - start, nextCheckpoint - position)
+        encodeImages(overlapping: position..<end)
+        // A chunk holds at most one image, with text rows before and after it, the order
+        // Inkling2SmallCausalLM takes, so it ends where the next image starts. Unavailable images
+        // stay text rows.
+        let images = embedSpans.filter {
+          Int($0.start) < end && Int($0.end) > position && encodedImages[$0.digest] != nil
+        }.sorted { $0.start < $1.start }
+        if images.count > 1 { end = Int(images[1].start) }
+        if embedSpans.contains(where: {
+          Int($0.start) < end && Int($0.end) > position && unavailableImages.contains($0.digest)
+        }) {
+          kvCache.hasPaddedImages = true
+        }
+        var textEnd = end
+        var postStart = end
+        var injected = emptyInjected
+        if let span = images.first, let embeddings = encodedImages[span.digest] {
+          textEnd = max(position, Int(span.start))
+          postStart = min(end, Int(span.end))
+          injected = embeddings.reshaped(
+            .WC(postStart - textEnd, configuration.hiddenSize),
+            offset: [textEnd - Int(span.start), 0], strides: [configuration.hiddenSize, 1]
           ).copied()
-          kvCache.draftMainKept = 1
-          kvCache.draftMainStart = position + length - 1
         }
-      }
-      if start + length == tokenLength {
-        if thinkingPhase.shouldEndThinking {
-          prefillTokenCPU = endThinkingTokenCPU
-        } else {
-          // The last chunk's logits pick the first generated token, under the sampling mode of the
-          // phase that has read every token before it.
-          let logits = prefillOutputs[0].as(of: Float16.self)
-          if thinkingPhase.excludesThinking {
-            let exclusion =
-              thinkingExclusion
-              ?? graph.variable(
-                Tensor<Float16>([-Float16.infinity], kind: .CPU, format: .NHWC, shape: [1, 1])
-                  .toGPU(0))
-            thinkingExclusion = exclusion
-            let token = Int(Self.thinkingContentToken)
-            var excluded = logits
-            excluded[0..<1, token..<(token + 1)] = exclusion
-          }
-          if let sampling = Self.sampling(phase: thinkingPhase, deterministic: deterministic) {
-            logits.fill(
-              -Float.infinity, if: logits < (logits.reduced(.max, axis: [1]) - sampling.window))
-            prefillTokenCPU = Functional.gumbelArgmax(
-              logits, axis: 1, scale: sampling.temperature
-            ).reshaped(format: .NHWC, shape: [1]).toCPU()
-          } else {
-            prefillTokenCPU = Functional.argmax(logits, axis: 1).reshaped(
-              format: .NHWC, shape: [1]
-            ).toCPU()
-          }
-        }
-        if shouldCompilePrefillHeadroom {
+        if images.isEmpty && shouldCompilePrefillHeadroom {
           graph.joined()
           compilePrefillHeadroom(cacheCapacity: cacheCapacity)
           shouldCompilePrefillHeadroom = false
         }
+        let length = end - position
+        makeRoom(for: length)
+        let flags = DynamicGraph.flags
+        if length < chunkedPrefillMaxLength {
+          DynamicGraph.flags.insert(.disableMFAGEMMSpecializingM)
+        }
+        let textTokens =
+          textEnd > position
+          ? tokens.reshaped(
+            format: .NHWC, shape: [textEnd - position], offset: [start], strides: [1]
+          ).copied() : emptyTokens
+        let postTokens =
+          postStart < end
+          ? tokens.reshaped(
+            format: .NHWC, shape: [end - postStart], offset: [postStart - tokenOffset],
+            strides: [1]
+          ).copied() : emptyTokens
+        let prefillOutputs = decoder(
+          (
+            cached: position, sliding: kvCache.slidingTokenLength, count: length, logits: 1,
+            convolutionOffset: kvCache.convolutionOffset
+          ),
+          inputs: textTokens,
+          modelInputs(
+            injected: injected, postTokens: postTokens, cachedTokenLength: position,
+            tokenLength: length,
+            logScale: logScale(cachedTokenLength: position, tokenLength: length)))
+        DynamicGraph.flags = flags
+        if !images.isEmpty {
+          shouldCompilePrefillHeadroom = true
+        }
+        advance(by: length)
+        saveCheckpoint()
+        if isDrafting {
+          // The drafter's target features of the chunk's rows come last.
+          let features = prefillOutputs[prefillOutputs.count - 1].as(of: Float16.self)
+          writeDraftContext(features: features, rows: length, firstPosition: position)
+          if start + length == tokenLength {
+            // The first draft rewrites the last position from its target features.
+            let width = features.shape[1]
+            kvCache.draftMainFeatures = features.reshaped(
+              .WC(1, width), offset: [length - 1, 0], strides: [width, 1]
+            ).copied()
+            kvCache.draftMainKept = 1
+            kvCache.draftMainStart = position + length - 1
+          }
+        }
+        if start + length == tokenLength {
+          if thinkingPhase.shouldEndThinking {
+            prefillTokenCPU = endThinkingTokenCPU
+          } else {
+            // The last chunk's logits pick the first generated token, under the sampling mode of the
+            // phase that has read every token before it.
+            let logits = prefillOutputs[0].as(of: Float16.self)
+            if thinkingPhase.excludesThinking {
+              let exclusion =
+                thinkingExclusion
+                ?? graph.variable(
+                  Tensor<Float16>([-Float16.infinity], kind: .CPU, format: .NHWC, shape: [1, 1])
+                    .toGPU(0))
+              thinkingExclusion = exclusion
+              let token = Int(Self.thinkingContentToken)
+              var excluded = logits
+              excluded[0..<1, token..<(token + 1)] = exclusion
+            }
+            if let sampling = Self.sampling(phase: thinkingPhase, deterministic: deterministic) {
+              logits.fill(
+                -Float.infinity, if: logits < (logits.reduced(.max, axis: [1]) - sampling.window))
+              prefillTokenCPU = Functional.gumbelArgmax(
+                logits, axis: 1, scale: sampling.temperature
+              ).reshaped(format: .NHWC, shape: [1]).toCPU()
+            } else {
+              prefillTokenCPU = Functional.argmax(logits, axis: 1).reshaped(
+                format: .NHWC, shape: [1]
+              ).toCPU()
+            }
+          }
+          if shouldCompilePrefillHeadroom {
+            graph.joined()
+            compilePrefillHeadroom(cacheCapacity: cacheCapacity)
+            shouldCompilePrefillHeadroom = false
+          }
+        }
+        prefillChunkStart += length
+        recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar =
+          Float(CACurrentMediaTime() - prefillStartTime) + initialPrefillDurationSoFar
+        recentInteractionStatistics[interactionStatisticsIndex].prefillTokensSoFar += length
       }
-      prefillChunkStart += length
-      recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar =
-        Float(CACurrentMediaTime() - prefillStartTime) + initialPrefillDurationSoFar
-      recentInteractionStatistics[interactionStatisticsIndex].prefillTokensSoFar += length
       switch continuationHandler(prefillChunkStart, tokenLength, [], statistics) {
       case .continue:
         break
@@ -1171,455 +1174,462 @@ extension Inkling2SmallTextGenerator {
     var pendingCPU: Int32? = firstToken
     lastDraftAcceptance = (rounds: 0, kept: 0)
     while decodeIndex < decodeTokenCapacity {
-      let stepStart = CACurrentMediaTime()
-      // The pending token follows every token the phase has read; the first is already read.
-      if decodeIndex > 0, thinkingPhase.shouldEndThinking {
-        nextTokenGPU = endThinkingTokenCPU.toGPU(0)
-        pendingCPU = Self.endThinkToken
-      }
-      if kvCache.tokenLength + (isDrafting ? block : 1) > cacheCapacity
-        && cacheCapacity < Self.maximumContextLength
-      {
-        cacheCapacity = min(
-          cacheCapacity + self.compilePrefillHeadroom, Self.maximumContextLength)
-        Self.resizeCaches(
-          graph: graph, kvCache: &kvCache, cacheCapacity: cacheCapacity,
-          slidingCapacity: slidingCapacity, configuration: configuration)
-        if isDrafting {
-          Self.resizeDraftCaches(
-            graph: graph, kvCache: &kvCache, globalRows: cacheCapacity + block,
-            localRows: draftLocalRows, configuration: configuration)
+      // Each step drains what it autoreleases, Metal command buffers among them: a long reply would
+      // otherwise hold all of them until the call returns.
+      let shouldStop = autoreleasepool { () -> Bool in
+        let stepStart = CACurrentMediaTime()
+        // The pending token follows every token the phase has read; the first is already read.
+        if decodeIndex > 0, thinkingPhase.shouldEndThinking {
+          nextTokenGPU = endThinkingTokenCPU.toGPU(0)
+          pendingCPU = Self.endThinkToken
         }
-        decodeLogScaleStart = kvCache.tokenLength
-        decodeLogScales = logScale(
-          cachedTokenLength: decodeLogScaleStart, tokenLength: cacheCapacity - decodeLogScaleStart)
-        compilePrefillHeadroom(cacheCapacity: cacheCapacity)
-        if isDrafting {
-          compileDraftHeadroom()
+        if kvCache.tokenLength + (isDrafting ? block : 1) > cacheCapacity
+          && cacheCapacity < Self.maximumContextLength
+        {
+          cacheCapacity = min(
+            cacheCapacity + self.compilePrefillHeadroom, Self.maximumContextLength)
+          Self.resizeCaches(
+            graph: graph, kvCache: &kvCache, cacheCapacity: cacheCapacity,
+            slidingCapacity: slidingCapacity, configuration: configuration)
+          if isDrafting {
+            Self.resizeDraftCaches(
+              graph: graph, kvCache: &kvCache, globalRows: cacheCapacity + block,
+              localRows: draftLocalRows, configuration: configuration)
+          }
+          decodeLogScaleStart = kvCache.tokenLength
+          decodeLogScales = logScale(
+            cachedTokenLength: decodeLogScaleStart, tokenLength: cacheCapacity - decodeLogScaleStart
+          )
+          compilePrefillHeadroom(cacheCapacity: cacheCapacity)
+          if isDrafting {
+            compileDraftHeadroom()
+          }
         }
-      }
-      let position = kvCache.tokenLength
-      makeRoom(for: isDrafting ? block : 1)
-      let pendingRead = pendingCPU == nil ? nextTokenGPU.toCPU() : nil
-      // The phase once the pending token is read decides the sampling mode of every row the step
-      // feeds, which the drafter drafts with too. The first pending token is in it already.
-      var phase = thinkingPhase
-      if decodeIndex > 0, let pendingCPU {
-        phase.append(pendingCPU)
-      }
-      var rows = 1
-      // The drafted tokens on the GPU and the CPU, the logits they were drawn from, the tenth of each
-      // one's top probability, and how many of them the step verifies.
-      var drafted:
-        (
-          tokens: DynamicGraph.Tensor<Int32>, cpu: DynamicGraph.Tensor<Int32>,
-          logits: DynamicGraph.Tensor<Float>, bins: [Int], verified: Int
-        )?
-      var preparedRows: Int?
-      // The drafter drafts a block from the pending token on the CPU, after the rows the last call
-      // fed: the rows a verify evaluated, or the last prefill row. The block takes the position of
-      // the first row the verify did not keep. View column c of a window layer holds position
-      // mainStart - windowRows + c; the mask closes the main rows the verify did not keep and the
-      // positions before the windowRows ones before the block. The end of sequence is fed alone.
-      if let mainFeatures = kvCache.draftMainFeatures, let pending = pendingCPU,
-        !Self.eosTokenIds.contains(pending)
-      {
-        let mainStart = kvCache.draftMainStart
-        let mainRows = mainFeatures.shape[0]
-        let mainKept = kvCache.draftMainKept
-        let width = mainFeatures.shape[1]
-        makeDraftRoom(through: mainStart + mainRows + block, keepingFrom: mainStart)
-        let localOffset = mainStart - kvCache.draftLocalStart - draft.windowRows
-        let viewRows = draft.windowRows + mainRows + block
-        let closed = max(mainKept, draft.windowRows - mainStart)
-        let maskKey = [mainRows, mainKept, closed]
-        let mask: DynamicGraph.Tensor<Float16>
-        if let cachedMask = draftMasks[maskKey] {
-          mask = cachedMask
-        } else {
-          var values = [Float16](repeating: 0, count: block * viewRows)
-          for row in 0..<block {
-            for column in Array(0..<closed)
-              + Array((draft.windowRows + mainKept)..<(draft.windowRows + mainRows))
-            {
-              values[row * viewRows + column] = -Float16.infinity
+        let position = kvCache.tokenLength
+        makeRoom(for: isDrafting ? block : 1)
+        let pendingRead = pendingCPU == nil ? nextTokenGPU.toCPU() : nil
+        // The phase once the pending token is read decides the sampling mode of every row the step
+        // feeds, which the drafter drafts with too. The first pending token is in it already.
+        var phase = thinkingPhase
+        if decodeIndex > 0, let pendingCPU {
+          phase.append(pendingCPU)
+        }
+        var rows = 1
+        // The drafted tokens on the GPU and the CPU, the logits they were drawn from, the tenth of each
+        // one's top probability, and how many of them the step verifies.
+        var drafted:
+          (
+            tokens: DynamicGraph.Tensor<Int32>, cpu: DynamicGraph.Tensor<Int32>,
+            logits: DynamicGraph.Tensor<Float>, bins: [Int], verified: Int
+          )?
+        var preparedRows: Int?
+        // The drafter drafts a block from the pending token on the CPU, after the rows the last call
+        // fed: the rows a verify evaluated, or the last prefill row. The block takes the position of
+        // the first row the verify did not keep. View column c of a window layer holds position
+        // mainStart - windowRows + c; the mask closes the main rows the verify did not keep and the
+        // positions before the windowRows ones before the block. The end of sequence is fed alone.
+        if let mainFeatures = kvCache.draftMainFeatures, let pending = pendingCPU,
+          !Self.eosTokenIds.contains(pending)
+        {
+          let mainStart = kvCache.draftMainStart
+          let mainRows = mainFeatures.shape[0]
+          let mainKept = kvCache.draftMainKept
+          let width = mainFeatures.shape[1]
+          makeDraftRoom(through: mainStart + mainRows + block, keepingFrom: mainStart)
+          let localOffset = mainStart - kvCache.draftLocalStart - draft.windowRows
+          let viewRows = draft.windowRows + mainRows + block
+          let closed = max(mainKept, draft.windowRows - mainStart)
+          let maskKey = [mainRows, mainKept, closed]
+          let mask: DynamicGraph.Tensor<Float16>
+          if let cachedMask = draftMasks[maskKey] {
+            mask = cachedMask
+          } else {
+            var values = [Float16](repeating: 0, count: block * viewRows)
+            for row in 0..<block {
+              for column in Array(0..<closed)
+                + Array((draft.windowRows + mainKept)..<(draft.windowRows + mainRows))
+              {
+                values[row * viewRows + column] = -Float16.infinity
+              }
             }
+            let maskSource = graph.variable(
+              Tensor(values, kind: .CPU, format: .NHWC, shape: [1, 1, block, viewRows]))
+            tensorsToGPU.append(maskSource)
+            mask = maskSource.toGPU(0)
+            if closed == mainKept { draftMasks[maskKey] = mask }
           }
-          let maskSource = graph.variable(
-            Tensor(values, kind: .CPU, format: .NHWC, shape: [1, 1, block, viewRows]))
-          tensorsToGPU.append(maskSource)
-          mask = maskSource.toGPU(0)
-          if closed == mainKept { draftMasks[maskKey] = mask }
-        }
-        let draftInputs: [DynamicGraph.AnyTensor] =
-          [
-            mainFeatures, mainFeatures[(mainKept - 1)..<mainKept, 0..<width].copied(),
-            draftRotary(rows: mainRows, firstPosition: mainStart), nextTokenGPU,
-            draftRotary(rows: block, firstPosition: position), mask,
-            kvCache.draftOpenPrefix!.reshaped(format: .NHWC, shape: [1, 1, block, mainStart]),
-            minPWindows[phase.isEnded ? 1 : 0],
-          ] + Self.draftCacheInputs(kvCache)
-        let draftStart = CACurrentMediaTime()
-        // The last call built this draft's graph, unless the draft is the first or its mode
-        // changed.
-        let key = (
-          mainRows: mainRows, globalRow: mainStart, localOffset: localOffset,
-          temperature: Self.sampling(phase: phase, deterministic: deterministic)?.temperature ?? 0
-        )
-        if drafterKey.map({ $0 != key }) ?? true {
-          drafterKey = key
-          storage.drafter.compile(key, inputs: draftInputs)
-        }
-        // The layer that sees every position attends a longer view each draft, so its masked
-        // attention reads the key length instead of compiling a kernel for each.
-        let flags = DynamicGraph.flags
-        DynamicGraph.flags.insert(.disableMFAAttentionSpecializingC)
-        let draftOutputs = storage.drafter(
-          key, inputs: draftInputs[0], Array(draftInputs.dropFirst()))
-        DynamicGraph.flags = flags
-        let draftTokens = draftOutputs[0].as(of: Int32.self)
-        let draftsCPU = draftTokens.toCPU()
-        let partitions = draftOutputs[2].as(of: Float.self).toCPU()
-        // A step never crosses a context-cache checkpoint, so the cache lands on each one.
-        let nextCheckpoint = (position / checkpointStride + 1) * checkpointStride
-        let maximumRows = min(
-          verifyRowLimit, decodeTokenCapacity - decodeIndex, cacheCapacity - position,
-          nextCheckpoint - position)
-        // While the draft runs, build the verify at the rows the last one took: a verify of the
-        // same rows then runs without building its graph.
-        if lastVerifyRows <= maximumRows {
-          decoder.compile(
-            (
-              cached: position, sliding: kvCache.slidingTokenLength, count: lastVerifyRows,
-              logits: lastVerifyRows, convolutionOffset: kvCache.convolutionOffset
-            ),
-            inputs: [verifyStandIn.reshaped(format: .NHWC, shape: [lastVerifyRows])]
-              + modelInputs(
-                injected: emptyInjected, postTokens: emptyTokens, cachedTokenLength: position,
-                tokenLength: lastVerifyRows,
-                logScale: decodeLogScales.reshaped(
-                  format: .NHWC, shape: [lastVerifyRows, 1],
-                  offset: [position - decodeLogScaleStart, 0], strides: [1, 1]),
-                verifyRows: lastVerifyRows))
-          preparedRows = lastVerifyRows
-        }
-        withExtendedLifetime(tensorsToGPU) { partitions.joined() }
-        tensorsToGPU = []
-        draftMilliseconds =
-          0.8 * draftMilliseconds
-          + 0.2 * min(1000 * (CACurrentMediaTime() - draftStart), 2 * draftMilliseconds)
-        // A position's top probability is 1 / its partition.
-        let bins = (0..<draft.proposals).map {
-          min(9, max(0, Int(10 / Double(partitions[$0, 0]))))
-        }
-        // Verify the pending token and the drafts that maximize the expected tokens per
-        // millisecond. A draft is kept only if every one before it is, so E(rows) = 1 + the sum of
-        // the running products of their chances. Rows are added one draft at a time, each on its
-        // own chance, from its position's top probability, which depends only on the drafts before
-        // it: whether a draft is verified never depends on its value, as exact sampling needs.
-        // Later drafts are taken to be as likely as the one being added.
-        func milliseconds(_ rows: Int) -> Double {
-          verifyMilliseconds[rows] + draftMilliseconds
-            + (preparedRows == rows ? 0 : compileMilliseconds)
-        }
-        var expected = 1.0
-        var prefix = 1.0
-        var rate = expected / milliseconds(1)
-        if maximumRows > 1 {
-          for candidate in 2...maximumRows {
-            let bin = bins[candidate - 2]
-            let probability = (binKept[bin] + 4 * (Double(bin) + 0.5) / 10) / (binSeen[bin] + 4)
-            var projectedExpected = expected
-            var projectedPrefix = prefix
-            var projectedRate = 0.0
-            for length in candidate...maximumRows {
-              projectedPrefix *= probability
-              projectedExpected += projectedPrefix
-              projectedRate = max(projectedRate, projectedExpected / milliseconds(length))
-            }
-            guard projectedRate > rate else { break }
-            prefix *= probability
-            expected += prefix
-            rows = candidate
-            rate = expected / milliseconds(candidate)
-          }
-        }
-        // One sampling mode a step: the step feeds drafts only while they leave the phase as it is.
-        // A draft that opens or ends thinking, opens a model message, or spends the thinking budget
-        // is the last one the step verifies, at its last row under the step's mode, like any draft,
-        // and the next step feeds it, as DeepSeek4_1TextGenerator does a drafted end of thinking.
-        // Whether a draft is verified then still never depends on its value.
-        var verified = rows - 1
-        var unchanged = phase
-        for index in 0..<(rows - 1) {
-          var next = unchanged
-          next.append(draftsCPU[index])
-          guard next.isEnded == unchanged.isEnded, next.isThinking == unchanged.isThinking,
-            !next.excludesThinking, !next.shouldEndThinking
-          else {
-            rows = index + 1
-            verified = rows
-            break
-          }
-          unchanged = next
-        }
-        if phase.shouldEndThinking {
-          // The budget ends thinking right after the pending token, which the next step forces.
-          rows = 1
-          verified = 0
-        }
-        drafted = (draftTokens, draftsCPU, draftOutputs[1].as(of: Float.self), bins, verified)
-      } else if let mainFeatures = kvCache.draftMainFeatures {
-        // No draft writes the main rows' keys and values, so the kept ones go in now.
-        let kept = kvCache.draftMainKept
-        writeDraftContext(
-          features: mainFeatures[0..<kept, 0..<mainFeatures.shape[1]].copied(), rows: kept,
-          firstPosition: kvCache.draftMainStart)
-      }
-
-      let drafts = rows - 1
-      var tokens = nextTokenGPU
-      if let drafted, drafts > 0 {
-        tokens = graph.variable(.GPU(0), format: .NHWC, shape: [rows], of: Int32.self)
-        tokens[0..<1] = nextTokenGPU
-        tokens[1..<rows] = drafted.tokens[0..<drafts]
-      }
-      let key = (
-        cached: position, sliding: kvCache.slidingTokenLength, count: rows, logits: rows,
-        convolutionOffset: kvCache.convolutionOffset
-      )
-      let inputs = modelInputs(
-        injected: emptyInjected, postTokens: emptyTokens, cachedTokenLength: position,
-        tokenLength: rows,
-        logScale: decodeLogScales.reshaped(
-          format: .NHWC, shape: [rows, 1], offset: [position - decodeLogScaleStart, 0],
-          strides: [1, 1]
-        ).copied(), verifyRows: rows)
-      if drafted != nil {
-        if preparedRows != rows {
-          let compileStart = CACurrentMediaTime()
-          decoder.compile(key, inputs: [tokens] + inputs)
-          compileMilliseconds =
-            0.8 * compileMilliseconds
-            + 0.2 * min(1000 * (CACurrentMediaTime() - compileStart), 2 * compileMilliseconds)
-        }
-        lastVerifyRows = rows
-      }
-      let callStart = CACurrentMediaTime()
-      let outputs = decoder(key, inputs: tokens, inputs)
-      let logits = outputs[0].as(of: Float16.self)
-      // The drafter's target features of the rows fed, which come last.
-      let features = isDrafting ? outputs[outputs.count - 1].as(of: Float16.self) : nil
-      let pending = pendingCPU ?? pendingRead![0]
-      if decodeIndex > 0, pendingCPU == nil {
-        phase.append(pending)
-      }
-      let sampling = Self.sampling(phase: phase, deterministic: deterministic)
-      if drafted != nil, let features {
-        // While the call runs, make room for the next draft and build its graph: its main rows are
-        // this call's, whatever it keeps.
-        makeDraftRoom(through: position + rows + block, keepingFrom: position)
-        let nextKey = (
-          mainRows: rows, globalRow: position,
-          localOffset: position - kvCache.draftLocalStart - draft.windowRows,
-          temperature: sampling?.temperature ?? 0
-        )
-        if drafterKey.map({ $0 != nextKey }) ?? true {
-          drafterKey = nextKey
-          storage.drafter.compile(
-            nextKey,
-            inputs: [
-              features,
-              features[(rows - 1)..<rows, 0..<features.shape[1]].copied(),
-              draftRotary(rows: rows, firstPosition: position),
-              verifyStandIn.reshaped(format: .NHWC, shape: [1]),
-              draftRotary(rows: block, firstPosition: position),
-              maskStandIn.reshaped(.NHWC(1, 1, block, draft.windowRows + rows + block)),
-              kvCache.draftOpenPrefix!.reshaped(format: .NHWC, shape: [1, 1, block, position]),
+          let draftInputs: [DynamicGraph.AnyTensor] =
+            [
+              mainFeatures, mainFeatures[(mainKept - 1)..<mainKept, 0..<width].copied(),
+              draftRotary(rows: mainRows, firstPosition: mainStart), nextTokenGPU,
+              draftRotary(rows: block, firstPosition: position), mask,
+              kvCache.draftOpenPrefix!.reshaped(format: .NHWC, shape: [1, 1, block, mainStart]),
               minPWindows[phase.isEnded ? 1 : 0],
-            ] + Self.draftCacheInputs(kvCache))
-        }
-      }
-      if phase.excludesThinking {
-        // A model message the pending token opens can't be the thinking one.
-        if thinkingExclusion == nil {
-          let exclusionSource = graph.variable(
-            Tensor<Float16>([-Float16.infinity], kind: .CPU, format: .NHWC, shape: [1, 1]))
-          tensorsToGPU.append(exclusionSource)
-          thinkingExclusion = exclusionSource.toGPU(0)
-        }
-        let token = Int(Self.thinkingContentToken)
-        var excluded = logits
-        excluded[0..<1, token..<(token + 1)] = thinkingExclusion!
-      }
-      // The target's pick at each row: greedily every row's; or sampled, the verified drafts by
-      // speculative sampling through the first rejected one, then, when they all stay and the last
-      // row verifies none, its own sample.
-      var picks = [Int32]()
-      var isRejected = false
-      let selected: DynamicGraph.Tensor<Int32>
-      if let sampling {
-        let target = DynamicGraph.Tensor<Float>(from: logits)
-        target.fill(
-          -Float.infinity, if: target < (target.reduced(.max, axis: [1]) - sampling.window))
-        selected = Functional.gumbelArgmax(
-          target.reshaped(.WC(1, vocabulary), offset: [drafts, 0], strides: [vocabulary, 1]),
-          axis: 1, scale: sampling.temperature)
-        if let drafted, drafted.verified > 0 {
-          let verified = drafted.verified
-          // softmax(logits / temperature) by rows, from exponentials and their sums: the softmax
-          // command takes tens of milliseconds over rows this long.
-          func probabilities(_ logits: DynamicGraph.Tensor<Float>) -> DynamicGraph.Tensor<Float> {
-            let scaled = logits * (1 / sampling.temperature)
-            let centered: DynamicGraph.Tensor<Float> = scaled - scaled.reduced(.max, axis: [1])
-            let partitions = Functional.exp(centered).reduced(.sum, axis: [1])
-            return Functional.exp(centered - Functional.log(partitions))
+            ] + Self.draftCacheInputs(kvCache)
+          let draftStart = CACurrentMediaTime()
+          // The last call built this draft's graph, unless the draft is the first or its mode
+          // changed.
+          let key = (
+            mainRows: mainRows, globalRow: mainStart, localOffset: localOffset,
+            temperature: Self.sampling(phase: phase, deterministic: deterministic)?.temperature ?? 0
+          )
+          if drafterKey.map({ $0 != key }) ?? true {
+            drafterKey = key
+            storage.drafter.compile(key, inputs: draftInputs)
           }
-          let p = probabilities(
-            target.reshaped(.WC(verified, vocabulary), offset: [0, 0], strides: [vocabulary, 1]))
-          let biased = drafted.logits.reshaped(
-            .WC(verified, vocabulary), offset: [0, 0], strides: [vocabulary, 1]
-          ).copied()
-          biased.fill(
-            -Float.infinity, if: biased < (biased.reduced(.max, axis: [1]) - sampling.window))
-          let q = probabilities(biased)
-          let indexSource = graph.variable(
-            Tensor<Int32>(
-              (0..<verified).map { Int32($0 * vocabulary) + drafted.cpu[$0] }, kind: .CPU,
-              format: .NHWC, shape: [verified]))
-          tensorsToGPU.append(indexSource)
-          let index = indexSource.toGPU(0)
-          let pDraft = Functional.indexSelect(
-            input: p.reshaped(.WC(verified * vocabulary, 1)), index: index
-          ).toCPU()
-          let qDraft = Functional.indexSelect(
-            input: q.reshaped(.WC(verified * vocabulary, 1)), index: index
-          ).toCPU()
-          let uniform = graph.variable(.GPU(0), format: .NHWC, shape: [verified], of: Float.self)
-          uniform.rand(0...1)
-          let uniformCPU = uniform.toCPU()
-          let residual: DynamicGraph.Tensor<Float> = Functional.log(Functional.ReLU(p - q))
-          let correction = Functional.gumbelArgmax(residual, axis: 1).toCPU()
-          correction.joined()
-          for row in 0..<verified {
-            // Where p(d) > q(d) the draft always stays.
-            if uniformCPU[row] * qDraft[row, 0] < pDraft[row, 0] {
-              picks.append(drafted.cpu[row])
-            } else {
-              picks.append(correction[row, 0])
-              isRejected = true
+          // The layer that sees every position attends a longer view each draft, so its masked
+          // attention reads the key length instead of compiling a kernel for each.
+          let flags = DynamicGraph.flags
+          DynamicGraph.flags.insert(.disableMFAAttentionSpecializingC)
+          let draftOutputs = storage.drafter(
+            key, inputs: draftInputs[0], Array(draftInputs.dropFirst()))
+          DynamicGraph.flags = flags
+          let draftTokens = draftOutputs[0].as(of: Int32.self)
+          let draftsCPU = draftTokens.toCPU()
+          let partitions = draftOutputs[2].as(of: Float.self).toCPU()
+          // A step never crosses a context-cache checkpoint, so the cache lands on each one.
+          let nextCheckpoint = (position / checkpointStride + 1) * checkpointStride
+          let maximumRows = min(
+            verifyRowLimit, decodeTokenCapacity - decodeIndex, cacheCapacity - position,
+            nextCheckpoint - position)
+          // While the draft runs, build the verify at the rows the last one took: a verify of the
+          // same rows then runs without building its graph.
+          if lastVerifyRows <= maximumRows {
+            decoder.compile(
+              (
+                cached: position, sliding: kvCache.slidingTokenLength, count: lastVerifyRows,
+                logits: lastVerifyRows, convolutionOffset: kvCache.convolutionOffset
+              ),
+              inputs: [verifyStandIn.reshaped(format: .NHWC, shape: [lastVerifyRows])]
+                + modelInputs(
+                  injected: emptyInjected, postTokens: emptyTokens, cachedTokenLength: position,
+                  tokenLength: lastVerifyRows,
+                  logScale: decodeLogScales.reshaped(
+                    format: .NHWC, shape: [lastVerifyRows, 1],
+                    offset: [position - decodeLogScaleStart, 0], strides: [1, 1]),
+                  verifyRows: lastVerifyRows))
+            preparedRows = lastVerifyRows
+          }
+          withExtendedLifetime(tensorsToGPU) { partitions.joined() }
+          tensorsToGPU = []
+          draftMilliseconds =
+            0.8 * draftMilliseconds
+            + 0.2 * min(1000 * (CACurrentMediaTime() - draftStart), 2 * draftMilliseconds)
+          // A position's top probability is 1 / its partition.
+          let bins = (0..<draft.proposals).map {
+            min(9, max(0, Int(10 / Double(partitions[$0, 0]))))
+          }
+          // Verify the pending token and the drafts that maximize the expected tokens per
+          // millisecond. A draft is kept only if every one before it is, so E(rows) = 1 + the sum of
+          // the running products of their chances. Rows are added one draft at a time, each on its
+          // own chance, from its position's top probability, which depends only on the drafts before
+          // it: whether a draft is verified never depends on its value, as exact sampling needs.
+          // Later drafts are taken to be as likely as the one being added.
+          func milliseconds(_ rows: Int) -> Double {
+            verifyMilliseconds[rows] + draftMilliseconds
+              + (preparedRows == rows ? 0 : compileMilliseconds)
+          }
+          var expected = 1.0
+          var prefix = 1.0
+          var rate = expected / milliseconds(1)
+          if maximumRows > 1 {
+            for candidate in 2...maximumRows {
+              let bin = bins[candidate - 2]
+              let probability = (binKept[bin] + 4 * (Double(bin) + 0.5) / 10) / (binSeen[bin] + 4)
+              var projectedExpected = expected
+              var projectedPrefix = prefix
+              var projectedRate = 0.0
+              for length in candidate...maximumRows {
+                projectedPrefix *= probability
+                projectedExpected += projectedPrefix
+                projectedRate = max(projectedRate, projectedExpected / milliseconds(length))
+              }
+              guard projectedRate > rate else { break }
+              prefix *= probability
+              expected += prefix
+              rows = candidate
+              rate = expected / milliseconds(candidate)
+            }
+          }
+          // One sampling mode a step: the step feeds drafts only while they leave the phase as it is.
+          // A draft that opens or ends thinking, opens a model message, or spends the thinking budget
+          // is the last one the step verifies, at its last row under the step's mode, like any draft,
+          // and the next step feeds it, as DeepSeek4_1TextGenerator does a drafted end of thinking.
+          // Whether a draft is verified then still never depends on its value.
+          var verified = rows - 1
+          var unchanged = phase
+          for index in 0..<(rows - 1) {
+            var next = unchanged
+            next.append(draftsCPU[index])
+            guard next.isEnded == unchanged.isEnded, next.isThinking == unchanged.isThinking,
+              !next.excludesThinking, !next.shouldEndThinking
+            else {
+              rows = index + 1
+              verified = rows
               break
             }
+            unchanged = next
+          }
+          if phase.shouldEndThinking {
+            // The budget ends thinking right after the pending token, which the next step forces.
+            rows = 1
+            verified = 0
+          }
+          drafted = (draftTokens, draftsCPU, draftOutputs[1].as(of: Float.self), bins, verified)
+        } else if let mainFeatures = kvCache.draftMainFeatures {
+          // No draft writes the main rows' keys and values, so the kept ones go in now.
+          let kept = kvCache.draftMainKept
+          writeDraftContext(
+            features: mainFeatures[0..<kept, 0..<mainFeatures.shape[1]].copied(), rows: kept,
+            firstPosition: kvCache.draftMainStart)
+        }
+
+        let drafts = rows - 1
+        var tokens = nextTokenGPU
+        if let drafted, drafts > 0 {
+          tokens = graph.variable(.GPU(0), format: .NHWC, shape: [rows], of: Int32.self)
+          tokens[0..<1] = nextTokenGPU
+          tokens[1..<rows] = drafted.tokens[0..<drafts]
+        }
+        let key = (
+          cached: position, sliding: kvCache.slidingTokenLength, count: rows, logits: rows,
+          convolutionOffset: kvCache.convolutionOffset
+        )
+        let inputs = modelInputs(
+          injected: emptyInjected, postTokens: emptyTokens, cachedTokenLength: position,
+          tokenLength: rows,
+          logScale: decodeLogScales.reshaped(
+            format: .NHWC, shape: [rows, 1], offset: [position - decodeLogScaleStart, 0],
+            strides: [1, 1]
+          ).copied(), verifyRows: rows)
+        if drafted != nil {
+          if preparedRows != rows {
+            let compileStart = CACurrentMediaTime()
+            decoder.compile(key, inputs: [tokens] + inputs)
+            compileMilliseconds =
+              0.8 * compileMilliseconds
+              + 0.2 * min(1000 * (CACurrentMediaTime() - compileStart), 2 * compileMilliseconds)
+          }
+          lastVerifyRows = rows
+        }
+        let callStart = CACurrentMediaTime()
+        let outputs = decoder(key, inputs: tokens, inputs)
+        let logits = outputs[0].as(of: Float16.self)
+        // The drafter's target features of the rows fed, which come last.
+        let features = isDrafting ? outputs[outputs.count - 1].as(of: Float16.self) : nil
+        let pending = pendingCPU ?? pendingRead![0]
+        if decodeIndex > 0, pendingCPU == nil {
+          phase.append(pending)
+        }
+        let sampling = Self.sampling(phase: phase, deterministic: deterministic)
+        if drafted != nil, let features {
+          // While the call runs, make room for the next draft and build its graph: its main rows are
+          // this call's, whatever it keeps.
+          makeDraftRoom(through: position + rows + block, keepingFrom: position)
+          let nextKey = (
+            mainRows: rows, globalRow: position,
+            localOffset: position - kvCache.draftLocalStart - draft.windowRows,
+            temperature: sampling?.temperature ?? 0
+          )
+          if drafterKey.map({ $0 != nextKey }) ?? true {
+            drafterKey = nextKey
+            storage.drafter.compile(
+              nextKey,
+              inputs: [
+                features,
+                features[(rows - 1)..<rows, 0..<features.shape[1]].copied(),
+                draftRotary(rows: rows, firstPosition: position),
+                verifyStandIn.reshaped(format: .NHWC, shape: [1]),
+                draftRotary(rows: block, firstPosition: position),
+                maskStandIn.reshaped(.NHWC(1, 1, block, draft.windowRows + rows + block)),
+                kvCache.draftOpenPrefix!.reshaped(format: .NHWC, shape: [1, 1, block, position]),
+                minPWindows[phase.isEnded ? 1 : 0],
+              ] + Self.draftCacheInputs(kvCache))
           }
         }
-      } else {
-        selected = Functional.argmax(logits, axis: 1)
-      }
-      // The fed drafts the step keeps, of the verified ones that stay.
-      var kept = 0
-      if let drafted {
-        let selectedCPU = selected.toCPU()
-        withExtendedLifetime(tensorsToGPU) { selectedCPU.joined() }
-        tensorsToGPU = []
-        if sampling == nil {
-          picks = (0..<rows).map { selectedCPU[$0, 0] }
-        } else if !isRejected && drafted.verified == drafts {
-          picks.append(selectedCPU[0, 0])
+        if phase.excludesThinking {
+          // A model message the pending token opens can't be the thinking one.
+          if thinkingExclusion == nil {
+            let exclusionSource = graph.variable(
+              Tensor<Float16>([-Float16.infinity], kind: .CPU, format: .NHWC, shape: [1, 1]))
+            tensorsToGPU.append(exclusionSource)
+            thinkingExclusion = exclusionSource.toGPU(0)
+          }
+          let token = Int(Self.thinkingContentToken)
+          var excluded = logits
+          excluded[0..<1, token..<(token + 1)] = thinkingExclusion!
         }
-        // Samples are capped so a spike cannot price a length out for good.
-        verifyMilliseconds[rows] =
-          0.8 * verifyMilliseconds[rows]
-          + 0.2 * min(1000 * (CACurrentMediaTime() - callStart), 2 * verifyMilliseconds[rows])
-        var stayed = 0
-        while stayed < drafted.verified && drafted.cpu[stayed] == picks[stayed] {
-          stayed += 1
-        }
-        kept = min(stayed, drafts)
-        for index in binKept.indices {
-          binKept[index] *= 0.995
-          binSeen[index] *= 0.995
-        }
-        for index in 0..<min(stayed + 1, drafted.verified) {
-          binSeen[drafted.bins[index]] += 1
-          if index < stayed { binKept[drafted.bins[index]] += 1 }
-        }
-      } else {
-        nextTokenGPU = selected.reshaped(format: .NHWC, shape: [1])
-      }
-
-      // Keep the fed tokens through the last kept draft one at a time, through the end of sequence
-      // or the one the caller stops at.
-      var commitCount = 0
-      for token in [pending] + (drafted.map { drafted in (0..<kept).map { drafted.cpu[$0] } } ?? [])
-      {
-        commitCount += 1
-        // The first pending token is in generated already.
-        guard decodeIndex + commitCount > 1 else { continue }
-        generated.append(token)
-        recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
-        thinkingPhase.append(token)
-        if Self.eosTokenIds.contains(token) {
-          shouldAppendPendingToken = false
-          break
-        }
-        recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
-          Float(CACurrentMediaTime() - tokenGenerationStartTime)
-          + initialTokenGenerationDurationSoFar
-        switch continuationHandler(
-          position + commitCount, position + commitCount, generated, statistics)
-        {
-        case .continue:
-          break
-        case .pause:
-          shouldStopAfterSampling = true
-        case .abort:
-          shouldAppendPendingToken = false
-        }
-        if !shouldAppendPendingToken || shouldStopAfterSampling {
-          break
-        }
-      }
-      if drafted != nil {
-        lastDraftAcceptance.rounds += 1
-        lastDraftAcceptance.kept += commitCount - 1
-      }
-      // The committed rows, the convolution rows after the last of them, which the next call reads
-      // where this one wrote them, and the fed rows' target features for the next draft.
-      advance(by: commitCount, convolutionOffset: commitCount - 1)
-      if let features {
-        kvCache.draftMainFeatures = features
-        kvCache.draftMainKept = commitCount
-        kvCache.draftMainStart = position
-      }
-      saveCheckpoint(generated: generated)
-      decodeIndex += commitCount
-      guard shouldAppendPendingToken else { break }
-      if drafted != nil {
-        let tokenSource = graph.variable(
-          Tensor<Int32>([picks[commitCount - 1]], kind: .CPU, format: .NHWC, shape: [1]))
-        tensorsToGPU.append(tokenSource)
-        nextTokenGPU = tokenSource.toGPU(0)
-        roundTokens = 0.875 * roundTokens + 0.125 * Double(commitCount)
-        roundMilliseconds =
-          0.875 * roundMilliseconds + 0.125 * 1000 * (CACurrentMediaTime() - stepStart)
-        if roundTokens * parkedMilliseconds < roundMilliseconds {
-          // Park: serial steps take the pick from the GPU.
-          pendingCPU = nil
-          parkedSteps = 0
-          parkedSince = CACurrentMediaTime()
+        // The target's pick at each row: greedily every row's; or sampled, the verified drafts by
+        // speculative sampling through the first rejected one, then, when they all stay and the last
+        // row verifies none, its own sample.
+        var picks = [Int32]()
+        var isRejected = false
+        let selected: DynamicGraph.Tensor<Int32>
+        if let sampling {
+          let target = DynamicGraph.Tensor<Float>(from: logits)
+          target.fill(
+            -Float.infinity, if: target < (target.reduced(.max, axis: [1]) - sampling.window))
+          selected = Functional.gumbelArgmax(
+            target.reshaped(.WC(1, vocabulary), offset: [drafts, 0], strides: [vocabulary, 1]),
+            axis: 1, scale: sampling.temperature)
+          if let drafted, drafted.verified > 0 {
+            let verified = drafted.verified
+            // softmax(logits / temperature) by rows, from exponentials and their sums: the softmax
+            // command takes tens of milliseconds over rows this long.
+            func probabilities(_ logits: DynamicGraph.Tensor<Float>) -> DynamicGraph.Tensor<Float> {
+              let scaled = logits * (1 / sampling.temperature)
+              let centered: DynamicGraph.Tensor<Float> = scaled - scaled.reduced(.max, axis: [1])
+              let partitions = Functional.exp(centered).reduced(.sum, axis: [1])
+              return Functional.exp(centered - Functional.log(partitions))
+            }
+            let p = probabilities(
+              target.reshaped(.WC(verified, vocabulary), offset: [0, 0], strides: [vocabulary, 1]))
+            let biased = drafted.logits.reshaped(
+              .WC(verified, vocabulary), offset: [0, 0], strides: [vocabulary, 1]
+            ).copied()
+            biased.fill(
+              -Float.infinity, if: biased < (biased.reduced(.max, axis: [1]) - sampling.window))
+            let q = probabilities(biased)
+            let indexSource = graph.variable(
+              Tensor<Int32>(
+                (0..<verified).map { Int32($0 * vocabulary) + drafted.cpu[$0] }, kind: .CPU,
+                format: .NHWC, shape: [verified]))
+            tensorsToGPU.append(indexSource)
+            let index = indexSource.toGPU(0)
+            let pDraft = Functional.indexSelect(
+              input: p.reshaped(.WC(verified * vocabulary, 1)), index: index
+            ).toCPU()
+            let qDraft = Functional.indexSelect(
+              input: q.reshaped(.WC(verified * vocabulary, 1)), index: index
+            ).toCPU()
+            let uniform = graph.variable(.GPU(0), format: .NHWC, shape: [verified], of: Float.self)
+            uniform.rand(0...1)
+            let uniformCPU = uniform.toCPU()
+            let residual: DynamicGraph.Tensor<Float> = Functional.log(Functional.ReLU(p - q))
+            let correction = Functional.gumbelArgmax(residual, axis: 1).toCPU()
+            correction.joined()
+            for row in 0..<verified {
+              // Where p(d) > q(d) the draft always stays.
+              if uniformCPU[row] * qDraft[row, 0] < pDraft[row, 0] {
+                picks.append(drafted.cpu[row])
+              } else {
+                picks.append(correction[row, 0])
+                isRejected = true
+                break
+              }
+            }
+          }
         } else {
-          // The next draft starts from this step's last pick, on the CPU.
-          pendingCPU = picks[commitCount - 1]
+          selected = Functional.argmax(logits, axis: 1)
         }
-      } else if isDrafting, parkedSteps == parkedStretch - 1 {
-        // The stretch's last step reads its pick, so the next step probes with a draft.
-        pendingCPU = nextTokenGPU.toCPU()[0]
-        parkedMilliseconds = 1000 * (CACurrentMediaTime() - parkedSince) / Double(parkedStretch)
-      } else {
-        parkedSteps += 1
-        pendingCPU = nil
+        // The fed drafts the step keeps, of the verified ones that stay.
+        var kept = 0
+        if let drafted {
+          let selectedCPU = selected.toCPU()
+          withExtendedLifetime(tensorsToGPU) { selectedCPU.joined() }
+          tensorsToGPU = []
+          if sampling == nil {
+            picks = (0..<rows).map { selectedCPU[$0, 0] }
+          } else if !isRejected && drafted.verified == drafts {
+            picks.append(selectedCPU[0, 0])
+          }
+          // Samples are capped so a spike cannot price a length out for good.
+          verifyMilliseconds[rows] =
+            0.8 * verifyMilliseconds[rows]
+            + 0.2 * min(1000 * (CACurrentMediaTime() - callStart), 2 * verifyMilliseconds[rows])
+          var stayed = 0
+          while stayed < drafted.verified && drafted.cpu[stayed] == picks[stayed] {
+            stayed += 1
+          }
+          kept = min(stayed, drafts)
+          for index in binKept.indices {
+            binKept[index] *= 0.995
+            binSeen[index] *= 0.995
+          }
+          for index in 0..<min(stayed + 1, drafted.verified) {
+            binSeen[drafted.bins[index]] += 1
+            if index < stayed { binKept[drafted.bins[index]] += 1 }
+          }
+        } else {
+          nextTokenGPU = selected.reshaped(format: .NHWC, shape: [1])
+        }
+
+        // Keep the fed tokens through the last kept draft one at a time, through the end of sequence
+        // or the one the caller stops at.
+        var commitCount = 0
+        for token in [pending]
+          + (drafted.map { drafted in (0..<kept).map { drafted.cpu[$0] } } ?? [])
+        {
+          commitCount += 1
+          // The first pending token is in generated already.
+          guard decodeIndex + commitCount > 1 else { continue }
+          generated.append(token)
+          recentInteractionStatistics[interactionStatisticsIndex].tokenGeneratedSoFar += 1
+          thinkingPhase.append(token)
+          if Self.eosTokenIds.contains(token) {
+            shouldAppendPendingToken = false
+            break
+          }
+          recentInteractionStatistics[interactionStatisticsIndex].tokenGenerationDurationSoFar =
+            Float(CACurrentMediaTime() - tokenGenerationStartTime)
+            + initialTokenGenerationDurationSoFar
+          switch continuationHandler(
+            position + commitCount, position + commitCount, generated, statistics)
+          {
+          case .continue:
+            break
+          case .pause:
+            shouldStopAfterSampling = true
+          case .abort:
+            shouldAppendPendingToken = false
+          }
+          if !shouldAppendPendingToken || shouldStopAfterSampling {
+            break
+          }
+        }
+        if drafted != nil {
+          lastDraftAcceptance.rounds += 1
+          lastDraftAcceptance.kept += commitCount - 1
+        }
+        // The committed rows, the convolution rows after the last of them, which the next call reads
+        // where this one wrote them, and the fed rows' target features for the next draft.
+        advance(by: commitCount, convolutionOffset: commitCount - 1)
+        if let features {
+          kvCache.draftMainFeatures = features
+          kvCache.draftMainKept = commitCount
+          kvCache.draftMainStart = position
+        }
+        saveCheckpoint(generated: generated)
+        decodeIndex += commitCount
+        guard shouldAppendPendingToken else { return true }
+        if drafted != nil {
+          let tokenSource = graph.variable(
+            Tensor<Int32>([picks[commitCount - 1]], kind: .CPU, format: .NHWC, shape: [1]))
+          tensorsToGPU.append(tokenSource)
+          nextTokenGPU = tokenSource.toGPU(0)
+          roundTokens = 0.875 * roundTokens + 0.125 * Double(commitCount)
+          roundMilliseconds =
+            0.875 * roundMilliseconds + 0.125 * 1000 * (CACurrentMediaTime() - stepStart)
+          if roundTokens * parkedMilliseconds < roundMilliseconds {
+            // Park: serial steps take the pick from the GPU.
+            pendingCPU = nil
+            parkedSteps = 0
+            parkedSince = CACurrentMediaTime()
+          } else {
+            // The next draft starts from this step's last pick, on the CPU.
+            pendingCPU = picks[commitCount - 1]
+          }
+        } else if isDrafting, parkedSteps == parkedStretch - 1 {
+          // The stretch's last step reads its pick, so the next step probes with a draft.
+          pendingCPU = nextTokenGPU.toCPU()[0]
+          parkedMilliseconds = 1000 * (CACurrentMediaTime() - parkedSince) / Double(parkedStretch)
+        } else {
+          parkedSteps += 1
+          pendingCPU = nil
+        }
+        return shouldStopAfterSampling
       }
-      if shouldStopAfterSampling {
+      if shouldStop {
         break
       }
     }
