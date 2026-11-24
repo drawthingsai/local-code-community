@@ -8,7 +8,9 @@ import UIKit
 /// kit panel over it from the leading edge. An unfolded iPhone Duo held wide has that panel beside
 /// the conversation instead.
 final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable {
-  /// Hides the transcript behind the status bar and project bar, fading out just below the bar.
+  /// Before iOS 26, hides the transcript behind the status bar and project bar, fading out just
+  /// below the bar. From iOS 26 the transcript runs on under them, in the scroll view's soft top
+  /// edge effect.
   private final class TopFadeView: UIView {
     override class var layerClass: AnyClass { CAGradientLayer.self }
 
@@ -91,7 +93,7 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
     return view
   }()
   /// Runs down the edge of the chat that meets settings, while settings is presented over the
-  /// chat or sits beside it. It is above the chat, whose top fades out under the bars.
+  /// chat or sits beside it. It is above the chat, whose top goes under the bars.
   private lazy var settingsBorderView: UIView = {
     let view = UIView(frame: .zero)
     view.alpha = 0
@@ -287,7 +289,17 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
     chatInputController.setAttachmentDropDelegate(of: projectHistoryCollectionView)
 
     chatContainerView.addSubview(projectHistoryCollectionView)
-    chatContainerView.addSubview(topFadeView)
+    if #available(iOS 26.0, *) {
+      // The transcript scrolls on to the top of the display, under the project bar and the
+      // status bar, and softens as it goes under them.
+      let edgeElementContainerInteraction = UIScrollEdgeElementContainerInteraction()
+      edgeElementContainerInteraction.scrollView = projectHistoryCollectionView
+      edgeElementContainerInteraction.edge = .top
+      projectBarController.view.addInteraction(edgeElementContainerInteraction)
+      projectHistoryCollectionView.topEdgeEffect.style = .soft
+    } else {
+      chatContainerView.addSubview(topFadeView)
+    }
     chatContainerView.addSubview(statusBarBackgroundView)
     chatContainerView.addSubview(queuedItemsView)
     chatContainerView.addSubview(chatInputController.view)
@@ -347,10 +359,12 @@ final class ChatViewControllerForiPhone: UIViewController, ChatViewControllable 
       make.top.equalToSuperview()
       make.bottom.equalTo(queuedItemsView.snp.top).offset(24)
     }
-    topFadeView.snp.makeConstraints { make in
-      make.top.equalToSuperview()
-      make.bottom.equalTo(projectBarController.view.snp.bottom).offset(20)
-      make.leading.trailing.equalToSuperview()
+    if #unavailable(iOS 26.0) {
+      topFadeView.snp.makeConstraints { make in
+        make.top.equalToSuperview()
+        make.bottom.equalTo(projectBarController.view.snp.bottom).offset(20)
+        make.leading.trailing.equalToSuperview()
+      }
     }
     statusBarBackgroundView.snp.makeConstraints { make in
       make.top.leading.trailing.equalToSuperview()
