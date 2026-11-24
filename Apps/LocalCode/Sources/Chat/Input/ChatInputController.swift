@@ -869,8 +869,8 @@ final class ChatInputController {
         make.height.equalTo(20)
       }
       modelButton.snp.makeConstraints { make in
-        make.leading.equalTo(attachButton.snp.trailing).offset(12)
-        make.trailing.lessThanOrEqualTo(dictationButton.snp.leading).offset(-12)
+        make.leading.greaterThanOrEqualTo(attachButton.snp.trailing).offset(8)
+        make.trailing.equalTo(dictationButton.snp.leading).offset(-8)
         make.centerY.equalTo(sendControlView)
         make.height.equalTo(36)
       }
