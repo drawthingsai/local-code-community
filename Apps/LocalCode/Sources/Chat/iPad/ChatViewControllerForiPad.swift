@@ -764,17 +764,17 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
   }
 
   /// Settings beside the chat is as wide as in a full-screen window held in landscape, however
-  /// the iPad is held and the window sized.
+  /// the iPad is held and the window sized. On a Mac, the iPad app included, the screen is the
+  /// Mac's display, so settings keeps the Mac app's width.
   private var settingsWidth: CGFloat {
-    #if targetEnvironment(macCatalyst)
+    if ProcessInfo.processInfo.isMacCatalystApp {
       if #available(iOS 26, macOS 26, macCatalyst 26, *) {
         return 466 + 14
       }
       return 466
-    #else
-      let screenBounds = UIScreen.main.bounds
-      return (max(screenBounds.width, screenBounds.height) * 0.245).rounded() + 78 + 24
-    #endif
+    }
+    let screenBounds = UIScreen.main.bounds
+    return (max(screenBounds.width, screenBounds.height) * 0.245).rounded() + 78 + 24
   }
 
   private func updateSettingsPosition() {
