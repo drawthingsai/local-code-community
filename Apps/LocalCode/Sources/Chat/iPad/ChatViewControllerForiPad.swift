@@ -739,6 +739,10 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
       projectBarController.showsSettingsButton = slidesSettingsIn
     }
     updateSettingsPosition()
+    // The composer is as wide as the chat column: the chat panel, which keeps the window's width
+    // while settings slides in, less its 48pt margins, up to the chat width setting.
+    let chatPanelWidth = slidesSettingsIn ? view.bounds.width : view.bounds.width - settingsWidth
+    chatInputController.fitButtonRow(toWidth: min(chatWidth.maximumWidth, chatPanelWidth - 96))
   }
 
   /// Slides settings in beside the chat or puts it away, in a window too narrow for settings to
