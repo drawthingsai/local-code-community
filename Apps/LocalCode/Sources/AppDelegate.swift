@@ -152,6 +152,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
     DynamicGraph.abort()
   }
 
+  func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
+    workflow?.applicationDidReceiveMemoryWarning()
+  }
+
   func application(
     _ app: UIApplication,
     open url: URL,

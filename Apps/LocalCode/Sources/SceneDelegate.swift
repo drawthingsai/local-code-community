@@ -8,6 +8,7 @@ import UserNotifications
 protocol Workflow: AnyObject {
   var viewControllable: UIViewController { get }
   func applicationWillTerminate()
+  func applicationDidReceiveMemoryWarning()
   func sceneDidBecomeActive()
   func handle(url: URL) -> Bool
   func handle(notificationResponse: UNNotificationResponse)
@@ -17,6 +18,7 @@ protocol Workflow: AnyObject {
 
 extension Workflow {
   func applicationWillTerminate() {}
+  func applicationDidReceiveMemoryWarning() {}
   func sceneDidBecomeActive() {}
   func handle(url: URL) -> Bool { false }
   func handle(notificationResponse: UNNotificationResponse) {}

@@ -112,6 +112,49 @@ final class ModelIdleTimerTests: XCTestCase {
     XCTAssertEqual(request?.begin(), false)
   }
 
+  func testMemoryWarningUnloadsIdleModelOnceWhateverTheTimeout() {
+    var requests = [ModelIdleTimer.UnloadRequest]()
+    let timer = ModelIdleTimer(interval: nil) { request in
+      XCTAssertTrue(request.begin())
+      requests.append(request)
+    }
+    timer.setIdle(true)
+    timer.unloadIfIdle()
+    XCTAssertEqual(requests.map(\.isMemoryWarning), [true])
+    // The models are already unloaded until the next period of activity.
+    timer.unloadIfIdle()
+    XCTAssertEqual(requests.count, 1)
+    timer.setIdle(false)
+    timer.setIdle(true)
+    timer.unloadIfIdle()
+    XCTAssertEqual(requests.map(\.isMemoryWarning), [true, true])
+  }
+
+  func testMemoryWarningReplacesCountdown() {
+    var requests = [ModelIdleTimer.UnloadRequest]()
+    let timer = ModelIdleTimer(interval: 0.02) { request in
+      XCTAssertTrue(request.begin())
+      requests.append(request)
+    }
+    timer.setIdle(true)
+    timer.unloadIfIdle()
+    drainMainQueue(for: 0.08)
+    XCTAssertEqual(requests.map(\.isMemoryWarning), [true])
+  }
+
+  func testMemoryWarningLeavesBusyModelAndQueuedUnload() {
+    var requests = [ModelIdleTimer.UnloadRequest]()
+    let timer = ModelIdleTimer(interval: 0.01) { requests.append($0) }
+    timer.unloadIfIdle()
+    XCTAssertTrue(requests.isEmpty)
+    timer.setIdle(true)
+    drainMainQueue(for: 0.05)
+    XCTAssertEqual(requests.map(\.isMemoryWarning), [false])
+    // The timeout's request is still waiting for the generation queue.
+    timer.unloadIfIdle()
+    XCTAssertEqual(requests.count, 1)
+  }
+
   private func checkQueuedUnloadCancellation(replacementInterval: TimeInterval?) {
     let queue = DispatchQueue(label: "model-idle-timer-test.generate")
     queue.suspend()

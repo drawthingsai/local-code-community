@@ -327,6 +327,31 @@ extension Inkling2MiniTextGenerator {
   ]
 }
 
+extension Inkling2MiniTextGenerator {
+  /// A memory warning waiting for the prefill or decode loop, which can only garbage-collect the
+  /// graph between its steps on the generation queue. Weights stay, as the loop needs them next.
+  enum MemoryWarning {
+    private static var lock = os_unfair_lock()
+    private static var isPending = false
+
+    /// Called by the warning handler, on any thread.
+    static func post() {
+      os_unfair_lock_lock(&lock)
+      isPending = true
+      os_unfair_lock_unlock(&lock)
+    }
+
+    /// Whether a warning came since the last call, which then leaves none pending.
+    static func take() -> Bool {
+      os_unfair_lock_lock(&lock)
+      defer { os_unfair_lock_unlock(&lock) }
+      let wasPending = isPending
+      isPending = false
+      return wasPending
+    }
+  }
+}
+
 extension Inkling2MiniTextGenerator: TextGenerator {
   public var safeTokenizer: TiktokenTokenizer { Self.safeTokenizer }
 }
@@ -840,6 +865,7 @@ extension Inkling2MiniTextGenerator {
       recentInteractionStatistics[interactionStatisticsIndex].prefillDurationSoFar
     let prefillStartTime = CACurrentMediaTime()
     while prefillChunkStart < tokenLength {
+      if MemoryWarning.take() { graph.garbageCollect() }
       let start = prefillChunkStart
       let position = tokenOffset + start
       // A chunk never crosses a checkpoint.
@@ -1053,6 +1079,7 @@ extension Inkling2MiniTextGenerator {
     var pendingCPU: Int32? = firstToken
     lastDraftAcceptance = (rounds: 0, kept: 0)
     while decodeIndex < decodeTokenCapacity {
+      if MemoryWarning.take() { graph.garbageCollect() }
       let stepStart = CACurrentMediaTime()
       // The pending token follows every token the phase has read; the first is already read.
       if decodeIndex > 0, thinkingPhase.shouldEndThinking {

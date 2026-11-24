@@ -592,6 +592,15 @@ final class ChatWorkflow: Workflow {
     stopProjectSecurityScopedResourceAccess()
   }
 
+  func applicationDidReceiveMemoryWarning() {
+    // Inkling 2 Mini's prefill and decode loops take the warning at their next step. The generation
+    // queue garbage-collects as soon as it is free, and an idle model unloads as it does after the
+    // Model Idle Timeout. Weights in use stay, as a turn would only load them again.
+    Inkling2MiniTextGenerator.MemoryWarning.post()
+    queue.async { [graph] in graph.garbageCollect() }
+    modelIdleTimer?.unloadIfIdle()
+  }
+
   func applicationWillTerminate() {
     for controller in cliMediaGenerationControllers.values { controller.cancel() }
     for controller in cliDownloadControllers.values { controller.cancel() }
@@ -1338,6 +1347,8 @@ final class ChatWorkflow: Workflow {
         DispatchQueue.main.async { self?.serveController?.remove(idleAgents: serveIdleAgents) }
         for generator in generators { generator.unload() }
         graph.garbageCollect()
+        // Compiled kernels and their scratch buffers are built again for the next load.
+        if request.isMemoryWarning { DynamicGraph.vacuum() }
       }
     }
   }

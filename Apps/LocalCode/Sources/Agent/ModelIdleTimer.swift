@@ -1,5 +1,6 @@
 import Dispatch
 import Foundation
+import os.lock
 
 enum ModelIdleTimeout: Int, CaseIterable {
   case tenSeconds = 10
@@ -18,12 +19,18 @@ final class ModelIdleTimer {
   /// Cancellation and starting cleanup can race across the main and generation queues.
   final class UnloadRequest {
     private enum State { case pending, started, cancelled }
-    private let lock = NSLock()
+    private var lock = os_unfair_lock()
     private var state = State.pending
+    /// A memory warning asked for it, rather than the timeout.
+    let isMemoryWarning: Bool
+
+    init(isMemoryWarning: Bool) {
+      self.isMemoryWarning = isMemoryWarning
+    }
 
     func begin() -> Bool {
-      lock.lock()
-      defer { lock.unlock() }
+      os_unfair_lock_lock(&lock)
+      defer { os_unfair_lock_unlock(&lock) }
       guard state == .pending else { return false }
       state = .started
       return true
@@ -31,8 +38,8 @@ final class ModelIdleTimer {
 
     @discardableResult
     fileprivate func cancelIfPending() -> Bool {
-      lock.lock()
-      defer { lock.unlock() }
+      os_unfair_lock_lock(&lock)
+      defer { os_unfair_lock_unlock(&lock) }
       guard state != .started else { return false }
       state = .cancelled
       return true
@@ -75,6 +82,18 @@ final class ModelIdleTimer {
     schedule()
   }
 
+  /// Unloads now if idle, whatever the timeout, as a memory warning asks. An unload already
+  /// requested stands, and so does one already done until the next period of activity.
+  func unloadIfIdle() {
+    dispatchPrecondition(condition: .onQueue(.main))
+    guard idleSince != nil, unloadRequest == nil else { return }
+    workItem?.cancel()
+    workItem = nil
+    let request = UnloadRequest(isMemoryWarning: true)
+    unloadRequest = request
+    unload(request)
+  }
+
   private func schedule() {
     workItem?.cancel()
     workItem = nil
@@ -86,7 +105,7 @@ final class ModelIdleTimer {
     let workItem = DispatchWorkItem { [weak self] in
       guard let self else { return }
       self.workItem = nil
-      let request = UnloadRequest()
+      let request = UnloadRequest(isMemoryWarning: false)
       self.unloadRequest = request
       self.unload(request)
     }
