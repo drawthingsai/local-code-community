@@ -595,11 +595,14 @@ final class MachineSettingsViewController: UIViewController, EscapeKeyDismissibl
     // Under an iPhone Duo's side bar the sheet shows what is behind it. That takes clearing
     // the background the sheet itself draws behind this view.
     view.backgroundColor = isUnderSideBar ? .clear : .secondaryBackground
-    if #available(iOS 26.1, *) {
-      let detent = UISheetPresentationController.Detent.large()
-      detent.backgroundEffect = isUnderSideBar ? UIVisualEffect() : nil
-      sheetPresentationController?.detents = [detent]
-    }
+    // Mac Catalyst has no detent background effect, and no side bar to clear it under.
+    #if !targetEnvironment(macCatalyst)
+      if #available(iOS 26.1, *) {
+        let detent = UISheetPresentationController.Detent.large()
+        detent.backgroundEffect = isUnderSideBar ? UIVisualEffect() : nil
+        sheetPresentationController?.detents = [detent]
+      }
+    #endif
     view.setNeedsLayout()
   }
 
