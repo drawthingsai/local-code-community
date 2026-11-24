@@ -58,6 +58,7 @@ final class ChatWorkflow: Workflow {
   /// Lets Telegram, Discord and iMessage chats work with the threads.
   let messagingBridge: MessagingBridge
   let workspace: SQLiteWorkspace
+  private let dockTileController: DockTileController
   private let accountManager: AccountManager
   // The welcome walkthrough, for as long as the welcome thread is open.
   var onboardingWorkflow: OnboardingWorkflow?
@@ -234,6 +235,7 @@ final class ChatWorkflow: Workflow {
     agentScheduler = AgentScheduler(queue: queue)
     self.userInterfaceIdiom = userInterfaceIdiom
     self.workspace = workspace
+    dockTileController = DockTileController(workspace: workspace)
     self.accountManager = accountManager
     let permittedDirectories = PermittedDirectories(workspace: workspace)
     self.permittedDirectories = permittedDirectories

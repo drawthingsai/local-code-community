@@ -108,6 +108,7 @@ final class AgentScheduler {
   private var isHibernateRequested = false
   private var hibernateCompletions = [(Result<Void, Swift.Error>) -> Void]()
   private var maximumHotCodeAgentCount: Int
+  private var activity = AgentActivity.idle
 
   // Accessed only on `queue`.
   private var fifo = [Entry]()
@@ -123,6 +124,7 @@ final class AgentScheduler {
   }
 
   deinit {
+    AgentActivity.set(.idle, for: ObjectIdentifier(self))
     let textGenerator = textGenerator
     // Let the current stack unwind before releasing model storage on the generation queue.
     DispatchQueue.main.async { [queue] in
@@ -272,6 +274,7 @@ final class AgentScheduler {
           allowedTools: allowedTools, environment: environment,
           progress: progress, completion: completion)))
     notifyActiveThreadsDidChangeWhileLocked()
+    publishActivityWhileLocked()
     os_unfair_lock_unlock(&lock)
     queue.async { [self] in
       acceptPendingTurnsAndRun()
@@ -553,6 +556,7 @@ final class AgentScheduler {
       entry.latestProgress = progress
       entry.latestStatistics = statistics
       let foregroundIdentifier = self.foregroundIdentifier
+      self.publishActivityWhileLocked()
       os_unfair_lock_unlock(&self.lock)
       if foregroundIdentifier == entry.identifier {
         turn.progress(progress, statistics)
@@ -676,6 +680,7 @@ final class AgentScheduler {
       os_unfair_lock_lock(&lock)
       if stopRequests.remove(entry.identifier) != nil { reason = .stopped }
       activeTurnIdentifiers.remove(entry.identifier)
+      publishActivityWhileLocked()
       os_unfair_lock_unlock(&lock)
       turn.completion(result, reason)
     }
@@ -735,6 +740,7 @@ final class AgentScheduler {
     pendingTurns.removeAll()
     activeTurnIdentifiers.removeAll()
     notifyActiveThreadsDidChangeWhileLocked()
+    publishActivityWhileLocked()
     stopRequests.removeAll()
     foregroundIdentifier = nil
     isHibernateRequested = false
@@ -875,6 +881,24 @@ final class AgentScheduler {
       }
     }
     os_unfair_lock_unlock(&lock)
+  }
+
+  /// Reports what this scheduler's agents are doing to `AgentActivity` when it changes: thinking
+  /// while any of them generates, reading while any takes in a prompt, a compaction or tool output
+  /// (or has a turn that has not reported yet).
+  private func publishActivityWhileLocked() {
+    var activity = AgentActivity.idle
+    for identifier in activeTurnIdentifiers where activity != .thinking {
+      switch entries[identifier]?.latestProgress {
+      case .generate?, .timeSliceEnded?:
+        activity = .thinking
+      case .prefill?, .compact?, .toolsWait?, nil:
+        activity = .reading
+      }
+    }
+    guard activity != self.activity else { return }
+    self.activity = activity
+    AgentActivity.set(activity, for: ObjectIdentifier(self))
   }
 
   private func notifyActiveThreadsDidChangeWhileLocked() {

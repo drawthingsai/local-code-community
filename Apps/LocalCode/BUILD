@@ -1359,6 +1359,7 @@ swift_binary(
     name = "AgentSchedulerHarness",
     srcs = [
         "Debug/AgentSchedulerHarness.swift",
+        "Sources/Agent/AgentActivity.swift",
         "Sources/Agent/AgentScheduler.swift",
         "Sources/Agent/AgentTranscript.swift",
         "Sources/Agent/BashTools.swift",
@@ -1431,6 +1432,7 @@ swift_binary(
     name = "ResponsesServeProbe",
     srcs = [
         "Debug/ResponsesServeProbe.swift",
+        "Sources/Agent/AgentActivity.swift",
         "Sources/Agent/AgentScheduler.swift",
         "Sources/Agent/AgentTranscript.swift",
         "Sources/Agent/BashTools.swift",

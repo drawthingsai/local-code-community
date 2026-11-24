@@ -894,12 +894,12 @@ private struct AgentSchedulerHarness {
       }
       originalGenerator = generatorA
       retiringScheduler?.set(
-        filePath: generatorA.filePath, residentWeightsSize: generatorA.residentWeightsSize,
+        filePaths: [generatorA.filePath], residentWeightsSize: generatorA.residentWeightsSize,
         estimatedKVCacheSize: Generator.estimatedKVCacheSize)
       retiringScheduler?.textGenerator = generatorA
       // An empty scheduler can still be configured again with its original API.
       retiringScheduler?.set(
-        filePath: generatorA.filePath, residentWeightsSize: generatorA.residentWeightsSize,
+        filePaths: [generatorA.filePath], residentWeightsSize: generatorA.residentWeightsSize,
         estimatedKVCacheSize: Generator.estimatedKVCacheSize)
     }
     guard originalGenerator != nil else {
@@ -914,7 +914,7 @@ private struct AgentSchedulerHarness {
         throw HarnessError.invariant("lost storage during scheduler retirement")
       }
       successorScheduler?.set(
-        filePath: reused.filePath, residentWeightsSize: reused.residentWeightsSize,
+        filePaths: [reused.filePath], residentWeightsSize: reused.residentWeightsSize,
         estimatedKVCacheSize: Generator.estimatedKVCacheSize)
       successorScheduler?.textGenerator = reused
     }
