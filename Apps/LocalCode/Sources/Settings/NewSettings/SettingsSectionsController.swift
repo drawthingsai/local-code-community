@@ -113,6 +113,7 @@ final class SettingsSectionsController {
   weak var delegate: SettingsSectionsControllerDelegate?
   private let workspace: SQLiteWorkspace
   private let showsAccountBalance: Bool
+  private let showsModelSpeed: Bool
   private var isViewLoaded = false
   private var verticalScrollIndicatorController: VerticalScrollIndicatorController? = nil
   private let sections: [SettingsSection]
@@ -178,14 +179,14 @@ final class SettingsSectionsController {
       guard remoteProvider != oldValue else { return }
       updateSettingsSections()
       updateAccountBalanceVisibility()
-      if isViewLoaded {
+      if isViewLoaded, showsModelSpeed {
         viewMoreButton.isHidden = remoteProvider != nil
       }
     }
   }
   var isModelSpeedEnabled = true {
     didSet {
-      if isViewLoaded {
+      if isViewLoaded, showsModelSpeed {
         viewMoreButton.isEnabled = isModelSpeedEnabled
       }
     }
@@ -321,17 +322,23 @@ final class SettingsSectionsController {
       make.size.equalTo(20)
     }
 
-    titleView.addSubview(viewMoreButton)
-    viewMoreButton.snp.makeConstraints { make in
-      // With the 8pt trailing content inset, the arrow ends 20pt from the edge.
-      make.trailing.equalToSuperview().offset(-12)
-      make.centerY.equalToSuperview()
+    if showsModelSpeed {
+      titleView.addSubview(viewMoreButton)
+      viewMoreButton.snp.makeConstraints { make in
+        // With the 8pt trailing content inset, the arrow ends 20pt from the edge.
+        make.trailing.equalToSuperview().offset(-12)
+        make.centerY.equalToSuperview()
+      }
     }
 
     titleView.addSubview(performanceTitleLabel)
     performanceTitleLabel.snp.makeConstraints { make in
       make.leading.equalTo(titleIconView.snp.trailing).offset(4)
-      make.trailing.lessThanOrEqualTo(viewMoreButton.snp.leading).offset(-8)
+      if showsModelSpeed {
+        make.trailing.lessThanOrEqualTo(viewMoreButton.snp.leading).offset(-8)
+      } else {
+        make.trailing.lessThanOrEqualToSuperview().offset(-20)
+      }
       make.centerY.equalToSuperview()
     }
 
@@ -384,9 +391,10 @@ final class SettingsSectionsController {
     return view
   }()
 
-  init(workspace: SQLiteWorkspace, showsAccountBalance: Bool) {
+  init(workspace: SQLiteWorkspace, showsAccountBalance: Bool, showsModelSpeed: Bool) {
     self.workspace = workspace
     self.showsAccountBalance = showsAccountBalance
+    self.showsModelSpeed = showsModelSpeed
     self.sections = [
       .whereModelsRun,
       .modelsFolder,

@@ -202,8 +202,10 @@ final class SettingsWorkflow: Workflow {
       workspace: workspace, accountManager: accountManager, client: accountClient)
     projectsController = ProjectController(userInterfaceIdiom: userInterfaceIdiom)
     // Phones show the account balance above the context used on every page instead of on this one.
+    // Model Speed's View More is for the Mac; an iPhone or iPad shows the average speed alone.
     settingsSectionsController = SettingsSectionsController(
-      workspace: workspace, showsAccountBalance: userInterfaceIdiom != .phone)
+      workspace: workspace, showsAccountBalance: userInterfaceIdiom != .phone,
+      showsModelSpeed: ProcessInfo.processInfo.isMacCatalystApp)
     kitSectionsController = KitSectionsController(workspace: workspace)
     activitiesSectionsController = ActivitiesSectionsController(workspace: workspace)
     serveSectionsController =

@@ -39,6 +39,9 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
   let searchFieldTopSpacing: CGFloat
   let searchFieldHeight: CGFloat
   let listTopSpacing: CGFloat
+  /// The rows' inset from the popover's sides. The list itself spans the popover, so its scroll bar
+  /// runs along the edge.
+  private let listSideInset: CGFloat
   /// The space below the last row, the same as the list's side insets so a selected last row's
   /// fill sits evenly in the popover's bottom corners.
   let bottomInset: CGFloat
@@ -66,12 +69,15 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
       searchFieldTopSpacing = 12
       searchFieldHeight = 36
       listTopSpacing = 16
+      // The glass rows' icons sit 16pt in, 4pt inside their selection fill.
+      listSideInset = 12
       bottomInset = 12
     } else {
       headerHeight = 39
       searchFieldTopSpacing = 7
       searchFieldHeight = 32
       listTopSpacing = 9
+      listSideInset = 8
       bottomInset = 8
     }
     super.init(nibName: nil, bundle: nil)
@@ -395,7 +401,8 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
 
   override func viewSafeAreaInsetsDidChange() {
     collectionView.contentInset = UIEdgeInsets(
-      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + bottomInset, right: 0)
+      top: 0, left: listSideInset, bottom: view.safeAreaInsets.bottom + bottomInset,
+      right: listSideInset)
     collectionView.scrollIndicatorInsets = UIEdgeInsets(
       top: 0, left: 0, bottom: view.safeAreaInsets.bottom + bottomInset, right: 0)
   }
@@ -404,12 +411,12 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     guard
       let collectionViewLayout = collectionView.collectionViewLayout as? UICollectionViewFlowLayout
     else { return }
+    let contentWidth = max(collectionView.bounds.width - listSideInset * 2, 0)
     if isListView {
-      let width: CGFloat = collectionView.bounds.width
-      collectionViewLayout.itemSize = CGSize(width: width, height: cellHeight)
+      collectionViewLayout.itemSize = CGSize(width: contentWidth, height: cellHeight)
       collectionViewLayout.sectionInset = .zero
     } else {
-      let width: CGFloat = floor((collectionView.bounds.width - 14 * 2 - 2 * 4) / 3)
+      let width: CGFloat = floor((contentWidth - 14 * 2 - 2 * 4) / 3)
       collectionViewLayout.itemSize = CGSize(width: width, height: width + 48)
       collectionViewLayout.sectionInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
     }
@@ -512,9 +519,7 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     view.addSubview(collectionView)
     collectionView.snp.makeConstraints { make in
       make.top.equalTo(searchFieldBackground.snp.bottom).offset(listTopSpacing)
-      // The glass rows' icons sit 16pt in, 4pt inside their selection fill.
-      make.leading.trailing.equalToSuperview().inset(usesGlass ? 12 : 8)
-      make.bottom.equalToSuperview()
+      make.leading.trailing.bottom.equalToSuperview()
     }
 
     view.addSubview(graySeparator)
@@ -526,7 +531,8 @@ final class ItemDisplayViewController: UIViewController, EscapeKeyDismissible {
     }
 
     collectionView.contentInset = UIEdgeInsets(
-      top: 0, left: 0, bottom: view.safeAreaInsets.bottom + bottomInset, right: 0)
+      top: 0, left: listSideInset, bottom: view.safeAreaInsets.bottom + bottomInset,
+      right: listSideInset)
     collectionView.scrollIndicatorInsets = UIEdgeInsets(
       top: 0, left: 0, bottom: view.safeAreaInsets.bottom + bottomInset, right: 0)
 
