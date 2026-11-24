@@ -97,10 +97,21 @@ protocol ChatViewControllableDelegate: AnyObject {
 }
 
 final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
+  /// A window that would leave the chat narrower than this beside settings has no room for both.
+  /// Settings is then away until the settings button slides it in, pushing the chat aside. It is
+  /// the chat's width in the Mac's narrowest window, 1024 pt beside a 480 pt settings panel.
+  private static let minimumChatWidthBesideSettings: CGFloat = 544
 
   weak var delegate: ChatViewControllableDelegate?
+  /// Whether the window is too narrow for settings beside the chat.
+  private(set) var slidesSettingsIn = false
+  /// Whether settings is slid in, in a window too narrow for it to stay beside the chat.
+  private(set) var isSettingsSlidIn = false
 
   private let settingsViewController: UIViewController
+  private var settingsLeadingConstraint: Constraint?
+  private var settingsWidthConstraint: Constraint?
+  private var middleRightContainerTrailingConstraint: Constraint?
   private let chatInputController: ChatInputController
   private var onboardingViewController: OnboardingViewController?
   private var modelSpeedViewController: ModelSpeedViewController?
@@ -191,6 +202,14 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
   private lazy var middleContainerView: UIView = {
     let view = UIView(frame: .zero)
     view.backgroundColor = .tertiaryBackground
+    return view
+  }()
+  /// Covers the chat while settings is slid in beside it. A tap there puts settings away.
+  private lazy var settingsDismissView: UIView = {
+    let view = UIView(frame: .zero)
+    view.isHidden = true
+    view.addGestureRecognizer(
+      UITapGestureRecognizer(target: self, action: #selector(settingsDismissViewTapped)))
     return view
   }()
   private lazy var chatContentView: PassThroughView = {
@@ -499,21 +518,16 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
     addChild(settingsViewController)
     view.addSubview(settingsViewController.view)
     settingsViewController.didMove(toParent: self)
-
-    let leftPanelWidth: CGFloat
-    #if targetEnvironment(macCatalyst)
-      if #available(iOS 26, macOS 26, macCatalyst 26, *) {
-        leftPanelWidth = 466 + 14
-      } else {
-        leftPanelWidth = 466
-      }
-    #else
-      leftPanelWidth = (UIScreen.main.bounds.width * 0.245).rounded() + 78 + 24
-    #endif
+    // Away, settings waits just off the leading edge rather than hiding, so a window resize or a
+    // turn of the iPad slides it out and back in with the rest of the layout.
+    view.clipsToBounds = true
 
     settingsViewController.view.snp.makeConstraints { make in
-      make.leading.bottom.equalToSuperview()
-      make.width.equalTo(leftPanelWidth)
+      // In a window too narrow for settings beside the chat, settings waits off the leading edge
+      // until it slides in.
+      settingsLeadingConstraint = make.leading.equalToSuperview().constraint
+      make.bottom.equalToSuperview()
+      settingsWidthConstraint = make.width.equalTo(settingsWidth).constraint
       #if targetEnvironment(macCatalyst)
         make.top.equalTo(view.snp.top)
       #else
@@ -546,7 +560,9 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
 
     middleRightContainerView.snp.makeConstraints { make in
       make.leading.equalTo(settingsViewController.view.snp.trailing)
-      make.trailing.bottom.equalToSuperview()
+      make.bottom.equalToSuperview()
+      // Settings slid in pushes the chat aside, and the chat keeps the window's width.
+      middleRightContainerTrailingConstraint = make.trailing.equalToSuperview().constraint
       #if targetEnvironment(macCatalyst)
         make.top.equalTo(view.snp.top)
       #else
@@ -698,6 +714,10 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
       make.centerX.equalTo(emptyBannerController.view)
       make.top.equalTo(emptyBannerController.view.snp.bottom).offset(12)
     }
+    middleRightContainerView.addSubview(settingsDismissView)
+    settingsDismissView.snp.makeConstraints { make in
+      make.edges.equalToSuperview()
+    }
     updateChatInputEmptyState()
     updateQueuedItems(from: [])
     applyProjectHistorySnapshot(
@@ -706,6 +726,66 @@ final class ChatViewControllerForiPad: UIViewController, ChatViewControllable {
     #if targetEnvironment(macCatalyst)
       resolveWindowMovablePeriodically()
     #endif
+  }
+
+  override func viewWillLayoutSubviews() {
+    super.viewWillLayoutSubviews()
+    let slidesSettingsIn = view.bounds.width - settingsWidth < Self.minimumChatWidthBesideSettings
+    if slidesSettingsIn != self.slidesSettingsIn {
+      self.slidesSettingsIn = slidesSettingsIn
+      // A window that turns too narrow puts settings away, and one that widens has it beside the
+      // chat again.
+      isSettingsSlidIn = false
+      projectBarController.showsSettingsButton = slidesSettingsIn
+    }
+    updateSettingsPosition()
+  }
+
+  /// Slides settings in beside the chat or puts it away, in a window too narrow for settings to
+  /// stay beside the chat. Elsewhere settings is always beside the chat, and this does nothing.
+  func setSettingsSlidIn(_ isSlidIn: Bool, animated: Bool) {
+    guard slidesSettingsIn, isSlidIn != isSettingsSlidIn else { return }
+    isSettingsSlidIn = isSlidIn
+    if isSlidIn {
+      view.endEditing(true)
+    }
+    updateSettingsPosition()
+    guard animated, view.window != nil else { return }
+    UIView.animate(
+      withDuration: 0.4, delay: 0, usingSpringWithDamping: 1, initialSpringVelocity: 0,
+      options: [.beginFromCurrentState, .curveEaseOut],
+      animations: {
+        self.view.layoutIfNeeded()
+      })
+  }
+
+  /// Settings beside the chat is as wide as in a full-screen window held in landscape, however
+  /// the iPad is held and the window sized.
+  private var settingsWidth: CGFloat {
+    #if targetEnvironment(macCatalyst)
+      if #available(iOS 26, macOS 26, macCatalyst 26, *) {
+        return 466 + 14
+      }
+      return 466
+    #else
+      let screenBounds = UIScreen.main.bounds
+      return (max(screenBounds.width, screenBounds.height) * 0.245).rounded() + 78 + 24
+    #endif
+  }
+
+  private func updateSettingsPosition() {
+    // Slid in, settings leaves a strip of the chat showing to tap, as it does on the phone.
+    let width = max(min(settingsWidth, view.bounds.width - 48), 0)
+    settingsWidthConstraint?.update(offset: width)
+    settingsLeadingConstraint?.update(offset: slidesSettingsIn && !isSettingsSlidIn ? -width : 0)
+    middleRightContainerTrailingConstraint?.update(offset: isSettingsSlidIn ? width : 0)
+    settingsDismissView.isHidden = !isSettingsSlidIn
+    // Off the edge, settings is out of VoiceOver's reach as it would be hidden.
+    settingsViewController.view.accessibilityElementsHidden = slidesSettingsIn && !isSettingsSlidIn
+  }
+
+  @objc private func settingsDismissViewTapped() {
+    setSettingsSlidIn(false, animated: true)
   }
 
   func setOnboardingViewController(

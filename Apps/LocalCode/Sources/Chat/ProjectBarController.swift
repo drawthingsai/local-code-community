@@ -39,6 +39,18 @@ final class ProjectBarController {
     }
   }
 
+  /// An iPad window too narrow for settings beside the chat has the settings button ahead of the
+  /// project button, to slide settings in. The phone layout always shows it.
+  var showsSettingsButton = false {
+    didSet {
+      guard showsSettingsButton != oldValue, userInterfaceIdiom != .phone else { return }
+      settingsButton.isHidden = !showsSettingsButton
+      // Fades while the stack view opens or closes its slot, so the icon does not show past the
+      // project button.
+      settingsButton.alpha = showsSettingsButton ? 1 : 0
+    }
+  }
+
   private(set) lazy var settingsBarButtonItem: UIBarButtonItem = {
     let item = UIBarButtonItem(
       title: LocalizedString.forKey("settings"),
@@ -210,9 +222,18 @@ final class ProjectBarController {
       }
       return
     }
+    settingsButton.isHidden = !showsSettingsButton
+    settingsButton.alpha = showsSettingsButton ? 1 : 0
+    stackView.addArrangedSubview(settingsButton)
+    stackView.setCustomSpacing(12, after: settingsButton)
     stackView.addArrangedSubview(projectButton)
     stackView.setCustomSpacing(12, after: projectButton)
     stackView.addArrangedSubview(newChatButton)
+    settingsButton.snp.makeConstraints { make in
+      make.height.equalTo(52)
+      // Hidden, the stack view collapses it to no width.
+      make.width.equalTo(52).priority(.required.advanced(by: -1))
+    }
     newChatButton.snp.makeConstraints { make in
       make.width.height.equalTo(52)
     }

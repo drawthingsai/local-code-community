@@ -2553,6 +2553,7 @@ extension ChatWorkflow: SettingsWorkflowDelegate {
     modelSpeedWorkflow.start()
     self.modelSpeedWorkflow = modelSpeedWorkflow
     viewController.setModelSpeedViewController(modelSpeedWorkflow.viewController, animated: true)
+    dismissSettings()
   }
 
   func settingsWorkflow(
@@ -2715,13 +2716,19 @@ extension ChatWorkflow {
         self?.settingsWorkflow.presentMachineSettings()
       }
     case .projectsTab:
+      // In an iPad window too narrow for settings beside the chat, a tab's shortcut slides
+      // settings in on it.
       settingsWorkflow.selectProjectsTab()
+      (viewController as? ChatViewControllerForiPad)?.setSettingsSlidIn(true, animated: true)
     case .settingsTab:
       settingsWorkflow.selectSettingsTab()
+      (viewController as? ChatViewControllerForiPad)?.setSettingsSlidIn(true, animated: true)
     case .kitTab:
       settingsWorkflow.selectKitTab()
+      (viewController as? ChatViewControllerForiPad)?.setSettingsSlidIn(true, animated: true)
     case .activitiesTab:
       settingsWorkflow.selectActivitiesTab()
+      (viewController as? ChatViewControllerForiPad)?.setSettingsSlidIn(true, animated: true)
     case .focusChat:
       chatInputController.focus()
     case .stopConversation:
@@ -2752,8 +2759,14 @@ extension ChatWorkflow {
       settingsWorkflow.viewControllable, animated: true, completion: completion)
   }
 
-  /// Settings presents its own prompts, so on the phone it comes up first.
+  /// Settings presents its own prompts, so on the phone, and in an iPad window too narrow for
+  /// settings beside the chat, it comes up first.
   private func withSettingsPresented(_ body: @escaping () -> Void) {
+    if let viewController = viewController as? ChatViewControllerForiPad {
+      viewController.setSettingsSlidIn(true, animated: true)
+      body()
+      return
+    }
     guard userInterfaceIdiom == .phone,
       settingsWorkflow.viewControllable.presentingViewController == nil
     else {
@@ -2770,13 +2783,16 @@ extension ChatWorkflow {
     presentSettings(interactive: false, completion: body)
   }
 
-  /// On the phone, puts settings away once what it opened shows, unless it is still asking
-  /// something first.
+  /// On the phone, and in an iPad window too narrow for settings beside the chat, puts settings
+  /// away once what it opened shows, unless it is still asking something first.
   private func dismissSettings() {
     let settingsViewController = settingsWorkflow.viewControllable
-    guard settingsViewController.presentingViewController != nil,
-      settingsViewController.presentedViewController == nil
-    else { return }
+    guard settingsViewController.presentedViewController == nil else { return }
+    if let viewController = viewController as? ChatViewControllerForiPad {
+      viewController.setSettingsSlidIn(false, animated: true)
+      return
+    }
+    guard settingsViewController.presentingViewController != nil else { return }
     settingsViewController.dismiss(animated: true)
   }
 }
@@ -2949,7 +2965,12 @@ extension ChatWorkflow: ChatViewControllableDelegate {
 extension ChatWorkflow: ProjectBarControllerDelegate {
   func projectBarControllerDidTapSettings(_ controller: ProjectBarController) {
     // Settings comes back on whichever tab was last visited.
-    guard userInterfaceIdiom == .phone else { return }
+    if let viewController = viewController as? ChatViewControllerForiPad {
+      // An iPad window too narrow for settings beside the chat shows this button, which slides
+      // settings in.
+      viewController.setSettingsSlidIn(true, animated: true)
+      return
+    }
     if let viewController = viewController as? ChatViewControllerForiPhone,
       viewController.canShowSettingsBeside
     {
@@ -3105,6 +3126,9 @@ extension ChatWorkflow: ChatInputControllerDelegate {
   }
 
   func chatInputControllerDidBeginEditing(_ controller: ChatInputController) {
+    // In an iPad window too narrow for settings beside the chat, settings slid in covers the input.
+    // Focusing the chat from the keyboard (Focus Chat, ⌘L) puts settings away to type there.
+    (viewController as? ChatViewControllerForiPad)?.setSettingsSlidIn(false, animated: true)
   }
 
   func chatInputControllerDidEndEditing(_ controller: ChatInputController) {
