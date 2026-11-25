@@ -23,24 +23,29 @@ The engine and the model still matter, and the rest of this section covers them:
 
 Local Code downloads its own quantized checkpoints of each model:
 
-| Model | Quantizations | Input | Download size |
-| --- | --- | --- | --- |
-| DeepSeek 4.1 Flash 1017 | 2-bit S, 3-bit S | Text and images | 376 GB, 412 GB |
-| DeepSeek 4 Flash 0731 | 2-bit S | Text | 89.4 GB |
-| Qwen 3.8 27B | 2-bit S, 4-bit S, 8-bit S | Text and images | 9.6 GB, 21.3 GB, 29.2 GB |
+| Model | Quantizations | Input | Download size | Draft model |
+| --- | --- | --- | --- | --- |
+| DeepSeek 4.1 Flash 1017 | 2-bit S, 3-bit S | Text and images | 376 GB, 412 GB | DSpark, 7.4 GB |
+| DeepSeek 4 Flash 0731 | 2-bit S | Text | 89.4 GB | — |
+| GLM 5.3 Flash | 4-bit S | Text and images | 157 GB | DFlash2, 1.1 GB |
+| Inkling 2 Small | 2-bit S | Text and images | 191 GB | DSpark, 1.5 GB |
+| Inkling 2 Mini | 3-bit S, 4-bit S | Text and images | 13.5 GB, 16.6 GB | DSpark, 0.4 GB |
+| Qwen 3.8 27B | 2-bit S, 4-bit S, 8-bit S | Text and images | 9.6 GB, 21.3 GB, 29.2 GB | — |
 
-The DeepSeek 4.1 Flash 1017 sizes include a 203 GB engram file, which both of its quantizations share.
+The DeepSeek 4.1 Flash 1017 sizes include a 203 GB engram file, which both of its quantizations share. A draft model downloads along with its model, and the download size leaves it out. It makes decoding faster (see [Performance on Macs](#performance-on-macs)), but the model also runs without it.
 
-The DeepSeek models are mixtures of experts, and they are larger than the memory of most Macs. For example, the DeepSeek 4.1 Flash 1017 (2-bit S) checkpoint is about 173 GB. Local Code keeps as many of the most used experts in memory as there is room for, and streams the rest from disk. It also leaves room for the other apps you run. The experts kept in memory never take more than the Mac's memory minus 32 GB, or more than 72% of the memory that is free when the model loads. So these models run on Macs with less memory than the checkpoint, run faster the more memory there is, and leave the rest of the Mac usable.
+The DeepSeek models, GLM 5.3 Flash and Inkling 2 Small are mixtures of experts, and they are larger than the memory of most Macs. For example, the DeepSeek 4.1 Flash 1017 (2-bit S) checkpoint is about 173 GB. Local Code keeps as many of the most used experts in memory as there is room for, and streams the rest from disk. It also leaves room for the other apps you run. The experts kept in memory never take more than the Mac's memory minus 32 GB, or more than about three quarters of the memory that is free when the model loads. So these models run on Macs with less memory than the checkpoint, run faster the more memory there is, and leave the rest of the Mac usable.
+
+Inkling 2 Mini is a mixture of experts too, small enough to stay in memory on devices with 32 GB or more. With less memory, such as on an iPhone or an iPad, it keeps between 2.3 and 6 GB of its experts in memory, depending on the device, and streams the rest.
 
 During setup, Local Code suggests a model based on the device's memory:
 
-- under 32 GB: Qwen 3.8 27B (2-bit S)
-- 32 GB and up: Qwen 3.8 27B (4-bit S)
-- 48 GB and up: DeepSeek 4 Flash 0731
-- 64 GB and up: DeepSeek 4.1 Flash 1017
+- under 32 GB: Inkling 2 Mini (3-bit S)
+- 32 GB and up: Inkling 2 Mini (4-bit S)
+- 64 GB and up: DeepSeek 4 Flash 0731
+- 96 GB and up: DeepSeek 4.1 Flash 1017
 
-You can switch to any model later.
+Setup also lists the two DeepSeek models, Inkling 2 Mini and Inkling 2 Small on every device. You can switch to any model later.
 
 ### The In-App Sandbox
 
@@ -97,8 +102,99 @@ On the M5 Max, the DeepSeek 4.1 Flash 1017 readings set Weights Streaming to 56 
 | Qwen 3.8 27B (4-bit S) | 2,689 / 54.5 | 2,247 / 44.0 | 1,988 / 33.2 | 962 / 12.2 |
 | DeepSeek 4 Flash 0731 (2-bit S) | 3,384 / 56.2 | 3,265 / 55.9 | 3,039 / 54.7 | 2,087 / 50.4 |
 | DeepSeek 4.1 Flash 1017 (2-bit S) | 4,600 / 58.9 | 4,507 / 58.6 | 4,431 / 57.9 | 3,840 / 56.1 |
+| GLM 5.3 Flash (4-bit S) | 2,687 / 56.1 | 2,654 / 56.0 | 2,619 / 55.7 | 2,332 / 54.5 |
+| Inkling 2 Small (2-bit S) | 2,892 / 54.7 | 2,746 / 53.8 | 2,509 / 52.0 | 1,616 / 44.5 |
+| Inkling 2 Mini (3-bit S) | 5,759 / 86.4 | 5,441 / 83.8 | 5,003 / 79.5 | 3,167 / 63.3 |
+| Inkling 2 Mini (4-bit S) | 5,630 / 84.3 | 5,333 / 81.9 | 4,904 / 77.9 | 3,106 / 62.3 |
 
-On the M5 Ultra, both DeepSeek readings are a second pass in the same session, without the 20-second cool-down before each prefill. For DeepSeek 4.1 Flash 1017, its engram entries are also already in memory.
+On the M5 Ultra, the DeepSeek, GLM and Inkling readings are a second pass in the same session, without the 20-second cool-down before each prefill. For DeepSeek 4.1 Flash 1017, its engram entries are also already in memory.
+
+These readings decode without a draft model. DeepSeek 4.1 Flash 1017, GLM 5.3 Flash and the Inkling 2 models also come with one: DSpark for DeepSeek and Inkling, and DFlash2 for GLM. The draft model guesses the next few tokens, and the model checks all of them in one pass. How many guesses it keeps depends on the text, so each reading below is the average over eight tasks: explaining the code read so far, rewriting one of its functions, writing a Python module with tests, refactoring a Swift function, writing JSON, solving a word problem, writing an essay and translating an email. Each task decodes its reply, thinking included, for up to 4,096 tokens, and the context is prefilled in the same session, so the draft model has seen all of it.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/decode-draft-model-dark.svg">
+  <img alt="Decode speed on an M5 Ultra with 32K tokens already in context, without and with the draft model, for DeepSeek 4.1 Flash 1017, GLM 5.3 Flash and the Inkling 2 models. The data is in the table below the chart." src=".github/images/decode-draft-model-light.svg">
+</picture>
+
+**M5 Ultra, 256 GB, decode without → with the draft model**
+
+| Model | 8K already in context | 16K already in context | 32K already in context | 128K already in context |
+| --- | --- | --- | --- | --- |
+| DeepSeek 4.1 Flash 1017 (2-bit S) | 55.4 → 73.2 | 54.9 → 74.5 | 54.7 → 76.4 | 53.3 → 73.1 |
+| GLM 5.3 Flash (4-bit S) | 55.6 → 73.8 | 55.6 → 75.3 | 54.7 → 73.8 | 53.8 → 72.4 |
+| Inkling 2 Small (2-bit S) | 54.5 → 66.4 | 53.6 → 67.1 | 51.8 → 66.5 | 44.3 → 58.1 |
+| Inkling 2 Mini (3-bit S) | 86.7 → 109.6 | 84.2 → 108.0 | 79.9 → 102.3 | 63.5 → 91.3 |
+| Inkling 2 Mini (4-bit S) | 84.4 → 101.3 | 82.0 → 103.2 | 77.9 → 102.4 | 62.2 → 91.8 |
+
+Both speeds in each cell come from the same kind of run, so the first can differ a little from the decode readings above.
+
+How much the draft model helps depends on what it decodes, so this table shows what the replies with the draft model hold: each token by the kind of text it is part of, as a share of each model's tokens over all four context lengths (444,472 tokens in all). About four in five tokens are thinking, mostly prose and lists, which are harder to guess than code.
+
+**What the replies with the draft model hold, share of tokens**
+
+| Kind of token | DeepSeek 4.1 Flash 1017 (2-bit S) | GLM 5.3 Flash (4-bit S) | Inkling 2 Small (2-bit S) | Inkling 2 Mini (3-bit S) | Inkling 2 Mini (4-bit S) | All five |
+| --- | --- | --- | --- | --- | --- | --- |
+| Thinking, prose | 42.4% | 19.9% | 44.2% | 41.6% | 45.0% | 39.1% |
+| Thinking, list items | 18.3% | 28.1% | 15.2% | 13.9% | 11.9% | 17.1% |
+| Thinking, French | 1.4% | 5.5% | 1.6% | 1.5% | 0.8% | 2.1% |
+| Thinking, inline code | 10.4% | 12.4% | 5.3% | 5.9% | 5.7% | 7.7% |
+| Thinking, Python | 9.7% | 9.0% | 7.9% | 12.6% | 9.6% | 9.8% |
+| Thinking, Swift | 1.4% | 1.1% | 1.4% | 1.1% | 1.1% | 1.2% |
+| Thinking, other code | 0.2% | 0.1% | 0.5% | 0.3% | 1.2% | 0.5% |
+| Thinking, math | 2.8% | 3.7% | 4.0% | 3.7% | 4.9% | 3.8% |
+| **Thinking, all** | **86.6%** | **79.8%** | **80.0%** | **80.6%** | **80.0%** | **81.3%** |
+| Answer, prose | 3.6% | 7.8% | 7.1% | 11.0% | 7.5% | 7.5% |
+| Answer, list items | 0.6% | 1.5% | 3.1% | 0.4% | 1.8% | 1.5% |
+| Answer, French | 0.7% | 0.7% | 0.6% | 0.5% | 0.5% | 0.6% |
+| Answer, inline code | 0.6% | 0.7% | 2.6% | 0.4% | 2.3% | 1.4% |
+| Answer, Python | 3.9% | 2.7% | 3.5% | 2.2% | 4.8% | 3.4% |
+| Answer, Swift | 0.6% | 0.6% | 0.7% | 0.7% | 0.6% | 0.6% |
+| Answer, JSON | 1.1% | 4.5% | 0.0% | 1.7% | 0.0% | 1.4% |
+| Answer, math | 2.3% | 1.6% | 2.2% | 2.4% | 2.3% | 2.2% |
+| Answer, tables | 0.0% | 0.0% | 0.1% | 0.0% | 0.0% | 0.0% |
+| **Answer, all** | **13.4%** | **20.2%** | **20.0%** | **19.4%** | **20.0%** | **18.7%** |
+
+Prose is sentences and paragraphs, and list items are bulleted or numbered lines. Inline code is names and short snippets in backticks inside sentences. Python, Swift, other code and JSON are code blocks and lines of code, and math is equations and arithmetic. French is the translation, and the drafts of it while thinking. Each reply is split into tokens with its model's tokenizer, and each token counts once, as the kind of text most of its characters are part of. In the JSON task, Inkling 2 Small and Inkling 2 Mini (4-bit S) spent all 4,096 tokens thinking, so their replies hold no JSON.
+
+<details>
+<summary>Per task</summary>
+
+Decode speeds in tokens per second, without → with the draft model, at 32K already in context.
+
+| Model | Explain code | Rewrite a function | Write a module | Refactor Swift | JSON | Word problem | Essay | Translation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| DeepSeek 4.1 Flash 1017 (2-bit S) | 55 → 75 | 56 → 87 | 55 → 89 | 55 → 82 | 54 → 86 | 55 → 90 | 54 → 59 | 56 → 76 |
+| GLM 5.3 Flash (4-bit S) | 54 → 71 | 54 → 76 | 55 → 77 | 56 → 79 | 54 → 99 | 56 → 89 | 54 → 57 | 56 → 93 |
+| Inkling 2 Small (2-bit S) | 52 → 69 | 52 → 71 | 52 → 82 | 52 → 72 | 52 → 63 | 52 → 82 | 52 → 52 | 52 → 63 |
+| Inkling 2 Mini (3-bit S) | 80 → 106 | 80 → 118 | 80 → 109 | 80 → 107 | 80 → 109 | 80 → 103 | 80 → 78 | 80 → 85 |
+| Inkling 2 Mini (4-bit S) | 78 → 108 | 78 → 111 | 78 → 136 | 78 → 95 | 78 → 104 | 78 → 98 | 78 → 79 | 78 → 87 |
+
+What each task's replies with the draft model hold, as a share of its tokens, over all five models and four context lengths.
+
+| Kind of token | Explain code | Rewrite a function | Write a module | Refactor Swift | JSON | Word problem | Essay | Translation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Thinking, prose | 25.8% | 47.0% | 32.9% | 27.1% | 72.8% | 31.2% | 34.6% | 29.6% |
+| Thinking, list items | 36.1% | 2.1% | 10.1% | 10.6% | 14.1% | 1.5% | 30.9% | 2.1% |
+| Thinking, French | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 52.4% |
+| Thinking, inline code | 22.7% | 14.3% | 4.5% | 14.3% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thinking, Python | 3.5% | 24.6% | 34.6% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thinking, Swift | 0.0% | 0.0% | 0.0% | 17.6% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thinking, other code | 0.2% | 1.5% | 1.2% | 0.1% | 0.0% | 0.2% | 0.0% | 0.0% |
+| Thinking, math | 2.1% | 1.9% | 1.0% | 0.4% | 1.2% | 31.9% | 1.4% | 0.2% |
+| **Thinking, all** | **90.4%** | **91.4%** | **84.4%** | **70.1%** | **88.1%** | **64.8%** | **67.0%** | **84.3%** |
+| Answer, prose | 1.4% | 0.7% | 0.5% | 5.1% | 2.8% | 6.9% | 33.0% | 0.0% |
+| Answer, list items | 3.7% | 0.4% | 0.3% | 8.7% | 0.0% | 1.2% | 0.0% | 0.0% |
+| Answer, French | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 15.5% |
+| Answer, inline code | 4.4% | 0.5% | 0.2% | 6.7% | 0.0% | 0.1% | 0.0% | 0.2% |
+| Answer, Python | 0.0% | 7.1% | 14.6% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Answer, Swift | 0.0% | 0.0% | 0.0% | 9.4% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Answer, other code | 0.0% | 0.0% | 0.0% | 0.1% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Answer, JSON | 0.0% | 0.0% | 0.0% | 0.0% | 9.1% | 0.0% | 0.0% | 0.0% |
+| Answer, math | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 27.0% | 0.0% | 0.0% |
+| Answer, tables | 0.2% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| **Answer, all** | **9.6%** | **8.6%** | **15.6%** | **29.9%** | **11.9%** | **35.2%** | **33.0%** | **15.7%** |
+
+</details>
 
 This chart compares DeepSeek 4.1 Flash 1017 prefill speed on the same M5 Ultra in Local Code, in MLX-Serve v26.10.3 with the iQ-MLX 3.0bpw checkpoint, and in oMLX 0.7.2 with the oQ2.5e checkpoint. Each reading times only the prefill of an 8,192-token chunk on top of the given amount of context. The Local Code readings come from the same runs as the table above, and the MLX-Serve and oMLX readings, both with CED on, are medians of three runs. The label above each Local Code point is how much faster it is than the faster of MLX-Serve and oMLX at that context length.
 
@@ -187,7 +283,7 @@ Sizes leave out the engram table and the MTP layers. The checkpoints store the e
 
 ### Qwen 3.8 27B
 
-Qwen 3.8 27B is a small model that understands images, and it is strong at coding and long-horizon work. Local Code suggests it for devices with less than 48 GB of memory.
+Qwen 3.8 27B is a small model that understands images, and it is strong at coding and long-horizon work.
 
 #### Prefill Speed
 

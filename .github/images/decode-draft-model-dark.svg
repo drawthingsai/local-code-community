@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="404" viewBox="0 0 760 404" font-family='system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif' role="img" aria-labelledby="title desc">
+<title id="title">Decode speed without and with the draft model, M5 Ultra (256 GB)</title>
+<desc id="desc">Decode speed in tokens per second with 32K tokens already in context, averaged over eight tasks, without and with the draft model. Higher is better. DeepSeek 4.1 Flash 1017 (2-bit S): 54.7 without, 76.4 with (1.40 times); GLM 5.3 Flash (4-bit S): 54.7 without, 73.8 with (1.35 times); Inkling 2 Small (2-bit S): 51.8 without, 66.5 with (1.28 times); Inkling 2 Mini (3-bit S): 79.9 without, 102.3 with (1.28 times); Inkling 2 Mini (4-bit S): 77.9 without, 102.4 with (1.31 times).</desc>
+<rect x="0.5" y="0.5" width="759" height="403" rx="12" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">Decode speed without and with the draft model, M5 Ultra (256 GB)</text>
+<circle cx="30" cy="60" r="5" fill="#1c5cab" stroke="#1a1a19" stroke-width="2"/>
+<text x="42" y="64.5" font-size="13" fill="#c3c2b7">Without the draft model</text>
+<circle cx="230" cy="60" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<text x="242" y="64.5" font-size="13" fill="#c3c2b7">With the draft model</text>
+<text x="284.0" y="370" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0</text>
+<line x1="350.0" y1="92" x2="350.0" y2="350" stroke="#2c2c2a" stroke-width="1"/>
+<text x="350.0" y="370" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">20</text>
+<line x1="416.0" y1="92" x2="416.0" y2="350" stroke="#2c2c2a" stroke-width="1"/>
+<text x="416.0" y="370" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">40</text>
+<line x1="482.0" y1="92" x2="482.0" y2="350" stroke="#2c2c2a" stroke-width="1"/>
+<text x="482.0" y="370" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">60</text>
+<line x1="548.0" y1="92" x2="548.0" y2="350" stroke="#2c2c2a" stroke-width="1"/>
+<text x="548.0" y="370" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">80</text>
+<line x1="614.0" y1="92" x2="614.0" y2="350" stroke="#2c2c2a" stroke-width="1"/>
+<text x="614.0" y="370" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">100</text>
+<line x1="680.0" y1="92" x2="680.0" y2="350" stroke="#2c2c2a" stroke-width="1"/>
+<text x="680.0" y="370" font-size="12" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">120</text>
+<line x1="284" y1="92" x2="284" y2="350" stroke="#383835" stroke-width="1"/>
+<text x="482.0" y="396" font-size="12" text-anchor="middle" fill="#c3c2b7">Decode speed with 32K already in context (tokens per second, higher is better)</text>
+<text x="24" y="120.5" font-size="13" fill="#c3c2b7">DeepSeek 4.1 Flash 1017 (2-bit S)</text>
+<line x1="464.5" y1="116" x2="536.1" y2="116" stroke="#1c5cab" stroke-width="2" stroke-linecap="round"/>
+<circle cx="464.5" cy="116" r="5" fill="#1c5cab" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="536.1" cy="116" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<text x="548.1" y="120.5" font-size="12" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.40×</text>
+<text x="24" y="170.5" font-size="13" fill="#c3c2b7">GLM 5.3 Flash (4-bit S)</text>
+<line x1="464.4" y1="166" x2="527.5" y2="166" stroke="#1c5cab" stroke-width="2" stroke-linecap="round"/>
+<circle cx="464.4" cy="166" r="5" fill="#1c5cab" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="527.5" cy="166" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<text x="539.5" y="170.5" font-size="12" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.35×</text>
+<text x="24" y="220.5" font-size="13" fill="#c3c2b7">Inkling 2 Small (2-bit S)</text>
+<line x1="455.0" y1="216" x2="503.5" y2="216" stroke="#1c5cab" stroke-width="2" stroke-linecap="round"/>
+<circle cx="455.0" cy="216" r="5" fill="#1c5cab" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="503.5" cy="216" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<text x="515.5" y="220.5" font-size="12" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.28×</text>
+<text x="24" y="270.5" font-size="13" fill="#c3c2b7">Inkling 2 Mini (3-bit S)</text>
+<line x1="547.6" y1="266" x2="621.4" y2="266" stroke="#1c5cab" stroke-width="2" stroke-linecap="round"/>
+<circle cx="547.6" cy="266" r="5" fill="#1c5cab" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="621.4" cy="266" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<text x="633.4" y="270.5" font-size="12" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.28×</text>
+<text x="24" y="320.5" font-size="13" fill="#c3c2b7">Inkling 2 Mini (4-bit S)</text>
+<line x1="541.2" y1="316" x2="621.9" y2="316" stroke="#1c5cab" stroke-width="2" stroke-linecap="round"/>
+<circle cx="541.2" cy="316" r="5" fill="#1c5cab" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="621.9" cy="316" r="5" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<text x="633.9" y="320.5" font-size="12" fill="#c3c2b7" style="font-variant-numeric: tabular-nums">1.31×</text>
+</svg>
