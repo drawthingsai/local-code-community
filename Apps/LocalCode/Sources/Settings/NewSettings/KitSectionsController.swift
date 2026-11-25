@@ -79,6 +79,13 @@ final class KitSectionsController {
       .drawThings, .permittedDirectories, .messagesPermission, .mailPermission, .photosPermission,
       .calendarPermission, .notesPermission,
     ]
+    // Messages, Mail and Notes keep their data in folders only a Mac has, which the iPad app reads
+    // there too.
+    if !ProcessInfo.processInfo.isMacCatalystApp {
+      sections.removeAll {
+        $0 == .messagesPermission || $0 == .mailPermission || $0 == .notesPermission
+      }
+    }
     // Messages' database and scripting are only on a Mac.
     #if targetEnvironment(macCatalyst)
       sections.append(.iMessage)
@@ -279,7 +286,8 @@ final class KitSectionsController {
           guard let self else { return }
           self.delegate?.kitSectionsController(self, didSetIMessageEnabled: value)
         }
-      ], title: "iMessage", detail: LocalizedString.forKey("imessage_detail"),
+      ], title: LocalizedString.forKey("messages"),
+      detail: LocalizedString.forKey("imessage_detail"),
       lookUpKey: "local_code_imessage_detail_hidden", workspace: workspace)
   }
 

@@ -2890,6 +2890,7 @@
 "needs_a_bot_token" = "Necesita un token del bot";
 "needs_messages_permission" = "Necesita el permiso de Mensajes";
 "message_yourself_to_start" = "Escríbete a ti mismo para empezar";
+"messages" = "Mensajes";
 "imessage_detail" = "Escríbete a ti mismo en Mensajes, desde este Mac o tus otros dispositivos, para trabajar con los hilos de Local Code mientras esté abierto. Lee el chat con el permiso de Mensajes de arriba y responde allí. Envía /help para ver los comandos.";
 "telegram_detail" = "Escribe a tu propio bot de Telegram para trabajar con los hilos de Local Code mientras esté abierto. Crea un bot con @BotFather, establece aquí su token y envía al bot el código de vinculación. Envía /help para ver los comandos.";
 "discord_detail" = "Escribe a tu propio bot de Discord para trabajar con los hilos de Local Code mientras esté abierto. Crea una aplicación con un bot en el Discord Developer Portal, establece aquí el token del bot y envía al bot el código de vinculación en un mensaje directo o mencionándolo. Envía /help para ver los comandos.";

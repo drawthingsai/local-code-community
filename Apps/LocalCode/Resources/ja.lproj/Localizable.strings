@@ -2928,6 +2928,7 @@
 "needs_a_bot_token" = "ボットトークンが必要です";
 "needs_messages_permission" = "メッセージの権限が必要です";
 "message_yourself_to_start" = "自分宛てにメッセージを送って開始";
+"messages" = "メッセージ";
 "imessage_detail" = "この Mac やほかのデバイスからメッセージで自分宛てに送ると、Local Code が開いている間そのスレッドで作業できます。上のメッセージの権限でチャットを読み取り、同じチャットで回答します。/help を送るとコマンドを確認できます。";
 "telegram_detail" = "自分の Telegram ボットにメッセージを送ると、Local Code が開いている間そのスレッドで作業できます。@BotFather でボットを作成し、ここでトークンを設定して、ボットにペアリングコードを送信してください。/help を送るとコマンドを確認できます。";
 "discord_detail" = "自分の Discord ボットにメッセージを送ると、Local Code が開いている間そのスレッドで作業できます。Discord Developer Portal でボット付きのアプリケーションを作成し、ここでボットのトークンを設定して、ダイレクトメッセージかメンションでボットにペアリングコードを送信してください。/help を送るとコマンドを確認できます。";

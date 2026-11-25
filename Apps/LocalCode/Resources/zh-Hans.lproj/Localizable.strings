@@ -2906,6 +2906,7 @@
 "needs_a_bot_token" = "需要机器人令牌";
 "needs_messages_permission" = "需要“信息”权限";
 "message_yourself_to_start" = "给自己发信息即可开始";
+"messages" = "信息";
 "imessage_detail" = "在“信息”中从这台 Mac 或您的其他设备给自己发信息，即可在 Local Code 打开时使用它的对话。它通过上方的“信息”权限读取该聊天，并在其中回答。发送 /help 查看命令。";
 "telegram_detail" = "给您自己的 Telegram 机器人发消息，即可在 Local Code 打开时使用它的对话。用 @BotFather 创建机器人，在此设置其令牌，然后将配对码发送给机器人。发送 /help 查看命令。";
 "discord_detail" = "给您自己的 Discord 机器人发消息，即可在 Local Code 打开时使用它的对话。在 Discord Developer Portal 中创建带机器人的应用，在此设置机器人的令牌，然后通过私信或提及机器人将配对码发送给它。发送 /help 查看命令。";

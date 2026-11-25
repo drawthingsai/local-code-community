@@ -3198,6 +3198,7 @@
 "needs_a_bot_token" = "Cần mã thông báo bot";
 "needs_messages_permission" = "Cần quyền truy cập Tin nhắn";
 "message_yourself_to_start" = "Nhắn cho chính bạn để bắt đầu";
+"messages" = "Tin nhắn";
 "imessage_detail" = "Nhắn cho chính bạn trong Tin nhắn, từ máy Mac này hoặc các thiết bị khác, để làm việc với các cuộc trò chuyện của Local Code khi ứng dụng đang mở. Ứng dụng đọc đoạn chat bằng quyền truy cập Tin nhắn ở trên và trả lời ở đó. Gửi /help để xem các lệnh.";
 "telegram_detail" = "Nhắn cho bot Telegram của riêng bạn để làm việc với các cuộc trò chuyện của Local Code khi ứng dụng đang mở. Tạo bot bằng @BotFather, đặt mã thông báo của bot ở đây và gửi cho bot mã ghép nối. Gửi /help để xem các lệnh.";
 "discord_detail" = "Nhắn cho bot Discord của riêng bạn để làm việc với các cuộc trò chuyện của Local Code khi ứng dụng đang mở. Tạo một ứng dụng có bot trong Discord Developer Portal, đặt mã thông báo của bot ở đây và gửi cho bot mã ghép nối trong tin nhắn trực tiếp hoặc bằng cách nhắc đến bot. Gửi /help để xem các lệnh.";

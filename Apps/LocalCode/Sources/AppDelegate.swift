@@ -85,14 +85,18 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
     if ios_registerCommand("calendar", calendar_main) == 0 {
       print("Unable to register the calendar command.")
     }
-    if ios_registerCommand("imessage", imessage_main) == 0 {
-      print("Unable to register the imessage command.")
-    }
-    if ios_registerCommand("mail", mail_main) == 0 {
-      print("Unable to register the mail command.")
-    }
-    if ios_registerCommand("notes", notes_main) == 0 {
-      print("Unable to register the notes command.")
+    // Messages, Mail and Notes keep their data in folders only a Mac has, which the iPad app reads
+    // there too.
+    if ProcessInfo.processInfo.isMacCatalystApp {
+      if ios_registerCommand("imessage", imessage_main) == 0 {
+        print("Unable to register the imessage command.")
+      }
+      if ios_registerCommand("mail", mail_main) == 0 {
+        print("Unable to register the mail command.")
+      }
+      if ios_registerCommand("notes", notes_main) == 0 {
+        print("Unable to register the notes command.")
+      }
     }
     if ios_registerCommand("photos", photos_main) == 0 {
       print("Unable to register the photos command.")

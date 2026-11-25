@@ -2930,6 +2930,7 @@
 "needs_a_bot_token" = "Jeton du bot requis";
 "needs_messages_permission" = "Autorisation Messages requise";
 "message_yourself_to_start" = "Écrivez-vous un message pour commencer";
+"messages" = "Messages";
 "imessage_detail" = "Écrivez-vous dans Messages, depuis ce Mac ou vos autres appareils, pour travailler avec les fils de Local Code tant qu’il est ouvert. Il lit la conversation grâce à l’autorisation Messages ci-dessus et y répond. Envoyez /help pour les commandes.";
 "telegram_detail" = "Écrivez à votre propre bot Telegram pour travailler avec les fils de Local Code tant qu’il est ouvert. Créez un bot avec @BotFather, définissez son jeton ici et envoyez au bot le code d’association. Envoyez /help pour les commandes.";
 "discord_detail" = "Écrivez à votre propre bot Discord pour travailler avec les fils de Local Code tant qu’il est ouvert. Créez une application avec un bot dans le Discord Developer Portal, définissez ici le jeton du bot et envoyez au bot le code d’association en message privé ou en le mentionnant. Envoyez /help pour les commandes.";
