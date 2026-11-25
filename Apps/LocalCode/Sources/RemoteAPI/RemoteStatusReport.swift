@@ -52,10 +52,7 @@ enum RemoteStatusReport {
       if let currentRound = agentStatus.currentRound {
         lines.append(
           LocalizedString.format(
-            key: "remote_status_current_turn", currentRound, agentStatus.maximumRounds))
-      } else {
-        lines.append(
-          LocalizedString.format(key: "remote_status_turn_limit", agentStatus.maximumRounds))
+            key: "remote_status_current_turn", currentRound))
       }
     } else {
       lines.append(LocalizedString.forKey("remote_status_select_project"))

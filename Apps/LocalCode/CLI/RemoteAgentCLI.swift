@@ -44,9 +44,6 @@ struct RemoteAgentCLI: AsyncParsableCommand {
   @Option(help: "Override the maximum output tokens reported by the provider.")
   var maximumOutputTokens: Int?
 
-  @Option(help: "Maximum model/tool rounds.")
-  var maximumRounds: Int = 64
-
   @Option(
     help:
       "Fraction of the input room (the context window less the reserved output) that triggers compaction."
@@ -57,9 +54,6 @@ struct RemoteAgentCLI: AsyncParsableCommand {
   var compactionTarget = RemoteAgentConfiguration.defaultCompactionTarget
 
   mutating func validate() throws {
-    guard maximumRounds > 0 else {
-      throw ValidationError("--maximum-rounds must be greater than zero.")
-    }
     if let contextWindowTokens, contextWindowTokens < 4_096 {
       throw ValidationError("--context-window-tokens must be at least 4096.")
     }
@@ -140,8 +134,7 @@ struct RemoteAgentCLI: AsyncParsableCommand {
     }
     let configuration = RemoteAgentConfiguration(
       contextWindowTokens: contextTokens, reservedOutputTokens: requestedOutputTokens,
-      compactionThreshold: compactionThreshold, compactionTarget: compactionTarget,
-      maximumRounds: maximumRounds)
+      compactionThreshold: compactionThreshold, compactionTarget: compactionTarget)
     // The target is a share of the context window and the threshold a share of the input room,
     // so the model's limits decide how high the target can go.
     guard configuration.compactionTarget == compactionTarget else {

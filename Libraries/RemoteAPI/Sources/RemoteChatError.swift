@@ -14,7 +14,6 @@ public enum RemoteChatError: Error, Equatable, LocalizedError {
   case cancelled
   case sessionUnavailable
   case alreadyRunning
-  case roundLimitReached(maximumRounds: Int)
   case invalidToolArguments(function: String)
   case compactionFailed(String)
   case contextLimitReached
@@ -65,8 +64,6 @@ public enum RemoteChatError: Error, Equatable, LocalizedError {
       return "The remote chat session is not prepared."
     case .alreadyRunning:
       return "A remote request is already running."
-    case .roundLimitReached(let maximumRounds):
-      return "The remote agent stopped after \(maximumRounds) model/tool rounds."
     case .invalidToolArguments(let function):
       return
         "The remote model could not produce well-formed JSON arguments for \(function) after 2 regeneration attempts."

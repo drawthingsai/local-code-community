@@ -276,7 +276,6 @@ public final class RemoteAgent {
       compactionReserveTokens: compactionReserveTokens,
       reservedOutputTokens: configuration.reservedOutputTokens,
       transcriptMessageCount: state.transcript.count,
-      maximumRounds: configuration.maximumRounds,
       currentRound: currentRound)
   }
 
@@ -377,8 +376,6 @@ public final class RemoteAgent {
         ? .contextLimitReached
         : .compactionFailed(
           "Repeated compaction did not restore enough context capacity.")
-    } else if round >= configuration.maximumRounds {
-      immediateFailure = .roundLimitReached(maximumRounds: configuration.maximumRounds)
     } else {
       immediateFailure = nil
     }
@@ -813,27 +810,9 @@ public final class RemoteAgent {
         generation.currentText = ""
         generation.currentThinking = ""
         generation.streamingToolCalls = []
-        if generation.round >= configuration.maximumRounds {
-          for call in completion.toolCalls {
-            storedState.transcript.append(
-              .toolResult(
-                RemoteToolError.content(
-                  type: "round_limit_reached", function: call.name,
-                  message: "The agent model/tool round limit was reached."),
-                toolCallID: call.id, toolName: call.name, isError: true))
-          }
-          storedState.transcript.append(
-            .assistant(
-              "[The remote agent stopped because its model/tool round limit was reached.]"))
-          completionCallback = generation.completion
-          completionResult = .failure(
-            .roundLimitReached(maximumRounds: configuration.maximumRounds))
-          activeGeneration = nil
-        } else {
-          generation.pendingToolCalls = completion.toolCalls
-          generation.pendingToolIndex = 0
-          shouldExecuteTools = true
-        }
+        generation.pendingToolCalls = completion.toolCalls
+        generation.pendingToolIndex = 0
+        shouldExecuteTools = true
       }
     }
     progressSnapshot = generation.progressSnapshot

@@ -2625,8 +2625,7 @@
 "remote_status_compaction_reserve" = "壓縮預留：`%@` 權杖";
 "remote_status_output_reserve" = "輸出預留：`%@` 權杖";
 "remote_status_active_history" = "目前歷史：%@ 則訊息";
-"remote_status_current_turn" = "目前輪次：第 %d 輪，共 %d 輪";
-"remote_status_turn_limit" = "輪次上限：%d 輪模型／工具呼叫";
+"remote_status_current_turn" = "目前輪次：第 %d 輪";
 "remote_status_select_project" = "上下文：選擇一個專案以開始工作階段。";
 "remote_status_account_quota_not_exposed" = "帳戶配額：此供應商的聊天 API 未提供。";
 "remote_status_openrouter_account" = "OpenRouter 帳戶";

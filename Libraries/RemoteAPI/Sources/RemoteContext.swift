@@ -15,7 +15,6 @@ public struct RemoteAgentConfiguration: Equatable, Sendable {
   public var reservedOutputTokens: Int
   public var compactionThreshold: Double
   public var compactionTarget: Double
-  public var maximumRounds: Int
   public var maximumCompactionsPerRequest: Int
   public var maximumRequestRetries: Int
   public var retryBaseDelay: TimeInterval
@@ -24,7 +23,6 @@ public struct RemoteAgentConfiguration: Equatable, Sendable {
     contextWindowTokens: Int = 32_768, reservedOutputTokens: Int = 8_192,
     compactionThreshold: Double = RemoteAgentConfiguration.defaultCompactionThreshold,
     compactionTarget: Double = RemoteAgentConfiguration.defaultCompactionTarget,
-    maximumRounds: Int = 64,
     maximumCompactionsPerRequest: Int = 3, maximumRequestRetries: Int = 2,
     retryBaseDelay: TimeInterval = 1
   ) {
@@ -41,7 +39,6 @@ public struct RemoteAgentConfiguration: Equatable, Sendable {
     self.compactionTarget = min(
       max(Self.minimumCompactionTarget, compactionTarget),
       self.compactionThreshold * inputFraction - Self.compactionTargetMargin)
-    self.maximumRounds = max(1, maximumRounds)
     self.maximumCompactionsPerRequest = max(1, maximumCompactionsPerRequest)
     self.maximumRequestRetries = max(0, maximumRequestRetries)
     self.retryBaseDelay = max(0.01, retryBaseDelay)
@@ -71,7 +68,6 @@ public struct RemoteAgentStatus: Equatable, Sendable {
   public var compactionReserveTokens: Int
   public var reservedOutputTokens: Int
   public var transcriptMessageCount: Int
-  public var maximumRounds: Int
   public var currentRound: Int?
 
   public var availableContextTokens: Int {

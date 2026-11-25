@@ -2648,8 +2648,7 @@
 "remote_status_compaction_reserve" = "コンパクション予備: `%@` トークン";
 "remote_status_output_reserve" = "出力予備: `%@` トークン";
 "remote_status_active_history" = "アクティブな履歴: %@ 件のメッセージ";
-"remote_status_current_turn" = "現在のターン: %d / %d ラウンド";
-"remote_status_turn_limit" = "ターン上限: モデル/ツール %d ラウンド";
+"remote_status_current_turn" = "現在のターン: %d ラウンド";
 "remote_status_select_project" = "コンテキスト: プロジェクトを選択してセッションを開始してください。";
 "remote_status_account_quota_not_exposed" = "アカウントのクォータ: このプロバイダのチャット API では公開されていません。";
 "remote_status_openrouter_account" = "OpenRouter アカウント";

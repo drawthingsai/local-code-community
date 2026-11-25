@@ -2923,8 +2923,7 @@
 "remote_status_compaction_reserve" = "Dự trữ cho thu gọn: `%@` token";
 "remote_status_output_reserve" = "Dự trữ cho đầu ra: `%@` token";
 "remote_status_active_history" = "Lịch sử đang dùng: %@ tin nhắn";
-"remote_status_current_turn" = "Lượt hiện tại: vòng %d trong %d";
-"remote_status_turn_limit" = "Giới hạn lượt: %d vòng mô hình/công cụ";
+"remote_status_current_turn" = "Lượt hiện tại: vòng %d";
 "remote_status_select_project" = "Ngữ cảnh: Chọn một dự án để bắt đầu phiên.";
 "remote_status_account_quota_not_exposed" = "Hạn mức tài khoản: API trò chuyện của nhà cung cấp này không cung cấp thông tin.";
 "remote_status_openrouter_account" = "Tài khoản OpenRouter";

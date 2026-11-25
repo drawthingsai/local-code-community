@@ -2650,8 +2650,7 @@
 "remote_status_compaction_reserve" = "Komprimierungsreserve: `%@` Token";
 "remote_status_output_reserve" = "Ausgabereserve: `%@` Token";
 "remote_status_active_history" = "Aktiver Verlauf: %@ Nachrichten";
-"remote_status_current_turn" = "Aktueller Durchgang: Runde %d von %d";
-"remote_status_turn_limit" = "Durchgangslimit: %d Modell-/Tool-Runden";
+"remote_status_current_turn" = "Aktueller Durchgang: Runde %d";
 "remote_status_select_project" = "Kontext: Wählen Sie ein Projekt aus, um eine Sitzung zu starten.";
 "remote_status_account_quota_not_exposed" = "Kontingent: Wird von der Chat-API dieses Anbieters nicht bereitgestellt.";
 "remote_status_openrouter_account" = "OpenRouter-Konto";

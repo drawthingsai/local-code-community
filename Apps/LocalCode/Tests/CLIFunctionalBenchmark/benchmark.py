@@ -150,7 +150,7 @@ def remote(name, message, *, names=(), marker='BENCH_OK', extra=(), setup=None,
         setup(p)
     for i in range(repeat):
         argv = ['remote-agent', '--provider', 'anthropic', '--model', 'claude-sonnet-4-6',
-                '--project', p, '--reasoning-effort', 'low', '--maximum-rounds', '12',
+                '--project', p, '--reasoning-effort', 'low',
                 '--web-search-provider', 'disabled', '--trace', '--result-json', '@RESULT@']
         if not discover:
             argv += ['--context-window-tokens', '200000', '--maximum-output-tokens', '1024']
@@ -194,7 +194,6 @@ if args.stage == 'surface':
         ('key-override-missing', remote_base + ['--message', 'x', '--api-key-environment', 'CLI_BENCH_UNSET'], None, 'CLI_BENCH_UNSET'),
         ('kagi-key-missing', remote_base + ['--message', 'x', '--web-search-provider', 'kagi', '--web-search-api-key-environment', 'CLI_BENCH_UNSET'], None, 'CLI_BENCH_UNSET'),
         ('remote-context-invalid', remote_base + ['--message', 'x', '--context-window-tokens', '1'], None, '4096'),
-        ('remote-rounds-invalid', remote_base + ['--message', 'x', '--maximum-rounds', '0'], None, 'greater than zero'),
         ('remote-compaction-invalid', remote_base + ['--message', 'x', '--compaction-threshold', '.2'], None, '0.35'),
         ('auth-custom-endpoint', ['auth', 'login', '--provider', 'anthropic', '--base-url', 'https://example.com'], None, 'official endpoint'),
         ('auth-unsupported-provider', ['auth', 'login', '--provider', 'openrouter'], None, 'supports'),
@@ -331,8 +330,6 @@ if args.stage == 'remote-controls':
            check=lambda p,r,t: require('ANCESTOR_35' in r['finalText'], 'Ancestor skill not read'))
     remote('builtin-skill', 'Use read to open the SKILL.md for the bundled answers-charts skill from your skill catalog. Report its name followed by BENCH_OK.',names=['read'],
            check=lambda p,r,t: require('/app_bundle/' in json.dumps(r['state']['transcript']), 'Bundled skill path not exercised'))
-    run('round-cap', base + ['--maximum-rounds','1','--message','Use write to create round.txt containing ROUND_42. Then reply DONE.'], expected=1,
-        check=lambda r,t: require(r and r.get('error') and 'round_limit_reached' in json.dumps(r['state']['transcript']) and not (p/'round.txt').exists(), 'Round cap did not stop tool execution/save error'))
     run('output-cap', base + ['--maximum-output-tokens','512','--message','Output a numbered list of 2000 distinct short sentences. Do not use tools or stop early.'], expected=1,
         check=lambda r,t: require(r and r.get('error') and r['requests'], 'Output cap missing error snapshot'))
     for sig in [signal.SIGINT,signal.SIGTERM]:

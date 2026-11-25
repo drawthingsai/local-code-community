@@ -2650,8 +2650,7 @@
 "remote_status_compaction_reserve" = "Réserve de compactage : `%@` jetons";
 "remote_status_output_reserve" = "Réserve de sortie : `%@` jetons";
 "remote_status_active_history" = "Historique actif : %@ messages";
-"remote_status_current_turn" = "Tour actuel : manche %d sur %d";
-"remote_status_turn_limit" = "Limite par tour : %d manches modèle/outil";
+"remote_status_current_turn" = "Tour actuel : manche %d";
 "remote_status_select_project" = "Contexte : sélectionnez un projet pour démarrer une session.";
 "remote_status_account_quota_not_exposed" = "Quota du compte : non exposé par l’API de chat de ce fournisseur.";
 "remote_status_openrouter_account" = "Compte OpenRouter";

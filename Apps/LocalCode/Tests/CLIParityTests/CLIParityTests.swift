@@ -1402,7 +1402,7 @@ final class CLIParityTests: XCTestCase {
     ]
     for arguments in [
       ["--context-window-tokens", "4095"], ["--maximum-output-tokens", "0"],
-      ["--maximum-rounds", "0"], ["--compaction-threshold", "nan"],
+      ["--compaction-threshold", "nan"],
       ["--compaction-threshold", "0.95"], ["--compaction-target", "0.9"],
     ] {
       XCTAssertThrowsError(try LocalCodeCLI.parseAsRoot(remote + arguments))

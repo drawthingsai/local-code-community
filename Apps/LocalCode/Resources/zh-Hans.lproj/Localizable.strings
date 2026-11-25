@@ -2626,8 +2626,7 @@
 "remote_status_compaction_reserve" = "压缩预留：`%@` 令牌";
 "remote_status_output_reserve" = "输出预留：`%@` 令牌";
 "remote_status_active_history" = "当前历史：%@ 条消息";
-"remote_status_current_turn" = "当前轮次：第 %d 轮，共 %d 轮";
-"remote_status_turn_limit" = "轮次上限：%d 轮模型/工具调用";
+"remote_status_current_turn" = "当前轮次：第 %d 轮";
 "remote_status_select_project" = "上下文：选择一个项目以开始会话。";
 "remote_status_account_quota_not_exposed" = "账户配额：此提供商的聊天 API 未提供。";
 "remote_status_openrouter_account" = "OpenRouter 账户";

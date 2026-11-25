@@ -2610,8 +2610,7 @@
 "remote_status_compaction_reserve" = "Reserva de compactación: `%@` tokens";
 "remote_status_output_reserve" = "Reserva de salida: `%@` tokens";
 "remote_status_active_history" = "Historial activo: %@ mensajes";
-"remote_status_current_turn" = "Turno actual: ronda %d de %d";
-"remote_status_turn_limit" = "Límite por turno: %d rondas de modelo/herramienta";
+"remote_status_current_turn" = "Turno actual: ronda %d";
 "remote_status_select_project" = "Contexto: selecciona un proyecto para iniciar una sesión.";
 "remote_status_account_quota_not_exposed" = "Cuota de la cuenta: la API de chat de este proveedor no la expone.";
 "remote_status_openrouter_account" = "Cuenta de OpenRouter";

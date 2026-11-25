@@ -2923,8 +2923,7 @@
 "remote_status_compaction_reserve" = "Compaction reserve: `%@` tokens";
 "remote_status_output_reserve" = "Output reserve: `%@` tokens";
 "remote_status_active_history" = "Active history: %@ messages";
-"remote_status_current_turn" = "Current turn: round %d of %d";
-"remote_status_turn_limit" = "Turn limit: %d model/tool rounds";
+"remote_status_current_turn" = "Current turn: round %d";
 "remote_status_select_project" = "Context: Select a project to start a session.";
 "remote_status_account_quota_not_exposed" = "Account quota: Not exposed by this provider’s chat API.";
 "remote_status_openrouter_account" = "OpenRouter account";

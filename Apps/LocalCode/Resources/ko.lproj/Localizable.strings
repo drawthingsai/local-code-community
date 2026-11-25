@@ -2651,8 +2651,7 @@
 "remote_status_compaction_reserve" = "압축 예약: `%@` 토큰";
 "remote_status_output_reserve" = "출력 예약: `%@` 토큰";
 "remote_status_active_history" = "활성 기록: 메시지 %@개";
-"remote_status_current_turn" = "현재 턴: %d / %d 라운드";
-"remote_status_turn_limit" = "턴 한도: 모델/도구 %d 라운드";
+"remote_status_current_turn" = "현재 턴: %d 라운드";
 "remote_status_select_project" = "컨텍스트: 프로젝트를 선택하여 세션을 시작하세요.";
 "remote_status_account_quota_not_exposed" = "계정 할당량: 이 제공업체의 채팅 API에서 제공하지 않습니다.";
 "remote_status_openrouter_account" = "OpenRouter 계정";

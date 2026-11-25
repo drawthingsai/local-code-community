@@ -22,7 +22,7 @@ Stages:
 - `remote`: prompts, every shared tool, embedded runtimes, live DuckDuckGo,
   local HTTP page fetching, metadata discovery, reasoning options, skills,
   and saved conversation continuation.
-- `remote-controls`: templates, ancestor and bundled skills, round/output caps,
+- `remote-controls`: templates, ancestor and bundled skills, output caps,
   SIGINT/SIGTERM during shell execution, tool failures, and a live Claude
   compaction request over a clearly synthetic saved history.
 - `local`: installed Qwen 3.8 27B i4x inference, shared tools, continuation,
