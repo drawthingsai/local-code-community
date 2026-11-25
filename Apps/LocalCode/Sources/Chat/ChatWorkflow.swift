@@ -2662,7 +2662,8 @@ extension ChatWorkflow: ItemSelectWorkflowDelegate {
           return
         }
       #endif
-      UIApplication.shared.open(fileURLs[0].deletingLastPathComponent())
+      UIApplication.shared.open(
+        ExternalURLPolicy.revealURL(forFolder: fileURLs[0].deletingLastPathComponent()))
     }
     // Keep files another downloaded model still needs, such as an engram its variants share.
     let filesRequired = LLMZoo.availableFiles(excluding: LLMZoo.self).union(

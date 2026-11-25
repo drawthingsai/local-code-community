@@ -6,7 +6,18 @@ import UIKit
 enum ExternalURLPolicy {
   static func allows(_ url: URL) -> Bool {
     guard let scheme = url.scheme?.lowercased() else { return false }
-    return ["http", "https", "mailto", "file"].contains(scheme)
+    return ["http", "https", "mailto", "file", "shareddocuments"].contains(scheme)
+  }
+
+  /// What "Reveal in Files..." opens for a folder. iOS opens nothing for a file: URL; the Files app
+  /// shows the folder at a shareddocuments: URL's path. A Mac has no Files app, and Finder opens
+  /// the file: URL.
+  static func revealURL(forFolder url: URL) -> URL {
+    guard !ProcessInfo.processInfo.isMacCatalystApp,
+      var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    else { return url }
+    components.scheme = "shareddocuments"
+    return components.url ?? url
   }
 }
 

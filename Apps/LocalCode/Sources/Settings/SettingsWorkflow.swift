@@ -2218,7 +2218,7 @@ extension SettingsWorkflow: ProjectControllerDelegate {
     let url = URL(fileURLWithPath: projectPath, isDirectory: true)
     let workspaceURL = url.deletingLastPathComponent()
     let didStartAccessing = workspaceURL.startAccessingSecurityScopedResource()
-    UIApplication.shared.open(url, options: [:]) { _ in
+    UIApplication.shared.open(ExternalURLPolicy.revealURL(forFolder: url), options: [:]) { _ in
       if didStartAccessing {
         workspaceURL.stopAccessingSecurityScopedResource()
       }
@@ -2244,7 +2244,7 @@ extension SettingsWorkflow: ProjectControllerDelegate {
   func projectControllerDidSelectRevealWorkspace(_ controller: ProjectController) {
     let url = workspaceFolderURL
     let didStartAccessing = url.startAccessingSecurityScopedResource()
-    UIApplication.shared.open(url, options: [:]) { _ in
+    UIApplication.shared.open(ExternalURLPolicy.revealURL(forFolder: url), options: [:]) { _ in
       if didStartAccessing {
         url.stopAccessingSecurityScopedResource()
       }
