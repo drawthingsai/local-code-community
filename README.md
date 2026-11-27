@@ -91,9 +91,11 @@ Speeds are in tokens per second, given as prefill / decode. Each column starts w
 | --- | --- | --- | --- | --- |
 | Qwen 3.8 27B (4-bit S) | 1,450 / 40.4 | 1,296 / 35.0 | 1,005 / 27.9 | 456 / 13.5 |
 | DeepSeek 4 Flash 0731 (2-bit S) | 1,361 / 42.3 | 1,316 / 41.7 | 1,237 / 40.9 | 924 / 36.7 |
-| DeepSeek 4.1 Flash 1017 (2-bit S) | 346 / 18.7 | 339 / 17.1 | 339 / 17.2 | 355 / 15.7 |
+| DeepSeek 4.1 Flash 1017 (2-bit S) | 417 / 24.1 | 416 / 21.5 | 418 / 22.4 | 424 / 22.4 |
+| Inkling 2 Small (2-bit S) | 278 / 15.4 | 282 / 15.4 | 273 / 13.4 | 277 / 14.9 |
+| Inkling 2 Mini (3-bit S) | 3,115 / 75.1 | 2,902 / 71.1 | 2,645 / 65.8 | 1,495 / 46.1 |
 
-On the M5 Max, the DeepSeek 4.1 Flash 1017 readings set Weights Streaming to 56 GiB (`--weights-streaming 56` in the CLI). DeepSeek 4 Flash 0731 keeps all of its weights in memory.
+On the M5 Max, the DeepSeek 4.1 Flash 1017 readings set Weights Streaming to 56 GiB (`--weights-streaming 56` in the CLI), and Inkling 2 Small streams at 72 GiB, the tier Local Code picks with 128 GB. DeepSeek 4 Flash 0731 and Inkling 2 Mini keep all of their weights in memory.
 
 **M5 Ultra, 256 GB**
 
@@ -126,11 +128,24 @@ These readings decode without a draft model. DeepSeek 4.1 Flash 1017, GLM 5.3 Fl
 | Inkling 2 Mini (3-bit S) | 86.7 → 109.6 | 84.2 → 108.0 | 79.9 → 102.3 | 63.5 → 91.3 |
 | Inkling 2 Mini (4-bit S) | 84.4 → 101.3 | 82.0 → 103.2 | 77.9 → 102.4 | 62.2 → 91.8 |
 
-Both speeds in each cell come from the same kind of run, so the first can differ a little from the decode readings above.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/decode-draft-model-m5-max-dark.svg">
+  <img alt="Decode speed on an M5 Max with 32K tokens already in context, without and with the draft model, for DeepSeek 4.1 Flash 1017, Inkling 2 Small and Inkling 2 Mini (3-bit S). The data is in the table below the chart." src=".github/images/decode-draft-model-m5-max-light.svg">
+</picture>
 
-How much the draft model helps depends on what it decodes, so this table shows what the replies with the draft model hold: each token by the kind of text it is part of, as a share of each model's tokens over all four context lengths (444,472 tokens in all). About four in five tokens are thinking, mostly prose and lists, which are harder to guess than code.
+**M5 Max, 128 GB, decode without → with the draft model**
 
-**What the replies with the draft model hold, share of tokens**
+| Model | 8K already in context | 16K already in context | 32K already in context | 128K already in context |
+| --- | --- | --- | --- | --- |
+| DeepSeek 4.1 Flash 1017 (2-bit S) | 22.1 → 24.6 | 22.3 → 24.3 | 22.6 → 24.8 | 21.6 → 23.2 |
+| Inkling 2 Small (2-bit S) | 18.7 → 17.4 | 18.5 → 18.3 | 17.9 → 16.7 | 15.7 → 14.6 |
+| Inkling 2 Mini (3-bit S) | 71.0 → 77.3 | 68.7 → 81.8 | 61.1 → 70.8 | 45.8 → 57.9 |
+
+Both speeds in each cell come from the same kind of run, so the first can differ a little from the decode readings above. On the M5 Max, the GPU rests 20 seconds before each prefill chunk and each task, as it does before each reading above. DeepSeek 4.1 Flash 1017 and Inkling 2 Small stream their weights there, and gain less from the draft model: Inkling 2 Small decodes a little slower with it.
+
+How much the draft model helps depends on what it decodes, so these tables show what the replies with the draft model hold: each token by the kind of text it is part of, as a share of each model's tokens over all four context lengths (444,472 tokens in all on the M5 Ultra, and 252,752 on the M5 Max). The two Macs' replies differ, so their shares do too. About four in five tokens are thinking, mostly prose and lists, which are harder to guess than code.
+
+**M5 Ultra, 256 GB, what the replies with the draft model hold, share of tokens**
 
 | Kind of token | DeepSeek 4.1 Flash 1017 (2-bit S) | GLM 5.3 Flash (4-bit S) | Inkling 2 Small (2-bit S) | Inkling 2 Mini (3-bit S) | Inkling 2 Mini (4-bit S) | All five |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -154,12 +169,40 @@ How much the draft model helps depends on what it decodes, so this table shows w
 | Answer, tables | 0.0% | 0.0% | 0.1% | 0.0% | 0.0% | 0.0% |
 | **Answer, all** | **13.4%** | **20.2%** | **20.0%** | **19.4%** | **20.0%** | **18.7%** |
 
-Prose is sentences and paragraphs, and list items are bulleted or numbered lines. Inline code is names and short snippets in backticks inside sentences. Python, Swift, other code and JSON are code blocks and lines of code, and math is equations and arithmetic. French is the translation, and the drafts of it while thinking. Each reply is split into tokens with its model's tokenizer, and each token counts once, as the kind of text most of its characters are part of. In the JSON task, Inkling 2 Small and Inkling 2 Mini (4-bit S) spent all 4,096 tokens thinking, so their replies hold no JSON.
+**M5 Max, 128 GB, what the replies with the draft model hold, share of tokens**
+
+| Kind of token | DeepSeek 4.1 Flash 1017 (2-bit S) | Inkling 2 Small (2-bit S) | Inkling 2 Mini (3-bit S) | All three |
+| --- | --- | --- | --- | --- |
+| Thinking, prose | 31.6% | 43.6% | 42.0% | 39.7% |
+| Thinking, list items | 11.4% | 23.3% | 13.1% | 16.2% |
+| Thinking, French | 1.6% | 1.3% | 1.6% | 1.5% |
+| Thinking, inline code | 4.2% | 7.0% | 5.9% | 5.8% |
+| Thinking, Python | 10.4% | 6.0% | 9.6% | 8.5% |
+| Thinking, Swift | 0.9% | 2.0% | 1.0% | 1.4% |
+| Thinking, shell | 0.9% | 0.0% | 0.0% | 0.3% |
+| Thinking, other code | 0.0% | 0.1% | 0.3% | 0.1% |
+| Thinking, math | 2.1% | 3.7% | 4.2% | 3.5% |
+| **Thinking, all** | **63.0%** | **87.0%** | **77.6%** | **77.0%** |
+| Answer, prose | 12.2% | 3.7% | 10.3% | 8.5% |
+| Answer, list items | 2.6% | 0.9% | 1.4% | 1.6% |
+| Answer, French | 0.9% | 0.6% | 0.5% | 0.6% |
+| Answer, inline code | 4.2% | 0.8% | 1.4% | 1.9% |
+| Answer, Python | 6.8% | 4.0% | 4.8% | 5.1% |
+| Answer, Swift | 0.8% | 0.7% | 0.6% | 0.7% |
+| Answer, other code | 0.1% | 0.0% | 0.0% | 0.0% |
+| Answer, JSON | 5.5% | 0.0% | 1.0% | 1.9% |
+| Answer, math | 2.3% | 2.2% | 2.3% | 2.3% |
+| Answer, tables | 1.6% | 0.0% | 0.0% | 0.4% |
+| **Answer, all** | **37.0%** | **13.0%** | **22.4%** | **23.0%** |
+
+Prose is sentences and paragraphs, and list items are bulleted or numbered lines. Inline code is names and short snippets in backticks inside sentences. Python, Swift, shell, other code and JSON are code blocks and lines of code, and math is equations and arithmetic. French is the translation, and the drafts of it while thinking. Each reply is split into tokens with its model's tokenizer, and each token counts once, as the kind of text most of its characters are part of. In the JSON task, Inkling 2 Small (on both Macs) and Inkling 2 Mini (4-bit S) spent all 4,096 tokens thinking, so their replies hold no JSON.
 
 <details>
 <summary>Per task</summary>
 
 Decode speeds in tokens per second, without → with the draft model, at 32K already in context.
+
+**M5 Ultra, 256 GB**
 
 | Model | Explain code | Rewrite a function | Write a module | Refactor Swift | JSON | Word problem | Essay | Translation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -169,7 +212,17 @@ Decode speeds in tokens per second, without → with the draft model, at 32K alr
 | Inkling 2 Mini (3-bit S) | 80 → 106 | 80 → 118 | 80 → 109 | 80 → 107 | 80 → 109 | 80 → 103 | 80 → 78 | 80 → 85 |
 | Inkling 2 Mini (4-bit S) | 78 → 108 | 78 → 111 | 78 → 136 | 78 → 95 | 78 → 104 | 78 → 98 | 78 → 79 | 78 → 87 |
 
-What each task's replies with the draft model hold, as a share of its tokens, over all five models and four context lengths.
+**M5 Max, 128 GB**
+
+| Model | Explain code | Rewrite a function | Write a module | Refactor Swift | JSON | Word problem | Essay | Translation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| DeepSeek 4.1 Flash 1017 (2-bit S) | 23 → 23 | 20 → 20 | 22 → 27 | 21 → 22 | 24 → 27 | 28 → 31 | 23 → 23 | 21 → 25 |
+| Inkling 2 Small (2-bit S) | 17 → 16 | 17 → 16 | 17 → 16 | 16 → 16 | 18 → 17 | 21 → 19 | 19 → 17 | 18 → 17 |
+| Inkling 2 Mini (3-bit S) | 64 → 72 | 62 → 82 | 60 → 73 | 57 → 67 | 59 → 71 | 61 → 70 | 61 → 61 | 62 → 65 |
+
+What each task's replies with the draft model hold, as a share of its tokens, over all of a Mac's models and four context lengths.
+
+**M5 Ultra, 256 GB, five models**
 
 | Kind of token | Explain code | Rewrite a function | Write a module | Refactor Swift | JSON | Word problem | Essay | Translation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -193,6 +246,32 @@ What each task's replies with the draft model hold, as a share of its tokens, ov
 | Answer, math | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 27.0% | 0.0% | 0.0% |
 | Answer, tables | 0.2% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
 | **Answer, all** | **9.6%** | **8.6%** | **15.6%** | **29.9%** | **11.9%** | **35.2%** | **33.0%** | **15.7%** |
+
+**M5 Max, 128 GB, three models**
+
+| Kind of token | Explain code | Rewrite a function | Write a module | Refactor Swift | JSON | Word problem | Essay | Translation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Thinking, prose | 23.6% | 50.3% | 25.6% | 24.9% | 74.5% | 34.4% | 38.7% | 39.1% |
+| Thinking, list items | 36.1% | 5.1% | 7.7% | 9.4% | 13.3% | 0.0% | 27.2% | 0.0% |
+| Thinking, French | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 42.4% |
+| Thinking, inline code | 16.0% | 13.6% | 3.0% | 14.4% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thinking, Python | 0.2% | 19.0% | 36.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thinking, Swift | 0.0% | 0.0% | 0.0% | 18.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thinking, shell | 0.0% | 0.0% | 1.4% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thinking, other code | 0.0% | 1.2% | 0.0% | 0.0% | 0.0% | 0.2% | 0.0% | 0.0% |
+| Thinking, math | 1.8% | 4.5% | 0.8% | 0.7% | 1.1% | 27.2% | 1.5% | 0.1% |
+| **Thinking, all** | **77.6%** | **93.7%** | **74.5%** | **67.4%** | **88.9%** | **61.9%** | **67.4%** | **81.6%** |
+| Answer, prose | 5.7% | 0.1% | 0.8% | 8.2% | 0.0% | 6.8% | 32.6% | 0.0% |
+| Answer, list items | 5.7% | 0.0% | 0.1% | 7.3% | 0.0% | 0.5% | 0.0% | 0.0% |
+| Answer, French | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 18.4% |
+| Answer, inline code | 7.9% | 0.0% | 0.1% | 7.6% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Answer, Python | 0.4% | 6.1% | 24.4% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Answer, Swift | 0.0% | 0.0% | 0.0% | 9.4% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Answer, other code | 0.1% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Answer, JSON | 0.0% | 0.0% | 0.0% | 0.0% | 11.1% | 0.0% | 0.0% | 0.0% |
+| Answer, math | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 30.7% | 0.0% | 0.0% |
+| Answer, tables | 2.6% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| **Answer, all** | **22.4%** | **6.3%** | **25.5%** | **32.6%** | **11.1%** | **38.1%** | **32.6%** | **18.4%** |
 
 </details>
 
